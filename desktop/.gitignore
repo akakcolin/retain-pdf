@@ -1,3 +1,8 @@
 node_modules/
 app/
 win/
+linux/
+mac/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/.tauri/

@@ -683,6 +683,10 @@ if (!frontendOnly) {
   fs.cpSync(path.join(backendRoot, "scripts"), path.join(outputBackendRoot, "scripts"), {
     recursive: true,
     force: true,
+    filter: (sourcePath) => {
+      const basename = path.basename(sourcePath);
+      return basename !== "__pycache__" && !basename.endsWith(".pyc");
+    },
   });
   // retainpdf-ai：桌面端由 main 进程拉起，Rust 反代 41100
   const aiServiceSrc = path.join(backendRoot, "ai_service");

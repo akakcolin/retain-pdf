@@ -139,7 +139,10 @@
         barEl.style.width = `${progress}%`;
       }
 
-      if (window.retainPdfDesktop && typeof window.retainPdfDesktop.onStartupProgress === "function") {
+      const tauriEventApi = window.__TAURI__ && window.__TAURI__.event;
+      if (tauriEventApi && typeof tauriEventApi.listen === "function") {
+        tauriEventApi.listen("startup-progress", (event) => applyProgress(event.payload));
+      } else if (window.retainPdfDesktop && typeof window.retainPdfDesktop.onStartupProgress === "function") {
         window.retainPdfDesktop.onStartupProgress(applyProgress);
       }
     </script>
