@@ -1,6 +1,22 @@
-export const DEFAULT_OCR_PROVIDER = "paddle";
+export const DEFAULT_OCR_PROVIDER = "mineru";
 
 export const OCR_PROVIDER_DEFINITIONS = [
+  {
+    id: "mineru",
+    label: "MinerU",
+    description: "在线 OCR。",
+    tokenField: "mineru_token",
+    runtimeConfigKey: "mineruToken",
+    tokenLabel: "MinerU Access Token",
+    tokenPlaceholder: "MinerU Access Token",
+    validationButtonLabel: "检测 MinerU",
+    validationIdleMessage: "未检测",
+    validationMissingMessage: "请先填写 MinerU Access Token。",
+    validationUnavailableMessage: "",
+    docsUrl: "https://mineru.net/",
+    docsLabel: "获取 Token",
+    supportsValidation: true,
+  },
   {
     id: "paddle",
     label: "PaddleOCR",

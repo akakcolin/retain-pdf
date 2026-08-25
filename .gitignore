@@ -49,3 +49,10 @@ backend/typst-win32/bin/
 VERSION
 .codex
 .codex/
+
+# Local environment (ExFAT USB drive repo)
+.venv311/
+backend/rust_api/._target
+desktop/build/icon.icns
+desktop/app/
+
