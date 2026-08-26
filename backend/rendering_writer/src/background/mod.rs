@@ -13,3 +13,5 @@ pub mod image_route;
 pub mod patch;
 pub mod redaction;
 pub mod sampling;
+pub mod stage;
+pub mod toc;

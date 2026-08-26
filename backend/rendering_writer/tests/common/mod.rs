@@ -240,6 +240,39 @@ pub struct PageFact {
     pub ink_ratio: f64,
 }
 
+// --- Phase 7R-4 stage corpus ----------------------------------------------------
+
+#[derive(Deserialize)]
+pub struct StageCorpus {
+    pub schema: String,
+    pub render_scale: f64,
+    pub ink_threshold: u8,
+    pub cases: Vec<StageCase>,
+}
+
+#[derive(Deserialize)]
+pub struct StageCase {
+    pub name: String,
+    pub source_pdf_b64: String,
+    pub page_rect: Vec<f64>,
+    pub translated_pages: std::collections::BTreeMap<i32, Vec<rendering_writer::background::redaction::RedactionItem>>,
+    pub redaction_strategy: Option<String>,
+    pub precleaned_page_indices: Vec<i32>,
+    pub toc_entries: usize,
+    #[serde(default)]
+    pub toc: Vec<StageTocEntry>,
+    pub per_page_diagnostics: Vec<Option<RedactionDiagnostics>>,
+    pub expected_input: PageFacts,
+    pub expected_output: PageFacts,
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+pub struct StageTocEntry {
+    pub level: i64,
+    pub title: String,
+    pub page: i64,
+}
+
 // --- Phase 7R-2 redaction corpus -------------------------------------------------
 
 #[derive(Deserialize)]
@@ -338,6 +371,18 @@ fn load_redaction_corpus() -> &'static RedactionCorpus {
 
 pub fn redaction_corpus() -> &'static RedactionCorpus {
     load_redaction_corpus()
+}
+
+fn load_stage_corpus() -> &'static StageCorpus {
+    static CORPUS: OnceLock<StageCorpus> = OnceLock::new();
+    CORPUS.get_or_init(|| {
+        let raw = include_str!("../stage_corpus.json");
+        serde_json::from_str(raw).expect("failed to parse stage_corpus.json")
+    })
+}
+
+pub fn stage_corpus() -> &'static StageCorpus {
+    load_stage_corpus()
 }
 
 pub fn decode(b64: &str) -> Vec<u8> {

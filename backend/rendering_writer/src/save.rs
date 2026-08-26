@@ -24,6 +24,19 @@ pub fn save_options(compress: bool) -> PdfWriteOptions {
     options
 }
 
+/// `save_optimized_pdf` options — production saves with `garbage=4,
+/// deflate/deflate_images/deflate_fonts, use_objstms=1` after `subset_fonts()`.
+/// mupdf-rs has no object-stream setter and no `subset_fonts`, so the
+/// compress-image/font flags + garbage 4 approximate it (documented divergence).
+pub fn save_optimized_options() -> PdfWriteOptions {
+    let mut options = PdfWriteOptions::default();
+    options.set_compress(true);
+    options.set_compress_images(true);
+    options.set_compress_fonts(true);
+    options.set_garbage_level(4);
+    options
+}
+
 /// Drop the trailer `/ID` so a save is byte-deterministic across runs.
 pub fn delete_trailer_id(pdf: &PdfDocument) -> Result<(), Error> {
     let mut trailer = pdf.trailer()?;
@@ -31,26 +44,34 @@ pub fn delete_trailer_id(pdf: &PdfDocument) -> Result<(), Error> {
     Ok(())
 }
 
-/// Save to `path` via a short-lived sibling temp file, then rename.
-pub fn save_atomic(pdf: &PdfDocument, path: &Path) -> Result<(), Error> {
+fn save_with_options_atomic(pdf: &PdfDocument, path: &Path, options: PdfWriteOptions) -> Result<(), Error> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| Error::Io(e))?;
+        std::fs::create_dir_all(parent).map_err(Error::Io)?;
     }
     let tmp = sibling_tmp_path(path);
     let result = pdf.save_with_options(
         tmp.to_str().ok_or(Error::InvalidUtf8)?,
-        save_options(true),
+        options,
     );
     match result {
         Ok(()) => {
-            std::fs::rename(&tmp, path).map_err(|e| Error::Io(e))
+            std::fs::rename(&tmp, path).map_err(Error::Io)
         }
         Err(e) => {
             let _ = std::fs::remove_file(&tmp);
             Err(e)
         }
     }
+}
+
+/// Save to `path` via a short-lived sibling temp file, then rename.
+pub fn save_atomic(pdf: &PdfDocument, path: &Path) -> Result<(), Error> {
+    save_with_options_atomic(pdf, path, save_options(true))
+}
+
+/// `save_optimized_pdf` — same atomic pattern with the optimized options.
+pub fn save_optimized(pdf: &PdfDocument, path: &Path) -> Result<(), Error> {
+    save_with_options_atomic(pdf, path, save_optimized_options())
 }
 
 fn sibling_tmp_path(path: &Path) -> std::path::PathBuf {

@@ -39,6 +39,8 @@ pub struct RedactionItem {
     #[serde(default)]
     pub block_type: String,
     #[serde(default)]
+    pub raw_block_type: String,
+    #[serde(default)]
     pub normalized_sub_type: String,
     #[serde(default)]
     pub continuation_group: Option<String>,
