@@ -11,6 +11,10 @@ pub const SAFE_DIRECT_REDACTION_IOU_THRESHOLD: f64 = 0.8;
 pub const WORD_REDACTION_PAD_X: f64 = 1.0;
 pub const WORD_REDACTION_PAD_Y: f64 = 0.6;
 
+/// `expand_item_rect` padding (points).
+pub const ITEM_REDACTION_PAD_X: f64 = 1.5;
+pub const ITEM_REDACTION_PAD_Y: f64 = 1.0;
+
 /// `rects_should_merge`: max horizontal gap between same-row rects.
 pub const RECT_MERGE_GAP_X_PT: f64 = 3.0;
 /// `rects_should_merge`: max vertical misalignment for same-row merging.

@@ -1,7 +1,7 @@
 //! Redaction primitives, port of `source/text_redaction.py` +
 //! `source/cleanup/item_rects.py` + `source/rects.py` merge logic.
 
-use mupdf::pdf::{PdfDocument, PdfPage, PdfRedactImageMethod, PdfRedactLineArtMethod, PdfRedactOptions, PdfRedactTextMethod};
+use mupdf::pdf::{PdfPage, PdfRedactImageMethod, PdfRedactLineArtMethod, PdfRedactOptions, PdfRedactTextMethod};
 use mupdf::{Error, Rect};
 
 use rendering_core::source_cleanup::hit_test::RectTuple;
@@ -161,10 +161,6 @@ pub fn merge_rects(rects: &[RectTuple]) -> Vec<RectTuple> {
     merged.sort_by_key(merge_sort_key);
     merged
 }
-
-/// Helper bound for the executor signature (covers drawn via `PdfDocument`).
-#[allow(dead_code)]
-fn _keep_doc_bound(_doc: &PdfDocument) {}
 
 #[cfg(test)]
 mod tests {

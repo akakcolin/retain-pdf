@@ -149,3 +149,27 @@ fn redaction_engine_replay_matches_production() {
         replay_case(case, scale, threshold);
     }
 }
+
+/// Phase 7R-3 gate: the full text-span matcher (block / word / whole-bbox
+/// layers). Focused on the `textmatch_*` corpus cases so a matcher regression
+/// is attributed precisely, independent of the broader engine replay above.
+#[test]
+fn redaction_text_matching_replay() {
+    let corpus = redaction_corpus();
+    let scale = corpus.render_scale as f32;
+    let threshold = corpus.ink_threshold;
+    let cases: Vec<&RedactionCase> = corpus
+        .cases
+        .iter()
+        .filter(|c| c.name.starts_with("textmatch_"))
+        .collect();
+    assert_eq!(
+        cases.len(),
+        4,
+        "expected the four Phase 7R-3 matcher cases, got {}",
+        cases.len()
+    );
+    for case in cases {
+        replay_case(case, scale, threshold);
+    }
+}

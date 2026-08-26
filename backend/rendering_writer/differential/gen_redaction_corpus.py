@@ -307,6 +307,65 @@ def main() -> None:
     cases.append(make_case("empty_auto", None, False, [(100.0, "Alpha")], empty_items, None))
     cases.append(make_case("empty_visual", "visual_cover", False, [(100.0, "Alpha")], empty_items, None))
 
+    # --- Phase 7R-3 full text-span matcher cases ---------------------------------
+    # Each item below deliberately breaks safe-direct (bbox much bigger than the
+    # span) so the block / word / whole-bbox layers are exercised deterministically.
+
+    # 11. Word-hit: a long line, item bbox around ONE word only. The block center
+    #     (mid-line) falls outside the item bbox, so the block layer misses and the
+    #     word layer removes just that word.
+    long_line = [(100.0, "The quick brown fox jumps over the lazy dog")]
+    d_word = fitz.open(stream=build_text_page(long_line), filetype="pdf")
+    p_word = d_word.load_page(0)
+    quick_rect = next(fitz.Rect(w[:4]) for w in p_word.get_text("words") if w[4] == "quick")
+    word_item = {
+        "bbox": [quick_rect.x0 - 2.0, quick_rect.y0 - 4.0, quick_rect.x1 + 2.0, quick_rect.y1 + 4.0],
+        "translated_text": "快速",
+        "source_text": "quick",
+    }
+    cases.append(make_case("textmatch_word_hit", None, False, long_line, [word_item], [True]))
+
+    # 12. Block-hit: item bbox == the line block inflated horizontally, so safe-direct
+    #     fails on size while the block center stays inside -> the block layer returns
+    #     the whole block expanded, removing all its words.
+    line_block = [(150.0, "Alpha Beta Gamma")]
+    d_block = fitz.open(stream=build_text_page(line_block), filetype="pdf")
+    p_block = d_block.load_page(0)
+    block_rect = next(fitz.Rect(b[:4]) for b in p_block.get_text("blocks") if b[6] == 0)
+    block_item = {
+        "bbox": [block_rect.x0 - 8.0, block_rect.y0 - 2.0, block_rect.x1 + 8.0, block_rect.y1 + 2.0],
+        "translated_text": "阿尔法 贝塔",
+        "source_text": "Alpha Beta",
+    }
+    cases.append(make_case("textmatch_block_hit", None, False, line_block, [block_item], [True]))
+
+    # 13. No match: source_text words absent from the page -> block/word layers both
+    #     miss -> [] removable -> whole-bbox cover (text stays in the layer).
+    nomatch_line = [(200.0, "Delta Epsilon")]
+    d_nm = fitz.open(stream=build_text_page(nomatch_line), filetype="pdf")
+    p_nm = d_nm.load_page(0)
+    nm_block = next(fitz.Rect(b[:4]) for b in p_nm.get_text("blocks") if b[6] == 0)
+    nomatch_item = {
+        "bbox": [nm_block.x0 - 8.0, nm_block.y0 - 2.0, nm_block.x1 + 8.0, nm_block.y1 + 2.0],
+        "translated_text": "德尔塔",
+        "source_text": "zzzzzz",
+    }
+    cases.append(make_case("textmatch_no_match_cover", None, False, nomatch_line, [nomatch_item], [False]))
+
+    # 14. Whole-bbox fallback: source_text normalizes to zero words ("!!!") but the
+    #     item contains two owned words ("brown fox", block center outside) -> with
+    #     empty source_words and pdf_words >= 2 the item removes its whole bbox.
+    d_wb = fitz.open(stream=build_text_page(long_line), filetype="pdf")
+    p_wb = d_wb.load_page(0)
+    brown_rect = next(fitz.Rect(w[:4]) for w in p_wb.get_text("words") if w[4] == "brown")
+    fox_rect = next(fitz.Rect(w[:4]) for w in p_wb.get_text("words") if w[4] == "fox")
+    bbox_item = {
+        "bbox": [brown_rect.x0 - 2.0, brown_rect.y0 - 4.0, fox_rect.x1 + 2.0, fox_rect.y1 + 4.0],
+        "translated_text": "棕色狐狸",
+        "source_text": "!!!",
+    }
+    cases.append(make_case("textmatch_whole_bbox_fallback", None, False, long_line, [bbox_item], [True]))
+
     corpus = {
         "schema": "retainpdf_redaction_corpus_v1",
         "render_scale": RENDER_SCALE,
