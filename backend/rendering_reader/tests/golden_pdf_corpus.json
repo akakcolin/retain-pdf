@@ -1,0 +1,3120 @@
+{
+ "background_threshold": 0.75,
+ "pdfs": {
+  "1.pdf": {
+   "category": "editable-paper",
+   "page_count": 13,
+   "pages": {
+    "0": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        625.4359741210938,
+        818.3619995117188
+       ],
+       "height_pt": 818.3619995117188,
+       "page_index": 0,
+       "rotation": 0,
+       "width_pt": 625.4359741210938
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 50,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "drawing_count": 50,
+      "image_entries": [
+       103,
+       104
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 103
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 104
+       }
+      ],
+      "image_rects": {},
+      "number": 0,
+      "rect": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 573
+     }
+    },
+    "1": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        625.4359741210938,
+        818.3619995117188
+       ],
+       "height_pt": 818.3619995117188,
+       "page_index": 1,
+       "rotation": 0,
+       "width_pt": 625.4359741210938
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 14,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "drawing_count": 14,
+      "image_entries": [
+       131,
+       132
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 131
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 132
+       }
+      ],
+      "image_rects": {},
+      "number": 1,
+      "rect": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 755
+     }
+    },
+    "10": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        625.4359741210938,
+        818.3619995117188
+       ],
+       "height_pt": 818.3619995117188,
+       "page_index": 10,
+       "rotation": 0,
+       "width_pt": 625.4359741210938
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 16,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "drawing_count": 16,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 10,
+      "rect": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 1396
+     }
+    },
+    "11": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        625.4359741210938,
+        818.3619995117188
+       ],
+       "height_pt": 818.3619995117188,
+       "page_index": 11,
+       "rotation": 0,
+       "width_pt": 625.4359741210938
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 11,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "drawing_count": 11,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 11,
+      "rect": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 1427
+     }
+    },
+    "12": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        625.4359741210938,
+        818.3619995117188
+       ],
+       "height_pt": 818.3619995117188,
+       "page_index": 12,
+       "rotation": 0,
+       "width_pt": 625.4359741210938
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 11,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "drawing_count": 11,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 12,
+      "rect": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 359
+     }
+    },
+    "2": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        625.4359741210938,
+        818.3619995117188
+       ],
+       "height_pt": 818.3619995117188,
+       "page_index": 2,
+       "rotation": 0,
+       "width_pt": 625.4359741210938
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 17,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "drawing_count": 17,
+      "image_entries": [
+       161,
+       162,
+       163,
+       164
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 161
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 162
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 163
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 164
+       }
+      ],
+      "image_rects": {},
+      "number": 2,
+      "rect": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 526
+     }
+    },
+    "3": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        625.4359741210938,
+        818.3619995117188
+       ],
+       "height_pt": 818.3619995117188,
+       "page_index": 3,
+       "rotation": 0,
+       "width_pt": 625.4359741210938
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 12,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "drawing_count": 12,
+      "image_entries": [
+       181
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 181
+       }
+      ],
+      "image_rects": {},
+      "number": 3,
+      "rect": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 821
+     }
+    },
+    "4": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        625.4359741210938,
+        818.3619995117188
+       ],
+       "height_pt": 818.3619995117188,
+       "page_index": 4,
+       "rotation": 0,
+       "width_pt": 625.4359741210938
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 15,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "drawing_count": 15,
+      "image_entries": [
+       205,
+       206,
+       207
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 205
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 206
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 207
+       }
+      ],
+      "image_rects": {},
+      "number": 4,
+      "rect": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 644
+     }
+    },
+    "5": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        625.4359741210938,
+        818.3619995117188
+       ],
+       "height_pt": 818.3619995117188,
+       "page_index": 5,
+       "rotation": 0,
+       "width_pt": 625.4359741210938
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 13,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "drawing_count": 13,
+      "image_entries": [
+       231,
+       232
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 231
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 232
+       }
+      ],
+      "image_rects": {},
+      "number": 5,
+      "rect": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 586
+     }
+    },
+    "6": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        625.4359741210938,
+        818.3619995117188
+       ],
+       "height_pt": 818.3619995117188,
+       "page_index": 6,
+       "rotation": 0,
+       "width_pt": 625.4359741210938
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 19,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "drawing_count": 19,
+      "image_entries": [
+       257,
+       258
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 257
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 258
+       }
+      ],
+      "image_rects": {},
+      "number": 6,
+      "rect": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 867
+     }
+    },
+    "7": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        625.4359741210938,
+        818.3619995117188
+       ],
+       "height_pt": 818.3619995117188,
+       "page_index": 7,
+       "rotation": 0,
+       "width_pt": 625.4359741210938
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 15,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "drawing_count": 15,
+      "image_entries": [
+       280,
+       281
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 280
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 281
+       }
+      ],
+      "image_rects": {},
+      "number": 7,
+      "rect": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 757
+     }
+    },
+    "8": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        625.4359741210938,
+        818.3619995117188
+       ],
+       "height_pt": 818.3619995117188,
+       "page_index": 8,
+       "rotation": 0,
+       "width_pt": 625.4359741210938
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 15,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "drawing_count": 15,
+      "image_entries": [
+       304,
+       305,
+       306,
+       307,
+       308
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 304
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 305
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 306
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 307
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 308
+       }
+      ],
+      "image_rects": {},
+      "number": 8,
+      "rect": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 661
+     }
+    },
+    "9": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        625.4359741210938,
+        818.3619995117188
+       ],
+       "height_pt": 818.3619995117188,
+       "page_index": 9,
+       "rotation": 0,
+       "width_pt": 625.4359741210938
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 11,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "drawing_count": 11,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 9,
+      "rect": [
+       0.0,
+       0.0,
+       625.4359741210938,
+       818.3619995117188
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 947
+     }
+    }
+   }
+  },
+  "2.pdf": {
+   "category": "pseudo-editable",
+   "page_count": 29,
+   "pages": {
+    "0": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 0,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 0,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 692
+     }
+    },
+    "1": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 1,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 1,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 1,
+      "image_entries": [
+       17
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 17
+       }
+      ],
+      "image_rects": {},
+      "number": 1,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 625
+     }
+    },
+    "10": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 10,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 4,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 4,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 10,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 696
+     }
+    },
+    "11": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 11,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 35,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 35,
+      "image_entries": [
+       70
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 70
+       }
+      ],
+      "image_rects": {},
+      "number": 11,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 444
+     }
+    },
+    "12": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 12,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 4,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 4,
+      "image_entries": [
+       75,
+       76
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 75
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 76
+       }
+      ],
+      "image_rects": {},
+      "number": 12,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 619
+     }
+    },
+    "13": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 13,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [
+       82
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 82
+       }
+      ],
+      "image_rects": {},
+      "number": 13,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 291
+     }
+    },
+    "14": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 14,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [
+       87
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 87
+       }
+      ],
+      "image_rects": {},
+      "number": 14,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 236
+     }
+    },
+    "15": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 15,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [
+       93
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 93
+       }
+      ],
+      "image_rects": {},
+      "number": 15,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 640
+     }
+    },
+    "16": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 16,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [
+       98,
+       99
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 98
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 99
+       }
+      ],
+      "image_rects": {},
+      "number": 16,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 607
+     }
+    },
+    "17": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 17,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [
+       104
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 104
+       }
+      ],
+      "image_rects": {},
+      "number": 17,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 207
+     }
+    },
+    "18": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 18,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [
+       109
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 109
+       }
+      ],
+      "image_rects": {},
+      "number": 18,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 236
+     }
+    },
+    "19": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 19,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [
+       115
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 115
+       }
+      ],
+      "image_rects": {},
+      "number": 19,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 319
+     }
+    },
+    "2": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 2,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 1,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 1,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 2,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 916
+     }
+    },
+    "20": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 20,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 20,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 903
+     }
+    },
+    "21": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 21,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 21,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 987
+     }
+    },
+    "22": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 22,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 4,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 4,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 22,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 653
+     }
+    },
+    "23": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 23,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [
+       132,
+       133,
+       134
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 132
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 133
+       },
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 134
+       }
+      ],
+      "image_rects": {},
+      "number": 23,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 420
+     }
+    },
+    "24": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 24,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 5,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 5,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 24,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 582
+     }
+    },
+    "25": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 25,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 7,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 7,
+      "image_entries": [
+       144
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 144
+       }
+      ],
+      "image_rects": {},
+      "number": 25,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 604
+     }
+    },
+    "26": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 26,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 26,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 949
+     }
+    },
+    "27": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 27,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 27,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 1022
+     }
+    },
+    "28": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 28,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 28,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 721
+     }
+    },
+    "3": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 3,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [
+       27
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 27
+       }
+      ],
+      "image_rects": {},
+      "number": 3,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 739
+     }
+    },
+    "4": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 4,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 9,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 9,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 4,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 604
+     }
+    },
+    "5": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 5,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 9,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 9,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 5,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 731
+     }
+    },
+    "6": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 6,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 1,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 1,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 6,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 946
+     }
+    },
+    "7": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 7,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 0,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 0,
+      "image_entries": [
+       51
+      ],
+      "image_infos": [
+       {
+        "bbox": [
+         0.0,
+         0.0,
+         0.0,
+         0.0
+        ],
+        "xref": 51
+       }
+      ],
+      "image_rects": {},
+      "number": 7,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 720
+     }
+    },
+    "8": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 8,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 4,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 4,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 8,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 698
+     }
+    },
+    "9": {
+     "expected_profile": {
+      "geometry": {
+       "cropbox": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+       ],
+       "height_pt": 792.0,
+       "page_index": 9,
+       "rotation": 0,
+       "width_pt": 612.0
+      },
+      "image_background": {
+       "bbox": null,
+       "coverage_ratio": 0.0,
+       "has_large_background": false,
+       "xref": null
+      },
+      "kind": "editable_text",
+      "ocr_blocks": {
+       "block_count": 0,
+       "page_area_ratio": 0.0,
+       "total_bbox_area": 0,
+       "valid_bbox_count": 0
+      },
+      "text_layer": {
+       "editable": true,
+       "has_hidden_text": false,
+       "has_visible_text": true,
+       "hidden_traces": 0,
+       "visible_traces": 0
+      },
+      "vector_layer": {
+       "cover_only_preferred": false,
+       "drawing_count": 2,
+       "vector_heavy": false
+      }
+     },
+     "snapshot": {
+      "cropbox": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "drawing_count": 2,
+      "image_entries": [],
+      "image_infos": [],
+      "image_rects": {},
+      "number": 9,
+      "rect": [
+       0.0,
+       0.0,
+       612.0,
+       792.0
+      ],
+      "rotation": 0,
+      "text_traces": [],
+      "word_count": 939
+     }
+    }
+   }
+  }
+ },
+ "schema": "retainpdf_golden_pdf_corpus_v1"
+}

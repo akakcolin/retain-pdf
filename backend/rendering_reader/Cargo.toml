@@ -1,0 +1,12 @@
+[package]
+name = "rendering_reader"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+mupdf = { version = "0.8", default-features = false, features = ["base14-fonts"] }
+rendering_core = { path = "../rendering_core" }
+
+[dev-dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
