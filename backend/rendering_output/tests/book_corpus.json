@@ -1,0 +1,514 @@
+[
+  {
+    "dims": [
+      [
+        612.0,
+        792.0
+      ],
+      [
+        612.0,
+        792.0
+      ]
+    ],
+    "expected": "#set text(font: \"Source Han Serif SC\", size: 11.4pt)\n#import \"@preview/cmarker:0.1.8\"\n#import \"@preview/mitex:0.2.6\": mitex\n#let pdftr_fit_size(lo, hi, eps, fits) = {\n  if hi - lo <= eps {\n    lo\n  } else {\n    let mid = lo + (hi - lo) / 2\n    if fits(mid) {\n      pdftr_fit_size(mid, hi, eps, fits)\n    } else {\n      pdftr_fit_size(lo, mid, eps, fits)\n    }\n  }\n}\n#let pdftr_fit_leading(lo, hi, eps, fits) = {\n  if hi - lo <= eps {\n    lo\n  } else {\n    let mid = lo + (hi - lo) / 2\n    if fits(mid) {\n      pdftr_fit_leading(mid, hi, eps, fits)\n    } else {\n      pdftr_fit_leading(lo, mid, eps, fits)\n    }\n  }\n}\n#let pdftr_floor_size(value, floor) = if value < floor { floor } else { value }\n#let pdftr_floor_leading(value, floor) = if value < floor { floor } else { value }\n#let pdftr_fit_single_line_markdown(markdown, max_size: 10pt, min_size: 9pt, fit_width: none, fit_height: none, weight: \"regular\", justify: false, eps: 0.08pt) = {\n  layout(size => {\n    let allowed-width = if fit_width == none { size.width } else { calc.min(size.width, fit_width) }\n    let allowed-height = if fit_height == none { size.height } else { calc.min(size.height, fit_height) }\n    let render(text_size) = box(inset: 0pt, clip: false)[#{\n      set text(size: text_size, weight: weight)\n      set par(leading: 1em, justify: justify)\n      cmarker.render(markdown, math: mitex)\n    }]\n    let fits(text_size) = {\n      let measured = measure(render(text_size))\n      measured.width <= allowed-width and measured.height <= allowed-height\n    }\n    let chosen-size = if fits(max_size) {\n      max_size\n    } else {\n      if not fits(min_size) {\n        let emergency-min-size = calc.max(4.2pt, min_size * 0.55)\n        pdftr_fit_size(emergency-min-size, min_size, eps, size_pt => fits(size_pt))\n      } else {\n        pdftr_fit_size(min_size, max_size, eps, size_pt => fits(size_pt))\n      }\n    }\n    box(width: allowed-width, height: allowed-height, inset: 0pt, clip: false)[#{\n      set text(size: chosen-size, weight: weight)\n      set par(leading: 1em, justify: justify)\n      cmarker.render(markdown, math: mitex)\n    }]\n  })\n}\n#let pdftr_fit_markdown(markdown, max_size: 10pt, min_size: 9pt, max_leading: 0.66em, min_leading: 0.54em, fit_height: none, weight: \"regular\", first_line_indent: 0pt, justify: false, eps: 0.08pt) = {\n  layout(size => {\n    let allowed-height = if fit_height == none { size.height } else { calc.min(size.height, fit_height) }\n    let render(text_size, leading) = block(width: size.width)[#{\n      set text(size: text_size, weight: weight)\n      set par(leading: leading, justify: justify)\n      if first_line_indent > 0pt { h(first_line_indent) }\n      cmarker.render(markdown, math: mitex)\n    }]\n    let fits(text_size, leading) = measure(width: size.width, render(text_size, leading)).height <= allowed-height\n    if fits(max_size, max_leading) {\n      render(max_size, max_leading)\n    } else {\n      let fallback_min_size = min_size\n      let fallback_min_leading = min_leading\n      let emergency_min_size = calc.max(4.2pt, min_size * 0.65)\n      let emergency_min_leading = calc.max(0.20em, min_leading * 0.75)\n      let chosen_leading = if fits(min_size, max_leading) { max_leading } else { min_leading }\n      let chosen_size = if not fits(min_size, chosen_leading) {\n        let fallback_leading = fallback_min_leading\n        let emergency_leading = emergency_min_leading\n        if not fits(fallback_min_size, fallback_leading) {\n          pdftr_fit_size(emergency_min_size, fallback_min_size, eps, size_pt => fits(size_pt, emergency_leading))\n        } else {\n          pdftr_fit_size(fallback_min_size, min_size, eps, size_pt => fits(size_pt, fallback_leading))\n        }\n      } else {\n        pdftr_fit_size(min_size, max_size, eps, size_pt => fits(size_pt, chosen_leading))\n      }\n      let leading_floor = if fits(chosen_size, min_leading) { min_leading } else if fits(chosen_size, emergency_min_leading) { emergency_min_leading } else { emergency_min_leading }\n      let leading_cap = if fits(chosen_size, max_leading) { max_leading } else { chosen_leading }\n      let final_leading = if fits(chosen_size, leading_cap) {\n        leading_cap\n      } else {\n        pdftr_fit_leading(leading_floor, leading_cap, 0.01em, leading => fits(chosen_size, leading))\n      }\n      render(chosen_size, final_leading)\n    }\n  })\n}\n#set page(width: 612.0pt, height: 792.0pt, margin: 0pt, fill: none)\n#let p0_a_0_txt = \"Alpha\"\n#let p0_a_0_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); p0_a_0_txt }]\n#context {\n  let base-size = measure(p0_a_0_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let p0_a_0_scaled = block(width: 196.0pt, height: 46.0pt)[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); p0_a_0_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, p0_a_0_scaled)\n}\n\n#pagebreak()\n#set page(width: 612.0pt, height: 792.0pt, margin: 0pt, fill: none)\n#let p1_b_0_txt = \"Beta\"\n#let p1_b_0_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); p1_b_0_txt }]\n#context {\n  let base-size = measure(p1_b_0_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let p1_b_0_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); p1_b_0_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, p1_b_0_scaled)\n}\n\n#let p1_c_1_txt = \"See formula\"\n#let p1_c_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); p1_c_1_txt }]\n#context {\n  let base-size = measure(p1_c_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let p1_c_1_scaled = block(width: 196.0pt, height: 46.0pt)[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); p1_c_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, p1_c_1_scaled)\n}\n\n",
+    "font_family": "Source Han Serif SC",
+    "include_cover_rect": false,
+    "kind": "overlay",
+    "name": "book_overlay_no_cover",
+    "page_specs": [
+      [
+        {
+          "bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "block_id": "a",
+          "cover_bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "cover_fill": [
+            1,
+            1,
+            1
+          ],
+          "first_line_indent_pt": 0.0,
+          "fit_max_font_size_pt": 0.0,
+          "fit_max_height_pt": 0.0,
+          "fit_min_font_size_pt": 0.0,
+          "fit_min_leading_em": 0.0,
+          "fit_shift_up_pt": 0.0,
+          "fit_single_line": false,
+          "fit_target_height_pt": 0.0,
+          "fit_target_width_pt": 0.0,
+          "fit_to_box": false,
+          "font_size_pt": 10.0,
+          "font_weight": "regular",
+          "inner_bbox": [
+            12.0,
+            22.0,
+            208.0,
+            68.0
+          ],
+          "justify_text": false,
+          "leading_em": 1.4,
+          "markdown_text": "Alpha",
+          "math_map": [],
+          "plain_text": "Alpha",
+          "preserve_line_breaks": false,
+          "preserved_line_boxes": [],
+          "render_kind": "plain",
+          "skip_reason": "",
+          "source_item_id": "",
+          "text_color": [
+            0,
+            0,
+            0
+          ],
+          "toc_entries": [],
+          "use_cover_fill": false
+        }
+      ],
+      [
+        {
+          "bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "block_id": "b",
+          "cover_bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "cover_fill": [
+            1,
+            1,
+            1
+          ],
+          "first_line_indent_pt": 0.0,
+          "fit_max_font_size_pt": 0.0,
+          "fit_max_height_pt": 0.0,
+          "fit_min_font_size_pt": 0.0,
+          "fit_min_leading_em": 0.0,
+          "fit_shift_up_pt": 0.0,
+          "fit_single_line": false,
+          "fit_target_height_pt": 0.0,
+          "fit_target_width_pt": 0.0,
+          "fit_to_box": false,
+          "font_size_pt": 10.0,
+          "font_weight": "regular",
+          "inner_bbox": [
+            12.0,
+            22.0,
+            208.0,
+            68.0
+          ],
+          "justify_text": false,
+          "leading_em": 1.4,
+          "markdown_text": "Beta",
+          "math_map": [],
+          "plain_text": "Beta",
+          "preserve_line_breaks": false,
+          "preserved_line_boxes": [],
+          "render_kind": "plain_line",
+          "skip_reason": "",
+          "source_item_id": "",
+          "text_color": [
+            0,
+            0,
+            0
+          ],
+          "toc_entries": [],
+          "use_cover_fill": true
+        },
+        {
+          "bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "block_id": "c",
+          "cover_bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "cover_fill": [
+            1,
+            1,
+            1
+          ],
+          "first_line_indent_pt": 0.0,
+          "fit_max_font_size_pt": 12.0,
+          "fit_max_height_pt": 0.0,
+          "fit_min_font_size_pt": 6.0,
+          "fit_min_leading_em": 0.0,
+          "fit_shift_up_pt": 0.0,
+          "fit_single_line": true,
+          "fit_target_height_pt": 0.0,
+          "fit_target_width_pt": 0.0,
+          "fit_to_box": true,
+          "font_size_pt": 10.0,
+          "font_weight": "regular",
+          "inner_bbox": [
+            12.0,
+            22.0,
+            208.0,
+            68.0
+          ],
+          "justify_text": false,
+          "leading_em": 1.4,
+          "markdown_text": "See $x^2$",
+          "math_map": [],
+          "plain_text": "See formula",
+          "preserve_line_breaks": false,
+          "preserved_line_boxes": [],
+          "render_kind": "plain",
+          "skip_reason": "",
+          "source_item_id": "",
+          "text_color": [
+            0,
+            0,
+            0
+          ],
+          "toc_entries": [],
+          "use_cover_fill": false
+        }
+      ]
+    ]
+  },
+  {
+    "dims": [
+      [
+        612.0,
+        792.0
+      ],
+      [
+        612.0,
+        792.0
+      ]
+    ],
+    "expected": "#set text(font: \"Source Han Serif SC\", size: 11.4pt)\n#import \"@preview/cmarker:0.1.8\"\n#import \"@preview/mitex:0.2.6\": mitex\n#let pdftr_fit_size(lo, hi, eps, fits) = {\n  if hi - lo <= eps {\n    lo\n  } else {\n    let mid = lo + (hi - lo) / 2\n    if fits(mid) {\n      pdftr_fit_size(mid, hi, eps, fits)\n    } else {\n      pdftr_fit_size(lo, mid, eps, fits)\n    }\n  }\n}\n#let pdftr_fit_leading(lo, hi, eps, fits) = {\n  if hi - lo <= eps {\n    lo\n  } else {\n    let mid = lo + (hi - lo) / 2\n    if fits(mid) {\n      pdftr_fit_leading(mid, hi, eps, fits)\n    } else {\n      pdftr_fit_leading(lo, mid, eps, fits)\n    }\n  }\n}\n#let pdftr_floor_size(value, floor) = if value < floor { floor } else { value }\n#let pdftr_floor_leading(value, floor) = if value < floor { floor } else { value }\n#let pdftr_fit_single_line_markdown(markdown, max_size: 10pt, min_size: 9pt, fit_width: none, fit_height: none, weight: \"regular\", justify: false, eps: 0.08pt) = {\n  layout(size => {\n    let allowed-width = if fit_width == none { size.width } else { calc.min(size.width, fit_width) }\n    let allowed-height = if fit_height == none { size.height } else { calc.min(size.height, fit_height) }\n    let render(text_size) = box(inset: 0pt, clip: false)[#{\n      set text(size: text_size, weight: weight)\n      set par(leading: 1em, justify: justify)\n      cmarker.render(markdown, math: mitex)\n    }]\n    let fits(text_size) = {\n      let measured = measure(render(text_size))\n      measured.width <= allowed-width and measured.height <= allowed-height\n    }\n    let chosen-size = if fits(max_size) {\n      max_size\n    } else {\n      if not fits(min_size) {\n        let emergency-min-size = calc.max(4.2pt, min_size * 0.55)\n        pdftr_fit_size(emergency-min-size, min_size, eps, size_pt => fits(size_pt))\n      } else {\n        pdftr_fit_size(min_size, max_size, eps, size_pt => fits(size_pt))\n      }\n    }\n    box(width: allowed-width, height: allowed-height, inset: 0pt, clip: false)[#{\n      set text(size: chosen-size, weight: weight)\n      set par(leading: 1em, justify: justify)\n      cmarker.render(markdown, math: mitex)\n    }]\n  })\n}\n#let pdftr_fit_markdown(markdown, max_size: 10pt, min_size: 9pt, max_leading: 0.66em, min_leading: 0.54em, fit_height: none, weight: \"regular\", first_line_indent: 0pt, justify: false, eps: 0.08pt) = {\n  layout(size => {\n    let allowed-height = if fit_height == none { size.height } else { calc.min(size.height, fit_height) }\n    let render(text_size, leading) = block(width: size.width)[#{\n      set text(size: text_size, weight: weight)\n      set par(leading: leading, justify: justify)\n      if first_line_indent > 0pt { h(first_line_indent) }\n      cmarker.render(markdown, math: mitex)\n    }]\n    let fits(text_size, leading) = measure(width: size.width, render(text_size, leading)).height <= allowed-height\n    if fits(max_size, max_leading) {\n      render(max_size, max_leading)\n    } else {\n      let fallback_min_size = min_size\n      let fallback_min_leading = min_leading\n      let emergency_min_size = calc.max(4.2pt, min_size * 0.65)\n      let emergency_min_leading = calc.max(0.20em, min_leading * 0.75)\n      let chosen_leading = if fits(min_size, max_leading) { max_leading } else { min_leading }\n      let chosen_size = if not fits(min_size, chosen_leading) {\n        let fallback_leading = fallback_min_leading\n        let emergency_leading = emergency_min_leading\n        if not fits(fallback_min_size, fallback_leading) {\n          pdftr_fit_size(emergency_min_size, fallback_min_size, eps, size_pt => fits(size_pt, emergency_leading))\n        } else {\n          pdftr_fit_size(fallback_min_size, min_size, eps, size_pt => fits(size_pt, fallback_leading))\n        }\n      } else {\n        pdftr_fit_size(min_size, max_size, eps, size_pt => fits(size_pt, chosen_leading))\n      }\n      let leading_floor = if fits(chosen_size, min_leading) { min_leading } else if fits(chosen_size, emergency_min_leading) { emergency_min_leading } else { emergency_min_leading }\n      let leading_cap = if fits(chosen_size, max_leading) { max_leading } else { chosen_leading }\n      let final_leading = if fits(chosen_size, leading_cap) {\n        leading_cap\n      } else {\n        pdftr_fit_leading(leading_floor, leading_cap, 0.01em, leading => fits(chosen_size, leading))\n      }\n      render(chosen_size, final_leading)\n    }\n  })\n}\n#set page(width: 612.0pt, height: 792.0pt, margin: 0pt, fill: none)\n#let p0_a_0_txt = \"Alpha\"\n#let p0_a_0_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); p0_a_0_txt }]\n#context {\n  let base-size = measure(p0_a_0_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let p0_a_0_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); p0_a_0_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, p0_a_0_scaled)\n}\n\n#pagebreak()\n#set page(width: 612.0pt, height: 792.0pt, margin: 0pt, fill: none)\n#let p1_b_0_txt = \"Beta\"\n#let p1_b_0_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); p1_b_0_txt }]\n#context {\n  let base-size = measure(p1_b_0_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let p1_b_0_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); p1_b_0_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, p1_b_0_scaled)\n}\n\n#let p1_c_1_txt = \"See formula\"\n#let p1_c_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); p1_c_1_txt }]\n#context {\n  let base-size = measure(p1_c_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let p1_c_1_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); p1_c_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, p1_c_1_scaled)\n}\n\n",
+    "font_family": "Source Han Serif SC",
+    "include_cover_rect": true,
+    "kind": "overlay",
+    "name": "book_overlay_with_cover",
+    "page_specs": [
+      [
+        {
+          "bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "block_id": "a",
+          "cover_bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "cover_fill": [
+            1,
+            1,
+            1
+          ],
+          "first_line_indent_pt": 0.0,
+          "fit_max_font_size_pt": 0.0,
+          "fit_max_height_pt": 0.0,
+          "fit_min_font_size_pt": 0.0,
+          "fit_min_leading_em": 0.0,
+          "fit_shift_up_pt": 0.0,
+          "fit_single_line": false,
+          "fit_target_height_pt": 0.0,
+          "fit_target_width_pt": 0.0,
+          "fit_to_box": false,
+          "font_size_pt": 10.0,
+          "font_weight": "regular",
+          "inner_bbox": [
+            12.0,
+            22.0,
+            208.0,
+            68.0
+          ],
+          "justify_text": false,
+          "leading_em": 1.4,
+          "markdown_text": "Alpha",
+          "math_map": [],
+          "plain_text": "Alpha",
+          "preserve_line_breaks": false,
+          "preserved_line_boxes": [],
+          "render_kind": "plain",
+          "skip_reason": "",
+          "source_item_id": "",
+          "text_color": [
+            0,
+            0,
+            0
+          ],
+          "toc_entries": [],
+          "use_cover_fill": false
+        }
+      ],
+      [
+        {
+          "bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "block_id": "b",
+          "cover_bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "cover_fill": [
+            1,
+            1,
+            1
+          ],
+          "first_line_indent_pt": 0.0,
+          "fit_max_font_size_pt": 0.0,
+          "fit_max_height_pt": 0.0,
+          "fit_min_font_size_pt": 0.0,
+          "fit_min_leading_em": 0.0,
+          "fit_shift_up_pt": 0.0,
+          "fit_single_line": false,
+          "fit_target_height_pt": 0.0,
+          "fit_target_width_pt": 0.0,
+          "fit_to_box": false,
+          "font_size_pt": 10.0,
+          "font_weight": "regular",
+          "inner_bbox": [
+            12.0,
+            22.0,
+            208.0,
+            68.0
+          ],
+          "justify_text": false,
+          "leading_em": 1.4,
+          "markdown_text": "Beta",
+          "math_map": [],
+          "plain_text": "Beta",
+          "preserve_line_breaks": false,
+          "preserved_line_boxes": [],
+          "render_kind": "plain_line",
+          "skip_reason": "",
+          "source_item_id": "",
+          "text_color": [
+            0,
+            0,
+            0
+          ],
+          "toc_entries": [],
+          "use_cover_fill": true
+        },
+        {
+          "bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "block_id": "c",
+          "cover_bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "cover_fill": [
+            1,
+            1,
+            1
+          ],
+          "first_line_indent_pt": 0.0,
+          "fit_max_font_size_pt": 12.0,
+          "fit_max_height_pt": 0.0,
+          "fit_min_font_size_pt": 6.0,
+          "fit_min_leading_em": 0.0,
+          "fit_shift_up_pt": 0.0,
+          "fit_single_line": true,
+          "fit_target_height_pt": 0.0,
+          "fit_target_width_pt": 0.0,
+          "fit_to_box": true,
+          "font_size_pt": 10.0,
+          "font_weight": "regular",
+          "inner_bbox": [
+            12.0,
+            22.0,
+            208.0,
+            68.0
+          ],
+          "justify_text": false,
+          "leading_em": 1.4,
+          "markdown_text": "See $x^2$",
+          "math_map": [],
+          "plain_text": "See formula",
+          "preserve_line_breaks": false,
+          "preserved_line_boxes": [],
+          "render_kind": "plain",
+          "skip_reason": "",
+          "source_item_id": "",
+          "text_color": [
+            0,
+            0,
+            0
+          ],
+          "toc_entries": [],
+          "use_cover_fill": false
+        }
+      ]
+    ]
+  },
+  {
+    "dims": [
+      [
+        0,
+        612.0,
+        792.0
+      ],
+      [
+        3,
+        612.0,
+        792.0
+      ]
+    ],
+    "expected": "#set text(font: \"Source Han Serif SC\", size: 11.4pt)\n#import \"@preview/cmarker:0.1.8\"\n#import \"@preview/mitex:0.2.6\": mitex\n#let pdftr_fit_size(lo, hi, eps, fits) = {\n  if hi - lo <= eps {\n    lo\n  } else {\n    let mid = lo + (hi - lo) / 2\n    if fits(mid) {\n      pdftr_fit_size(mid, hi, eps, fits)\n    } else {\n      pdftr_fit_size(lo, mid, eps, fits)\n    }\n  }\n}\n#let pdftr_fit_leading(lo, hi, eps, fits) = {\n  if hi - lo <= eps {\n    lo\n  } else {\n    let mid = lo + (hi - lo) / 2\n    if fits(mid) {\n      pdftr_fit_leading(mid, hi, eps, fits)\n    } else {\n      pdftr_fit_leading(lo, mid, eps, fits)\n    }\n  }\n}\n#let pdftr_floor_size(value, floor) = if value < floor { floor } else { value }\n#let pdftr_floor_leading(value, floor) = if value < floor { floor } else { value }\n#let pdftr_fit_single_line_markdown(markdown, max_size: 10pt, min_size: 9pt, fit_width: none, fit_height: none, weight: \"regular\", justify: false, eps: 0.08pt) = {\n  layout(size => {\n    let allowed-width = if fit_width == none { size.width } else { calc.min(size.width, fit_width) }\n    let allowed-height = if fit_height == none { size.height } else { calc.min(size.height, fit_height) }\n    let render(text_size) = box(inset: 0pt, clip: false)[#{\n      set text(size: text_size, weight: weight)\n      set par(leading: 1em, justify: justify)\n      cmarker.render(markdown, math: mitex)\n    }]\n    let fits(text_size) = {\n      let measured = measure(render(text_size))\n      measured.width <= allowed-width and measured.height <= allowed-height\n    }\n    let chosen-size = if fits(max_size) {\n      max_size\n    } else {\n      if not fits(min_size) {\n        let emergency-min-size = calc.max(4.2pt, min_size * 0.55)\n        pdftr_fit_size(emergency-min-size, min_size, eps, size_pt => fits(size_pt))\n      } else {\n        pdftr_fit_size(min_size, max_size, eps, size_pt => fits(size_pt))\n      }\n    }\n    box(width: allowed-width, height: allowed-height, inset: 0pt, clip: false)[#{\n      set text(size: chosen-size, weight: weight)\n      set par(leading: 1em, justify: justify)\n      cmarker.render(markdown, math: mitex)\n    }]\n  })\n}\n#let pdftr_fit_markdown(markdown, max_size: 10pt, min_size: 9pt, max_leading: 0.66em, min_leading: 0.54em, fit_height: none, weight: \"regular\", first_line_indent: 0pt, justify: false, eps: 0.08pt) = {\n  layout(size => {\n    let allowed-height = if fit_height == none { size.height } else { calc.min(size.height, fit_height) }\n    let render(text_size, leading) = block(width: size.width)[#{\n      set text(size: text_size, weight: weight)\n      set par(leading: leading, justify: justify)\n      if first_line_indent > 0pt { h(first_line_indent) }\n      cmarker.render(markdown, math: mitex)\n    }]\n    let fits(text_size, leading) = measure(width: size.width, render(text_size, leading)).height <= allowed-height\n    if fits(max_size, max_leading) {\n      render(max_size, max_leading)\n    } else {\n      let fallback_min_size = min_size\n      let fallback_min_leading = min_leading\n      let emergency_min_size = calc.max(4.2pt, min_size * 0.65)\n      let emergency_min_leading = calc.max(0.20em, min_leading * 0.75)\n      let chosen_leading = if fits(min_size, max_leading) { max_leading } else { min_leading }\n      let chosen_size = if not fits(min_size, chosen_leading) {\n        let fallback_leading = fallback_min_leading\n        let emergency_leading = emergency_min_leading\n        if not fits(fallback_min_size, fallback_leading) {\n          pdftr_fit_size(emergency_min_size, fallback_min_size, eps, size_pt => fits(size_pt, emergency_leading))\n        } else {\n          pdftr_fit_size(fallback_min_size, min_size, eps, size_pt => fits(size_pt, fallback_leading))\n        }\n      } else {\n        pdftr_fit_size(min_size, max_size, eps, size_pt => fits(size_pt, chosen_leading))\n      }\n      let leading_floor = if fits(chosen_size, min_leading) { min_leading } else if fits(chosen_size, emergency_min_leading) { emergency_min_leading } else { emergency_min_leading }\n      let leading_cap = if fits(chosen_size, max_leading) { max_leading } else { chosen_leading }\n      let final_leading = if fits(chosen_size, leading_cap) {\n        leading_cap\n      } else {\n        pdftr_fit_leading(leading_floor, leading_cap, 0.01em, leading => fits(chosen_size, leading))\n      }\n      render(chosen_size, final_leading)\n    }\n  })\n}\n#set page(width: 612.0pt, height: 792.0pt, margin: 0pt, fill: none)\n#place(top + left, dx: 0pt, dy: 0pt, image(\"../background.pdf\", page: 1, width: 612.0pt))\n#let bgp0_a_0_txt = \"BG A\"\n#let bgp0_a_0_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); bgp0_a_0_txt }]\n#context {\n  let base-size = measure(bgp0_a_0_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let bgp0_a_0_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); bgp0_a_0_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, bgp0_a_0_scaled)\n}\n\n#pagebreak()\n#set page(width: 612.0pt, height: 792.0pt, margin: 0pt, fill: none)\n#place(top + left, dx: 0pt, dy: 0pt, image(\"../background.pdf\", page: 4, width: 612.0pt))\n#let bgp1_b_0_txt = \"BG B\"\n#let bgp1_b_0_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); bgp1_b_0_txt }]\n#context {\n  let base-size = measure(bgp1_b_0_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let bgp1_b_0_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); bgp1_b_0_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, bgp1_b_0_scaled)\n}\n\n",
+    "font_family": "Source Han Serif SC",
+    "kind": "background",
+    "name": "book_background",
+    "page_specs": [
+      [
+        {
+          "bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "block_id": "a",
+          "cover_bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "cover_fill": [
+            1,
+            1,
+            1
+          ],
+          "first_line_indent_pt": 0.0,
+          "fit_max_font_size_pt": 0.0,
+          "fit_max_height_pt": 0.0,
+          "fit_min_font_size_pt": 0.0,
+          "fit_min_leading_em": 0.0,
+          "fit_shift_up_pt": 0.0,
+          "fit_single_line": false,
+          "fit_target_height_pt": 0.0,
+          "fit_target_width_pt": 0.0,
+          "fit_to_box": false,
+          "font_size_pt": 10.0,
+          "font_weight": "regular",
+          "inner_bbox": [
+            12.0,
+            22.0,
+            208.0,
+            68.0
+          ],
+          "justify_text": false,
+          "leading_em": 1.4,
+          "markdown_text": "BG A",
+          "math_map": [],
+          "plain_text": "BG A",
+          "preserve_line_breaks": false,
+          "preserved_line_boxes": [],
+          "render_kind": "plain",
+          "skip_reason": "",
+          "source_item_id": "",
+          "text_color": [
+            0,
+            0,
+            0
+          ],
+          "toc_entries": [],
+          "use_cover_fill": false
+        }
+      ],
+      [
+        {
+          "bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "block_id": "b",
+          "cover_bbox": [
+            10.0,
+            20.0,
+            210.0,
+            70.0
+          ],
+          "cover_fill": [
+            1,
+            1,
+            1
+          ],
+          "first_line_indent_pt": 0.0,
+          "fit_max_font_size_pt": 0.0,
+          "fit_max_height_pt": 0.0,
+          "fit_min_font_size_pt": 0.0,
+          "fit_min_leading_em": 0.0,
+          "fit_shift_up_pt": 0.0,
+          "fit_single_line": false,
+          "fit_target_height_pt": 0.0,
+          "fit_target_width_pt": 0.0,
+          "fit_to_box": false,
+          "font_size_pt": 10.0,
+          "font_weight": "regular",
+          "inner_bbox": [
+            12.0,
+            22.0,
+            208.0,
+            68.0
+          ],
+          "justify_text": false,
+          "leading_em": 1.4,
+          "markdown_text": "BG B",
+          "math_map": [],
+          "plain_text": "BG B",
+          "preserve_line_breaks": true,
+          "preserved_line_boxes": [],
+          "render_kind": "plain",
+          "skip_reason": "",
+          "source_item_id": "",
+          "text_color": [
+            0,
+            0,
+            0
+          ],
+          "toc_entries": [],
+          "use_cover_fill": false
+        }
+      ]
+    ],
+    "source_pdf_path": "/render_work/background.pdf",
+    "work_dir": "/render_work/work"
+  }
+]

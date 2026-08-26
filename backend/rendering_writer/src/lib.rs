@@ -3,6 +3,7 @@
 //! steps: bbox text strip (`cleanup_writer`), page extraction, overlay, image
 //! recompression, and preparation (Phase 5C).
 
+pub mod background;
 pub mod cleanup_writer;
 pub mod contents;
 pub mod hidden_text;

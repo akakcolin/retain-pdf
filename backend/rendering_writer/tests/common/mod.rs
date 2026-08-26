@@ -166,6 +166,28 @@ pub struct WriteExpected {
 }
 
 #[derive(Deserialize)]
+pub struct BackgroundCorpus {
+    pub schema: String,
+    pub render_scale: f64,
+    pub ink_threshold: u8,
+    pub cases: Vec<BackgroundCase>,
+}
+
+#[derive(Deserialize)]
+pub struct BackgroundCase {
+    pub name: String,
+    pub page_count: usize,
+    pub page_rect: Vec<f64>,
+    pub base_pdf_b64: String,
+    pub rects: Vec<Vec<f64>>,
+    pub free_fills: Vec<Vec<i64>>,
+    #[serde(default)]
+    pub sampler_fills: Option<Vec<Vec<i64>>>,
+    pub expected_input: PageFacts,
+    pub expected_output: PageFacts,
+}
+
+#[derive(Deserialize)]
 pub struct PageFacts {
     pub pages: Vec<PageFact>,
 }
@@ -186,6 +208,18 @@ fn load_corpus() -> &'static WriteCorpus {
 
 pub fn corpus() -> &'static WriteCorpus {
     load_corpus()
+}
+
+fn load_background_corpus() -> &'static BackgroundCorpus {
+    static CORPUS: OnceLock<BackgroundCorpus> = OnceLock::new();
+    CORPUS.get_or_init(|| {
+        let raw = include_str!("../background_corpus.json");
+        serde_json::from_str(raw).expect("failed to parse background_corpus.json")
+    })
+}
+
+pub fn background_corpus() -> &'static BackgroundCorpus {
+    load_background_corpus()
 }
 
 pub fn decode(b64: &str) -> Vec<u8> {

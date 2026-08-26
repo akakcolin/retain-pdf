@@ -65,6 +65,53 @@ pub fn render_page_clip_gray(
     })
 }
 
+/// Rendered RGB pixels (3 bytes per pixel, row-major, white base). Mirrors
+/// `fitz.Page.get_pixmap(..., colorspace=csRGB, alpha=False, clip=clip)`.
+pub struct RenderedRgbPixels {
+    pub width: u32,
+    pub height: u32,
+    pub stride: u32,
+    pub samples: Vec<u8>,
+}
+
+/// Render `page_idx` clipped to `clip` (page space; intersected with page
+/// bounds), scaled by `scale`, into device-RGB pixels. `clip == None` renders
+/// the full page. Backs the background-fill sampler (`source/background/fill.py`
+/// `_clip_pixmap` with `colorspace=csRGB`).
+pub fn render_page_clip_rgb(
+    doc: &Document,
+    page_idx: i32,
+    clip: Option<&Rect>,
+    scale: f32,
+) -> Result<RenderedRgbPixels, Error> {
+    let page = doc.load_page(page_idx)?;
+    let page_bounds = page.bounds()?;
+    let rclip = match clip {
+        Some(c) => c.intersect(&page_bounds),
+        None => page_bounds,
+    };
+    let ctm = Matrix::new_scale(scale, scale);
+    let irect = rclip.transform(&ctm).round();
+    if irect.is_empty() {
+        return Ok(RenderedRgbPixels {
+            width: 0,
+            height: 0,
+            stride: 3,
+            samples: Vec::new(),
+        });
+    }
+    let mut pix = Pixmap::new_with_rect(&Colorspace::device_rgb(), irect, false)?;
+    pix.clear_with(0xff)?;
+    let dev = Device::from_pixmap_with_clip(&pix, irect)?;
+    page.run(&dev, &ctm)?;
+    Ok(RenderedRgbPixels {
+        width: irect.width() as u32,
+        height: irect.height() as u32,
+        stride: pix.n() as u32,
+        samples: pix.samples().to_vec(),
+    })
+}
+
 /// Render `dl` clipped to `clip` (page space; intersected with the display
 /// list bounds), scaled by `scale`, into device-gray pixels.
 pub fn render_display_list_clip_gray(

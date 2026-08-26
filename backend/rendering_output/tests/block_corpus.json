@@ -1,0 +1,737 @@
+[
+  {
+    "block": {
+      "bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "block_id": "blk_1",
+      "cover_bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "cover_fill": [
+        1,
+        1,
+        1
+      ],
+      "first_line_indent_pt": 0.0,
+      "fit_max_font_size_pt": 0.0,
+      "fit_max_height_pt": 0.0,
+      "fit_min_font_size_pt": 0.0,
+      "fit_min_leading_em": 0.0,
+      "fit_shift_up_pt": 0.0,
+      "fit_single_line": false,
+      "fit_target_height_pt": 0.0,
+      "fit_target_width_pt": 0.0,
+      "fit_to_box": false,
+      "font_size_pt": 10.0,
+      "font_weight": "regular",
+      "inner_bbox": [
+        12.0,
+        22.0,
+        208.0,
+        68.0
+      ],
+      "justify_text": false,
+      "leading_em": 1.4,
+      "markdown_text": "Hello **world**",
+      "math_map": [],
+      "plain_text": "Hello world",
+      "preserve_line_breaks": false,
+      "preserved_line_boxes": [],
+      "render_kind": "plain",
+      "skip_reason": "",
+      "source_item_id": "",
+      "text_color": [
+        0.1,
+        0.2,
+        0.3
+      ],
+      "toc_entries": [],
+      "use_cover_fill": false
+    },
+    "expected": {
+      "include_fill_false": "#let blk_1_txt = \"Hello world\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(25, 51, 76)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt)[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(25, 51, 76)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n",
+      "include_fill_true": "#let blk_1_txt = \"Hello world\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(25, 51, 76)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(25, 51, 76)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n"
+    },
+    "name": "plain_short"
+  },
+  {
+    "block": {
+      "bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "block_id": "blk_1",
+      "cover_bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "cover_fill": [
+        1,
+        1,
+        1
+      ],
+      "first_line_indent_pt": 0.0,
+      "fit_max_font_size_pt": 0.0,
+      "fit_max_height_pt": 0.0,
+      "fit_min_font_size_pt": 0.0,
+      "fit_min_leading_em": 0.0,
+      "fit_shift_up_pt": 0.0,
+      "fit_single_line": false,
+      "fit_target_height_pt": 0.0,
+      "fit_target_width_pt": 0.0,
+      "fit_to_box": false,
+      "font_size_pt": 10.0,
+      "font_weight": "regular",
+      "inner_bbox": [
+        12.0,
+        22.0,
+        208.0,
+        68.0
+      ],
+      "justify_text": false,
+      "leading_em": 1.4,
+      "markdown_text": "Single *line*",
+      "math_map": [],
+      "plain_text": "Single line",
+      "preserve_line_breaks": false,
+      "preserved_line_boxes": [],
+      "render_kind": "plain_line",
+      "skip_reason": "",
+      "source_item_id": "",
+      "text_color": [
+        0,
+        0,
+        0
+      ],
+      "toc_entries": [],
+      "use_cover_fill": false
+    },
+    "expected": {
+      "include_fill_false": "#let blk_1_txt = \"Single line\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt)[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n",
+      "include_fill_true": "#let blk_1_txt = \"Single line\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n"
+    },
+    "name": "plain_line_short"
+  },
+  {
+    "block": {
+      "bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "block_id": "blk_1",
+      "cover_bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "cover_fill": [
+        1,
+        1,
+        1
+      ],
+      "first_line_indent_pt": 8.0,
+      "fit_max_font_size_pt": 0.0,
+      "fit_max_height_pt": 0.0,
+      "fit_min_font_size_pt": 0.0,
+      "fit_min_leading_em": 0.0,
+      "fit_shift_up_pt": 0.0,
+      "fit_single_line": false,
+      "fit_target_height_pt": 0.0,
+      "fit_target_width_pt": 0.0,
+      "fit_to_box": false,
+      "font_size_pt": 11.5,
+      "font_weight": "regular",
+      "inner_bbox": [
+        12.0,
+        22.0,
+        208.0,
+        68.0
+      ],
+      "justify_text": true,
+      "leading_em": 1.4,
+      "markdown_text": "YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY",
+      "math_map": [],
+      "plain_text": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      "preserve_line_breaks": false,
+      "preserved_line_boxes": [],
+      "render_kind": "plain",
+      "skip_reason": "",
+      "source_item_id": "",
+      "text_color": [
+        0.9,
+        0.1,
+        0.2
+      ],
+      "toc_entries": [],
+      "use_cover_fill": false
+    },
+    "expected": {
+      "include_fill_false": "#let blk_1_txt = \"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"\n#let blk_1_body = block(width: 196.0pt, height: 46.0pt)[#{ set text(size: 11.5pt, weight: \"regular\", fill: rgb(229, 25, 51)); set par(leading: 1.4em, justify: true); if 8.0pt > 0pt { h(8.0pt) }; blk_1_txt }]\n\n#context {\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_body)\n}\n\n",
+      "include_fill_true": "#let blk_1_txt = \"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"\n#let blk_1_body = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: 11.5pt, weight: \"regular\", fill: rgb(229, 25, 51)); set par(leading: 1.4em, justify: true); if 8.0pt > 0pt { h(8.0pt) }; blk_1_txt }]\n\n#context {\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_body)\n}\n\n"
+    },
+    "name": "plain_long_fit"
+  },
+  {
+    "block": {
+      "bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "block_id": "blk_1",
+      "cover_bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "cover_fill": [
+        1,
+        1,
+        1
+      ],
+      "first_line_indent_pt": 0.0,
+      "fit_max_font_size_pt": 0.0,
+      "fit_max_height_pt": 0.0,
+      "fit_min_font_size_pt": 0.0,
+      "fit_min_leading_em": 0.0,
+      "fit_shift_up_pt": 0.0,
+      "fit_single_line": false,
+      "fit_target_height_pt": 0.0,
+      "fit_target_width_pt": 0.0,
+      "fit_to_box": false,
+      "font_size_pt": 12.0,
+      "font_weight": "regular",
+      "inner_bbox": [
+        12.0,
+        22.0,
+        208.0,
+        68.0
+      ],
+      "justify_text": false,
+      "leading_em": 1.4,
+      "markdown_text": "See $x^2$ and $\\frac{a}{b}$ here",
+      "math_map": [
+        {
+          "formula_text": "x^2",
+          "latex": "x^2"
+        },
+        {
+          "formula_text": "\\frac{a}{b}",
+          "latex": "\\frac{a}{b}"
+        }
+      ],
+      "plain_text": "See formula here",
+      "preserve_line_breaks": false,
+      "preserved_line_boxes": [],
+      "render_kind": "plain",
+      "skip_reason": "",
+      "source_item_id": "",
+      "text_color": [
+        0,
+        0,
+        0
+      ],
+      "toc_entries": [],
+      "use_cover_fill": false
+    },
+    "expected": {
+      "include_fill_false": "#let blk_1_txt = \"See formula here\"\n#let blk_1_base = box[#{ set text(size: 12.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 12.0pt * (196.0pt / base-size.width) } else { 12.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt)[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n",
+      "include_fill_true": "#let blk_1_txt = \"See formula here\"\n#let blk_1_base = box[#{ set text(size: 12.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 12.0pt * (196.0pt / base-size.width) } else { 12.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n"
+    },
+    "name": "formula_insets"
+  },
+  {
+    "block": {
+      "bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "block_id": "blk_1",
+      "cover_bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "cover_fill": [
+        1,
+        1,
+        1
+      ],
+      "first_line_indent_pt": 0.0,
+      "fit_max_font_size_pt": 12.0,
+      "fit_max_height_pt": 0.0,
+      "fit_min_font_size_pt": 8.0,
+      "fit_min_leading_em": 1.1,
+      "fit_shift_up_pt": 0.0,
+      "fit_single_line": false,
+      "fit_target_height_pt": 0.0,
+      "fit_target_width_pt": 0.0,
+      "fit_to_box": true,
+      "font_size_pt": 12.0,
+      "font_weight": "regular",
+      "inner_bbox": [
+        12.0,
+        22.0,
+        208.0,
+        68.0
+      ],
+      "justify_text": false,
+      "leading_em": 1.4,
+      "markdown_text": "$kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk$",
+      "math_map": [],
+      "plain_text": "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+      "preserve_line_breaks": false,
+      "preserved_line_boxes": [],
+      "render_kind": "plain",
+      "skip_reason": "",
+      "source_item_id": "",
+      "text_color": [
+        0,
+        0,
+        0
+      ],
+      "toc_entries": [],
+      "use_cover_fill": false
+    },
+    "expected": {
+      "include_fill_false": "#let blk_1_txt = \"LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL\"\n#let blk_1_body = block(width: 196.0pt, height: 46.0pt)[#{ set text(size: 12.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); set par(leading: 1.4em, justify: false); if 0.0pt > 0pt { h(0.0pt) }; blk_1_txt }]\n\n#context {\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_body)\n}\n\n",
+      "include_fill_true": "#let blk_1_txt = \"LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL\"\n#let blk_1_body = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: 12.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); set par(leading: 1.4em, justify: false); if 0.0pt > 0pt { h(0.0pt) }; blk_1_txt }]\n\n#context {\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_body)\n}\n\n"
+    },
+    "name": "long_inline_math_risk"
+  },
+  {
+    "block": {
+      "bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "block_id": "blk_1",
+      "cover_bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "cover_fill": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "first_line_indent_pt": 0.0,
+      "fit_max_font_size_pt": 0.0,
+      "fit_max_height_pt": 0.0,
+      "fit_min_font_size_pt": 0.0,
+      "fit_min_leading_em": 0.0,
+      "fit_shift_up_pt": 0.0,
+      "fit_single_line": false,
+      "fit_target_height_pt": 0.0,
+      "fit_target_width_pt": 0.0,
+      "fit_to_box": false,
+      "font_size_pt": 10.0,
+      "font_weight": "regular",
+      "inner_bbox": [
+        12.0,
+        22.0,
+        208.0,
+        68.0
+      ],
+      "justify_text": false,
+      "leading_em": 1.4,
+      "markdown_text": "Covered",
+      "math_map": [],
+      "plain_text": "Covered",
+      "preserve_line_breaks": false,
+      "preserved_line_boxes": [],
+      "render_kind": "plain",
+      "skip_reason": "",
+      "source_item_id": "",
+      "text_color": [
+        0,
+        0,
+        0
+      ],
+      "toc_entries": [],
+      "use_cover_fill": true
+    },
+    "expected": {
+      "include_fill_false": "#let blk_1_txt = \"Covered\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 0, 0))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n",
+      "include_fill_true": "#let blk_1_txt = \"Covered\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 0, 0))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n"
+    },
+    "name": "cover_fill"
+  },
+  {
+    "block": {
+      "bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "block_id": "blk_1",
+      "cover_bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "cover_fill": [
+        1,
+        1,
+        1
+      ],
+      "first_line_indent_pt": 0.0,
+      "fit_max_font_size_pt": 0.0,
+      "fit_max_height_pt": 0.0,
+      "fit_min_font_size_pt": 0.0,
+      "fit_min_leading_em": 0.0,
+      "fit_shift_up_pt": 0.0,
+      "fit_single_line": false,
+      "fit_target_height_pt": 0.0,
+      "fit_target_width_pt": 0.0,
+      "fit_to_box": false,
+      "font_size_pt": 10.0,
+      "font_weight": "regular",
+      "inner_bbox": [
+        12.0,
+        22.0,
+        208.0,
+        68.0
+      ],
+      "justify_text": false,
+      "leading_em": 1.4,
+      "markdown_text": "line one\n\nline two\nline three",
+      "math_map": [],
+      "plain_text": "line one\nline two\nline three",
+      "preserve_line_breaks": true,
+      "preserved_line_boxes": [],
+      "render_kind": "plain",
+      "skip_reason": "",
+      "source_item_id": "",
+      "text_color": [
+        0,
+        0,
+        0
+      ],
+      "toc_entries": [],
+      "use_cover_fill": false
+    },
+    "expected": {
+      "include_fill_false": "#let blk_1_txt = \"line one\\nline two\\nline three\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt)[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n",
+      "include_fill_true": "#let blk_1_txt = \"line one\\nline two\\nline three\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n"
+    },
+    "name": "preserve_line_breaks"
+  },
+  {
+    "block": {
+      "bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "block_id": "blk_1",
+      "cover_bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "cover_fill": [
+        1,
+        1,
+        1
+      ],
+      "first_line_indent_pt": 0.0,
+      "fit_max_font_size_pt": 0.0,
+      "fit_max_height_pt": 0.0,
+      "fit_min_font_size_pt": 0.0,
+      "fit_min_leading_em": 0.0,
+      "fit_shift_up_pt": 0.0,
+      "fit_single_line": false,
+      "fit_target_height_pt": 0.0,
+      "fit_target_width_pt": 0.0,
+      "fit_to_box": false,
+      "font_size_pt": 10.0,
+      "font_weight": "regular",
+      "inner_bbox": [
+        12.0,
+        22.0,
+        208.0,
+        68.0
+      ],
+      "justify_text": false,
+      "leading_em": 1.4,
+      "markdown_text": "boxed lines",
+      "math_map": [],
+      "plain_text": "boxed lines",
+      "preserve_line_breaks": true,
+      "preserved_line_boxes": [
+        {
+          "bbox": [
+            10.0,
+            20.0,
+            200.0,
+            30.0
+          ],
+          "text": "First line"
+        },
+        {
+          "bbox": [
+            10.0,
+            32.0,
+            205.0,
+            42.0
+          ],
+          "text": "Second line"
+        }
+      ],
+      "render_kind": "plain",
+      "skip_reason": "",
+      "source_item_id": "",
+      "text_color": [
+        0,
+        0,
+        0
+      ],
+      "toc_entries": [],
+      "use_cover_fill": false
+    },
+    "expected": {
+      "include_fill_false": "#let blk_1_txt = \"boxed lines\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt)[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n",
+      "include_fill_true": "#let blk_1_txt = \"boxed lines\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n"
+    },
+    "name": "preserved_line_boxes"
+  },
+  {
+    "block": {
+      "bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "block_id": "blk_1",
+      "cover_bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "cover_fill": [
+        1,
+        1,
+        1
+      ],
+      "first_line_indent_pt": 0.0,
+      "fit_max_font_size_pt": 0.0,
+      "fit_max_height_pt": 0.0,
+      "fit_min_font_size_pt": 0.0,
+      "fit_min_leading_em": 0.0,
+      "fit_shift_up_pt": 0.0,
+      "fit_single_line": false,
+      "fit_target_height_pt": 0.0,
+      "fit_target_width_pt": 0.0,
+      "fit_to_box": false,
+      "font_size_pt": 10.0,
+      "font_weight": "regular",
+      "inner_bbox": [
+        12.0,
+        22.0,
+        208.0,
+        68.0
+      ],
+      "justify_text": false,
+      "leading_em": 1.4,
+      "markdown_text": "TOC",
+      "math_map": [],
+      "plain_text": "TOC",
+      "preserve_line_breaks": false,
+      "preserved_line_boxes": [],
+      "render_kind": "plain",
+      "skip_reason": "",
+      "source_item_id": "",
+      "text_color": [
+        0,
+        0,
+        0
+      ],
+      "toc_entries": [
+        {
+          "bbox": [
+            10.0,
+            20.0,
+            200.0,
+            30.0
+          ],
+          "level": 1,
+          "number": "1",
+          "page_label": "12",
+          "title": "Chapter One"
+        },
+        {
+          "bbox": [
+            10.0,
+            32.0,
+            200.0,
+            42.0
+          ],
+          "level": 2,
+          "number": "1.2",
+          "page_label": "45",
+          "title": "Deep"
+        }
+      ],
+      "use_cover_fill": false
+    },
+    "expected": {
+      "include_fill_false": "#let blk_1_txt = \"TOC\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt)[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n",
+      "include_fill_true": "#let blk_1_txt = \"TOC\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n"
+    },
+    "name": "toc_entries"
+  },
+  {
+    "block": {
+      "bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "block_id": "blk_1",
+      "cover_bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "cover_fill": [
+        1,
+        1,
+        1
+      ],
+      "first_line_indent_pt": 0.0,
+      "fit_max_font_size_pt": 12.0,
+      "fit_max_height_pt": 0.0,
+      "fit_min_font_size_pt": 6.0,
+      "fit_min_leading_em": 0.0,
+      "fit_shift_up_pt": 2.5,
+      "fit_single_line": true,
+      "fit_target_height_pt": 40.0,
+      "fit_target_width_pt": 150.0,
+      "fit_to_box": true,
+      "font_size_pt": 10.0,
+      "font_weight": "regular",
+      "inner_bbox": [
+        12.0,
+        22.0,
+        208.0,
+        68.0
+      ],
+      "justify_text": false,
+      "leading_em": 1.4,
+      "markdown_text": "Fit this line exactly",
+      "math_map": [],
+      "plain_text": "Fit this line exactly",
+      "preserve_line_breaks": false,
+      "preserved_line_boxes": [],
+      "render_kind": "plain",
+      "skip_reason": "",
+      "source_item_id": "",
+      "text_color": [
+        0,
+        0,
+        0
+      ],
+      "toc_entries": [],
+      "use_cover_fill": false
+    },
+    "expected": {
+      "include_fill_false": "#let blk_1_txt = \"Fit this line exactly\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt)[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n",
+      "include_fill_true": "#let blk_1_txt = \"Fit this line exactly\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n"
+    },
+    "name": "fit_single_line"
+  },
+  {
+    "block": {
+      "bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "block_id": "blk_1",
+      "cover_bbox": [
+        10.0,
+        20.0,
+        210.0,
+        70.0
+      ],
+      "cover_fill": [
+        1,
+        1,
+        1
+      ],
+      "first_line_indent_pt": 6.0,
+      "fit_max_font_size_pt": 12.0,
+      "fit_max_height_pt": 45.0,
+      "fit_min_font_size_pt": 8.0,
+      "fit_min_leading_em": 1.0,
+      "fit_shift_up_pt": 0.0,
+      "fit_single_line": false,
+      "fit_target_height_pt": 40.0,
+      "fit_target_width_pt": 160.0,
+      "fit_to_box": true,
+      "font_size_pt": 10.0,
+      "font_weight": "regular",
+      "inner_bbox": [
+        12.0,
+        22.0,
+        208.0,
+        68.0
+      ],
+      "justify_text": true,
+      "leading_em": 1.4,
+      "markdown_text": "Fit to box markdown",
+      "math_map": [],
+      "plain_text": "Fit to box",
+      "preserve_line_breaks": false,
+      "preserved_line_boxes": [],
+      "render_kind": "plain",
+      "skip_reason": "",
+      "source_item_id": "",
+      "text_color": [
+        0,
+        0,
+        0
+      ],
+      "toc_entries": [],
+      "use_cover_fill": false
+    },
+    "expected": {
+      "include_fill_false": "#let blk_1_txt = \"Fit to box\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt)[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n",
+      "include_fill_true": "#let blk_1_txt = \"Fit to box\"\n#let blk_1_base = box[#{ set text(size: 10.0pt, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n#context {\n  let base-size = measure(blk_1_base)\n  let scaled-font = if base-size.width > 196.0pt { 10.0pt * (196.0pt / base-size.width) } else { 10.0pt }\n  let blk_1_scaled = block(width: 196.0pt, height: 46.0pt, fill: rgb(255, 255, 255))[#{ set text(size: scaled-font, weight: \"regular\", fill: rgb(0, 0, 0)); blk_1_txt }]\n  place(top + left, dx: 12.0pt, dy: 22.0pt, blk_1_scaled)\n}\n"
+    },
+    "name": "fit_markdown"
+  }
+]
