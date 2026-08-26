@@ -4,3 +4,4 @@
 //! the achievable snapshot fields against Python-computed values from fitz.
 
 pub mod reader;
+pub mod render;

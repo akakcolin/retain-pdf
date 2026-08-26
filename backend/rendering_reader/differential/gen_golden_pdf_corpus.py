@@ -26,7 +26,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 # rendering_reader/differential -> backend/rendering_core/differential (for gen_corpus).
 _CORE_DIFF_DIR = os.path.abspath(os.path.join(_HERE, "..", "..", "rendering_core", "differential"))
 # -> backend/scripts (for services.*, pulled in by gen_corpus too).
-_SCRIPTS_DIR = os.path.abspath(os.path.join(_HERE, "..", "..", "..", "scripts"))
+_SCRIPTS_DIR = os.path.abspath(os.path.join(_HERE, "..", "..", "scripts"))
 sys.path.insert(0, _CORE_DIFF_DIR)
 sys.path.insert(0, _SCRIPTS_DIR)
 

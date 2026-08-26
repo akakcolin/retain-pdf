@@ -41,6 +41,18 @@ pub struct Item {
     /// Mirrors `payload["policy"]["translate"]`.
     pub policy_translate: Option<bool>,
     pub formula_map: Vec<FormulaEntry>,
+    /// Mirrors `payload["body_repair_applied"]`.
+    pub body_repair_applied: Option<bool>,
+    /// Mirrors `payload["provider_body_repair_applied"]`.
+    pub provider_body_repair_applied: Option<bool>,
+    /// Mirrors `payload["body_repair_role"]`.
+    pub body_repair_role: Option<String>,
+    /// Mirrors `payload["provider_body_repair_role"]`.
+    pub provider_body_repair_role: Option<String>,
+    /// Mirrors `payload["body_repair_peer_block_id"]`.
+    pub body_repair_peer_block_id: Option<String>,
+    /// Mirrors `payload["provider_suspected_peer_block_id"]`.
+    pub provider_suspected_peer_block_id: Option<String>,
     // Internal layout flags.
     pub is_body_text_candidate: bool,
     pub wide_aspect_body_text: bool,

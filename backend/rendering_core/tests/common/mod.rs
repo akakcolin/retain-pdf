@@ -199,6 +199,7 @@ impl ItemDto {
             is_body_text_candidate: self.is_body_text_candidate,
             wide_aspect_body_text: self.wide_aspect_body_text,
             cover_with_inner_bbox: self.cover_with_inner_bbox,
+            ..Default::default()
         }
     }
 }

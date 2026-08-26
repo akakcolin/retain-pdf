@@ -213,6 +213,76 @@ pub fn is_plain_bodylike_block(item: &Item) -> bool {
     is_plain_text_block(item) && is_bodylike_block(item)
 }
 
+/// `build_role_profile(payload)` — composite of the role/kind predicates.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RoleProfile {
+    pub layout_role: String,
+    pub semantic_role: String,
+    pub structure_role: String,
+    pub normalized_sub_type: String,
+    pub policy_translate: Option<bool>,
+    pub block_kind: String,
+    pub is_caption_like: bool,
+    pub is_footnote_like: bool,
+    pub is_reference_heading: bool,
+    pub is_reference_entry: bool,
+    pub is_algorithm: bool,
+    pub is_metadata: bool,
+    pub is_title_like: bool,
+    pub is_bodylike: bool,
+    pub is_textual: bool,
+    pub is_plain_text: bool,
+    pub is_plain_bodylike: bool,
+}
+
+pub fn build_role_profile(item: &Item) -> RoleProfile {
+    RoleProfile {
+        layout_role: layout_role(item),
+        semantic_role: semantic_role(item),
+        structure_role: structure_role(item),
+        normalized_sub_type: normalized_sub_type(item),
+        policy_translate: policy_translate(item),
+        block_kind: block_kind(item),
+        is_caption_like: is_caption_like_block(item),
+        is_footnote_like: is_footnote_like_block(item),
+        is_reference_heading: is_reference_heading_semantic(item),
+        is_reference_entry: is_reference_entry_semantic(item),
+        is_algorithm: is_algorithm_semantic(item),
+        is_metadata: is_metadata_semantic(item),
+        is_title_like: is_title_like_block(item),
+        is_bodylike: is_bodylike_block(item),
+        is_textual: is_textual_block(item),
+        is_plain_text: is_plain_text_block(item),
+        is_plain_bodylike: is_plain_bodylike_block(item),
+    }
+}
+
+/// `body_repair_applied(payload)` — body-repair ran via either provider.
+pub fn body_repair_applied(item: &Item) -> bool {
+    item.body_repair_applied.unwrap_or(false)
+        || item.provider_body_repair_applied.unwrap_or(false)
+}
+
+/// `body_repair_role(payload)` — normalized (lowercased) repair role.
+pub fn body_repair_role(item: &Item) -> String {
+    let raw = item
+        .body_repair_role
+        .as_deref()
+        .or_else(|| item.provider_body_repair_role.as_deref())
+        .unwrap_or("");
+    raw.trim().to_lowercase()
+}
+
+/// `body_repair_peer_block_id(payload)` — trimmed repair peer block id.
+pub fn body_repair_peer_block_id(item: &Item) -> String {
+    let raw = item
+        .body_repair_peer_block_id
+        .as_deref()
+        .or_else(|| item.provider_suspected_peer_block_id.as_deref())
+        .unwrap_or("");
+    raw.trim().to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -264,5 +334,53 @@ mod tests {
         item.block_type = Some("text".to_string());
         assert!(is_plain_text_block(&item));
         assert!(is_plain_bodylike_block(&item));
+    }
+
+    #[test]
+    fn role_profile_composes_predicates() {
+        let mut item = Item::default();
+        item.block_type = Some("text".to_string());
+        item.layout_role = Some("paragraph".to_string());
+        let profile = build_role_profile(&item);
+        assert_eq!(profile.block_kind, "text");
+        assert_eq!(profile.layout_role, "paragraph");
+        assert!(profile.is_bodylike);
+        assert!(profile.is_textual);
+        assert!(profile.is_plain_text);
+        assert!(!profile.is_caption_like);
+        assert!(!profile.is_title_like);
+    }
+
+    #[test]
+    fn body_repair_applied_via_either_provider() {
+        let mut item = Item::default();
+        assert!(!body_repair_applied(&item));
+        item.body_repair_applied = Some(true);
+        assert!(body_repair_applied(&item));
+        let mut provider_only = Item::default();
+        provider_only.provider_body_repair_applied = Some(true);
+        assert!(body_repair_applied(&provider_only));
+    }
+
+    #[test]
+    fn body_repair_role_normalized_and_falls_back_to_provider() {
+        let mut item = Item::default();
+        assert_eq!(body_repair_role(&item), "");
+        item.body_repair_role = Some("  SectionTitle ".to_string());
+        assert_eq!(body_repair_role(&item), "sectiontitle");
+        let mut provider_only = Item::default();
+        provider_only.provider_body_repair_role = Some("Body".to_string());
+        assert_eq!(body_repair_role(&provider_only), "body");
+    }
+
+    #[test]
+    fn body_repair_peer_block_id_falls_back_to_provider() {
+        let mut item = Item::default();
+        assert_eq!(body_repair_peer_block_id(&item), "");
+        item.body_repair_peer_block_id = Some("  block-42  ".to_string());
+        assert_eq!(body_repair_peer_block_id(&item), "block-42");
+        let mut provider_only = Item::default();
+        provider_only.provider_suspected_peer_block_id = Some("b-7".to_string());
+        assert_eq!(body_repair_peer_block_id(&provider_only), "b-7");
     }
 }
