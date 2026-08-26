@@ -18,7 +18,7 @@ from services.pipeline_shared.events import emit_render_page_progress
 from services.rendering.visual_profile import VisualProfileRuntime
 
 
-def build_clean_background_pdf(
+def _build_clean_background_pdf_python(
     *,
     source_pdf_path: Path,
     translated_pages: dict[int, list[dict]],
@@ -28,6 +28,8 @@ def build_clean_background_pdf(
     source_text_precleaned_page_indices: frozenset[int] = frozenset(),
     visual_profile: VisualProfileRuntime | None = None,
 ) -> Path:
+    """Pure-Python reference for `build_clean_background_pdf` (routed through
+    `_native.py` when the native stage is safe)."""
     output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
     working_pdf_path = output_pdf_path.with_suffix(".background-source.pdf")
     copy_pdf_with_pikepdf(source_pdf_path=source_pdf_path, output_pdf_path=working_pdf_path)
@@ -95,3 +97,28 @@ def build_clean_background_pdf(
     finally:
         output_doc.close()
         source_doc.close()
+
+
+def build_clean_background_pdf(
+    *,
+    source_pdf_path: Path,
+    translated_pages: dict[int, list[dict]],
+    output_pdf_path: Path,
+    redaction_strategy: str | None = None,
+    page_specs: list[RenderPageSpec] | None = None,
+    source_text_precleaned_page_indices: frozenset[int] = frozenset(),
+    visual_profile: VisualProfileRuntime | None = None,
+) -> Path:
+    """Route to the native Rust stage when safe (see `_native.py`); otherwise the
+    pure-Python implementation above."""
+    from services.rendering.source.background import _native
+
+    return _native.build_clean_background_pdf(
+        source_pdf_path=source_pdf_path,
+        translated_pages=translated_pages,
+        output_pdf_path=output_pdf_path,
+        redaction_strategy=redaction_strategy,
+        page_specs=page_specs,
+        source_text_precleaned_page_indices=source_text_precleaned_page_indices,
+        visual_profile=visual_profile,
+    )

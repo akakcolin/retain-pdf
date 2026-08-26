@@ -19,7 +19,7 @@
 //! The Python shim `output/typst/_native.py` imports this module and falls
 //! back to the pure-Python implementations on `ImportError`.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use mupdf::pdf::PdfDocument;
@@ -29,7 +29,8 @@ use pyo3::prelude::*;
 use rendering_core::source_cleanup::hit_test::RectTuple;
 use rendering_reader::render::render_page_clip_rgb;
 use rendering_writer::background::fill::{draw_white_covers, RgbPixmap};
-use rendering_writer::save::{delete_trailer_id, save_atomic};
+use rendering_writer::background::redaction::RedactionItem;
+use rendering_writer::save::{delete_trailer_id, save_atomic, save_optimized};
 use serde::Deserialize;
 
 /// `emit_typst_source` entry point (pure; no PDF editing).
@@ -276,6 +277,69 @@ fn clean_background(source_pdf_bytes: &[u8], config_json: &str) -> PyResult<Vec<
     save_to_bytes(&pdf, &dir)
 }
 
+/// `build_clean_background_pdf` entry point — the full production stage
+/// (copy_toc + per-page redaction orchestration; port of
+/// `background/stage.py::build_clean_background_pdf` with `page_specs=None`
+/// and `visual_profile=None`). `translated_pages_json`:
+/// `{"<page>": [{bbox, translated_text, ...}, ...]}`; item dicts are the
+/// stable serde DTO (unknown keys ignored). `precleaned_page_indices_json`:
+/// `[0, 2, ...]`. Returns the optimised PDF bytes.
+#[pyfunction]
+fn build_clean_background_pdf(
+    source_pdf_bytes: &[u8],
+    translated_pages_json: &str,
+    redaction_strategy: Option<&str>,
+    precleaned_page_indices_json: &str,
+) -> PyResult<Vec<u8>> {
+    let translated_pages: BTreeMap<i32, Vec<RedactionItem>> =
+        serde_json::from_str(translated_pages_json)
+            .map_err(|e| PyValueError::new_err(format!("translated_pages_json: {e}")))?;
+    let precleaned: HashSet<i32> = serde_json::from_str(precleaned_page_indices_json)
+        .map_err(|e| PyValueError::new_err(format!("precleaned_page_indices_json: {e}")))?;
+
+    let dir = temp_dir()?;
+    let in_path = dir.join("in.pdf");
+    std::fs::write(&in_path, source_pdf_bytes).map_err(|e| PyRuntimeError::new_err(format!("write: {e}")))?;
+
+    let doc = Document::open(in_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open render: {e}")))?;
+    let page = doc
+        .load_page(0)
+        .map_err(|e| PyRuntimeError::new_err(format!("load_page 0: {e}")))?;
+    let b = page.bounds().map_err(|e| PyRuntimeError::new_err(format!("bounds: {e}")))?;
+    let page_rect: RectTuple = [b.x0 as f64, b.y0 as f64, b.x1 as f64, b.y1 as f64];
+    let scale: f32 = 2.0;
+
+    let render_clip = |page_index: i32, clip: &RectTuple| -> Option<RgbPixmap> {
+        let rect = mupdf::Rect::new(clip[0] as f32, clip[1] as f32, clip[2] as f32, clip[3] as f32);
+        render_page_clip_rgb(&doc, page_index, Some(&rect), scale)
+            .ok()
+            .map(|px| RgbPixmap {
+                width: px.width as usize,
+                height: px.height as usize,
+                samples: px.samples,
+            })
+    };
+
+    let mut pdf = PdfDocument::open(in_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open edit: {e}")))?;
+    rendering_writer::background::stage::build_clean_background_pdf(
+        &doc,
+        &mut pdf,
+        &page_rect,
+        &translated_pages,
+        redaction_strategy,
+        &precleaned,
+        &render_clip,
+    )
+    .map_err(|e| PyRuntimeError::new_err(format!("build_clean_background_pdf: {e}")))?;
+
+    delete_trailer_id(&pdf).map_err(|e| PyRuntimeError::new_err(format!("delete_trailer_id: {e}")))?;
+    let out_path = dir.join("out.pdf");
+    save_optimized(&pdf, &out_path).map_err(|e| PyRuntimeError::new_err(format!("save_optimized: {e}")))?;
+    std::fs::read(&out_path).map_err(|e| PyRuntimeError::new_err(format!("read: {e}")))
+}
+
 #[pymodule]
 fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(emit_typst_source, m)?)?;
@@ -287,5 +351,6 @@ fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(extract_pages, m)?)?;
     m.add_function(wrap_pyfunction!(overlay_page, m)?)?;
     m.add_function(wrap_pyfunction!(clean_background, m)?)?;
+    m.add_function(wrap_pyfunction!(build_clean_background_pdf, m)?)?;
     Ok(())
 }
