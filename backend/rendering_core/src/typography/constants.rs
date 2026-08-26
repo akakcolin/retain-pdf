@@ -1,0 +1,27 @@
+// Port of services/rendering/layout/typography/constants.py.
+pub const MIN_FONT_SIZE_PT: f64 = 8.4;
+pub const MAX_FONT_SIZE_PT: f64 = 11.6;
+pub const MAX_LOCAL_FONT_SIZE_PT: f64 = 14.2;
+pub const ZH_FONT_SCALE: f64 = 0.91;
+pub const LINE_HEIGHT_TO_FONT_SCALE: f64 = 0.98;
+pub const LINE_PITCH_TO_FONT_SCALE: f64 = 0.82;
+pub const LOOSE_LINE_PITCH_RATIO: f64 = 1.35;
+pub const PAGE_BASELINE_PERCENTILE: f64 = 0.42;
+pub const MIN_TEXT_LINE_PITCH_PT: f64 = 10.8;
+pub const APPROX_TEXT_CHAR_WIDTH_PT: f64 = 5.2;
+pub const TEXT_HEIGHT_PADDING_RATIO: f64 = 0.22;
+pub const TEXT_HEIGHT_PADDING_MAX_PT: f64 = 2.2;
+pub const SOURCE_HEIGHT_LIMIT_MIN_PT: f64 = 8.0;
+pub const SOURCE_HEIGHT_LIMIT_RATIO: f64 = 1.02;
+pub const VISUAL_LINE_COUNT_MAX: i64 = 24;
+pub const LINE_COUNT_PREDICT_TRIGGER_CHARS: usize = 48;
+pub const LINE_COUNT_GROW_THRESHOLD: f64 = 1.12;
+pub const FORMULA_CHARS_PER_LINE_PENALTY: f64 = 0.82;
+pub const SINGLE_LINE_GLUE_HEIGHT_TRIGGER_LINES: f64 = 3.2;
+pub const SINGLE_LINE_GLUE_WIDTH_CHAR_RATIO: f64 = 1.45;
+pub const SOURCE_COMPACTNESS_TEXT_TRIGGER: usize = 52;
+pub const SOURCE_COMPACTNESS_LINE_TRIGGER: usize = 3;
+pub const SOURCE_COMPACTNESS_X_TRIGGER: f64 = 0.76;
+pub const SOURCE_COMPACTNESS_Y_TRIGGER: f64 = 0.40;
+pub const SOURCE_COMPACTNESS_MAX: f64 = 0.7;
+pub const BODY_FORMULA_RATIO_MAX: f64 = 0.5;
