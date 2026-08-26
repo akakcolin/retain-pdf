@@ -43,3 +43,12 @@ pub const BACKGROUND_FULL_PAGE_SAMPLER_MIN_RECTS: usize = 24;
 pub const STRICT_VERTICAL_MERGE_GAP_PT: f64 = 2.0;
 /// Vertical merge requires this horizontal overlap before merging.
 pub const STRICT_VERTICAL_MERGE_MIN_WIDTH_OVERLAP_RATIO: f64 = 0.72;
+
+/// Primary-background detection: a placement must cover this share of the page.
+pub const DETECT_PRIMARY_COVERAGE_RATIO: f64 = 0.75;
+/// Tiled-background detection: at least this many page-wide image tiles.
+pub const TILED_BACKGROUND_IMAGE_MIN_COUNT: usize = 8;
+/// Tiled-background detection: merged band coverage must reach this page share.
+pub const TILED_BACKGROUND_IMAGE_COVERAGE_RATIO: f64 = 0.65;
+/// Tiled-background detection: a tile must span this fraction of the page width.
+pub const TILED_BACKGROUND_IMAGE_MIN_WIDTH_RATIO: f64 = 0.60;

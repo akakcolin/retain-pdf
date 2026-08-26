@@ -144,7 +144,9 @@ pub fn extract_raw_stream_image(
 ) -> Result<Option<Vec<u8>>, Error> {
     let bytes = doc.xref_stream(xref)?;
     let expected = match meta.mode {
-        "1" => (meta.width as usize * meta.height as usize + 7) / 8,
+        // PIL mode "1" packs bits MSB-first with each row padded to a byte
+        // boundary: `ceil(width / 8)` bytes per row.
+        "1" => ((meta.width as usize + 7) / 8) * meta.height as usize,
         "L" => meta.width as usize * meta.height as usize,
         "RGB" => meta.width as usize * meta.height as usize * 3,
         _ => return Ok(None),
@@ -273,7 +275,8 @@ mod tests {
     #[test]
     fn image_mask_classifies_as_1bit_and_prefers_solid() {
         let mut doc = PdfDocument::new();
-        let raw = [0b1010_1010u8, 0b1111_0000u8]; // 4x3 mask, 12 bits packed
+        // 4x3 mask, row-padded to 1 byte per row (PIL mode "1" layout).
+        let raw = [0b1010_1010u8, 0b1111_0000u8, 0b1100_0011u8];
         let obj = make_image_object(&mut doc, 4, 3, 1, None, true, "FlateDecode", &raw);
         let xref_id = xref(&obj);
         let meta = raw_stream_image_meta(&doc, xref_id)
@@ -286,6 +289,27 @@ mod tests {
             .expect("bytes");
         assert_eq!(bytes, raw);
         assert!(image_prefers_solid_fill(&doc, xref_id).expect("prefers"));
+    }
+
+    #[test]
+    fn onebit_extract_requires_row_padded_len() {
+        // 9-wide mask: PIL mode "1" pads each row to ceil(9/8) = 2 bytes, so a
+        // 9x4 mask needs 8 bytes, not ceil(9*4/8) = 5.
+        let mut doc = PdfDocument::new();
+        let raw = [0u8; 8];
+        let obj = make_image_object(&mut doc, 9, 4, 1, None, true, "FlateDecode", &raw);
+        let xref_id = xref(&obj);
+        let meta = raw_stream_image_meta(&doc, xref_id)
+            .expect("meta")
+            .expect("classified");
+        let bytes = extract_raw_stream_image(&doc, xref_id, &meta)
+            .expect("extract")
+            .expect("bytes");
+        assert_eq!(bytes, raw);
+        // ceil(9*4/8) = 5 bytes is rejected (PIL would raise).
+        let short = [0u8; 5];
+        let obj = make_image_object(&mut doc, 9, 4, 1, None, true, "FlateDecode", &short);
+        assert!(extract_raw_stream_image(&doc, xref(&obj), &meta).expect("short").is_none());
     }
 
     #[test]

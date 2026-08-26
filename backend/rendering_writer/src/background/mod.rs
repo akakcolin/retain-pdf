@@ -6,7 +6,9 @@
 //! bindings (`detect`, `extract`, `image_route`, `stage`) on top.
 
 pub mod config;
+pub mod detect;
 pub mod extract;
 pub mod fill;
+pub mod image_route;
 pub mod patch;
 pub mod sampling;

@@ -192,6 +192,48 @@ pub struct PageFacts {
     pub pages: Vec<PageFact>,
 }
 
+// --- Phase 7R detect / image_route corpora ------------------------------------
+
+#[derive(Deserialize)]
+pub struct DetectCorpus {
+    pub schema: String,
+    pub cases: Vec<DetectCase>,
+}
+
+#[derive(Deserialize)]
+pub struct DetectCase {
+    pub name: String,
+    pub page_rect: Vec<f64>,
+    pub input_pdf_b64: String,
+    pub has_large: bool,
+    pub tiled: bool,
+    pub primary_xref: Option<i32>,
+    pub primary_rect: Option<Vec<f64>>,
+}
+
+#[derive(Deserialize)]
+pub struct ImageRouteCorpus {
+    pub schema: String,
+    pub render_scale: f64,
+    pub ink_threshold: u8,
+    pub cases: Vec<ImageRouteCase>,
+}
+
+#[derive(Deserialize)]
+pub struct ImageRouteCase {
+    pub name: String,
+    pub page_rect: Vec<f64>,
+    pub input_pdf_b64: String,
+    pub item_bboxes: Vec<Vec<f64>>,
+    pub has_large: bool,
+    pub primary_xref: Option<i32>,
+    pub primary_rect: Option<Vec<f64>>,
+    pub changed: bool,
+    pub rewritten_b64: Option<String>,
+    pub expected_input: PageFacts,
+    pub expected_output: PageFacts,
+}
+
 #[derive(Deserialize, Clone, Debug)]
 pub struct PageFact {
     pub words: usize,
@@ -220,6 +262,30 @@ fn load_background_corpus() -> &'static BackgroundCorpus {
 
 pub fn background_corpus() -> &'static BackgroundCorpus {
     load_background_corpus()
+}
+
+fn load_detect_corpus() -> &'static DetectCorpus {
+    static CORPUS: OnceLock<DetectCorpus> = OnceLock::new();
+    CORPUS.get_or_init(|| {
+        let raw = include_str!("../detect_corpus.json");
+        serde_json::from_str(raw).expect("failed to parse detect_corpus.json")
+    })
+}
+
+pub fn detect_corpus() -> &'static DetectCorpus {
+    load_detect_corpus()
+}
+
+fn load_image_route_corpus() -> &'static ImageRouteCorpus {
+    static CORPUS: OnceLock<ImageRouteCorpus> = OnceLock::new();
+    CORPUS.get_or_init(|| {
+        let raw = include_str!("../image_route_corpus.json");
+        serde_json::from_str(raw).expect("failed to parse image_route_corpus.json")
+    })
+}
+
+pub fn image_route_corpus() -> &'static ImageRouteCorpus {
+    load_image_route_corpus()
 }
 
 pub fn decode(b64: &str) -> Vec<u8> {
