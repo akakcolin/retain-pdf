@@ -50,6 +50,8 @@ pub struct RedactionItem {
     pub force_visual_cover_only: bool,
     #[serde(default, rename = "_formula_guard_fragment")]
     pub formula_guard_fragment: bool,
+    #[serde(default, rename = "_formula_guard_fragment_index")]
+    pub formula_guard_fragment_index: Option<i32>,
     #[serde(default, rename = "_render_cleanup_mode")]
     pub render_cleanup_mode: String,
     #[serde(default, rename = "_render_overlay_fill")]

@@ -3,12 +3,9 @@
 //! pages), run the redaction engine per page with the strategy flip for
 //! formula-bearing pages, and leave the caller to save.
 //!
-//! Phase 7R-4 shims (replaced in 7R-6): `protect_formula_regions_in_redaction_items`
-//! is identity for the corpus — formula items carry no translated text and no
-//! text item overlaps a formula guard, so the production guard split is a no-op
-//! and dropped formula items are filtered by `iter_valid_redaction_items` anyway.
-//! `collect_vector_text_rects` is empty — corpus pages have no vector glyphs.
-//! The generator asserts both preconditions before recording a case.
+//! Both production helpers are full ports as of 7R-6:
+//! `protect_formula_regions_in_redaction_items` (pure geometry under the pinned
+//! config) and `collect_vector_text_rects` (NativeDevice over the display list).
 
 use std::collections::{BTreeMap, HashSet};
 
@@ -63,26 +60,22 @@ pub fn page_has_formula_region(items: &[RedactionItem]) -> bool {
     items.iter().any(|it| item_has_formula_region(it) && item_rect_non_empty(it))
 }
 
-/// Phase 7R-4 shim for `formula_guard.py::protect_formula_regions_in_redaction_items`.
-///
-/// Production drops a redaction item whose bbox sits inside its own expanded
-/// formula guard and splits items overlapping a guard into fragments; with the
-/// corpus's pinned page policy (empty item policies) and non-overlapping layout
-/// neither has an observable effect on the valid-item set. The generator asserts
-/// `iter_valid_redaction_items(protect(items)) == iter_valid_redaction_items(items)`
-/// for every case page, making identity contractually safe here.
+/// `formula_guard.py::protect_formula_regions_in_redaction_items` — full 7R-6
+/// port (pure geometry under the pinned config; see `formula_guard.rs`).
 pub fn protect_formula_regions_in_redaction_items(
     items: Vec<RedactionItem>,
-    _translated_items: &[RedactionItem],
+    translated_items: &[RedactionItem],
 ) -> Vec<RedactionItem> {
-    items
+    super::formula_guard::protect_formula_regions_in_redaction_items(items, translated_items)
 }
 
-/// Phase 7R-4 shim for `vector_text.py::collect_vector_text_rects`. Corpus pages
-/// are built with `insert_text` (text operators, not path fills), so production
-/// finds no black-filled vector glyphs; the generator asserts `[]` per case page.
-pub fn collect_vector_text_rects(_page: &Document, _page_index: i32, _target_rects: &[RectTuple]) -> Vec<RectTuple> {
-    Vec::new()
+/// `vector_text.py::collect_vector_text_rects` — Phase 7R-6 full port.
+pub fn collect_vector_text_rects(
+    source_doc: &Document,
+    page_index: i32,
+    target_rects: &[RectTuple],
+) -> Vec<RectTuple> {
+    super::vector_text::collect_vector_text_rects(source_doc, page_index, target_rects)
 }
 
 /// `build_clean_background_pdf` — the per-page redaction orchestration only.

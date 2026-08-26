@@ -385,6 +385,63 @@ pub fn stage_corpus() -> &'static StageCorpus {
     load_stage_corpus()
 }
 
+// --- Phase 7R-6 vector_text corpus ---------------------------------------------
+
+#[derive(Deserialize)]
+pub struct VectorTextCorpus {
+    pub schema: String,
+    pub cases: Vec<VectorTextCase>,
+}
+
+#[derive(Deserialize)]
+pub struct VectorTextCase {
+    pub name: String,
+    pub page_rect: Vec<f64>,
+    pub input_pdf_b64: String,
+    pub target_rects: Vec<Vec<f64>>,
+    pub expected_rects: Vec<Vec<f64>>,
+}
+
+fn load_vector_text_corpus() -> &'static VectorTextCorpus {
+    static CORPUS: OnceLock<VectorTextCorpus> = OnceLock::new();
+    CORPUS.get_or_init(|| {
+        let raw = include_str!("../vector_text_corpus.json");
+        serde_json::from_str(raw).expect("failed to parse vector_text_corpus.json")
+    })
+}
+
+pub fn vector_text_corpus() -> &'static VectorTextCorpus {
+    load_vector_text_corpus()
+}
+
+// --- Phase 7R-6 formula_guard corpus -------------------------------------------
+
+#[derive(Deserialize)]
+pub struct FormulaGuardCorpus {
+    pub schema: String,
+    pub cases: Vec<FormulaGuardCase>,
+}
+
+#[derive(Deserialize)]
+pub struct FormulaGuardCase {
+    pub name: String,
+    pub translated_items: Vec<rendering_writer::background::redaction::RedactionItem>,
+    pub redaction_items: Vec<rendering_writer::background::redaction::RedactionItem>,
+    pub expected: Vec<rendering_writer::background::redaction::RedactionItem>,
+}
+
+fn load_formula_guard_corpus() -> &'static FormulaGuardCorpus {
+    static CORPUS: OnceLock<FormulaGuardCorpus> = OnceLock::new();
+    CORPUS.get_or_init(|| {
+        let raw = include_str!("../formula_guard_corpus.json");
+        serde_json::from_str(raw).expect("failed to parse formula_guard_corpus.json")
+    })
+}
+
+pub fn formula_guard_corpus() -> &'static FormulaGuardCorpus {
+    load_formula_guard_corpus()
+}
+
 pub fn decode(b64: &str) -> Vec<u8> {
     base64::engine::general_purpose::STANDARD
         .decode(b64.as_bytes())

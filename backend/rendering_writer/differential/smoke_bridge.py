@@ -70,9 +70,9 @@ def main() -> None:
             src.write_bytes(source_bytes)
             native_out = Path(tmp) / "native.pdf"
             py_out = Path(tmp) / "py.pdf"
-            assert _native._native_eligible(
-                src, translated_pages, None, None, frozenset(precleaned)
-            ), f"{case['name']}: shim should route native"
+            assert _native._native_eligible(None, None), (
+                f"{case['name']}: shim should route native"
+            )
             _native.build_clean_background_pdf(
                 source_pdf_path=src,
                 translated_pages=translated_pages,
