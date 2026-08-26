@@ -1578,6 +1578,14 @@ fn unwrap_single_arg_commands(s: &str) -> String {
     while i < bytes.len() {
         if bytes[i] == b'\\' {
             let (cmd, cmd_end) = read_command_name(s, i + 1);
+            // Python regex `\\([A-Za-z]+)`: a backslash with no letter (e.g. `\{`)
+            // is not a command — copy it through unchanged.
+            if cmd.is_empty() {
+                let ch = s[i..].chars().next().unwrap();
+                out.push(ch);
+                i += ch.len_utf8();
+                continue;
+            }
             let mut j = skip_ws(s, cmd_end);
             if j < bytes.len() && bytes[j] == b'[' {
                 // optional [ ... ]

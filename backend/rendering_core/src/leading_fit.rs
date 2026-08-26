@@ -44,7 +44,11 @@ pub fn normalize_leading_em_for_font_size(
 }
 
 pub fn estimate_leading_em(item: &Item, page_line_pitch: f64, font_size_pt: f64) -> f64 {
-    let block_pitch = local_line_pitch(item).max(median_line_pitch(item));
+    // Python: `local_line_pitch(item) or median_line_pitch(item)` (local if nonzero).
+    let block_pitch = {
+        let lp = local_line_pitch(item);
+        if lp > 0.0 { lp } else { median_line_pitch(item) }
+    };
     let density_ratio_x = occupied_ratio_x(item);
     let formula_weight = formula_ratio(item);
     let compactness = source_compactness_score(item);

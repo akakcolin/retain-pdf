@@ -60,7 +60,11 @@ pub fn estimate_font_size_pt(
     }
 
     let mut block_scale = 1.0;
-    let block_line_pitch = local_line_pitch(item).max(median_line_pitch(item));
+    // Python: `local_line_pitch(item) or median_line_pitch(item)` (local if nonzero).
+    let block_line_pitch = {
+        let lp = local_line_pitch(item);
+        if lp > 0.0 { lp } else { median_line_pitch(item) }
+    };
     let block_line_height = median_line_height(item);
     if page_line_pitch > 0.0 && block_line_pitch > 0.0 {
         block_scale = clamp(block_line_pitch / page_line_pitch, LOCAL_BLOCK_SCALE_MIN, LOCAL_BLOCK_SCALE_MAX);
