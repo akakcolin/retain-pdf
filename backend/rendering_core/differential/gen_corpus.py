@@ -15,6 +15,8 @@ import os
 import random
 import sys
 
+import fitz
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 # backend/rendering_core/differential -> backend/scripts (for `services.*`).
 _SCRIPTS_DIR = os.path.abspath(os.path.join(_HERE, "..", "..", "scripts"))
@@ -96,6 +98,15 @@ from services.rendering.analysis.profile.text_layer import TextLayerProfile  # n
 from services.rendering.analysis.profile.image_background import ImageBackgroundProfile  # noqa: E402
 from services.rendering.analysis.profile.vector_layer import VectorLayerProfile  # noqa: E402
 from services.rendering.analysis.profile.ocr_blocks import OcrBlockProfile  # noqa: E402
+from services.rendering.analysis.profile.builder import build_render_page_profile  # noqa: E402
+from services.rendering.analysis.profile.text_layer import build_text_layer_profile  # noqa: E402
+from services.rendering.analysis.profile.text_traces import text_trace_visibility_counts  # noqa: E402
+from services.rendering.analysis.profile.image_background import build_image_background_profile  # noqa: E402
+from services.rendering.analysis.profile.vector_layer import build_vector_layer_profile  # noqa: E402
+from services.rendering.analysis.profile.ocr_blocks import build_ocr_block_profile  # noqa: E402
+from services.rendering.analysis.profile.background_coverage import background_coverage_ratio  # noqa: E402
+from services.rendering.source.background.detect import pick_primary_background_image  # noqa: E402
+from services.rendering.analysis.classifier import classify_render_page  # noqa: E402
 from services.rendering.analysis.route.builder import build_render_page_route  # noqa: E402
 from services.document_schema.semantics import (  # noqa: E402
     block_kind,
@@ -510,6 +521,93 @@ def profile_to_dict(p):
         "ocr_blocks": ocr_blocks_to_dict(p.ocr_blocks),
         "kind": p.kind,
     }
+
+
+# --- Phase 3: profile collectors (PageSnapshot / FakePage) -------------------
+class FakePage:
+    """Mimics the fitz.Page surface used by analysis/profile/*. See page.rs."""
+
+    def __init__(self, data):
+        self.data = data
+        self.number = data["number"]
+        self.rotation = data["rotation"]
+        self.rect = fitz.Rect(data["rect"])
+        self.cropbox = fitz.Rect(data["cropbox"])
+
+    def get_texttrace(self):
+        return [{"type": t["type"], "opacity": t["opacity"]} for t in self.data["text_traces"]]
+
+    def get_text(self, mode):
+        return [[0.0, 0.0, 0.0, 0.0, "w", 0, 0, 0]] * self.data["word_count"]
+
+    def get_cdrawings(self):
+        return [None] * self.data["drawing_count"]
+
+    def get_image_info(self, hashes=False, xrefs=False):
+        return [{"xref": i["xref"], "bbox": i["bbox"]} for i in self.data["image_infos"]]
+
+    def get_images(self, full=True):
+        return [[xref] for xref in self.data["image_entries"]]
+
+    def get_image_rects(self, xref):
+        return self.data["image_rects"].get(str(xref), [])
+
+
+def gen_image_bbox(rng, rect):
+    mode = rng.random()
+    if mode < 0.3:
+        return [float(v) for v in rect]
+    if mode < 0.6:
+        x0 = round(rng.uniform(0, rect[2]), 1)
+        y0 = round(rng.uniform(0, rect[3]), 1)
+        x1 = round(rng.uniform(x0, rect[2]), 1)
+        y1 = round(rng.uniform(y0, rect[3]), 1)
+        return [x0, y0, x1, y1]
+    if mode < 0.8:
+        return [
+            round(rng.uniform(-200, rect[2] - 100), 1),
+            round(rng.uniform(-200, rect[3] - 100), 1),
+            round(rng.uniform(100, rect[2] + 200), 1),
+            round(rng.uniform(100, rect[3] + 200), 1),
+        ]
+    x = round(rng.uniform(0, rect[2]), 1)
+    y = round(rng.uniform(0, rect[3]), 1)
+    return [x, y, x, y]
+
+
+def gen_page_snapshot(rng):
+    width = round(rng.uniform(100, 800), 1)
+    height = round(rng.uniform(150, 1000), 1)
+    rect = [0.0, 0.0, width, height]
+    text_traces = [
+        {"type": rng.choice([0, 0, 1, 2, 3, 4]), "opacity": rng.choice([0.0, 0.5, 1.0])}
+        for _ in range(rng.randint(0, 4))
+    ]
+    image_infos = []
+    for _ in range(rng.randint(0, 2)):
+        image_infos.append({"xref": rng.randint(1, 5), "bbox": gen_image_bbox(rng, rect)})
+    image_entries = []
+    image_rects = {}
+    for _ in range(rng.randint(0, 2)):
+        xref = rng.randint(1, 5)
+        image_entries.append(xref)
+        image_rects[str(xref)] = [gen_image_bbox(rng, rect) for _ in range(rng.randint(0, 2))]
+    return {
+        "number": rng.randint(0, 3),
+        "rotation": rng.choice([0, 0, 90]),
+        "rect": rect,
+        "cropbox": rect if rng.random() < 0.7 else gen_image_bbox(rng, rect),
+        "text_traces": text_traces,
+        "word_count": rng.choice([0, 1, 2, 5, 19, 20, 21, 25]),
+        "drawing_count": rng.choice([0, 1, 5, 1999, 2000, 2001, 4999, 5000, 5001]),
+        "image_infos": image_infos,
+        "image_entries": image_entries,
+        "image_rects": image_rects,
+    }
+
+
+def gen_ocr_items(rng):
+    return [gen_bbox(rng) for _ in range(rng.randint(0, 3))]
 
 
 # --- handlers -----------------------------------------------------------------
@@ -1066,6 +1164,157 @@ def h_build_render_page_route(rng, n):
     return out
 
 
+def h_profile_build_render_page_profile(rng, n):
+    out = []
+    for _ in range(n):
+        snapshot = gen_page_snapshot(rng)
+        page = FakePage(snapshot)
+        ocr_items = gen_ocr_items(rng)
+        threshold = round(rng.choice([0.5, 0.75, 0.9]), 2)
+        profile = build_render_page_profile(
+            page,
+            ocr_items=[{"bbox": b} for b in ocr_items],
+            background_threshold=threshold,
+        )
+        out.append({
+            "input": {
+                "page_snapshot": snapshot,
+                "ocr_items": ocr_items,
+                "background_threshold": threshold,
+            },
+            "expected": profile_to_dict(profile),
+        })
+    return out
+
+
+def h_profile_build_ocr_block_profile(rng, n):
+    out = []
+    for _ in range(n):
+        ocr_items = gen_ocr_items(rng)
+        page_width = round(rng.uniform(100, 800), 1)
+        page_height = round(rng.uniform(150, 1000), 1)
+        p = build_ocr_block_profile(
+            [{"bbox": b} for b in ocr_items],
+            page_width=page_width,
+            page_height=page_height,
+        )
+        out.append({
+            "input": {"ocr_items": ocr_items, "page_width": page_width, "page_height": page_height},
+            "expected": ocr_blocks_to_dict(p),
+        })
+    return out
+
+
+def h_profile_build_text_layer_profile(rng, n):
+    out = []
+    for _ in range(n):
+        snapshot = gen_page_snapshot(rng)
+        page = FakePage(snapshot)
+        out.append({
+            "input": {"page_snapshot": snapshot},
+            "expected": text_layer_to_dict(build_text_layer_profile(page)),
+        })
+    return out
+
+
+def h_profile_build_image_background_profile(rng, n):
+    out = []
+    for _ in range(n):
+        snapshot = gen_page_snapshot(rng)
+        page = FakePage(snapshot)
+        threshold = round(rng.choice([0.5, 0.75, 0.9]), 2)
+        out.append({
+            "input": {"page_snapshot": snapshot, "background_threshold": threshold},
+            "expected": image_background_to_dict(
+                build_image_background_profile(page, background_threshold=threshold)
+            ),
+        })
+    return out
+
+
+def h_profile_build_vector_layer_profile(rng, n):
+    out = []
+    for _ in range(n):
+        snapshot = gen_page_snapshot(rng)
+        page = FakePage(snapshot)
+        out.append({
+            "input": {"page_snapshot": snapshot},
+            "expected": vector_layer_to_dict(build_vector_layer_profile(page)),
+        })
+    return out
+
+
+def h_profile_text_trace_visibility_counts(rng, n):
+    out = []
+    for _ in range(n):
+        snapshot = gen_page_snapshot(rng)
+        page = FakePage(snapshot)
+        visible, hidden = text_trace_visibility_counts(page)
+        out.append({
+            "input": {"page_snapshot": snapshot},
+            "expected": [visible, hidden],
+        })
+    return out
+
+
+def h_profile_background_coverage_ratio(rng, n):
+    out = []
+    for _ in range(n):
+        snapshot = gen_page_snapshot(rng)
+        page = FakePage(snapshot)
+        rect = gen_image_bbox(rng, snapshot["rect"]) if rng.random() < 0.8 else None
+        out.append({
+            "input": {"page_snapshot": snapshot, "rect": rect},
+            "expected": background_coverage_ratio(page, fitz.Rect(rect) if rect else None),
+        })
+    return out
+
+
+def h_profile_pick_primary_background_image(rng, n):
+    out = []
+    for _ in range(n):
+        snapshot = gen_page_snapshot(rng)
+        page = FakePage(snapshot)
+        threshold = round(rng.choice([0.0, 0.5, 0.75]), 2)
+        result = pick_primary_background_image(page, coverage_ratio_threshold=threshold)
+        out.append({
+            "input": {"page_snapshot": snapshot, "coverage_ratio_threshold": threshold},
+            "expected": {"xref": int(result[0]), "bbox": [float(v) for v in result[1]]}
+            if result is not None
+            else None,
+        })
+    return out
+
+
+def h_profile_classify_render_page(rng, n):
+    out = []
+    for _ in range(n):
+        snapshot = gen_page_snapshot(rng)
+        page = FakePage(snapshot)
+        threshold = round(rng.choice([0.5, 0.75, 0.9]), 2)
+        c = classify_render_page(page, background_threshold=threshold)
+        route = c.route
+        out.append({
+            "input": {"page_snapshot": snapshot, "background_threshold": threshold},
+            "expected": {
+                "kind": c.kind,
+                "large_background_image": c.large_background_image,
+                "visible_text_traces": c.visible_text_traces,
+                "hidden_text_traces": c.hidden_text_traces,
+                "drawing_count": c.drawing_count,
+                "background_coverage_ratio": c.background_coverage_ratio,
+                "route": {
+                    "redaction": route.redaction,
+                    "background": route.background,
+                    "compose": route.compose,
+                    "layout": route.layout,
+                    "reason": route.reason,
+                },
+            },
+        })
+    return out
+
+
 # --- registry -----------------------------------------------------------------
 SCALAR_DEFAULT = 40
 ITEM_DEFAULT = 25
@@ -1136,6 +1385,18 @@ REGISTRY = {
     "semantics.is_metadata_semantic": (_item_bool_handler(is_metadata_semantic), ITEM_DEFAULT),
     "route.classify_profile_kind": (h_classify_profile_kind, ITEM_DEFAULT),
     "route.build_render_page_route": (h_build_render_page_route, ITEM_DEFAULT),
+    "profile.build_render_page_profile": (h_profile_build_render_page_profile, SCALAR_DEFAULT),
+    "profile.ocr_blocks.build_ocr_block_profile": (h_profile_build_ocr_block_profile, SCALAR_DEFAULT),
+    "profile.text_layer.build_text_layer_profile": (h_profile_build_text_layer_profile, SCALAR_DEFAULT),
+    "profile.image_background.build_image_background_profile": (
+        h_profile_build_image_background_profile,
+        SCALAR_DEFAULT,
+    ),
+    "profile.vector_layer.build_vector_layer_profile": (h_profile_build_vector_layer_profile, SCALAR_DEFAULT),
+    "profile.text_traces.text_trace_visibility_counts": (h_profile_text_trace_visibility_counts, SCALAR_DEFAULT),
+    "profile.background_coverage.background_coverage_ratio": (h_profile_background_coverage_ratio, SCALAR_DEFAULT),
+    "profile.detect.pick_primary_background_image": (h_profile_pick_primary_background_image, SCALAR_DEFAULT),
+    "profile.classifier.classify_render_page": (h_profile_classify_render_page, SCALAR_DEFAULT),
 }
 
 SEED = 20260826
@@ -1154,7 +1415,9 @@ def main():
 
     rng = random.Random(args.seed)
     cases = {}
-    keys = [args.only] if args.only else sorted(REGISTRY)
+    # Process the Phase 3 profile.* handlers last so they consume fresh RNG
+    # after the existing handlers, keeping the pre-existing corpus byte-identical.
+    keys = [args.only] if args.only else sorted(REGISTRY, key=lambda k: (k.startswith("profile."), k))
     for fn_id in keys:
         handler, default_n = REGISTRY[fn_id]
         n = args.cases if default_n == SCALAR_DEFAULT else args.item_cases

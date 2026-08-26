@@ -14,10 +14,12 @@ use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use rendering_core::item::{FormulaEntry, Item, Line, Span};
+use rendering_core::page::{ImageInfo, PageSnapshot, TextTrace};
 use rendering_core::profile::{
     ImageBackgroundProfile, OcrBlockProfile, PageGeometryProfile, RenderPageKind,
     RenderPageProfile, TextLayerProfile, VectorLayerProfile,
 };
+use rendering_core::rect::Rect;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -298,6 +300,17 @@ impl VectorLayerDto {
     }
 }
 
+impl OcrBlocksDto {
+    pub fn to_ocr_blocks(&self) -> OcrBlockProfile {
+        OcrBlockProfile {
+            block_count: self.block_count,
+            valid_bbox_count: self.valid_bbox_count,
+            total_bbox_area: self.total_bbox_area,
+            page_area_ratio: self.page_area_ratio,
+        }
+    }
+}
+
 impl ProfileDto {
     pub fn to_profile(&self) -> RenderPageProfile {
         RenderPageProfile {
@@ -320,6 +333,112 @@ impl ProfileDto {
             kind: parse_kind(&self.kind),
         }
     }
+}
+
+// --- PageSnapshot DTOs (Phase 3 profile collectors) --------------------------
+
+#[derive(Deserialize)]
+pub struct TextTraceDto {
+    #[serde(default, rename = "type")]
+    pub trace_type: i64,
+    #[serde(default)]
+    pub opacity: f64,
+}
+
+#[derive(Deserialize)]
+pub struct ImageInfoDto {
+    #[serde(default)]
+    pub xref: i64,
+    #[serde(default)]
+    pub bbox: [f64; 4],
+}
+
+#[derive(Deserialize)]
+pub struct PageSnapshotDto {
+    pub number: i64,
+    pub rotation: i64,
+    pub rect: [f64; 4],
+    pub cropbox: [f64; 4],
+    #[serde(default)]
+    pub text_traces: Vec<TextTraceDto>,
+    #[serde(default)]
+    pub word_count: i64,
+    #[serde(default)]
+    pub drawing_count: i64,
+    #[serde(default)]
+    pub image_infos: Vec<ImageInfoDto>,
+    #[serde(default)]
+    pub image_entries: Vec<i64>,
+    #[serde(default)]
+    pub image_rects: HashMap<String, Vec<[f64; 4]>>,
+}
+
+impl PageSnapshotDto {
+    pub fn to_snapshot(&self) -> PageSnapshot {
+        PageSnapshot {
+            number: self.number,
+            rotation: self.rotation,
+            rect: Rect::new(self.rect[0], self.rect[1], self.rect[2], self.rect[3]),
+            cropbox: Rect::new(self.cropbox[0], self.cropbox[1], self.cropbox[2], self.cropbox[3]),
+            text_traces: self
+                .text_traces
+                .iter()
+                .map(|t| TextTrace {
+                    trace_type: t.trace_type,
+                    opacity: t.opacity,
+                })
+                .collect(),
+            word_count: self.word_count,
+            drawing_count: self.drawing_count,
+            image_infos: self
+                .image_infos
+                .iter()
+                .map(|i| ImageInfo {
+                    xref: i.xref,
+                    bbox: Rect::new(i.bbox[0], i.bbox[1], i.bbox[2], i.bbox[3]),
+                })
+                .collect(),
+            image_entries: self.image_entries.clone(),
+            image_rects: self
+                .image_rects
+                .iter()
+                .map(|(k, v)| {
+                    (
+                        k.parse::<i64>().unwrap_or(0),
+                        v.iter()
+                            .map(|b| Rect::new(b[0], b[1], b[2], b[3]))
+                            .collect::<Vec<Rect>>(),
+                    )
+                })
+                .collect::<HashMap<i64, Vec<Rect>>>(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PrimaryImageDto {
+    pub xref: i64,
+    pub bbox: [f64; 4],
+}
+
+#[derive(Deserialize)]
+pub struct RoutePartDto {
+    pub redaction: String,
+    pub background: String,
+    pub compose: String,
+    pub layout: String,
+    pub reason: String,
+}
+
+#[derive(Deserialize)]
+pub struct ClassificationDto {
+    pub kind: String,
+    pub large_background_image: bool,
+    pub visible_text_traces: i64,
+    pub hidden_text_traces: i64,
+    pub drawing_count: i64,
+    pub background_coverage_ratio: f64,
+    pub route: RoutePartDto,
 }
 
 // --- comparison helpers ------------------------------------------------------
