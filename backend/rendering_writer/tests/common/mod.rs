@@ -240,6 +240,46 @@ pub struct PageFact {
     pub ink_ratio: f64,
 }
 
+// --- Phase 7R-2 redaction corpus -------------------------------------------------
+
+#[derive(Deserialize)]
+pub struct RedactionCorpus {
+    pub schema: String,
+    pub render_scale: f64,
+    pub ink_threshold: u8,
+    pub cases: Vec<RedactionCase>,
+}
+
+#[derive(Deserialize)]
+pub struct RedactionCase {
+    pub name: String,
+    pub page_rect: Vec<f64>,
+    pub input_pdf_b64: String,
+    pub items: Vec<rendering_writer::background::redaction::RedactionItem>,
+    pub strategy: Option<String>,
+    pub cover_only: bool,
+    pub expected_diagnostics: RedactionDiagnostics,
+    pub expected_input: PageFacts,
+    pub expected_output: PageFacts,
+}
+
+#[derive(Deserialize, PartialEq, Debug)]
+pub struct RedactionDiagnostics {
+    pub items: usize,
+    pub raw_removable_rects: usize,
+    pub merged_removable_rects: usize,
+    pub cover_rects: usize,
+    pub fast_page_cover_only: bool,
+    pub item_fast_cover_count: usize,
+    pub route: String,
+    pub strategy: String,
+    pub uses_pymupdf_redaction: bool,
+    pub legacy_pdf_write_reason: String,
+    pub visual_profile_cover_rects: usize,
+    pub auto_text_cleanup_math_protected: bool,
+    pub auto_text_cleanup_items_skipped: usize,
+}
+
 fn load_corpus() -> &'static WriteCorpus {
     static CORPUS: OnceLock<WriteCorpus> = OnceLock::new();
     CORPUS.get_or_init(|| {
@@ -286,6 +326,18 @@ fn load_image_route_corpus() -> &'static ImageRouteCorpus {
 
 pub fn image_route_corpus() -> &'static ImageRouteCorpus {
     load_image_route_corpus()
+}
+
+fn load_redaction_corpus() -> &'static RedactionCorpus {
+    static CORPUS: OnceLock<RedactionCorpus> = OnceLock::new();
+    CORPUS.get_or_init(|| {
+        let raw = include_str!("../redaction_corpus.json");
+        serde_json::from_str(raw).expect("failed to parse redaction_corpus.json")
+    })
+}
+
+pub fn redaction_corpus() -> &'static RedactionCorpus {
+    load_redaction_corpus()
 }
 
 pub fn decode(b64: &str) -> Vec<u8> {

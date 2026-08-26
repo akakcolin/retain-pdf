@@ -611,6 +611,40 @@ pub fn draw_white_covers(
     Ok(())
 }
 
+/// `fill.py::draw_flat_white_covers` — a pure alias of `draw_white_covers`
+/// (production's "flat" drawer still samples the local background fill).
+pub fn draw_flat_white_covers(
+    page: &mut mupdf::pdf::PdfPage,
+    doc: &mut mupdf::pdf::PdfDocument,
+    page_rect: &RectTuple,
+    rects: &[RectTuple],
+    render_clip: &dyn Fn(&RectTuple) -> Option<RgbPixmap>,
+) -> Result<(), mupdf::Error> {
+    draw_white_covers(page, doc, page_rect, rects, render_clip)
+}
+
+/// `fill.py::draw_solid_cover` — one opaque cover rectangle with an explicit
+/// fill, the `Shape.draw_rect + finish(fill) + commit(overlay=True)` sequence.
+pub fn draw_solid_cover(
+    page: &mut mupdf::pdf::PdfPage,
+    doc: &mut mupdf::pdf::PdfDocument,
+    rect: &RectTuple,
+    fill: &[f64; 3],
+) -> Result<(), mupdf::Error> {
+    let ops = format!(
+        "q\n{} {} {} rg\n{} {} {} {} re\nf\nQ\n",
+        fill[0],
+        fill[1],
+        fill[2],
+        rect[0],
+        rect[1],
+        rect[2] - rect[0],
+        rect[3] - rect[1],
+    );
+    page.insert_contents(doc, ops.as_bytes(), true)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

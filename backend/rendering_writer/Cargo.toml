@@ -8,6 +8,7 @@ mupdf = { version = "0.8", default-features = false, features = ["base14-fonts"]
 rendering_core = { path = "../rendering_core" }
 image = "0.25"
 flate2 = "1"
+serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 base64 = "0.22"
