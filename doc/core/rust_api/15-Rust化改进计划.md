@@ -72,3 +72,40 @@ rust_api（服务壳，编排作业）
 ## 推荐第一步
 
 阶段 A1 接线 Typst 输出层——shim、差分、桥接函数都现成，能把第二个子系统接到 Rust，同时验证"接线 + 删 Python 版"收编流程，为后续定调。
+
+## 阶段 B 执行批次（2026-08-28 更新）
+
+> 依据 14 号状态文档现状，把「破 fitz + 收编休眠代码」拆为 8 个可接线批次。B-* 是阶段 B（PDF IO 解耦）的子批次，沿用 `_native.py` shim + 差分/parity 验证模式。
+
+### 批次清单
+
+| 批次 | 内容 | 风险 | 关键点 |
+|---|---|---|---|
+| B-A | `render_mode.py` + `analysis/profile`+`classifier` 收编 | 低 | 首个批次验证接线流程；仅需 bridge 薄函数，无新 reader 原语 |
+| B-B | `source_cleanup/planning` 收尾 + 删 reference | 低-中 | 生产已 native，清 `fitz.Rect` + planner fitz 引用 |
+| B-C | `source/cleanup` 文本读取补全 | 中 | `text_intrusion`/`margin_text` 接 spans/blocks 原语；words-clip 留 reference |
+| B-D | `visual_profile`/`color_adapt` 纯几何清理 | 低 | 已 native，只剩 Rect 强转 |
+| B-E | `source` 顶层散点收编 | 中 | `document_ops`/`compression`/`vector_profile` |
+| B-F | `output/typst` 单页/dual-book `show_pdf_page` | 高 | 需新 writer 原语（display-list overlay + dual-page 组装） |
+| B-G | 红批写入原语（破 `text_redaction`/`text_layer_only` 回退） | 高 | 泛化 background 红批+cover 为独立 bridge 原语 |
+| B-H | 纯几何 Rect 强转清扫 | 低面广 | 40+ 文件机械替换，最后做避免 churn |
+
+### 顺序
+
+`B-A` → `B-B ∥ B-D` → `B-C ∥ B-E` → `B-F ∥ B-G`（建议先 G 后 F）→ `B-H`。读取侧批次（B-A..E）无硬依赖可并行，writer 侧两块（B-F/G）风险高宜串行。
+
+### 终态判据
+
+1. 默认 typst/typst_visual/overlay book + auto render-mode 采样：fitz 调用计数探针断言为 0。
+2. `text_redaction`/`text_layer_only` 走 native（B-G 后），`_native_eligible` 不再回退这两个策略。
+3. 单页/dual-book `show_pdf_page`：native 化（B-F）或明确列入 allowlist 标注非默认策略。
+4. fitz import 收缩为可枚举 allowlist：不可复现分歧 / 回退网 / 非默认 write / devtools，每项带 reason。
+5. 差分 smoke（新增 B-A/B-C/B-E/B-F/B-G）全部接入 `rendering-parity.yml` 常驻。
+
+### 硬边界（勿强行 native）
+
+`get_texttrace`、`get_text("words", clip)`、per-drawing zigzag rect、placement→xref 关联——mupdf-rs 无等价物，强行复刻会产生脆弱 quirk 代码（14 号文档 `collect_page_drawing_rects` 教训），一律留 reference 入 allowlist。
+
+### 最大风险
+
+writer 原语语义等价性（B-F/B-G）：现有 `overlay_page` 是 pikepdf 风格 Form XObject，非 fitz `show_pdf_page` 等价物；红批 `apply_redactions`（text-remove/graphics-none/image-none）与 cover fill 采样无独立原语。必须像素级 parity + 真实样本 corpus，不能以单 fixture 全等验收。
