@@ -165,3 +165,52 @@ jobs:
           export PYTHONPATH="$GITHUB_WORKSPACE/backend/scripts"
           cd backend/scripts
           python -m pytest devtools/tests/rendering/ -q
+
+  # Replicates the release wheel mechanism (release-desktop.yml): maturin build
+  # --release -> pip install --target -> import, on every OS the desktop ships.
+  # The bridge has only ever been CI-built on Linux; this catches Windows/macOS
+  # build or load regressions before a tag-push release hits them.
+  bridge-bundle-smoke:
+    name: Bridge wheel bundle smoke (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install mupdf-sys build deps
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y build-essential clang libclang-dev pkg-config
+          fi
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            brew install pkg-config
+          fi
+
+      - name: Build bridge wheel and smoke bundled import
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            export LIBCLANG_PATH="C:\\Program Files\\LLVM\\bin"
+          fi
+          TEMP_POSIX="${RUNNER_TEMP//\\//}"
+          python -m pip install --upgrade pip
+          python -m pip install "maturin>=1.4,<2.0"
+          cd backend/rendering_bridge
+          mkdir -p "$TEMP_POSIX/bridge-wheels"
+          maturin build --release --out "$TEMP_POSIX/bridge-wheels"
+          python -m pip install --target "$TEMP_POSIX/bridge-sp" "$(ls "$TEMP_POSIX"/bridge-wheels/*.whl | head -n 1)"
+          PYTHONPATH="$TEMP_POSIX/bridge-sp" python -c "import rendering_bridge; print('bridge import ok')"

@@ -530,6 +530,27 @@ function verifyBundledPythonRuntime(root) {
   };
 }
 
+function bundledRenderingBridgePresent(sitePackagesList) {
+  for (const sitePackages of sitePackagesList) {
+    if (!sitePackages || !fs.existsSync(sitePackages)) {
+      continue;
+    }
+    for (const entry of fs.readdirSync(sitePackages)) {
+      if (/^rendering_bridge.*\.(so|pyd)$/.test(entry)) {
+        return true;
+      }
+      const entryPath = path.join(sitePackages, entry);
+      if (entry === "rendering_bridge" && fs.statSync(entryPath).isDirectory()) {
+        const inner = fs.readdirSync(entryPath);
+        if (inner.some((name) => /^rendering_bridge.*\.(so|pyd)$/.test(name))) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 const rustApiBinary = resolveRustApiBinary();
 const renderRsBinary = resolveRenderRsBinary();
 if (desktopPackage.version !== releaseVersion) {
@@ -868,6 +889,9 @@ if (!frontendOnly) {
       ? bundledPythonDiagnostics.importPaths.map((entry) => path.relative(outputBackendRoot, entry))
       : [],
     bundledPythonImportCheck: bundledPythonDiagnostics ? bundledPythonDiagnostics.importCheck : null,
+    renderingBridgeBundled: bundledPythonDiagnostics
+      ? bundledRenderingBridgePresent(bundledPythonDiagnostics.sitePackages)
+      : false,
     typstBundled: fs.existsSync(path.join(outputBackendRoot, "typst")),
     typstPackagesBundled: fs.existsSync(path.join(outputBackendRoot, "typst-packages")),
     bundledFonts: fs.readdirSync(bundledFontsRoot).sort(),

@@ -18,6 +18,7 @@
     "prepare-app": "npm --prefix ../frontend run build && node scripts/prepare-app.mjs",
     "build:rust-api": "cargo build --release --manifest-path ../backend/rust_api/Cargo.toml",
     "build:render-rs": "cargo build --release --manifest-path ../backend/rendering_orchestrator/Cargo.toml",
+    "build:native-bridge": "maturin build --release --manifest-path ../backend/rendering_bridge/Cargo.toml",
     "prepare-tauri": "node scripts/prepare-tauri.mjs",
     "tauri": "tauri",
     "dev:tauri": "npm run prepare-app && npm run prepare-tauri && tauri dev",
