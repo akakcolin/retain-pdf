@@ -17,8 +17,11 @@
 | 7R-1..6 | background/redaction 完整移植 | 完成 | cc1bfef0..0bfef7d6 |
 | 7R-7 (WIP) | 移除 page_specs/visual_profile 门禁 | 未提交 | 工作区改动 |
 | B2 | save_optimized 字节压缩接 native（fitz 子集化 + native garbage=4/流压缩，失败回退） | 完成 | a74d9e84 |
-| B2-Inc2 | pdf_structure_profile 表单 xobject/几何/文本 span 接 reader 原语 | 未提交 | 工作区改动 |
-| D2 | rendering crates 差分 + 冒烟 parity 接入 CI 门禁（rendering-parity.yml） | 完成 | 工作区改动 |
+| B2-Inc2 | pdf_structure_profile 表单 xobject/几何/文本 span 接 reader 原语 | 完成 | e768013e |
+| B2-Inc3 | reader PageSnapshot 补全（image_rects 聚合 + form_xobjects 原语） | 完成 | e768013e |
+| B2-Inc4 | 分析簇接线：`build_render_document_analysis` bridge → `analysis/document/builder.py` | 完成 | e768013e |
+| B2-Inc5 | 热路径清扫：整本 overlay 默认路径零 fitz 调用 | 完成 | e768013e |
+| D2 | rendering crates 差分 + 冒烟 parity 接入 CI 门禁（rendering-parity.yml） | 完成 | 6f9e35d9..c2ad4e4a |
 
 ## 子系统对照（已接线 / 休眠 / 未移植）
 
@@ -31,17 +34,18 @@
 | `layout/`、`analysis/route/` | `rendering_core` | **未接线**：无 Python 引用，仅差分测试 |
 | `analysis/profile/`、`classifier.py` | `rendering_core::profile/classifier` | **未接线** |
 | `source_cleanup/` | `rendering_core::source_cleanup` | **部分**：被 Rust background 内部用；Python planning 仍跑 |
-| `pdf_structure_profile/`（sampler） | `rendering_reader`（read_page_cleanup_contexts/form_xobjects/geometry/text_spans 原语 + `_native.py` 装配） | **已接线**（工作区未提交）：生产走 native，回退 Python |
-| fitz 读取层 | `rendering_reader`（mupdf-rs） | **部分**：pdf_structure_profile 生产使用 reader 原语；其余仍用 fitz |
-| `analysis/document`、`visual_profile`、`policy`、`workflow`、`document` | — | **未移植** |
+| `pdf_structure_profile/`（sampler） | `rendering_reader`（read_page_cleanup_contexts/form_xobjects/geometry/text_spans 原语 + `_native.py` 装配） | **已接线**：生产走 native，回退 Python |
+| `analysis/document`（builder） | `rendering_bridge::build_render_document_analysis`（reader 原语装配） | **已接线**：生产走 `analysis/_native.py`，回退 Python |
+| fitz 读取层 | `rendering_reader`（mupdf-rs） | **部分**：pdf_structure_profile / analysis 生产使用 reader 原语；其余仍用 fitz |
+| `visual_profile`、`policy`、`workflow`、`document` | — | **未移植** |
 
 ## 生产接线现状
 
 - native 入口：`build_clean_background_pdf` → `source/background/_native.py`；最终保存 `save_optimized_pdf` → `source/_native.py::save_optimized`（fitz `subset_fonts()`+`tobytes()`，native garbage=4+流压缩，失败回退 fitz）。
-- 新增 native 入口：`pdf_structure_profile` sampler → `_native.build_pdf_structure_profile`（reader 原语装配，回退 Python）；Typst 源码生成 → `output/typst/_native.py::emit_typst_source`/`emit_typst_book_overlay_source`。
+- 新增 native 入口：`pdf_structure_profile` sampler → `_native.build_pdf_structure_profile`；`analysis/document/builder` → `_native.build_render_document_analysis`；Typst 源码生成 → `output/typst/_native.py::emit_typst_source`/`emit_typst_book_overlay_source`（均回退 Python）。
 - WIP 状态：auto / visual_cover / visual_cover_and_remove_text 全走 Rust；仅 `text_layer_only` / `text_redaction` 与 mock（instrumented）场景回退纯 Python。
-- CI 门禁（D2）：`.github/workflows/rendering-parity.yml` 跑 rendering crates 差分 replay + 13 个 native 冒烟桥，锁 native==fitz 页 facts 与体积。
-- 生产渲染流程其余环节（page_specs 构建、prepare、颜色适配、visual profile 加载、typst CLI 编译、叠加）仍是 Python + fitz；`save_fast_pdf` 仍走 fitz `doc.save`。
+- CI 门禁（D2）：`.github/workflows/rendering-parity.yml` 跑 rendering crates 差分 replay（writer+reader，含 form_xobjects）+ 17 个 native 冒烟桥（含 B3 整本 E2E + 像素 parity，CI 装 typst 0.14.2 + cmarker/mitex），锁 native==fitz 页 facts、体积与像素。
+- 生产渲染流程其余环节：整本 overlay 默认路径（`build_book_typst_pdf` → pikepdf 合并）已零 fitz 调用（B2-Inc5，用调用计数探针验证）；`save_fast_pdf` 仍走 fitz `doc.save`；颜色适配（`apply_adaptive_overlay_colors_batch`）PDF 访问已 native（`sample_page_color_fills`/`extract_page_span_dicts`/`sample_title_visual_colors`），仅剩纯几何 `fitz.Rect` 强转；单页/dual-book 路径仍传 fitz doc。
 
 ## Python 依赖评估
 
@@ -51,6 +55,15 @@
 - native `.so` 已构建并装入 `.venv`（Python 3.14），开发环境 `NATIVE=True`。
 - 桌面发布包 bundle 的是 `desktop/app/backend` 副本，未发现 maturin 构建脚本；发布版是否走 native 取决于部署时是否执行构建。
 
+## 分歧台账（reader 原语 vs fitz）
+
+- **text_traces 为空**：mupdf 无 `get_texttrace` 等价物（spans/drawings 无 opacity/type-3 信号）→ native `hidden_text=False`；影响仅限「隐藏文本且 <20 词」页，分类 parity 用 corpus kind 断言兜底。
+- **image_rects xref tie**：mupdf 无 xref 关联 bbox，`page_snapshot` 取首个资源 xref，image_rects 聚合全部 placement rects（≤0.01pt 覆盖精确关联）。
+- **drawing rect 分歧**：已有 golden 差分记录。
+- **native 页索引推导边界**（B2-Inc5 doc=None 分支）：`layout._native.read_source_page_sizes` 会跳过不可读页，与 fitz `0 <= idx < len(doc)` 仅在「范围内但不可读」页有边角分歧；`overlay_pdf_size_mismatches` native 分支假设 overlay 页数==specs 数（fitz 用 `len(overlay_doc)` 实测），编译按 spec 生成、页数恒等，仅防御性检测有差异。
+- **颜色适配**：batch 路径（`apply_adaptive_overlay_colors_batch`）PDF 访问已 native（3 个 source native 原语：`sample_page_color_fills`/`extract_page_span_dicts`/`sample_title_visual_colors`），共享决策树 `_apply_adaptive_overlay_colors_with_data` 纯 Python；仅参考实现（`PageTextColorSampler.build`/`title_text_color_from_visual_components`）与纯几何 `fitz.Rect` 强转仍走 fitz。
+- **限定为 fallback/非默认策略**：`workflow/direct_overlay.py`、`overlay_ops`/`source_page_overlay`（单页/dual-book）、`fill.py`、`source_cleanup/pdf/document.py` —— NATIVE=False 时仍走 fitz，属参考实现。
+
 ## 结论
 
-移植覆盖度高、每阶段带 corpus + 差分门禁（现已接 CI），但生产接入度仍偏低：真正跑 Rust 的热点是"背景涂改/红批"stage、最终保存字节压缩、pdf_structure_profile 采样、Typst 源码生成。整体替代程度按代码量算中等，按运行时算偏低；Python 库的整体依赖尚未实质下降。
+移植覆盖度高、每阶段带 corpus + 差分门禁（现已接 CI），但生产接入度仍偏低：真正跑 Rust 的热点是"背景涂改/红批"stage、最终保存字节压缩、pdf_structure_profile 采样、Typst 源码生成。B2 已把整本 overlay 默认路径拉成零 fitz；颜色适配与保存字节压缩回退仍残留 fitz。整体替代程度按代码量算中等，按运行时算偏低；Python 库的整体依赖尚未实质下降。
