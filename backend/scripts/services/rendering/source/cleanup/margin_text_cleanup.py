@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import fitz
 
+from services.rendering.source.cleanup.text_extract import extract_page_text_blocks
+
 
 TOP_BAND_RATIO = 0.14
 BOTTOM_BAND_RATIO = 0.08
@@ -24,22 +26,7 @@ def _band_limits(page: fitz.Page) -> tuple[float, float]:
 def _candidate_margin_block_rects(page: fitz.Page) -> list[fitz.Rect]:
     top_limit, bottom_limit = _band_limits(page)
     rects: list[fitz.Rect] = []
-    try:
-        blocks = page.get_text("blocks")
-    except Exception:
-        return rects
-
-    for entry in blocks:
-        if len(entry) < 7:
-            continue
-        try:
-            rect = fitz.Rect(entry[:4])
-        except Exception:
-            continue
-        block_type = entry[6]
-        text = str(entry[4] or "").strip()
-        if block_type != 0 or rect.is_empty or not text:
-            continue
+    for rect, text in extract_page_text_blocks(page):
         if (rect.y1 - rect.y0) > MAX_MARGIN_BLOCK_HEIGHT_PT:
             continue
         if len([line for line in text.splitlines() if line.strip()]) > MAX_MARGIN_BLOCK_LINES:

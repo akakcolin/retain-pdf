@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import fitz
-
+from services.rendering import _routing
 from services.rendering.layout.typography.geometry import cover_bbox
 from services.document_schema.semantics import layout_role
 from services.document_schema.semantics import normalized_sub_type
@@ -12,6 +11,7 @@ from services.rendering.layout.font_roles import is_title_like_block
 from services.rendering.policy import item_overlay_fill
 from services.rendering.source.background.fill import LocalBackgroundSampler
 from services.rendering.source.background.fill import sample_local_background_fill
+from services.rendering.source.rects import Rect
 from services.rendering.visual_profile.contracts import DocumentVisualProfile
 from services.rendering.visual_profile.contracts import ItemVisualProfile
 from services.rendering.visual_profile.contracts import PageVisualProfile
@@ -30,11 +30,13 @@ def build_document_visual_profile(
 ) -> DocumentVisualProfile:
     from services.rendering.visual_profile import _native
 
-    if _native.NATIVE:
+    if _routing.routed("visual_profile", "build_document_visual_profile", _native.NATIVE):
         return _native.build_document_visual_profile(
             source_pdf_path=source_pdf_path,
             pages=pages,
         )
+    import fitz  # reference (fitz) fallback path only
+
     doc = fitz.open(source_pdf_path)
     try:
         page_profiles: dict[int, PageVisualProfile] = {}
@@ -50,13 +52,13 @@ def build_document_visual_profile(
 
 
 def build_page_visual_profile(
-    page: fitz.Page,
+    page: object,
     page_index: int,
     items: list[dict],
 ) -> PageVisualProfile:
     item_rects = _item_rects(items)
     background_rects = [
-        rect
+        rect.to_fitz()
         for item in items
         if _item_needs_visual_profile_background(item)
         for rect in [item_rects.get(str(item.get("item_id") or ""))]
@@ -123,14 +125,15 @@ def _fallback_item_profile(
 
 def _sample_item_profile(
     *,
-    page: fitz.Page,
+    page: object,
     page_index: int,
     item: dict,
     item_id: str,
-    rect: fitz.Rect,
+    rect: Rect,
     background_sampler: LocalBackgroundSampler | None,
     span_sampler: PageSpanColorSampler | None,
 ) -> ItemVisualProfile:
+    rect = rect.to_fitz()
     should_sample_background = _item_needs_visual_profile_background(item)
     background = (
         sample_local_background_fill(page, rect, sampler=background_sampler)
@@ -158,7 +161,7 @@ def _sample_item_profile_with_data(
     page_index: int,
     item: dict,
     item_id: str,
-    rect: fitz.Rect,
+    rect: Rect,
     background: tuple[float, float, float] | list[float],
     span_sampler: PageSpanColorSampler | None,
     foreground_color: tuple[float, float, float] | list[float] | None = None,
@@ -211,8 +214,8 @@ def _sample_item_profile_with_data(
     )
 
 
-def _item_rects(items: list[dict]) -> dict[str, fitz.Rect]:
-    rects: dict[str, fitz.Rect] = {}
+def _item_rects(items: list[dict]) -> dict[str, Rect]:
+    rects: dict[str, Rect] = {}
     for item in items:
         item_id = str(item.get("item_id") or "")
         if not item_id:
@@ -220,7 +223,7 @@ def _item_rects(items: list[dict]) -> dict[str, fitz.Rect]:
         bbox = cover_bbox(item)
         if len(bbox) != 4:
             continue
-        rect = fitz.Rect(bbox)
+        rect = Rect(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
         if rect.is_empty or rect.is_infinite:
             continue
         rects[item_id] = rect

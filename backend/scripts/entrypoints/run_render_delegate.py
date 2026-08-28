@@ -30,6 +30,7 @@ from foundation.config import layout  # noqa: E402
 from foundation.shared.stage_specs import RenderStageSpec  # noqa: E402
 from runtime.pipeline.translation_loader import load_translated_pages  # noqa: E402
 from runtime.pipeline.translation_loader import select_translated_pages  # noqa: E402
+from services.rendering import _routing  # noqa: E402
 from services.rendering.document.page_map import RenderPageMap  # noqa: E402
 from services.rendering.layout.page_specs import build_render_page_specs  # noqa: E402
 from services.rendering.output.typst import _native as _typst_native  # noqa: E402
@@ -162,6 +163,7 @@ def main() -> int:
     bundle_path.parent.mkdir(parents=True, exist_ok=True)
     bundle_path.write_text(json.dumps(bundle, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"render bundle written: {bundle_path}", flush=True)
+    _routing.flush_to(spec.job_dirs.artifacts_dir)
     return 0
 
 

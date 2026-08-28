@@ -86,6 +86,7 @@ from pathlib import Path
 
 import fitz
 
+from services.rendering import _routing
 from services.rendering.document.pikepdf_pages import _extract_pages_with_pikepdf_python
 from services.rendering.source.compression.image_pipeline import _compress_pdf_images_only_impl_python
 from services.rendering.source.preparation.xobject_sanitize import (
@@ -119,7 +120,7 @@ def sanitize_pdf_copy(
 ) -> XObjectSanitizeResult:
     """`xobject_sanitize.build_invalid_xobject_sanitized_pdf_copy`, routed to the
     native bridge when built; otherwise the pure-Python implementation."""
-    if not NATIVE:
+    if not _routing.routed("source", "sanitize_pdf_copy", NATIVE):
         return _build_invalid_xobject_sanitized_pdf_copy_python(
             source_pdf_path=source_pdf_path,
             output_pdf_path=output_pdf_path,
@@ -133,6 +134,7 @@ def sanitize_pdf_copy(
     output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
     output_pdf_path.write_bytes(out_bytes)
     elapsed = time.perf_counter() - started
+    _routing.record_native_hit("source", "sanitize_pdf_copy")
     print(
         f"invalid xobject sanitize: replaced_images={meta['invalid_image_xobjects']} "
         f"pages={meta['pages_changed']} elapsed={elapsed:.2f}s output={output_pdf_path}",
@@ -152,7 +154,7 @@ def compress_images_only(pdf_path: Path, *, dpi: int = 200) -> bool:
     bridge when built; otherwise the pure-Python implementation. Mirrors
     `replace_if_smaller`: commits only when the native output is strictly
     smaller than the input file."""
-    if not NATIVE:
+    if not _routing.routed("source", "compress_images_only", NATIVE):
         return _compress_pdf_images_only_impl_python(pdf_path, dpi=dpi)
     if dpi <= 0 or not pdf_path.exists():
         return False
@@ -161,6 +163,7 @@ def compress_images_only(pdf_path: Path, *, dpi: int = 200) -> bool:
     meta = json.loads(meta_json)
     if not meta["changed"] or len(out_bytes) >= len(input_bytes):
         return False
+    _routing.record_native_hit("source", "compress_images_only")
     pdf_path.write_bytes(out_bytes)
     return True
 
@@ -174,7 +177,7 @@ def extract_pages(
 ) -> Path:
     """`pikepdf_pages.extract_pages_with_pikepdf`, routed to the native bridge
     when built; otherwise the pure-Python implementation."""
-    if not NATIVE:
+    if not _routing.routed("source", "extract_pages", NATIVE):
         return _extract_pages_with_pikepdf_python(
             source_pdf_path=source_pdf_path,
             output_pdf_path=output_pdf_path,
@@ -188,6 +191,7 @@ def extract_pages(
         int(end_page),
     )
     output_pdf_path.write_bytes(out_bytes)
+    _routing.record_native_hit("source", "extract_pages")
     return output_pdf_path
 
 
@@ -197,9 +201,11 @@ def save_optimized(pdf_bytes: bytes) -> bytes:
     The native path runs mupdf `pdf_subset_fonts` (fitz `subset_fonts()`
     equivalent) + garbage=4/stream compression in one pass, so production no
     longer subsets in fitz first."""
-    if not NATIVE:
+    if not _routing.routed("source", "save_optimized", NATIVE):
         return _save_optimized_pdf_bytes_python(pdf_bytes)
-    return _native_subset_and_save_optimized_pdf(pdf_bytes)
+    result = _native_subset_and_save_optimized_pdf(pdf_bytes)
+    _routing.record_native_hit("source", "save_optimized")
+    return result
 
 
 def _save_optimized_pdf_bytes_python(pdf_bytes: bytes) -> bytes:
@@ -229,7 +235,7 @@ def read_page_sizes_and_count(*, source_pdf_path: Path) -> tuple[int, dict[int, 
 
     The reference import is lazy: `prewarm_payload` imports this shim at module
     top, so a top-level reference import here would be circular."""
-    if not NATIVE:
+    if not _routing.routed("source", "read_page_sizes_and_count", NATIVE):
         from services.rendering.source.prewarm_payload import (
             _read_source_page_sizes_and_count_python,
         )
@@ -239,8 +245,12 @@ def read_page_sizes_and_count(*, source_pdf_path: Path) -> tuple[int, dict[int, 
         raw = json.loads(_native_read_page_geometry(source_pdf_path.read_bytes()))
         page_count = int(raw["page_count"])
         widths = {int(idx): rect[2] - rect[0] for idx, rect in raw["rects"].items()}
+        _routing.record_native_hit("source", "read_page_sizes_and_count")
         return page_count, widths
     except Exception:
+        _routing.record_fallback(
+            "source", "read_page_sizes_and_count", _routing.FallbackReason.NATIVE_BRIDGE_ERROR
+        )
         return 0, {}
 
 
@@ -258,7 +268,7 @@ def collect_vector_text_rects(*, page: fitz.Page, target_rects: list[fitz.Rect])
     The reference import is lazy to avoid a circular import: `vector_text`
     imports this shim at module top."""
     path = _page_source_pdf_path(page)
-    if NATIVE and path:
+    if _routing.routed("source", "collect_vector_text_rects", NATIVE, path=path):
         try:
             targets = json.dumps([[r.x0, r.y0, r.x1, r.y1] for r in target_rects])
             raw = json.loads(
@@ -268,9 +278,12 @@ def collect_vector_text_rects(*, page: fitz.Page, target_rects: list[fitz.Rect])
                     targets,
                 )
             )
+            _routing.record_native_hit("source", "collect_vector_text_rects")
             return [fitz.Rect(rect) for rect in raw]
         except Exception:
-            pass
+            _routing.record_fallback(
+                "source", "collect_vector_text_rects", _routing.FallbackReason.NATIVE_BRIDGE_ERROR
+            )
     from services.rendering.source.vector_text import _collect_vector_text_rects_python
 
     return _collect_vector_text_rects_python(page, target_rects)
@@ -283,6 +296,11 @@ def collect_page_drawing_rects(*, page: fitz.Page) -> list[fitz.Rect]:
 
     The reference import is lazy to avoid a circular import: `vector_profile`
     imports this shim at module top."""
+    _routing.record_fallback(
+        "source",
+        "collect_page_drawing_rects",
+        _routing.FallbackReason.DELIBERATELY_NOT_ROUTED,
+    )
     from services.rendering.source.vector_profile import _collect_page_drawing_rects_python
 
     return _collect_page_drawing_rects_python(page)
@@ -296,13 +314,17 @@ def page_drawing_count(*, page: fitz.Page) -> int:
     The reference import is lazy to avoid a circular import: `vector_profile`
     imports this shim at module top."""
     path = _page_source_pdf_path(page)
-    if NATIVE and path:
+    if _routing.routed("source", "page_drawing_count", NATIVE, path=path):
         try:
-            return int(
+            count = int(
                 _native_read_page_drawing_count(Path(path).read_bytes(), int(page.number))
             )
+            _routing.record_native_hit("source", "page_drawing_count")
+            return count
         except Exception:
-            pass
+            _routing.record_fallback(
+                "source", "page_drawing_count", _routing.FallbackReason.NATIVE_BRIDGE_ERROR
+            )
     from services.rendering.source.vector_profile import _page_drawing_count_python
 
     return _page_drawing_count_python(page)
@@ -321,7 +343,7 @@ def page_has_large_background_image(*, page: fitz.Page, coverage_ratio_threshold
     The reference import is lazy to avoid a circular import: `detect` imports
     this shim at module top."""
     path = _page_source_pdf_path(page)
-    if NATIVE and path:
+    if _routing.routed("source", "page_has_large_background_image", NATIVE, path=path):
         try:
             from services.rendering.source.background.detect import (
                 _has_large_background_image_from_rects,
@@ -330,13 +352,18 @@ def page_has_large_background_image(*, page: fitz.Page, coverage_ratio_threshold
             raw = json.loads(
                 _native_read_page_image_rects(Path(path).read_bytes(), int(page.number))
             )
+            _routing.record_native_hit("source", "page_has_large_background_image")
             return _has_large_background_image_from_rects(
                 [fitz.Rect(rect) for rect in raw],
                 page.rect,
                 coverage_ratio_threshold=coverage_ratio_threshold,
             )
         except Exception:
-            pass
+            _routing.record_fallback(
+                "source",
+                "page_has_large_background_image",
+                _routing.FallbackReason.NATIVE_BRIDGE_ERROR,
+            )
     from services.rendering.source.background.detect import _page_has_large_background_image_python
 
     return _page_has_large_background_image_python(
@@ -362,13 +389,17 @@ def extract_page_text_spans(*, page: fitz.Page) -> list[tuple[fitz.Rect, str]]:
     The reference import is lazy to avoid a circular import: `text_extract`
     imports this shim at module top."""
     path = _page_source_pdf_path(page)
-    if NATIVE and path:
+    if _routing.routed("source", "extract_page_text_spans", NATIVE, path=path):
         try:
-            return _deserialize_text_entries(
+            spans = _deserialize_text_entries(
                 _native_read_page_text_spans(Path(path).read_bytes(), int(page.number))
             )
+            _routing.record_native_hit("source", "extract_page_text_spans")
+            return spans
         except Exception:
-            pass
+            _routing.record_fallback(
+                "source", "extract_page_text_spans", _routing.FallbackReason.NATIVE_BRIDGE_ERROR
+            )
     from services.rendering.source.cleanup.text_extract import _extract_page_text_spans_python
 
     return _extract_page_text_spans_python(page)
@@ -379,13 +410,17 @@ def extract_page_text_blocks(*, page: fitz.Page) -> list[tuple[fitz.Rect, str]]:
     bridge when built on a file-backed page; otherwise the pure-Python
     reference."""
     path = _page_source_pdf_path(page)
-    if NATIVE and path:
+    if _routing.routed("source", "extract_page_text_blocks", NATIVE, path=path):
         try:
-            return _deserialize_text_entries(
+            blocks = _deserialize_text_entries(
                 _native_read_page_text_blocks(Path(path).read_bytes(), int(page.number))
             )
+            _routing.record_native_hit("source", "extract_page_text_blocks")
+            return blocks
         except Exception:
-            pass
+            _routing.record_fallback(
+                "source", "extract_page_text_blocks", _routing.FallbackReason.NATIVE_BRIDGE_ERROR
+            )
     from services.rendering.source.cleanup.text_extract import _extract_page_text_blocks_python
 
     return _extract_page_text_blocks_python(page)
@@ -396,13 +431,19 @@ def collect_page_math_protection_rects(*, page: fitz.Page) -> list[fitz.Rect]:
     native bridge when built on a file-backed page; otherwise the pure-Python
     reference."""
     path = _page_source_pdf_path(page)
-    if NATIVE and path:
+    if _routing.routed("source", "collect_page_math_protection_rects", NATIVE, path=path):
         try:
-            return _deserialize_rects(
+            rects = _deserialize_rects(
                 _native_read_page_math_rects(Path(path).read_bytes(), int(page.number))
             )
+            _routing.record_native_hit("source", "collect_page_math_protection_rects")
+            return rects
         except Exception:
-            pass
+            _routing.record_fallback(
+                "source",
+                "collect_page_math_protection_rects",
+                _routing.FallbackReason.NATIVE_BRIDGE_ERROR,
+            )
     from services.rendering.source.cleanup.math_spans import (
         _collect_page_math_protection_rects_python,
     )
@@ -415,12 +456,18 @@ def collect_page_non_math_span_heights(*, page: fitz.Page) -> list[float]:
     native bridge when built on a file-backed page; otherwise the pure-Python
     reference."""
     path = _page_source_pdf_path(page)
-    if NATIVE and path:
+    if _routing.routed("source", "collect_page_non_math_span_heights", NATIVE, path=path):
         try:
             raw = _native_read_page_span_heights(Path(path).read_bytes(), int(page.number))
-            return [float(height) for height in json.loads(raw)]
+            heights = [float(height) for height in json.loads(raw)]
+            _routing.record_native_hit("source", "collect_page_non_math_span_heights")
+            return heights
         except Exception:
-            pass
+            _routing.record_fallback(
+                "source",
+                "collect_page_non_math_span_heights",
+                _routing.FallbackReason.NATIVE_BRIDGE_ERROR,
+            )
     from services.rendering.source.cleanup.math_spans import (
         _collect_page_non_math_span_heights_python,
     )

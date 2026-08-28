@@ -54,6 +54,7 @@ ENTRYPOINT_IMPORT_ALLOWLIST: dict[Path, tuple[str, ...]] = {
         "from services.rendering.source_cleanup.protected_blocks import",
         "from services.rendering.visual_profile.runtime import",
         "from services.rendering.workflow.document_analysis import",
+        "from services.rendering import _routing",
     ),
     Path("run_render_only.py"): ("from services.rendering.workflow.render_only import main",),
     Path("run_translate_from_ocr.py"): ("from services.translation.entrypoints.from_ocr_pipeline import main",),

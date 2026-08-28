@@ -16,6 +16,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from services.rendering import _routing
+from services.rendering.source.rects import Rect
+
 try:
     from rendering_bridge import read_page_cleanup_contexts as _native_read_page_cleanup_contexts
 
@@ -30,12 +33,10 @@ def build_page_contexts(
 ):
     """`page_context` per-page contexts, routed to the native primitives when
     the module is built; otherwise the pure-Python reference in `page_context`."""
-    if not NATIVE:
+    if not _routing.routed("source_cleanup_planning", "build_page_contexts", NATIVE):
         from services.rendering.source_cleanup.planning.page_context import _build_page_contexts_python
 
         return _build_page_contexts_python(source_pdf_path=source_pdf_path, page_indices=page_indices)
-    import fitz
-
     from services.rendering.source_cleanup.planning.page_context import PlanningPageContext
     from services.rendering.source_cleanup.planning.page_context import decode_bboxlog_entries
     from services.rendering.source_cleanup.planning.page_context import inverse_ctm_from_ctm
@@ -52,7 +53,7 @@ def build_page_contexts(
     for index_key, data in payload.items():
         page_idx = int(index_key)
         rect = data["rect"]
-        page_rect = fitz.Rect(float(rect[0]), float(rect[1]), float(rect[2]), float(rect[3]))
+        page_rect = Rect(float(rect[0]), float(rect[1]), float(rect[2]), float(rect[3]))
         contexts[page_idx] = PlanningPageContext(
             page_index=page_idx,
             page_rect=page_rect,
@@ -61,4 +62,5 @@ def build_page_contexts(
             has_form_xobjects=bool(data.get("has_form_xobjects", False)),
             inverse_ctm=inverse_ctm_from_ctm(data.get("ctm", [1, 0, 0, 1, 0, 0])),
         )
+    _routing.record_native_hit("source_cleanup_planning", "build_page_contexts")
     return contexts

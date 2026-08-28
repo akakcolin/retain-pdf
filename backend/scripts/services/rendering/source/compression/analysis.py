@@ -9,15 +9,6 @@ VECTOR_SKIP_PAGE_DRAWINGS_THRESHOLD = 100
 VECTOR_SKIP_TOTAL_DRAWINGS_THRESHOLD = 300
 
 
-def page_drawing_count(page: fitz.Page) -> int:
-    if hasattr(page, "get_cdrawings"):
-        try:
-            return len(page.get_cdrawings())
-        except Exception:
-            pass
-    return len(page.get_drawings())
-
-
 def source_pdf_has_vector_graphics(
     source_pdf_path: Path,
     *,
@@ -26,6 +17,10 @@ def source_pdf_has_vector_graphics(
 ) -> bool:
     if not source_pdf_path.exists():
         return False
+
+    # Lazy import to break the cycle: `_native` -> compression.image_pipeline ->
+    # compression.analysis -> vector_profile -> `_native` (partially initialized).
+    from services.rendering.source.vector_profile import page_drawing_count
 
     doc = fitz.open(source_pdf_path)
     try:

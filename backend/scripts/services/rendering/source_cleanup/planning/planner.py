@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import fitz
-
 from services.rendering.contracts import RenderDocumentAnalysis
+from services.rendering.source.rects import Rect
 from services.rendering.source_cleanup.planning.accumulator import BBoxTextStripCandidateAccumulator
 from services.rendering.source_cleanup.planning.geometry import formula_guard_rects
 from services.rendering.source_cleanup.planning.geometry import ocr_bbox_to_pdf_rect_with_ctm
@@ -99,6 +98,8 @@ def _plan_source_cleanup_python(
     skip_form_xobject_pages: bool,
     document_analysis: RenderDocumentAnalysis | None,
 ) -> BBoxTextStripCandidates:
+    import fitz  # reference (fitz) fallback path only
+
     accumulator = BBoxTextStripCandidateAccumulator()
     doc = fitz.open(source_pdf_path)
     try:
@@ -194,8 +195,8 @@ def plan_source_cleanup_page_ctx(
 
 
 def plan_source_cleanup_page(
-    doc: fitz.Document,
-    page: fitz.Page,
+    doc: object,
+    page: object,
     *,
     translated_items: list[dict],
     protected_items: list[dict] | None = None,
@@ -216,10 +217,10 @@ def plan_source_cleanup_page(
 
 
 def build_page_strip_rects_for_page(
-    page: fitz.Page,
+    page: object,
     *,
     translated_items: list[dict],
-) -> list[fitz.Rect]:
+) -> list[Rect]:
     ctx = _build_context_from_fitz(None, page)
     protected_formula_rects = build_page_formula_rects_for_page_ctx(ctx, translated_items=translated_items)
     resolver = PageBBoxResolver.build(ctx)
@@ -234,10 +235,10 @@ def build_page_strip_rects_for_page(
 def _build_page_strip_rects_from_pairs(
     strip_pairs: list,
     *,
-    formula_rects: list[fitz.Rect],
+    formula_rects: list[Rect],
     unsafe_rects,
-) -> list[fitz.Rect]:
-    rects: list[fitz.Rect] = []
+) -> list[Rect]:
+    rects: list[Rect] = []
     for pair in strip_pairs:
         rects.extend(strip_segments_for_text_rect(pair.pdf_rect, formula_rects))
     return merge_rects(rects)
@@ -274,7 +275,7 @@ def _plan_form_xobject_page_ctx(
 
 
 def _plan_form_xobject_page(
-    page: fitz.Page,
+    page: object,
     *,
     translated_items: list[dict],
     strip_items: list[dict],
@@ -299,7 +300,7 @@ def iter_protected_item_rects_for_page_ctx(
             yield item, rect
 
 
-def iter_protected_item_rects_for_page(page: fitz.Page, protected_items: list[dict]):
+def iter_protected_item_rects_for_page(page: object, protected_items: list[dict]):
     yield from iter_protected_item_rects_for_page_ctx(
         _build_context_from_fitz(None, page),
         protected_items,
@@ -328,6 +329,8 @@ def _item_ids_with_uncovered_unsafe_vector_overlap_python(
     source_pdf_path: Path,
     translated_pages: dict[int, list[dict]],
 ) -> frozenset[str]:
+    import fitz  # reference (fitz) fallback path only
+
     item_ids: set[str] = set()
     doc = fitz.open(source_pdf_path)
     try:
@@ -354,7 +357,7 @@ def page_uncovered_unsafe_vector_item_ids_ctx(
     )
 
 
-def page_uncovered_unsafe_vector_item_ids(page: fitz.Page, translated_items: list[dict]) -> frozenset[str]:
+def page_uncovered_unsafe_vector_item_ids(page: object, translated_items: list[dict]) -> frozenset[str]:
     return page_uncovered_unsafe_vector_item_ids_ctx(
         _build_context_from_fitz(None, page),
         translated_items,
@@ -385,15 +388,15 @@ def build_page_formula_rects_for_page_ctx(
     ctx: PlanningPageContext,
     *,
     translated_items: list[dict],
-) -> list[fitz.Rect]:
+) -> list[Rect]:
     return [rect for _item, rect in iter_formula_item_rects_for_page_ctx(ctx, translated_items)]
 
 
 def build_page_formula_rects_for_page(
-    page: fitz.Page,
+    page: object,
     *,
     translated_items: list[dict],
-) -> list[fitz.Rect]:
+) -> list[Rect]:
     return build_page_formula_rects_for_page_ctx(
         _build_context_from_fitz(None, page),
         translated_items=translated_items,
@@ -401,14 +404,14 @@ def build_page_formula_rects_for_page(
 
 
 def build_formula_guard_rects(
-    formula_rects: list[fitz.Rect],
+    formula_rects: list[Rect],
     *,
-    strip_rects: list[fitz.Rect] | None = None,
-) -> list[fitz.Rect]:
+    strip_rects: list[Rect] | None = None,
+) -> list[Rect]:
     return formula_guard_rects(formula_rects, strip_rects=strip_rects)
 
 
-def build_page_strip_source_rects_for_page(page: fitz.Page, *, translated_items: list[dict]) -> list[fitz.Rect]:
+def build_page_strip_source_rects_for_page(page: object, *, translated_items: list[dict]) -> list[Rect]:
     return merge_rects(
         [rect for _item, rect in iter_strip_item_rects_for_page_ctx(_build_context_from_fitz(None, page), translated_items)]
     )

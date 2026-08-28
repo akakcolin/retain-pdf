@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import fitz
-
+from services.rendering.source.rects import Rect
 from services.rendering.visual_profile.contracts import VisualColor
 
 
@@ -13,7 +12,7 @@ SPAN_COLOR_QUANTUM = 16
 
 @dataclass(frozen=True)
 class SpanColorSample:
-    rect: fitz.Rect
+    rect: Rect
     text: str
     rgb: tuple[int, int, int]
 
@@ -23,7 +22,7 @@ class PageSpanColorSampler:
         self.samples = samples
 
     @classmethod
-    def build(cls, page: fitz.Page) -> "PageSpanColorSampler | None":
+    def build(cls, page: object) -> "PageSpanColorSampler | None":
         try:
             text = page.get_text("dict")
         except Exception:
@@ -41,7 +40,7 @@ class PageSpanColorSampler:
                         samples.append(SpanColorSample(rect=rect, text=span_text, rgb=rgb))
         return cls(samples) if samples else None
 
-    def sample_text_color(self, rect: fitz.Rect, background: VisualColor | None = None) -> VisualColor | None:
+    def sample_text_color(self, rect: Rect, background: VisualColor | None = None) -> VisualColor | None:
         if rect.is_empty or rect.is_infinite:
             return None
         bg = (
@@ -90,12 +89,12 @@ def _rgb_from_span_color(value: object) -> tuple[int, int, int] | None:
     return None
 
 
-def _span_rect(span: dict) -> fitz.Rect | None:
+def _span_rect(span: dict) -> Rect | None:
     bbox = span.get("bbox")
     if not isinstance(bbox, (list, tuple)) or len(bbox) < 4:
         return None
     try:
-        rect = fitz.Rect(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
+        rect = Rect(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
     except Exception:
         return None
     if rect.is_empty or rect.is_infinite:

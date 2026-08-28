@@ -30,6 +30,12 @@ Parts:
    page's caption item (and p0's caption over the text-like fill path) is
    reported uncovered while p0's paragraph item is not.
 
+6. Native-hit / fitz-zero: on the golden synthetic PDF the native production
+   path (`_native.build_page_contexts` + `plan_source_cleanup` +
+   `item_ids_with_uncovered_unsafe_vector_overlap` with NATIVE=True) must reach
+   the bridge and touch zero fitz surfaces (B-B goal: production planning is
+   fitz-free; fitz is confined to the reference builders).
+
 Run from backend/scripts:
     /Volumes/data/Projects/retain-pdf/.venv/bin/python ../rendering_writer/differential/smoke_source_cleanup_planning.py
 """
@@ -62,6 +68,85 @@ from services.rendering.source_cleanup.planning.planner import (  # noqa: E402
 PAGE_WIDTH = 612.0
 PAGE_HEIGHT = 792.0
 RECT_TOL = 1e-4
+
+_NATIVE_BRIDGES = (
+    "_native_read_page_cleanup_contexts",
+)
+
+_FITZ_SURFACES = (
+    (fitz, "open"),
+    (fitz, "Rect"),
+    (fitz, "Matrix"),
+    (fitz.Document, "__len__"),
+    (fitz.Document, "__getitem__"),
+    (fitz.Document, "save"),
+    (fitz.Document, "tobytes"),
+    (fitz.Document, "subset_fonts"),
+    (fitz.Document, "xref_stream"),
+    (fitz.Page, "get_bboxlog"),
+    (fitz.Page, "get_xobjects"),
+    (fitz.Page, "get_contents"),
+    (fitz.Page, "get_pixmap"),
+    (fitz.Page, "get_text"),
+    (fitz.Page, "get_drawings"),
+    (fitz.Page, "get_cdrawings"),
+    (fitz.Page, "show_pdf_page"),
+)
+
+
+def _install_native_counters(calls: dict) -> dict:
+    saved = {}
+    for name in _NATIVE_BRIDGES:
+        orig = getattr(_native, name)
+        saved[name] = (_native, orig)
+
+        def counting(*args, _orig=orig, **kwargs):
+            calls["n"] += 1
+            return _orig(*args, **kwargs)
+
+        setattr(_native, name, counting)
+    return saved
+
+
+def _restore_native_counters(saved: dict) -> None:
+    for name, (obj, orig) in saved.items():
+        setattr(obj, name, orig)
+
+
+def _install_fitz_counters(calls: dict) -> dict:
+    saved = {}
+    for obj, attr in _FITZ_SURFACES:
+        orig = getattr(obj, attr)
+        key = f"{obj.__name__}.{attr}"
+        saved[key] = (obj, attr, orig)
+
+        def counting(*args, _orig=orig, **kwargs):
+            calls["n"] += 1
+            return _orig(*args, **kwargs)
+
+        setattr(obj, attr, counting)
+    return saved
+
+
+def _restore_fitz_counters(saved: dict) -> None:
+    for _key, (obj, attr, orig) in saved.items():
+        setattr(obj, attr, orig)
+
+
+def _check_native_hit_and_fitz_zero(src: Path, pages: dict[int, list[dict]]) -> None:
+    native_calls = {"n": 0}
+    saved_native = _install_native_counters(native_calls)
+    fitz_calls = {"n": 0}
+    saved_fitz = _install_fitz_counters(fitz_calls)
+    try:
+        _native.build_page_contexts(src, sorted(pages))
+        plan_source_cleanup(source_pdf_path=src, translated_pages=pages)
+        item_ids_with_uncovered_unsafe_vector_overlap(source_pdf_path=src, translated_pages=pages)
+    finally:
+        _restore_native_counters(saved_native)
+        _restore_fitz_counters(saved_fitz)
+    assert native_calls["n"] > 0, "source_cleanup planning production never hit a native bridge"
+    assert fitz_calls["n"] == 0, f"source_cleanup planning production touched fitz {fitz_calls['n']} times"
 
 
 def build_source_pdf() -> bytes:
@@ -320,6 +405,9 @@ def main() -> None:
         assert 0 in (native_candidates.page_protected_rects or {}), (
             "p0 formula guard must emit protected rects"
         )
+
+        # ---- native hit + fitz zero -----------------------------------------
+        _check_native_hit_and_fitz_zero(src, pages)
 
     print("all smoke tests pass")
 

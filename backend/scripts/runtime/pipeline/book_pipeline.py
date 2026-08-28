@@ -5,7 +5,6 @@ from pathlib import Path
 from foundation.config import fonts
 from foundation.config import runtime
 from foundation.config.output_layout import ARTIFACTS_DIR_NAME
-from runtime.pipeline.render_mode import is_editable_pdf
 from runtime.pipeline.render_mode import resolve_effective_render_mode
 from runtime.pipeline.render_stage import build_book_from_translations
 from runtime.pipeline.render_stage import build_book_pipeline

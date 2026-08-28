@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from services.rendering import _routing
+
 try:
     from rendering_bridge import sample_foreground_colors as _native_sample_foreground_colors
 
@@ -34,13 +36,13 @@ def build_document_visual_profile(
 ):
     """`sampler.build_document_visual_profile`, routed to the native primitives
     when the module is built; otherwise the pure-Python reference in `sampler`."""
-    if not NATIVE:
+    if not _routing.routed("visual_profile", "build_document_visual_profile", NATIVE):
         from services.rendering.visual_profile.sampler import build_document_visual_profile as _reference
 
         return _reference(source_pdf_path=source_pdf_path, pages=pages)
-    import fitz
 
     from services.rendering.source.background import _native as _source_native
+    from services.rendering.source.rects import Rect
     from services.rendering.visual_profile.contracts import DocumentVisualProfile
     from services.rendering.visual_profile.contracts import PageVisualProfile
     from services.rendering.visual_profile.contracts import VISUAL_PROFILE_ALGORITHM_VERSION
@@ -63,7 +65,7 @@ def build_document_visual_profile(
             color_int = int(entry[4])
             samples.append(
                 SpanColorSample(
-                    rect=fitz.Rect(float(entry[0]), float(entry[1]), float(entry[2]), float(entry[3])),
+                    rect=Rect(float(entry[0]), float(entry[1]), float(entry[2]), float(entry[3])),
                     text=span_text,
                     rgb=((color_int >> 16) & 255, (color_int >> 8) & 255, color_int & 255),
                 )
@@ -77,7 +79,7 @@ def build_document_visual_profile(
         items = pages[page_idx]
         item_rects = _item_rects(items)
         background_ids: list[str] = []
-        background_rects: list[fitz.Rect] = []
+        background_rects: list[Rect] = []
         for item in items:
             item_id = str(item.get("item_id") or "")
             if not _item_needs_visual_profile_background(item):
@@ -206,6 +208,7 @@ def build_document_visual_profile(
             background_rgb=DEFAULT_PAGE_BACKGROUND,
             items=profiles,
         )
+    _routing.record_native_hit("visual_profile", "build_document_visual_profile")
     return DocumentVisualProfile(
         algorithm=VISUAL_PROFILE_ALGORITHM_VERSION,
         pages=page_profiles,

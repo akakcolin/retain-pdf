@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from services.rendering import _routing
 from services.rendering.layout.page_specs import _read_source_page_sizes_python
 
 try:
@@ -27,12 +28,13 @@ except ImportError:  # pragma: no cover - native build not present
 def read_source_page_sizes(*, source_pdf_path: Path, page_indices: list[int]) -> dict[int, tuple[float, float]]:
     """`page_specs.build_render_page_specs`' source-page size lookup, routed to
     the native bridge when built; otherwise the pure-Python reference."""
-    if not NATIVE:
+    if not _routing.routed("layout", "read_source_page_sizes", NATIVE):
         return _read_source_page_sizes_python(
             source_pdf_path=source_pdf_path,
             page_indices=page_indices,
         )
     raw = json.loads(_native_read_page_sizes(source_pdf_path.read_bytes(), json.dumps(page_indices)))
+    _routing.record_native_hit("layout", "read_source_page_sizes")
     return {
         int(idx): (rect[2] - rect[0], rect[3] - rect[1])
         for idx, rect in raw.items()

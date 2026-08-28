@@ -28,6 +28,7 @@ from services.pipeline_shared.events import emit_stage_transition
 from services.pipeline_shared.events import PipelineEventWriter
 from services.pipeline_shared.events import pipeline_event_writer_scope
 from services.pipeline_shared.io import save_json
+from services.rendering import _routing
 from services.rendering.source.prewarm import prewarm_manifest_path_from_artifacts_dir
 
 
@@ -152,6 +153,7 @@ def main() -> None:
                 "total_elapsed": elapsed,
                 "render_mode": args.render_mode,
                 "effective_render_mode": result.get("effective_render_mode", args.render_mode),
+                "renderer": "python",
                 "pdf_compress_dpi": args.pdf_compress_dpi,
                 "render_diagnostics": result.get("render_diagnostics", {}),
                 "events_jsonl": str(event_writer.path),
@@ -161,6 +163,7 @@ def main() -> None:
                 ),
             },
         )
+        _routing.flush_to(job_dirs.artifacts_dir)
         emit_artifact_published(
             artifact_key="pipeline_events_jsonl",
             path=event_writer.path,

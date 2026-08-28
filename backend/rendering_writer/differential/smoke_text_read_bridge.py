@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Native bridge smoke test for the cleanup text-read family (Phase B2-9).
+"""Native bridge smoke test for the cleanup text-read family (Phase B2-9 / B-C).
 
-Three parts:
+Four parts:
 
 1. Three-way: every `tests/text_read_corpus.json` case, run on file-backed
    pages — `extract_page_text_spans` / `extract_page_text_blocks` /
@@ -19,6 +19,12 @@ Three parts:
 3. End-to-end: `item_removable_text_rects` (span -> block -> word text-read
    chain) and `apply_auto_redaction` (math-rect + span-height chain) run
    identically with NATIVE on and off on file-backed synthetic pages.
+
+4. B-C consumers: `text_intrusion.collect_page_intrusive_display_text_rects`
+   and `margin_text_cleanup._candidate_margin_block_rects` now read through the
+   native spans/blocks primitives — on file-backed corpus pages the read path
+   hits the bridges with zero `page.get_text` calls, and native agrees with the
+   NATIVE=False fallback.
 
 Run from backend/scripts:
     /Volumes/data/Projects/retain-pdf/.venv/bin/python ../rendering_writer/differential/smoke_text_read_bridge.py
@@ -41,8 +47,10 @@ import fitz  # noqa: E402
 
 from services.rendering.source import _native  # noqa: E402
 from services.rendering.source.cleanup import auto  # noqa: E402
+from services.rendering.source.cleanup import margin_text_cleanup  # noqa: E402
 from services.rendering.source.cleanup import math_spans  # noqa: E402
 from services.rendering.source.cleanup import text_extract  # noqa: E402
+from services.rendering.source.cleanup import text_intrusion  # noqa: E402
 from services.rendering.source.cleanup.text_matching import item_removable_text_rects  # noqa: E402
 
 # Corpus lives next to its Rust replay (`rendering_reader/tests/text_read_diff.rs`).
@@ -126,6 +134,23 @@ def _install_counters(calls: dict) -> dict:
 def _restore_counters(saved: dict) -> None:
     for name, orig in saved.items():
         setattr(_native, name, orig)
+
+
+def _install_fitz_counter(calls: dict) -> object:
+    """Count `fitz.Page.get_text` calls into `calls` (for the B-C read-path
+    zero-fitz assertions on file-backed pages)."""
+    orig = fitz.Page.get_text
+
+    def counting(self, *args, **kwargs):
+        calls["n"] += 1
+        return orig(self, *args, **kwargs)
+
+    fitz.Page.get_text = counting
+    return orig
+
+
+def _restore_fitz_counter(saved: object) -> None:
+    fitz.Page.get_text = saved
 
 
 def check_three_way(tmp: Path) -> None:
@@ -283,6 +308,57 @@ def check_end_to_end(tmp: Path) -> None:
     assert diag_native == diag_ref, f"apply_auto_redaction diagnostics diverge: {diag_native} != {diag_ref}"
 
 
+def check_intrusion_and_margin(tmp: Path) -> None:
+    """B-C: `text_intrusion` / `margin_text_cleanup` read through the native
+    spans/blocks primitives. On file-backed corpus pages the read path must hit
+    the bridges and never call `page.get_text`, and native must agree with the
+    NATIVE=False fallback. NOTE: `collect_page_intrusive_display_text_rects`
+    no longer flags whitespace-only spans (the spans primitive's non-empty-text
+    contract) — the divergence from raw `get_text("dict")` is logged in the
+    status doc's 分歧台账."""
+    corpus = json.loads(Path(CORPUS).read_text())
+    calls = {"n": 0}
+    fitz_reads = {"n": 0}
+    saved_bridge = _install_counters(calls)
+    saved_fitz = _install_fitz_counter(fitz_reads)
+    pages = 0
+    try:
+        for case in corpus["cases"]:
+            raw = base64.b64decode(case["pdf_b64"])
+            src = tmp / f"txt-{case['name']}.pdf"
+            src.write_bytes(raw)
+            d = fitz.open(src)
+            try:
+                for idx_str in case["pages"]:
+                    page = d.load_page(int(idx_str))
+                    label = f"{case['name']} p{idx_str}"
+                    pages += 1
+
+                    # Native read path: bridges hit, no page.get_text.
+                    fitz_reads["n"] = 0
+                    nat_i = text_intrusion.collect_page_intrusive_display_text_rects(page)
+                    nat_m = margin_text_cleanup._candidate_margin_block_rects(page)
+                    assert fitz_reads["n"] == 0, f"{label}: native read path touched page.get_text {fitz_reads['n']}x"
+
+                    # Fallback path must agree.
+                    was = _native.NATIVE
+                    _native.NATIVE = False
+                    try:
+                        ref_i = text_intrusion.collect_page_intrusive_display_text_rects(page)
+                        ref_m = margin_text_cleanup._candidate_margin_block_rects(page)
+                    finally:
+                        _native.NATIVE = was
+                    assert _rects_close(nat_i, ref_i), f"{label}: text_intrusion native vs ref"
+                    assert _rects_close(nat_m, ref_m), f"{label}: margin_text native vs ref"
+            finally:
+                d.close()
+    finally:
+        _restore_counters(saved_bridge)
+        _restore_fitz_counter(saved_fitz)
+    assert pages > 0
+    assert calls["n"] > 0, "intrusion/margin read path never hit a native bridge"
+
+
 def main() -> None:
     assert _native.NATIVE, "text-read native module not built"
     with tempfile.TemporaryDirectory(prefix="rps-txtread-") as tmp_dir:
@@ -290,6 +366,7 @@ def main() -> None:
         check_three_way(tmp)
         check_boundaries(tmp)
         check_end_to_end(tmp)
+        check_intrusion_and_margin(tmp)
     print("all smoke tests pass")
 
 

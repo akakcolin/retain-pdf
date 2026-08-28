@@ -139,6 +139,7 @@ jobs:
             smoke_bridge \
             smoke_color_adapt_bridge \
             smoke_document_analysis_bridge \
+            smoke_render_mode_bridge \
             smoke_drawings_bridge \
             smoke_first_line_indent_bridge \
             smoke_image_rects_bridge \
@@ -147,6 +148,8 @@ jobs:
             smoke_prewarm_page_sizes_bridge \
             smoke_save_optimized_bridge \
             smoke_source_cleanup_planning \
+            smoke_source_top_level_bridge \
+            smoke_text_layer_only_bridge \
             smoke_text_read_bridge \
             smoke_typst_emit_bridge \
             smoke_visual_profile_bridge \

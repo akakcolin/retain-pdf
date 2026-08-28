@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from services.rendering import _routing
 from services.rendering.analysis.document.models import RenderDocumentAnalysis
 
 try:
@@ -42,11 +43,18 @@ def build_render_document_analysis(
     bridge when built; otherwise the pure-Python reference. Any native failure
     falls back to the reference (analysis is advisory — a fallback result is
     better than raising)."""
-    if not NATIVE:
+    if not _routing.routed("analysis", "build_render_document_analysis", NATIVE):
         return _build_python(source_pdf_path, translated_pages, start_page, end_page)
     try:
-        return _build_native(source_pdf_path, translated_pages, start_page, end_page)
+        result = _build_native(source_pdf_path, translated_pages, start_page, end_page)
+        _routing.record_native_hit("analysis", "build_render_document_analysis")
+        return result
     except Exception as exc:
+        _routing.record_fallback(
+            "analysis",
+            "build_render_document_analysis",
+            _routing.FallbackReason.NATIVE_BRIDGE_ERROR,
+        )
         print(
             f"render document analysis native failed {type(exc).__name__}: {exc}; falling back to reference",
             flush=True,

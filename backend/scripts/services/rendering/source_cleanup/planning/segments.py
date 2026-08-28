@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import fitz
-
 from services.rendering.source.rects import Rect
 from services.rendering.source.rects import coerce
 from services.rendering.source.rects import preserve
@@ -19,11 +17,11 @@ BBOX_TEXT_STRIP_FORMULA_GUARD_PAD_X_PT = 1.0
 BBOX_TEXT_STRIP_FORMULA_GUARD_PAD_Y_PT = 1.0
 
 
-def strip_segments_for_text_rect(text_rect: fitz.Rect, formula_rects: list[fitz.Rect]) -> list[fitz.Rect]:
+def strip_segments_for_text_rect(text_rect: Rect, formula_rects: list[Rect]) -> list[Rect]:
     formula_guards = [bbox_text_strip_formula_guard_rect(formula) for formula in formula_rects if not formula.is_empty]
     segments = split_rect_around_guards(text_rect, formula_guards, min_height_pt=2.0, min_area_pt2=2.0)
     was_split_for_formula = len(segments) != 1 or (segments and segments[0] != text_rect)
-    padded_segments: list[fitz.Rect] = []
+    padded_segments: list[Rect] = []
     for segment in segments:
         if segment.is_empty:
             continue
@@ -50,8 +48,8 @@ def strip_segments_for_text_rect(text_rect: fitz.Rect, formula_rects: list[fitz.
     return padded_segments
 
 
-def bbox_text_strip_formula_guard_rect(formula: fitz.Rect) -> fitz.Rect:
-    return fitz.Rect(
+def bbox_text_strip_formula_guard_rect(formula: Rect) -> Rect:
+    return Rect(
         formula.x0 - BBOX_TEXT_STRIP_FORMULA_GUARD_PAD_X_PT,
         formula.y0 - BBOX_TEXT_STRIP_FORMULA_GUARD_PAD_Y_PT,
         formula.x1 + BBOX_TEXT_STRIP_FORMULA_GUARD_PAD_X_PT,
@@ -60,13 +58,13 @@ def bbox_text_strip_formula_guard_rect(formula: fitz.Rect) -> fitz.Rect:
 
 
 def split_rect_around_guards(
-    rect: fitz.Rect,
-    guards: list[fitz.Rect],
+    rect: Rect,
+    guards: list[Rect],
     *,
     min_width_pt: float = MIN_CLEANUP_SEGMENT_WIDTH_PT,
     min_height_pt: float = MIN_CLEANUP_SEGMENT_HEIGHT_PT,
     min_area_pt2: float = MIN_CLEANUP_SEGMENT_AREA_PT2,
-) -> list[fitz.Rect]:
+) -> list[Rect]:
     pure_rect = coerce(rect)
     if pure_rect.is_empty:
         return []
@@ -93,13 +91,13 @@ def split_rect_around_guards(
 
 
 def subtract_guard_from_rect(
-    rect: fitz.Rect,
-    guard: fitz.Rect,
+    rect: Rect,
+    guard: Rect,
     *,
     min_width_pt: float = MIN_CLEANUP_SEGMENT_WIDTH_PT,
     min_height_pt: float = MIN_CLEANUP_SEGMENT_HEIGHT_PT,
     min_area_pt2: float = MIN_CLEANUP_SEGMENT_AREA_PT2,
-) -> list[fitz.Rect]:
+) -> list[Rect]:
     pure_rect = coerce(rect)
     pure_guard = coerce(guard)
     overlap = pure_rect & pure_guard
@@ -126,7 +124,7 @@ def subtract_guard_from_rect(
 
 
 def _is_usable_fragment(
-    rect: fitz.Rect,
+    rect: Rect,
     *,
     min_width_pt: float,
     min_height_pt: float,

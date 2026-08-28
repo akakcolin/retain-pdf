@@ -44,6 +44,9 @@ RENDERING_ALLOWED_ROOT_FILES = {
     "__init__.py",
     "performance.py",
     "README.md",
+    # Cross-layer routing/observability for the _native shims (stdlib-only,
+    # imports neither the shims nor contracts); shared across every layer.
+    "_routing.py",
 }
 RENDERING_LAYER_IMPORT_RULES: dict[str, tuple[str, ...]] = {
     "workflow": (
@@ -105,6 +108,9 @@ RENDERING_LAYER_IMPORT_RULES: dict[str, tuple[str, ...]] = {
         # Output owns overlay composition and may sample/rebuild source backgrounds.
         "services.rendering.source.background",
         "services.rendering.visual_profile",
+        # Pure geometry primitive (fitz.Rect duck-type); overlay color sampling
+        # builds these rects without touching fitz.
+        "services.rendering.source.rects",
     ),
     "policy": (
         "services.rendering.policy",
@@ -135,6 +141,9 @@ RENDERING_LAYER_IMPORT_RULES: dict[str, tuple[str, ...]] = {
         # Covers sampler.py's `source.background.fill` imports and the native shim's
         # `source.background._native` primitive routing.
         "services.rendering.source.background",
+        # Pure geometry primitive (fitz.Rect duck-type) used across the profile
+        # pipeline instead of importing fitz directly.
+        "services.rendering.source.rects",
     ),
     "legacy": (
         "services.rendering.workflow",

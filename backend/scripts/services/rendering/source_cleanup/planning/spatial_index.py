@@ -4,22 +4,21 @@ from bisect import bisect_right
 from dataclasses import dataclass
 from typing import Iterable
 
-import fitz
-
+from services.rendering.source.rects import Rect
 from services.rendering.source.rects import rect_area
 
 
 @dataclass(frozen=True)
 class RectOverlapIndex:
-    rects: tuple[fitz.Rect, ...]
+    rects: tuple[Rect, ...]
     y0_sorted: tuple[float, ...]
 
     @classmethod
-    def build(cls, rects: Iterable[fitz.Rect]) -> "RectOverlapIndex":
+    def build(cls, rects: Iterable[Rect]) -> "RectOverlapIndex":
         ordered = tuple(sorted((rect for rect in rects if not rect.is_empty), key=lambda rect: rect.y0))
         return cls(rects=ordered, y0_sorted=tuple(float(rect.y0) for rect in ordered))
 
-    def overlaps_any(self, target_rect: fitz.Rect, *, min_overlap_area: float = 0.0) -> bool:
+    def overlaps_any(self, target_rect: Rect, *, min_overlap_area: float = 0.0) -> bool:
         if target_rect.is_empty or not self.rects:
             return False
         limit = bisect_right(self.y0_sorted, float(target_rect.y1))

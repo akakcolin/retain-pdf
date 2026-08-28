@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from services.rendering import _routing
 from services.rendering.pdf_structure_profile.contracts import PDF_STRUCTURE_PROFILE_ALGORITHM_VERSION
 from services.rendering.pdf_structure_profile.contracts import PdfObjectBox
 from services.rendering.pdf_structure_profile.contracts import PdfStructureDocumentProfile
@@ -58,11 +59,18 @@ def build_pdf_structure_profile(
     built; otherwise the pure-Python reference `_build_pdf_structure_profile_python`.
     Any native failure falls back to the reference (the prewarm caller treats a
     profile failure as optional, so parity beats raising)."""
-    if not NATIVE:
+    if not _routing.routed("pdf_structure_profile", "build_pdf_structure_profile", NATIVE):
         return _build_python(source_pdf_path, pages)
     try:
-        return _build_native(source_pdf_path, pages)
+        result = _build_native(source_pdf_path, pages)
+        _routing.record_native_hit("pdf_structure_profile", "build_pdf_structure_profile")
+        return result
     except Exception as exc:
+        _routing.record_fallback(
+            "pdf_structure_profile",
+            "build_pdf_structure_profile",
+            _routing.FallbackReason.NATIVE_BRIDGE_ERROR,
+        )
         print(
             f"pdf structure profile native failed {type(exc).__name__}: {exc}; falling back to reference",
             flush=True,

@@ -5,6 +5,8 @@ import time
 
 import fitz
 
+from services.rendering import _routing
+
 
 def save_optimized_pdf(doc: fitz.Document, output_pdf_path: Path) -> None:
     output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
@@ -13,7 +15,7 @@ def save_optimized_pdf(doc: fitz.Document, output_pdf_path: Path) -> None:
     # `source/_native.py`). The fitz subset+save path is the fallback only.
     import services.rendering.source._native as _native
 
-    if _native.NATIVE:
+    if _routing.routed("source", "save_optimized", _native.NATIVE):
         try:
             print("save optimized pdf: native subset + compaction", flush=True)
             out = _native.save_optimized(doc.tobytes())
@@ -21,6 +23,11 @@ def save_optimized_pdf(doc: fitz.Document, output_pdf_path: Path) -> None:
             print(f"save optimized pdf: done {output_pdf_path}", flush=True)
             return
         except Exception:
+            _routing.record_fallback(
+                "source",
+                "save_optimized",
+                _routing.FallbackReason.NATIVE_BRIDGE_ERROR,
+            )
             print("save optimized pdf: native save failed, falling back to fitz", flush=True)
     _save_optimized_pdf_python(doc, output_pdf_path)
 

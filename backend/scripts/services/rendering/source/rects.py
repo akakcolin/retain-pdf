@@ -10,6 +10,11 @@ RECT_MERGE_MAX_VERTICAL_MISALIGN_PT = 6.0
 RECT_MERGE_MAX_AREA_GROWTH_RATIO = 2.4
 RECT_MERGE_MIN_OVERLAP_RATIO = 0.8
 
+# PyMuPDF's infinite-rect constants; `fitz.Rect.is_infinite` is True exactly
+# when x0 == y0 == FZ_MIN_INF_RECT and x1 == y1 == FZ_MAX_INF_RECT.
+FZ_MIN_INF_RECT = -2147483648.0
+FZ_MAX_INF_RECT = 2147483520.0
+
 
 @dataclass(frozen=True)
 class Rect:
@@ -39,6 +44,13 @@ class Rect:
     @property
     def is_valid(self) -> bool:
         return self.width > 0 and self.height > 0
+
+    @property
+    def is_infinite(self) -> bool:
+        """True only for PyMuPDF's exact infinite rect, matching
+        `fitz.Rect.is_infinite` (x0 == y0 == FZ_MIN_INF_RECT and
+        x1 == y1 == FZ_MAX_INF_RECT)."""
+        return self.x0 == self.y0 == FZ_MIN_INF_RECT and self.x1 == self.y1 == FZ_MAX_INF_RECT
 
     def __and__(self, other) -> Rect:
         r = coerce(other)
@@ -91,6 +103,22 @@ class Rect:
             min(self.y0, r.y0),
             max(self.x1, r.x1),
             max(self.y1, r.y1),
+        )
+
+    def intersects(self, other) -> bool:
+        """Match `fitz.Rect.intersects` exactly: strict coordinate overlap with
+        `is_empty`/`is_infinite` guards (NOT `(self & other).is_empty`, which
+        disagrees on zero-area sliver intersections)."""
+        r = coerce(other)
+        return bool(
+            not self.is_empty
+            and not self.is_infinite
+            and not r.is_empty
+            and not r.is_infinite
+            and self.x0 < r.x1
+            and r.x0 < self.x1
+            and self.y0 < r.y1
+            and r.y0 < self.y1
         )
 
     def __iter__(self):

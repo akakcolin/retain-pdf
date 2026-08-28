@@ -6,6 +6,8 @@ from pathlib import Path
 
 import fitz
 
+from services.rendering.source.rects import Rect
+
 
 BBOX_TEXT_STRIP_PAGE_SKIP_NONE = "none"
 BBOX_TEXT_STRIP_PAGE_SKIP_COMPLEX = "complex"
@@ -69,7 +71,7 @@ class BBoxTextStripCandidates:
 
 @dataclass(frozen=True)
 class BBoxTextStripPagePlan:
-    strip_rects: tuple[fitz.Rect, ...] = ()
-    protected_rects: tuple[fitz.Rect, ...] = ()
+    strip_rects: tuple[Rect, ...] = ()
+    protected_rects: tuple[Rect, ...] = ()
     skip_reason: str = BBOX_TEXT_STRIP_PAGE_SKIP_NONE
     uncovered_unsafe_vector_item_ids: frozenset[str] = frozenset()

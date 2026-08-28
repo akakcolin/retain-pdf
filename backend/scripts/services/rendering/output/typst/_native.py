@@ -16,6 +16,7 @@ import json
 from pathlib import Path
 
 from foundation.config import fonts
+from services.rendering import _routing
 from services.rendering.layout.model.models import RenderBlock
 from services.rendering.output.typst.emitter import build_typst_source_from_page_specs
 from services.rendering.output.typst.source_builder import build_typst_book_overlay_source
@@ -115,14 +116,16 @@ def emit_typst_source(
 ) -> str:
     """`emitter.build_typst_source_from_page_specs`, routed to the native Rust
     emitter when the module is built; otherwise the pure-Python emitter."""
-    if NATIVE:
+    if _routing.routed("typst", "emit_typst_source", NATIVE):
         payload = json.dumps([_page_spec_to_dict(spec) for spec in page_specs])
-        return _native_emit_typst_source(
+        source = _native_emit_typst_source(
             payload,
             str(background_pdf_path),
             str(work_dir),
             font_family,
         )
+        _routing.record_native_hit("typst", "emit_typst_source")
+        return source
     return build_typst_source_from_page_specs(
         background_pdf_path=background_pdf_path,
         page_specs=page_specs,
@@ -195,14 +198,16 @@ def emit_typst_book_overlay_source(
     The page `items` may be raw translated-item dicts (production; the layout
     pipeline `build_render_blocks` converts them identically on both paths) or
     already-built `RenderBlock` instances (corpus/smoke fixtures)."""
-    if NATIVE:
+    if _routing.routed("typst", "emit_typst_book_overlay_source", NATIVE):
         payload = json.dumps(
             [
                 [width, height, [_render_block_to_dict(b) for b in _as_render_blocks(width, height, items)]]
                 for width, height, items in page_specs
             ]
         )
-        return _native_emit_typst_book_overlay_source(payload, font_family, include_cover_rect)
+        source = _native_emit_typst_book_overlay_source(payload, font_family, include_cover_rect)
+        _routing.record_native_hit("typst", "emit_typst_book_overlay_source")
+        return source
     return build_typst_book_overlay_source(
         page_specs,
         font_family=font_family,
@@ -239,14 +244,12 @@ def apply_adaptive_overlay_colors_batch(
     three source primitives (three PDF opens), then runs the shared
     `_apply_adaptive_overlay_colors_with_data` decision tree. Out-of-range pages
     pass through as shallow copies."""
-    if not NATIVE:
+    if not _routing.routed("typst", "apply_adaptive_overlay_colors_batch", NATIVE):
         return _apply_adaptive_overlay_colors_batch_python(
             source_pdf_path=source_pdf_path,
             pages=pages,
             precomputed_colors_by_item_id=precomputed_colors_by_item_id,
         )
-    import fitz
-
     from services.rendering.layout._native import read_source_page_sizes
     from services.rendering.output.typst.color_adapt import DEFAULT_COVER_FILL
     from services.rendering.output.typst.color_adapt import PAGE_TEXT_COLOR_SAMPLER_MIN_TITLES
@@ -259,12 +262,13 @@ def apply_adaptive_overlay_colors_batch(
     from services.rendering.output.typst.color_adapt import is_title_like_block
     from services.rendering.output.typst.color_adapt import should_probe_title_visual_color
     from services.rendering.source.background import _native as _source_native
+    from services.rendering.source.rects import Rect
 
     def cover_rect(item: dict):
         bbox = cover_bbox(item)
         if len(bbox) != 4:
             return None
-        rect = fitz.Rect(bbox)
+        rect = Rect(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
         if rect.is_empty or rect.is_infinite:
             return None
         return rect
@@ -275,7 +279,7 @@ def apply_adaptive_overlay_colors_batch(
             color_int = int(entry[4])
             samples.append(
                 SpanColorSample(
-                    rect=fitz.Rect(float(entry[0]), float(entry[1]), float(entry[2]), float(entry[3])),
+                    rect=Rect(float(entry[0]), float(entry[1]), float(entry[2]), float(entry[3])),
                     text=str(entry[5]),
                     rgb=((color_int >> 16) & 255, (color_int >> 8) & 255, color_int & 255),
                 )
@@ -293,10 +297,10 @@ def apply_adaptive_overlay_colors_batch(
         size = sizes.get(page_idx)
         if size is None:
             continue
-        page_rect = fitz.Rect(0, 0, size[0], size[1])
+        page_rect = Rect(0.0, 0.0, float(size[0]), float(size[1]))
         items = pages[page_idx]
         target_ids: list[str] = []
-        target_rects: list[fitz.Rect] = []
+        target_rects: list[Rect] = []
         for item in items:
             if not _item_needs_local_color_sampling(item):
                 continue

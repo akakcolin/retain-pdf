@@ -15,6 +15,10 @@ _BOOK_PIPELINE_EXPORTS = {
 
 def __getattr__(name: str) -> Any:
     if name in _BOOK_PIPELINE_EXPORTS:
+        if name == "is_editable_pdf":
+            from runtime.pipeline.render_mode import is_editable_pdf
+
+            return is_editable_pdf
         from runtime.pipeline import book_pipeline
 
         return getattr(book_pipeline, name)

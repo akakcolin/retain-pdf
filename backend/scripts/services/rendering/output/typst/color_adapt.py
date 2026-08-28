@@ -4,14 +4,14 @@ from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 
-import fitz
-
+from services.rendering import _routing
 from services.rendering.layout.font_roles import is_title_like_block
 from services.rendering.layout.typography.geometry import cover_bbox
 from services.rendering.policy import item_overlay_fill
 from services.rendering.policy import item_uses_explicit_white_overlay_fill
 from services.rendering.source.background.fill import LocalBackgroundSampler
 from services.rendering.source.background.color_sampling import sample_local_background_fill
+from services.rendering.source.rects import Rect
 
 
 DARK_BACKGROUND_BRIGHTNESS_MAX = 0.42
@@ -27,14 +27,14 @@ SPAN_COLOR_MIN_DISTANCE = 24.0
 
 @dataclass(frozen=True)
 class SpanColorSample:
-    rect: fitz.Rect
+    rect: Rect
     text: str
     rgb: tuple[int, int, int]
 
 
 def _title_text_color_from_span_samples(
     samples: list[SpanColorSample],
-    rect: fitz.Rect,
+    rect: Rect,
     background: tuple[float, float, float] | None = None,
 ) -> tuple[float, float, float] | None:
     """Shared span-bucketing core behind `PageTextColorSampler.title_text_color`
@@ -80,7 +80,7 @@ class PageTextColorSampler:
         self.samples = samples
 
     @classmethod
-    def build(cls, page: fitz.Page) -> "PageTextColorSampler | None":
+    def build(cls, page: object) -> "PageTextColorSampler | None":
         try:
             text = page.get_text("dict")
         except Exception:
@@ -103,7 +103,7 @@ class PageTextColorSampler:
 
     def title_text_color(
         self,
-        rect: fitz.Rect,
+        rect: Rect,
         background: tuple[float, float, float] | None = None,
     ) -> tuple[float, float, float] | None:
         return _title_text_color_from_span_samples(self.samples, rect, background)
@@ -149,12 +149,12 @@ def _rgb_from_span_color(value: object) -> tuple[int, int, int] | None:
     return None
 
 
-def _span_rect(span: dict) -> fitz.Rect | None:
+def _span_rect(span: dict) -> Rect | None:
     bbox = span.get("bbox")
     if not isinstance(bbox, (list, tuple)) or len(bbox) < 4:
         return None
     try:
-        rect = fitz.Rect(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
+        rect = Rect(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
     except Exception:
         return None
     if rect.is_empty or rect.is_infinite:
@@ -167,7 +167,7 @@ def _float_color_from_rgb(color: tuple[int, int, int]) -> tuple[float, float, fl
 
 
 def _title_foreground_color_from_pixmap(
-    pix: fitz.Pixmap,
+    pix: object,
     background: tuple[float, float, float],
 ) -> tuple[float, float, float] | None:
     if pix.width <= 0 or pix.height <= 0 or pix.n < 3:
@@ -270,10 +270,13 @@ def _title_foreground_color_from_pixmap(
 
 
 def title_text_color_from_text_spans(
-    page: fitz.Page,
-    rect: fitz.Rect,
+    page: object,
+    rect: object,
     background: tuple[float, float, float] | None = None,
 ) -> tuple[float, float, float] | None:
+    import fitz  # reference (fitz) fallback path only
+
+    rect = fitz.Rect(float(rect.x0), float(rect.y0), float(rect.x1), float(rect.y1))
     if rect.is_empty or rect.is_infinite:
         return None
     clipped = rect & page.rect
@@ -304,10 +307,13 @@ def title_text_color_from_text_spans(
 
 
 def title_text_color_from_visual_components(
-    page: fitz.Page,
-    rect: fitz.Rect,
+    page: object,
+    rect: object,
     background: tuple[float, float, float],
 ) -> tuple[float, float, float] | None:
+    import fitz  # reference (fitz) fallback path only
+
+    rect = fitz.Rect(float(rect.x0), float(rect.y0), float(rect.x1), float(rect.y1))
     if rect.is_empty or rect.is_infinite:
         return None
     clipped = rect & page.rect
@@ -334,11 +340,13 @@ def _item_uses_explicit_white_fill(item: dict) -> bool:
 
 
 def _sample_item_cover_fill(
-    page: fitz.Page,
+    page: object,
     item: dict,
     *,
     sampler: LocalBackgroundSampler | None = None,
-) -> tuple[tuple[float, float, float], fitz.Rect | None]:
+) -> tuple[tuple[float, float, float], object]:
+    import fitz  # reference (fitz) fallback path only
+
     bbox = cover_bbox(item)
     if len(bbox) != 4:
         return DEFAULT_COVER_FILL, None
@@ -349,13 +357,15 @@ def _sample_item_cover_fill(
 
 
 def apply_adaptive_overlay_colors(
-    page: fitz.Page,
+    page: object,
     items: list[dict],
     *,
     precomputed_colors_by_item_id: dict[str, dict[str, tuple[float, float, float]]] | None = None,
 ) -> list[dict]:
+    import fitz  # reference (fitz) fallback path only
+
     adapted: list[dict] = []
-    local_sampler = LocalBackgroundSampler.build(page, _local_sampling_rects(items))
+    local_sampler = LocalBackgroundSampler.build(page, [r.to_fitz() for r in _local_sampling_rects(items)])
     title_count = sum(1 for item in items if is_title_like_block(item))
     text_color_sampler = (
         PageTextColorSampler.build(page)
@@ -379,7 +389,7 @@ def apply_adaptive_overlay_colors(
             continue
 
         title_like = is_title_like_block(next_item)
-        rect: fitz.Rect | None = None
+        rect: Rect | None = None
         if _item_needs_local_color_sampling(next_item):
             fill, rect = _sample_item_cover_fill(page, next_item, sampler=local_sampler)
         else:
@@ -453,19 +463,19 @@ def _apply_adaptive_overlay_colors_with_data(
             continue
 
         title_like = is_title_like_block(next_item)
-        rect: fitz.Rect | None = None
+        rect: Rect | None = None
         if _item_needs_local_color_sampling(next_item):
             fill = fill_by_item_id.get(item_id, DEFAULT_COVER_FILL)
             bbox = cover_bbox(next_item)
             if len(bbox) == 4:
-                rect = fitz.Rect(bbox)
+                rect = Rect(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
                 if rect.is_empty or rect.is_infinite:
                     rect = None
         else:
             fill = DEFAULT_COVER_FILL
             bbox = cover_bbox(next_item)
             if title_like and len(bbox) == 4:
-                rect = fitz.Rect(bbox)
+                rect = Rect(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
                 if rect.is_empty or rect.is_infinite:
                     rect = None
 
@@ -508,12 +518,14 @@ def apply_adaptive_overlay_colors_batch(
     copies)."""
     from services.rendering.output.typst import _native
 
-    if _native.NATIVE:
+    if _routing.routed("typst", "apply_adaptive_overlay_colors_batch", _native.NATIVE):
         return _native.apply_adaptive_overlay_colors_batch(
             source_pdf_path=source_pdf_path,
             pages=pages,
             precomputed_colors_by_item_id=precomputed_colors_by_item_id,
         )
+
+    import fitz  # reference (fitz) fallback path only
 
     doc = fitz.open(source_pdf_path)
     try:
@@ -533,15 +545,15 @@ def apply_adaptive_overlay_colors_batch(
         doc.close()
 
 
-def _local_sampling_rects(items: list[dict]) -> list[fitz.Rect]:
-    rects: list[fitz.Rect] = []
+def _local_sampling_rects(items: list[dict]) -> list[Rect]:
+    rects: list[Rect] = []
     for item in items:
         if not _item_needs_local_color_sampling(item):
             continue
         bbox = cover_bbox(item)
         if len(bbox) != 4:
             continue
-        rect = fitz.Rect(bbox)
+        rect = Rect(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
         if not rect.is_empty and not rect.is_infinite:
             rects.append(rect)
     return rects

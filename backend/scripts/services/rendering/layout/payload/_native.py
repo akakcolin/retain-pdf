@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from services.rendering import _routing
 from services.rendering.layout.payload.first_line_indent import detect_first_line_indent_pt_with_displaylist
 
 try:
@@ -35,7 +36,7 @@ def detect_first_line_indents(
     [(item, font_size_pt), ...])`; items are the full production dicts (the
     reference's internal candidate gate reads their role fields). Returns
     `{item_id: indent_pt}` (0.0 entries included)."""
-    if not NATIVE:
+    if not _routing.routed("layout_payload", "detect_first_line_indents", NATIVE):
         return _detect_first_line_indents_python(source_pdf_path=source_pdf_path, by_page=by_page)
     page_indices = sorted(by_page)
     candidates_json: dict[str, list[list[float]]] = {}
@@ -74,6 +75,7 @@ def detect_first_line_indents(
             continue
         for cand_idx, item_id in enumerate(ids_by_page[key]):
             result[item_id] = float(page_out.get(str(cand_idx), 0.0) or 0.0)
+    _routing.record_native_hit("layout_payload", "detect_first_line_indents")
     return result
 
 

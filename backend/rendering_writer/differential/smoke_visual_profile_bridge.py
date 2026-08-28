@@ -84,6 +84,86 @@ PAGE_WIDTH = 612.0
 PAGE_HEIGHT = 792.0
 TOL = 2.0 / 255.0 + 1e-9
 
+_NATIVE_BRIDGES = (
+    "sample_page_color_fills",
+    "extract_page_span_dicts",
+    "sample_foreground_colors",
+)
+
+_FITZ_SURFACES = (
+    (fitz, "open"),
+    (fitz, "Rect"),
+    (fitz, "Matrix"),
+    (fitz.Document, "__len__"),
+    (fitz.Document, "__getitem__"),
+    (fitz.Document, "save"),
+    (fitz.Document, "tobytes"),
+    (fitz.Document, "subset_fonts"),
+    (fitz.Document, "xref_stream"),
+    (fitz.Document, "close"),
+    (fitz.Page, "get_text"),
+    (fitz.Page, "get_pixmap"),
+    (fitz.Page, "get_bboxlog"),
+    (fitz.Page, "get_xobjects"),
+    (fitz.Page, "get_contents"),
+    (fitz.Page, "get_drawings"),
+    (fitz.Page, "get_cdrawings"),
+    (fitz.Page, "show_pdf_page"),
+)
+
+
+def _install_native_counters(calls: dict) -> dict:
+    saved = {}
+    for name in _NATIVE_BRIDGES:
+        orig = getattr(src_native, name)
+        saved[name] = (src_native, orig)
+
+        def counting(*args, _orig=orig, **kwargs):
+            calls["n"] += 1
+            return _orig(*args, **kwargs)
+
+        setattr(src_native, name, counting)
+    return saved
+
+
+def _restore_native_counters(saved: dict) -> None:
+    for name, (obj, orig) in saved.items():
+        setattr(obj, name, orig)
+
+
+def _install_fitz_counters(calls: dict) -> dict:
+    saved = {}
+    for obj, attr in _FITZ_SURFACES:
+        orig = getattr(obj, attr)
+        key = f"{obj.__name__}.{attr}"
+        saved[key] = (obj, attr, orig)
+
+        def counting(*args, _orig=orig, **kwargs):
+            calls["n"] += 1
+            return _orig(*args, **kwargs)
+
+        setattr(obj, attr, counting)
+    return saved
+
+
+def _restore_fitz_counters(saved: dict) -> None:
+    for _key, (obj, attr, orig) in saved.items():
+        setattr(obj, attr, orig)
+
+
+def _check_native_hit_and_fitz_zero(src: Path, pages: dict[int, list[dict]]) -> None:
+    native_calls = {"n": 0}
+    saved_native = _install_native_counters(native_calls)
+    fitz_calls = {"n": 0}
+    saved_fitz = _install_fitz_counters(fitz_calls)
+    try:
+        vp_native.build_document_visual_profile(source_pdf_path=src, pages=pages)
+    finally:
+        _restore_native_counters(saved_native)
+        _restore_fitz_counters(saved_fitz)
+    assert native_calls["n"] > 0, "visual_profile production never hit a native bridge"
+    assert fitz_calls["n"] == 0, f"visual_profile production touched fitz {fitz_calls['n']} times"
+
 
 def _item(*, item_id: str, bbox: list[float], **extra) -> dict:
     item = {
@@ -495,6 +575,9 @@ def main() -> None:
         assert profile_native.pages[1].items["p001-b001"].method == "background_pixels+span_color", (
             f"page 1 span method {profile_native.pages[1].items['p001-b001'].method}"
         )
+
+        # ---- native hit + fitz zero -----------------------------------------
+        _check_native_hit_and_fitz_zero(src, pages)
 
     print("all smoke tests pass")
 

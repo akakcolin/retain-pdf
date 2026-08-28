@@ -34,6 +34,7 @@ pub fn write_pipeline_summary(
         "total_elapsed": elapsed_seconds,
         "render_mode": mode,
         "effective_render_mode": mode,
+        "renderer": "render_rs",
         "pdf_compress_dpi": spec.params.pdf_compress_dpi(),
         "render_diagnostics": {},
         "events_jsonl": "",
@@ -104,6 +105,7 @@ mod tests {
         assert_eq!(value["pages_processed"], 3);
         assert_eq!(value["render_mode"], "typst");
         assert_eq!(value["effective_render_mode"], "typst");
+        assert_eq!(value["renderer"], "render_rs");
         assert_eq!(
             value["translation_manifest"],
             spec.inputs.translation_manifest.unwrap().to_string_lossy().into_owned()
