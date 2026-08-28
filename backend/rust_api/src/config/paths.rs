@@ -18,6 +18,8 @@ pub struct RuntimePathsConfig {
     pub run_translate_only_script: PathBuf,
     pub run_render_only_script: PathBuf,
     pub run_failure_ai_diagnosis_script: PathBuf,
+    pub render_rs_bin: PathBuf,
+    pub render_rs_delegate_script: PathBuf,
     pub uploads_dir: PathBuf,
     pub downloads_dir: PathBuf,
     pub jobs_db_path: PathBuf,
@@ -77,6 +79,7 @@ impl RuntimePathsConfig {
         let jobs_db_path = data_root.join("db").join("jobs.db");
         let output_root = data_root.join("jobs");
         let auth_config_path = rust_api_root.join("auth.local.json");
+        let render_rs_bin = resolve_render_rs_bin(&project_root);
 
         Self {
             project_root,
@@ -102,6 +105,10 @@ impl RuntimePathsConfig {
             run_failure_ai_diagnosis_script: scripts_dir
                 .join("entrypoints")
                 .join("diagnose_failure_with_ai.py"),
+            render_rs_bin,
+            render_rs_delegate_script: scripts_dir
+                .join("entrypoints")
+                .join("run_render_delegate.py"),
             uploads_dir,
             downloads_dir,
             jobs_db_path,
@@ -125,6 +132,43 @@ pub fn create_runtime_dirs(paths: &RuntimePathsConfig) -> Result<()> {
 fn resolve_entrypoint_script(scripts_dir: &Path, script_name: &str) -> PathBuf {
     let entrypoints_dir = scripts_dir.join("entrypoints");
     entrypoints_dir.join(script_name)
+}
+
+/// Locate the native `render_rs` orchestrator binary.
+///
+/// `RETAIN_PDF_RENDER_RS_BIN` overrides everything; otherwise probe the repo
+/// build output, then the desktop bundle layout (`app/backend/bin/render_rs`,
+/// where `project_root` == the app backend root), then fall back to `render_rs`
+/// on PATH.
+fn resolve_render_rs_bin(project_root: &Path) -> PathBuf {
+    if let Some(override_bin) = env_path("RETAIN_PDF_RENDER_RS_BIN") {
+        return override_bin;
+    }
+    let suffix = std::env::consts::EXE_SUFFIX;
+    for candidate in [
+        project_root
+            .join("backend")
+            .join("rendering_orchestrator")
+            .join("target")
+            .join("release")
+            .join(format!("render_rs{suffix}")),
+        project_root
+            .join("backend")
+            .join("rendering_orchestrator")
+            .join("target")
+            .join("debug")
+            .join(format!("render_rs{suffix}")),
+        project_root
+            .join("backend")
+            .join("bin")
+            .join(format!("render_rs{suffix}")),
+        project_root.join("bin").join(format!("render_rs{suffix}")),
+    ] {
+        if candidate.exists() {
+            return candidate;
+        }
+    }
+    PathBuf::from("render_rs")
 }
 
 fn infer_project_root(rust_api_root: &Path) -> Result<PathBuf> {

@@ -9,5 +9,6 @@ pub mod delegate;
 pub mod run;
 pub mod spec;
 pub mod stages;
+pub mod summary;
 
 pub use run::{run, RenderOutcome};

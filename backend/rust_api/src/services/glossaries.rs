@@ -503,6 +503,8 @@ mod tests {
             run_translate_only_script: scripts_dir.join("run_translate_only.py"),
             run_render_only_script: scripts_dir.join("run_render_only.py"),
             run_failure_ai_diagnosis_script: scripts_dir.join("diagnose_failure_with_ai.py"),
+            render_rs_bin: scripts_dir.join("render_rs"),
+            render_rs_delegate_script: scripts_dir.join("entrypoints").join("run_render_delegate.py"),
             uploads_dir,
             downloads_dir,
             jobs_db_path: data_root.join("db").join("jobs.db"),

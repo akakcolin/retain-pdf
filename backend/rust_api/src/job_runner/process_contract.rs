@@ -18,6 +18,11 @@ pub(super) enum WorkerContract {
 
 impl WorkerContract {
     pub(super) fn from_command(command: &[String]) -> Self {
+        // render_rs command shape is `[bin, "--spec", spec.json]` (python
+        // workers always carry the .py script path at index 1).
+        if command.get(1).map(String::as_str) == Some("--spec") {
+            return WorkerContract::Render;
+        }
         let script = command.get(1).map(Path::new);
         let Some(file_name) = script
             .and_then(Path::file_name)
@@ -190,6 +195,18 @@ mod tests {
         assert_eq!(
             WorkerContract::from_command(&build_job("custom.py").command),
             WorkerContract::Unknown
+        );
+    }
+
+    #[test]
+    fn worker_contract_detects_render_rs_binary() {
+        assert_eq!(
+            WorkerContract::from_command(&[
+                "/opt/app/backend/bin/render_rs".to_string(),
+                "--spec".to_string(),
+                "/tmp/spec.json".to_string(),
+            ]),
+            WorkerContract::Render
         );
     }
 

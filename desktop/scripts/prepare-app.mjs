@@ -338,6 +338,48 @@ function resolveRustApiBinary() {
   };
 }
 
+function resolveRenderRsBinary() {
+  const overridePath = process.env.RENDER_RS_BINARY
+    ? path.resolve(process.env.RENDER_RS_BINARY)
+    : "";
+  const candidates = [overridePath];
+
+  if (targetPlatform === "win32") {
+    candidates.push(
+      path.join(
+        backendRoot,
+        "rendering_orchestrator",
+        "target",
+        "x86_64-pc-windows-msvc",
+        "release",
+        "render_rs.exe",
+      ),
+    );
+  } else if (targetPlatform === "darwin") {
+    candidates.push(
+      path.join(backendRoot, "rendering_orchestrator", "target", "release", "render_rs"),
+      path.join(backendRoot, "rendering_orchestrator", "target", "x86_64-apple-darwin", "release", "render_rs"),
+      path.join(backendRoot, "rendering_orchestrator", "target", "aarch64-apple-darwin", "release", "render_rs"),
+    );
+  } else {
+    candidates.push(path.join(backendRoot, "rendering_orchestrator", "target", "release", "render_rs"));
+  }
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return {
+        path: candidate,
+        fileName: path.basename(candidate),
+      };
+    }
+  }
+
+  return {
+    path: candidates[0] || "",
+    fileName: targetPlatform === "win32" ? "render_rs.exe" : "render_rs",
+  };
+}
+
 function hasBundledPosixPython(root) {
   return fs.existsSync(path.join(root, "bin", "python3"))
     || fs.existsSync(path.join(root, "bin", "python"));
@@ -489,6 +531,7 @@ function verifyBundledPythonRuntime(root) {
 }
 
 const rustApiBinary = resolveRustApiBinary();
+const renderRsBinary = resolveRenderRsBinary();
 if (desktopPackage.version !== releaseVersion) {
   desktopPackage.version = releaseVersion;
   fs.writeFileSync(`${desktopPackagePath}.tmp`, `${JSON.stringify(desktopPackage, null, 2)}\n`, "utf8");
@@ -659,7 +702,7 @@ if (fs.existsSync(desktopConstantsPath)) {
 const desktopRuntimeConfig = `window.__FRONT_RUNTIME_CONFIG__ = {
   apiBase: "http://127.0.0.1:41000",
   xApiKey: "retain-pdf-desktop",
-  ocrProvider: "paddle",
+  ocrProvider: "mineru",
   mineruToken: "",
   paddleToken: "",
   modelApiKey: "",
@@ -713,6 +756,13 @@ if (!frontendOnly) {
 if (!frontendOnly && fs.existsSync(rustApiBinary.path)) {
   fs.mkdirSync(path.join(outputBackendRoot, "bin"), { recursive: true });
   fs.cpSync(rustApiBinary.path, path.join(outputBackendRoot, "bin", rustApiBinary.fileName), {
+    force: true,
+  });
+}
+
+if (!frontendOnly && fs.existsSync(renderRsBinary.path)) {
+  fs.mkdirSync(path.join(outputBackendRoot, "bin"), { recursive: true });
+  fs.cpSync(renderRsBinary.path, path.join(outputBackendRoot, "bin", renderRsBinary.fileName), {
     force: true,
   });
 }
@@ -804,6 +854,8 @@ if (!frontendOnly) {
     targetPlatformName,
     rustApiBinaryBundled: fs.existsSync(path.join(outputBackendRoot, "bin", rustApiBinary.fileName)),
     rustApiBinaryName: rustApiBinary.fileName,
+    renderRsBinaryBundled: fs.existsSync(path.join(outputBackendRoot, "bin", renderRsBinary.fileName)),
+    renderRsBinaryName: renderRsBinary.fileName,
     pythonBundled,
     bundledPythonExecutable: bundledPythonDiagnostics ? path.relative(outputBackendRoot, bundledPythonDiagnostics.pythonCommand) : null,
     bundledPythonHome: bundledPythonDiagnostics && bundledPythonDiagnostics.pythonHome

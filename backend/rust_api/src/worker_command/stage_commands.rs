@@ -124,7 +124,11 @@ fn build_render_only_command(
     translations_dir: &Path,
 ) -> Result<Vec<String>> {
     let spec_path = write_render_stage_spec(request, job_paths, source_pdf_path, translations_dir)?;
-    Ok(build_render_only_entrypoint(config, &spec_path))
+    Ok(build_render_only_entrypoint(
+        config,
+        &spec_path,
+        &request.render.render_mode,
+    ))
 }
 
 fn build_extract_text_layer_command(

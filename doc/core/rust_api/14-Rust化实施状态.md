@@ -22,7 +22,8 @@
 | B2-Inc4 | 分析簇接线：`build_render_document_analysis` bridge → `analysis/document/builder.py` | 完成 | e768013e |
 | B2-Inc5 | 热路径清扫：整本 overlay 默认路径零 fitz 调用 | 完成 | e768013e |
 | D2 | rendering crates 差分 + 冒烟 parity 接入 CI 门禁（rendering-parity.yml） | 完成 | 6f9e35d9..c2ad4e4a |
-| C1 | Rust 编排器骨架 `rendering_orchestrator`（`render_rs --spec`）：prepare/page_specs 委托 `run_render_delegate.py` 产出 bundle，background→typst→save 全 native；`RETAINPDF_RENDER_ORCHESTRATOR_RS=1` test-gated 切换（未接生产配置）；`orchestrator_parity` 双二进制差分接 CI | 完成 | b88e5e7d（工作区未提交） |
+| C1 | Rust 编排器骨架 `rendering_orchestrator`（`render_rs --spec`）：prepare/page_specs 委托 `run_render_delegate.py` 产出 bundle，background→typst→save 全 native；`RETAINPDF_RENDER_ORCHESTRATOR_RS=1` test-gated 切换（未接生产配置）；`orchestrator_parity` 双二进制差分接 CI | 完成 | 092bc885 |
+| C3 | 生产接线 + 桌面打包：rust_api 按 mode 默认路由 typst/typst_visual→`render_rs`（auto/overlay/dual 仍走 python3），env 逃逸阀 `RETAINPDF_RENDER_ORCHESTRATOR_OFF/RS`；spawn 时给 delegate 透传 `RETAIN_PDF_PYTHON_BIN`/`RETAIN_PDF_RENDER_DELEGATE_SCRIPT`；`prepare-app.mjs` 打包 `bin/render_rs` + `build:render-rs` + release-desktop.yml 每平台构建 | 完成 | 工作区未提交 |
 
 ## 子系统对照（已接线 / 休眠 / 未移植）
 
@@ -30,7 +31,7 @@
 |---|---|---|
 | `source/background/stage.py`（build_clean_background_pdf） | `rendering_writer::background`（stage/redaction/detect/image_route/toc/formula_guard/vector_text） | **已接线**：生产走 Rust |
 | `output/typst/`（emitter/compiler/block_renderer） | `rendering_output` | **已接线**：`compiler.py` 经 `_native.emit_typst_source`/`emit_typst_book_overlay_source` 生成源码；typst CLI 编译 + 叠加仍在 Python |
-| `document/pdf_ops.py`（save_optimized_pdf 字节压缩） | `rendering_writer::save::save_optimized` | **已接线**：生产走 `source/_native.py::save_optimized`（fitz 子集化 + native garbage=4/流压缩，失败回退纯 fitz） |
+| `document/pdf_ops.py`（save_optimized_pdf 子集化+字节压缩） | `rendering_writer::save::subset_and_clean`（C shim `c/save_clean.c`：mupdf `pdf_subset_fonts` + garbage=4/流压缩） | **已接线**：生产走 `source/_native.py::save_optimized` 全 native（含字体子集化），失败回退纯 fitz |
 | `legacy/pdf_compress` | `rendering_writer`（save/strip/compress/extract_pages/overlay） | **休眠**：bridge 已导出，Python 无调用点 |
 | `layout/`、`analysis/route/` | `rendering_core` | **未接线**：无 Python 引用，仅差分测试 |
 | `analysis/profile/`、`classifier.py` | `rendering_core::profile/classifier` | **未接线** |
@@ -42,8 +43,9 @@
 
 ## 生产接线现状
 
-- **C1（骨架 + 委托，未接生产配置）**：`backend/rendering_orchestrator/` 提供 `render_rs --spec <spec>`，镜像 `render_only.py` 编排。`delegate.rs` spawn `run_render_delegate.py` 产出 `render.bundle.v1`（prepare + page_specs + visual profile fill map）；`stages/background.rs`→`typst.rs`→`save.rs` 全 native 直调（`build_clean_background_pdf` + `compile_typst_source` + `copy_toc`/`save_optimized`）。仅支持 `typst`/`typst_visual` 背景模式，其余 mode 明确拒绝。`rust_api` spawn 仍走 Python；仅当 env `RETAINPDF_RENDER_ORCHESTRATOR_RS=1`（`entrypoints.rs::render_only_command`，test-gated）时改发 `render_rs --spec`。差分门禁 `rendering_writer/differential/orchestrator_parity.py` 双二进制 subprocess，已接 `rendering-parity.yml` bridge loop（CI 需先 `cargo build` orchestrator）。本地验证：fixture 双 mode 页 facts 全等、像素逐字节相同、体积比 0.94（Rust 更小）。
-- native 入口：`build_clean_background_pdf` → `source/background/_native.py`；最终保存 `save_optimized_pdf` → `source/_native.py::save_optimized`（fitz `subset_fonts()`+`tobytes()`，native garbage=4+流压缩，失败回退 fitz）。
+- **C1（骨架 + 委托）**：`backend/rendering_orchestrator/` 提供 `render_rs --spec <spec>`，镜像 `render_only.py` 编排。`delegate.rs` spawn `run_render_delegate.py` 产出 `render.bundle.v1`（prepare + page_specs + visual profile fill map）；`stages/background.rs`→`typst.rs`→`save.rs` 全 native 直调（`build_clean_background_pdf` + `compile_typst_source` + `copy_toc`/`save_optimized`）。仅支持 `typst`/`typst_visual` 背景模式，其余 mode 明确拒绝。差分门禁 `rendering_writer/differential/orchestrator_parity.py` 双二进制 subprocess，已接 `rendering-parity.yml` bridge loop。本地验证：fixture 双 mode 页 facts 全等、像素逐字节相同、体积比 0.94（Rust 更小）。
+- **C3（生产接线 + 桌面打包）**：`rust_api` `render_only_command`（`entrypoints.rs`）按 `render.render_mode` 默认路由——typst/typst_visual 发 `render_rs --spec`，auto/overlay/dual 仍 spawn `python3 run_render_only.py`；逃逸阀 `RETAINPDF_RENDER_ORCHESTRATOR_RS=1` 强制 native、`RETAINPDF_RENDER_ORCHESTRATOR_OFF=1` 强制 Python。`render_rs_bin`/`render_rs_delegate_script` 进 `RuntimePathsConfig`（`paths.rs::resolve_render_rs_bin`：env `RETAIN_PDF_RENDER_RS_BIN` → 仓库 target → `app/backend/bin/render_rs` → PATH）；`spawn_worker_process` 识别 render_rs 时透传 `RETAIN_PDF_PYTHON_BIN`+`RETAIN_PDF_RENDER_DELEGATE_SCRIPT`（delegate 用 desktop bundled python）；worker 输出契约闭合：`process_contract.rs` 识别 `[render_rs, --spec, ...]` 为 Render contract，render_rs 写 `artifacts/pipeline_summary.json` 并打印 `summary:` 标签（`output pdf`/`summary` 两 artifact 校验齐全）。桌面：`prepare-app.mjs::resolveRenderRsBinary` 拷贝 `bin/render_rs` + manifest 字段，`package.json build:render-rs`，`release-desktop.yml` 每平台构建（linux apt clang/libclang/pkg-config、mac brew pkg-config、win LLVM）。
+- native 入口：`build_clean_background_pdf` → `source/background/_native.py`；最终保存 `save_optimized_pdf` → `source/_native.py::save_optimized` 全 native（`doc.tobytes()` → bridge `subset_and_save_optimized_pdf` → `save::subset_and_clean`，C shim 在隔离 mupdf context 里跑 `pdf_subset_fonts` + garbage=4/流压缩，异常经 `mupdf_error_t**` 返回而非 exit；失败回退纯 fitz 子集化+save）。
 - 新增 native 入口：`pdf_structure_profile` sampler → `_native.build_pdf_structure_profile`；`analysis/document/builder` → `_native.build_render_document_analysis`；Typst 源码生成 → `output/typst/_native.py::emit_typst_source`/`emit_typst_book_overlay_source`（均回退 Python）。
 - 接线现状（7R-7 后）：auto / visual_cover / visual_cover_and_remove_text 全走 Rust；仅 `text_layer_only` / `text_redaction` 与 mock（instrumented）场景回退纯 Python。
 - CI 门禁（D2）：`.github/workflows/rendering-parity.yml` 跑 rendering crates 差分 replay（writer+reader，含 form_xobjects）+ 17 个 native 冒烟桥（含 B3 整本 E2E + 像素 parity，CI 装 typst 0.14.2 + cmarker/mitex），锁 native==fitz 页 facts、体积与像素。
@@ -51,7 +53,7 @@
 
 ## Python 依赖评估
 
-- **运行时硬依赖未降**：`rust_api` 仍 spawn `python3 run_render_only.py`，渲染管线整体在 Python 进程内执行（C1 `render_rs` 仅 test-gated，`RETAINPDF_RENDER_ORCHESTRATOR_RS=1` 才切换；C2/C3 差分验证后接生产配置）。
+- **运行时硬依赖部分下降**：typst/typst_visual 渲染已由 `render_rs` 生产接管（C3），background→typst→save 段不再 spawn python；但 prepare/page_specs 仍委托 `run_render_delegate.py`（Python 子进程），auto/overlay/dual 仍走 `python3 run_render_only.py`，渲染管线整体仍依赖 Python 运行时。
 - fitz/PyMuPDF 仍被约百个模块引用。
 - 仅在 `build_clean_background_pdf` stage 内部，PDF 读写由 mupdf-rs 替换 fitz。
 - native `.so` 已构建并装入 `.venv`（Python 3.14），开发环境 `NATIVE=True`。
@@ -68,4 +70,4 @@
 
 ## 结论
 
-移植覆盖度高、每阶段带 corpus + 差分门禁（现已接 CI），但生产接入度仍偏低：真正跑 Rust 的热点是"背景涂改/红批"stage、最终保存字节压缩、pdf_structure_profile 采样、Typst 源码生成。B2 已把整本 overlay 默认路径拉成零 fitz（CI 门禁断言）；颜色适配 batch 已 native，仅参考实现与纯几何 `fitz.Rect` 残留；保存字节压缩仍走 fitz 子集化 + native 压缩（mupdf-rs 无 `subset_fonts`，失败回退纯 fitz）。整体替代程度按代码量算中等，按运行时算偏低；Python 库的整体依赖尚未实质下降。
+移植覆盖度高、每阶段带 corpus + 差分门禁（现已接 CI），但生产接入度仍偏低：真正跑 Rust 的热点是"背景涂改/红批"stage、最终保存（子集化+字节压缩，全 native）、pdf_structure_profile 采样、Typst 源码生成。B2 已把整本 overlay 默认路径拉成零 fitz（CI 门禁断言）；颜色适配 batch 已 native，仅参考实现与纯几何 `fitz.Rect` 残留；保存字节压缩已补上 mupdf 侧 `subset_fonts`（C shim 隔离 context + 异常转 `mupdf_error_t**`），不再需要 fitz 子集化，失败才回退纯 fitz。整体替代程度按代码量算中等，按运行时算偏低；Python 库的整体依赖尚未实质下降。

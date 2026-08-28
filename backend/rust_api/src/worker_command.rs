@@ -77,6 +77,8 @@ mod tests {
             run_translate_only_script: scripts_dir.join("run_translate_only.py"),
             run_render_only_script: scripts_dir.join("run_render_only.py"),
             run_failure_ai_diagnosis_script: scripts_dir.join("diagnose_failure_with_ai.py"),
+            render_rs_bin: scripts_dir.join("render_rs"),
+            render_rs_delegate_script: scripts_dir.join("entrypoints").join("run_render_delegate.py"),
             uploads_dir,
             downloads_dir,
             jobs_db_path: data_root.join("db").join("jobs.db"),
@@ -286,7 +288,10 @@ mod tests {
     #[test]
     fn render_only_command_uses_render_stage_script_and_artifacts() {
         let config = test_config();
-        let request = build_request(WorkflowKind::Render);
+        // overlay stays on the python flow (render_rs rejects it), so this
+        // keeps asserting the python entrypoint + stage spec artifacts.
+        let mut request = build_request(WorkflowKind::Render);
+        request.render.render_mode = "overlay".to_string();
         let job_paths = build_paths(config.as_ref());
         let cmd = render_command(
             config.as_ref(),
@@ -315,12 +320,36 @@ mod tests {
         assert_eq!(payload["stage"], "render");
         assert_eq!(payload["inputs"]["source_pdf"], "/tmp/source.pdf");
         assert_eq!(payload["inputs"]["translations_dir"], "/tmp/translated");
-        assert_eq!(payload["params"]["render_mode"], "typst");
+        assert_eq!(payload["params"]["render_mode"], "overlay");
         assert_eq!(
             payload["params"]["credential_ref"],
             format!("env:{TRANSLATION_API_KEY_ENV_NAME}")
         );
         assert!(!spec_json.contains("sk-test"));
+    }
+
+    #[test]
+    fn render_only_command_routes_typst_to_render_rs() {
+        let config = test_config();
+        let request = build_request(WorkflowKind::Render);
+        let job_paths = build_paths(config.as_ref());
+        let cmd = render_command(
+            config.as_ref(),
+            &request,
+            &job_paths,
+            Path::new("/tmp/source.pdf"),
+            Path::new("/tmp/translated"),
+        );
+
+        assert_eq!(
+            cmd.first().map(String::as_str),
+            Some(config.render_rs_bin.to_string_lossy().as_ref())
+        );
+        assert_eq!(cmd.get(1).map(String::as_str), Some("--spec"));
+        assert!(!contains(
+            &cmd,
+            &config.run_render_only_script.to_string_lossy().to_string()
+        ));
     }
 
     #[test]
@@ -366,7 +395,8 @@ mod tests {
     #[test]
     fn console_entrypoint_mode_uses_installed_worker_commands() {
         let config = test_config_with_entrypoint_mode(PythonWorkerEntrypointMode::Console);
-        let request = build_request(WorkflowKind::Render);
+        let mut request = build_request(WorkflowKind::Render);
+        request.render.render_mode = "overlay".to_string();
         let job_paths = build_paths(config.as_ref());
         let cmd = render_command(
             config.as_ref(),

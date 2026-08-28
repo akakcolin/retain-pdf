@@ -37,6 +37,7 @@ fn main() -> ExitCode {
                 println!("output pdf: {}", outcome.output_pdf.display());
                 println!("source pdf: {}", outcome.source_pdf.display());
                 println!("translations dir: {}", outcome.translations_dir.display());
+                println!("summary: {}", outcome.summary_path.display());
                 println!("render mode: {}", outcome.mode);
                 println!("pages processed: {}", outcome.page_count);
                 println!("total time: {:.2}s", outcome.elapsed_seconds);

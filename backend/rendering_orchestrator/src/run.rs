@@ -8,11 +8,13 @@ use anyhow::Result;
 use crate::delegate;
 use crate::spec::RenderStageSpec;
 use crate::stages;
+use crate::summary;
 
 pub struct RenderOutcome {
     pub output_pdf: PathBuf,
     pub source_pdf: PathBuf,
     pub translations_dir: PathBuf,
+    pub summary_path: PathBuf,
     pub mode: String,
     pub page_count: usize,
     pub elapsed_seconds: f64,
@@ -34,12 +36,23 @@ pub fn run(spec_path: &Path) -> Result<RenderOutcome> {
     let compiled_pdf = stages::typst::run_typst(&bundle, &cleaned_bg)?;
     stages::save::run_save(&bundle, &compiled_pdf)?;
 
+    let elapsed_seconds = started.elapsed().as_secs_f64();
+    let summary_path = summary::write_pipeline_summary(
+        &spec,
+        &bundle.output_pdf,
+        &bundle.source_pdf,
+        &mode,
+        bundle.page_map.source_page_indices.len(),
+        elapsed_seconds,
+    )?;
+
     Ok(RenderOutcome {
         output_pdf: bundle.output_pdf,
         source_pdf: bundle.source_pdf,
         translations_dir: spec.inputs.translations_dir,
+        summary_path,
         mode,
         page_count: bundle.page_map.source_page_indices.len(),
-        elapsed_seconds: started.elapsed().as_secs_f64(),
+        elapsed_seconds,
     })
 }

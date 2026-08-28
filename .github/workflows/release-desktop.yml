@@ -65,6 +65,18 @@ jobs:
         shell: pwsh
         run: cargo build --release --target x86_64-pc-windows-msvc --manifest-path backend/rust_api/Cargo.toml
 
+      - name: Configure libclang for mupdf-sys
+        shell: pwsh
+        run: |
+          $llvmBin = "C:\Program Files\LLVM\bin"
+          if (Test-Path "$llvmBin\libclang.dll") {
+            "LIBCLANG_PATH=$llvmBin" | Out-File -FilePath $env:GITHUB_ENV -Append
+          }
+
+      - name: Build render orchestrator for Windows
+        shell: pwsh
+        run: cargo build --release --target x86_64-pc-windows-msvc --manifest-path backend/rendering_orchestrator/Cargo.toml
+
       - name: Assemble bundled Typst runtime
         shell: pwsh
         run: |
@@ -248,6 +260,16 @@ jobs:
       - name: Build Rust API for Linux
         shell: bash
         run: cargo build --release --manifest-path backend/rust_api/Cargo.toml
+
+      - name: Install mupdf-sys build deps
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang libclang-dev pkg-config
+
+      - name: Build render orchestrator for Linux
+        shell: bash
+        run: cargo build --release --manifest-path backend/rendering_orchestrator/Cargo.toml
 
       - name: Install Linux packaging dependencies
         shell: bash
@@ -488,6 +510,14 @@ jobs:
       - name: Build Rust API for macOS
         shell: bash
         run: cargo build --release --manifest-path backend/rust_api/Cargo.toml
+
+      - name: Install mupdf-sys build deps
+        shell: bash
+        run: brew install pkg-config
+
+      - name: Build render orchestrator for macOS
+        shell: bash
+        run: cargo build --release --manifest-path backend/rendering_orchestrator/Cargo.toml
 
       - name: Assemble bundled Typst runtime
         shell: bash
