@@ -23,7 +23,7 @@
 | B2-Inc5 | 热路径清扫：整本 overlay 默认路径零 fitz 调用 | 完成 | e768013e |
 | D2 | rendering crates 差分 + 冒烟 parity 接入 CI 门禁（rendering-parity.yml） | 完成 | 6f9e35d9..c2ad4e4a |
 | C1 | Rust 编排器骨架 `rendering_orchestrator`（`render_rs --spec`）：prepare/page_specs 委托 `run_render_delegate.py` 产出 bundle，background→typst→save 全 native；`RETAINPDF_RENDER_ORCHESTRATOR_RS=1` test-gated 切换（未接生产配置）；`orchestrator_parity` 双二进制差分接 CI | 完成 | 092bc885 |
-| C3 | 生产接线 + 桌面打包：rust_api 按 mode 默认路由 typst/typst_visual→`render_rs`（auto/overlay/dual 仍走 python3），env 逃逸阀 `RETAINPDF_RENDER_ORCHESTRATOR_OFF/RS`；spawn 时给 delegate 透传 `RETAIN_PDF_PYTHON_BIN`/`RETAIN_PDF_RENDER_DELEGATE_SCRIPT`；`prepare-app.mjs` 打包 `bin/render_rs` + `build:render-rs` + release-desktop.yml 每平台构建 | 完成 | 工作区未提交 |
+| C3 | 生产接线 + 桌面打包：rust_api 按 mode 默认路由 typst/typst_visual→`render_rs`（auto/overlay/dual 仍走 python3），env 逃逸阀 `RETAINPDF_RENDER_ORCHESTRATOR_OFF/RS`；spawn 时给 delegate 透传 `RETAIN_PDF_PYTHON_BIN`/`RETAIN_PDF_RENDER_DELEGATE_SCRIPT`；`prepare-app.mjs` 打包 `bin/render_rs` + `build:render-rs` + release-desktop.yml 每平台构建 | 完成 | ccd4f5f3 |
 
 ## 子系统对照（已接线 / 休眠 / 未移植）
 
