@@ -1,0 +1,106 @@
+name: Rendering Parity
+
+# Differential parity gate for the Rust-ified rendering crates (doc 15 D2).
+# Replays the embedded corpora through the native replay tests and through the
+# production Python shims against a freshly built bridge, so a Rust or Python
+# change that diverges the two sides fails here instead of in a release.
+
+"on":
+  pull_request:
+    paths:
+      - "backend/rendering_core/**"
+      - "backend/rendering_reader/**"
+      - "backend/rendering_writer/**"
+      - "backend/rendering_bridge/**"
+      - "backend/scripts/services/rendering/**"
+      - "resources/samples/golden-pdfs/**"
+      - ".github/workflows/rendering-parity.yml"
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "backend/rendering_core/**"
+      - "backend/rendering_reader/**"
+      - "backend/rendering_writer/**"
+      - "backend/rendering_bridge/**"
+      - "backend/scripts/services/rendering/**"
+      - "resources/samples/golden-pdfs/**"
+      - ".github/workflows/rendering-parity.yml"
+
+jobs:
+  differential-replay:
+    name: Cargo differential replay
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install mupdf-sys build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang libclang-dev pkg-config
+
+      - name: Writer differential replay
+        run: cargo test --manifest-path backend/rendering_writer/Cargo.toml
+
+      - name: Reader differential replay
+        run: cargo test --manifest-path backend/rendering_reader/Cargo.toml
+
+  native-bridge-smoke:
+    name: Native bridge smoke parity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install mupdf-sys build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang libclang-dev pkg-config
+
+      - name: Build native bridge
+        shell: bash
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install "maturin>=1.4,<2.0"
+          python -m pip install -r docker/requirements-test.txt
+          cd backend/rendering_bridge
+          maturin develop
+
+      - name: Run native smoke bridges
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          export PYTHONPATH="$GITHUB_WORKSPACE/backend/scripts"
+          cd backend/scripts
+          for b in \
+            smoke_bridge \
+            smoke_color_adapt_bridge \
+            smoke_drawings_bridge \
+            smoke_first_line_indent_bridge \
+            smoke_image_rects_bridge \
+            smoke_page_specs_bridge \
+            smoke_prewarm_page_sizes_bridge \
+            smoke_save_optimized_bridge \
+            smoke_source_cleanup_planning \
+            smoke_text_read_bridge \
+            smoke_typst_emit_bridge \
+            smoke_visual_profile_bridge \
+            smoke_write_bridge
+          do
+            python "../rendering_writer/differential/$b.py"
+          done
