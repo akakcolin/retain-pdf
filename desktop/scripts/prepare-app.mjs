@@ -123,6 +123,59 @@ function copyRuntimeTree(from, to, options = {}) {
   });
 }
 
+/// Per-component bundle sizes in bytes, keyed by the component names the
+/// bundle-size CI report renders (all paths relative to `outputBackendRoot`,
+/// the manifest's own directory). `total` is the plain sum of the components.
+function buildSizesBytes() {
+  const frontendRel = path.relative(outputBackendRoot, outputFrontendRoot);
+  const sizes = {
+    rustApi: dirSize(outputBackendRoot, path.join("bin", rustApiBinary.fileName)),
+    renderRs: dirSize(outputBackendRoot, path.join("bin", renderRsBinary.fileName)),
+    python: dirSize(outputBackendRoot, "python"),
+    typst: dirSize(outputBackendRoot, "typst"),
+    typstPackages: dirSize(outputBackendRoot, "typst-packages"),
+    fonts: dirSize(outputBackendRoot, "fonts"),
+    aiService: dirSize(outputBackendRoot, "ai_service"),
+    scripts: dirSize(outputBackendRoot, "scripts"),
+    frontend: dirSize(outputBackendRoot, frontendRel),
+  };
+  sizes.total = Object.values(sizes).reduce((sum, value) => sum + value, 0);
+  return sizes;
+}
+
+/// Sum of regular-file bytes under `root` resolved with `rel` (symlinks are
+/// skipped to avoid double-counting linked-in files). Returns 0 for a missing
+/// path so the manifest can report sizes unconditionally.
+function dirSize(root, rel) {
+  const target = path.resolve(root, rel);
+  if (!fs.existsSync(target)) {
+    return 0;
+  }
+  let total = 0;
+  const stack = [target];
+  while (stack.length) {
+    const dir = stack.pop();
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      let isDirectory;
+      let isFile;
+      try {
+        const stat = fs.lstatSync(full);
+        isDirectory = stat.isDirectory();
+        isFile = stat.isFile();
+      } catch {
+        continue;
+      }
+      if (isDirectory) {
+        stack.push(full);
+      } else if (isFile) {
+        total += fs.statSync(full).size;
+      }
+    }
+  }
+  return total;
+}
+
 function rewriteAbsoluteSymlinksWithinRoot(root, sourceRoot) {
   if (!fs.existsSync(root) || !fs.existsSync(sourceRoot)) {
     return;
@@ -895,6 +948,7 @@ if (!frontendOnly) {
     typstBundled: fs.existsSync(path.join(outputBackendRoot, "typst")),
     typstPackagesBundled: fs.existsSync(path.join(outputBackendRoot, "typst-packages")),
     bundledFonts: fs.readdirSync(bundledFontsRoot).sort(),
+    sizesBytes: buildSizesBytes(),
   };
 
   fs.writeFileSync(

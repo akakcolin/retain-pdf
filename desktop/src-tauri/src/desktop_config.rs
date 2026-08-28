@@ -4,7 +4,10 @@ use std::path::PathBuf;
 use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Manager};
 
-const DEFAULT_OCR_PROVIDER: &str = "paddle";
+const DEFAULT_OCR_PROVIDER: &str = "mineru";
+const SUPPORTED_OCR_PROVIDERS: &[&str] = &["mineru", "paddle"];
+const DEFAULT_TRANSLATION_PROVIDER: &str = "deepseek";
+const SUPPORTED_TRANSLATION_PROVIDERS: &[&str] = &["deepseek", "openai-compatible"];
 const DEFAULT_MODEL: &str = "deepseek-v4-flash";
 const DEFAULT_BASE_URL: &str = "https://api.deepseek.com/v1";
 
@@ -12,6 +15,7 @@ pub fn create_default_config() -> Value {
     json!({
         "firstRunCompleted": false,
         "ocrProvider": DEFAULT_OCR_PROVIDER,
+        "translationProvider": DEFAULT_TRANSLATION_PROVIDER,
         "mineruToken": "",
         "paddleToken": "",
         "modelApiKey": "",
@@ -52,11 +56,23 @@ fn normalize_config(raw: &Value) -> Value {
     }
     if let Some(value) = map.get("ocrProvider") {
         let provider = as_string(value);
-        result["ocrProvider"] = Value::String(if provider == "paddle" {
-            "paddle".to_string()
-        } else {
-            DEFAULT_OCR_PROVIDER.to_string()
-        });
+        result["ocrProvider"] = Value::String(
+            if SUPPORTED_OCR_PROVIDERS.contains(&provider.as_str()) {
+                provider
+            } else {
+                DEFAULT_OCR_PROVIDER.to_string()
+            },
+        );
+    }
+    if let Some(value) = map.get("translationProvider") {
+        let provider = as_string(value);
+        result["translationProvider"] = Value::String(
+            if SUPPORTED_TRANSLATION_PROVIDERS.contains(&provider.as_str()) {
+                provider
+            } else {
+                DEFAULT_TRANSLATION_PROVIDER.to_string()
+            },
+        );
     }
     for key in ["mineruToken", "paddleToken", "modelApiKey"] {
         if let Some(value) = map.get(key) {
@@ -96,6 +112,7 @@ fn merge_config(current: &Value, payload: &Value) -> Value {
     };
     let keys = [
         "ocrProvider",
+        "translationProvider",
         "mineruToken",
         "paddleToken",
         "modelApiKey",
@@ -130,6 +147,7 @@ fn merge_config(current: &Value, payload: &Value) -> Value {
 fn build_browser_config(config: &Value) -> Value {
     json!({
         "ocrProvider": config.get("ocrProvider").and_then(Value::as_str).unwrap_or(DEFAULT_OCR_PROVIDER),
+        "translationProvider": config.get("translationProvider").and_then(Value::as_str).unwrap_or(DEFAULT_TRANSLATION_PROVIDER),
         "mineruToken": config.get("mineruToken").and_then(Value::as_str).unwrap_or(""),
         "paddleToken": config.get("paddleToken").and_then(Value::as_str).unwrap_or(""),
         "modelApiKey": config.get("modelApiKey").and_then(Value::as_str).unwrap_or(""),
@@ -145,7 +163,7 @@ fn build_runtime_config(config: &Value, api_key: &str) -> Value {
         "baseUrl": config.get("baseUrl").and_then(Value::as_str).unwrap_or(DEFAULT_BASE_URL),
         "developerConfig": config.get("developerConfig").cloned().unwrap_or_else(|| json!({})),
     });
-    for key in ["ocrProvider", "mineruToken", "paddleToken", "modelApiKey"] {
+    for key in ["ocrProvider", "translationProvider", "mineruToken", "paddleToken", "modelApiKey"] {
         runtime[key] = browser_config[key].clone();
     }
     runtime

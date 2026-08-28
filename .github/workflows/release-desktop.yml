@@ -209,6 +209,10 @@ jobs:
         shell: pwsh
         run: python .github/scripts/validate_desktop_bundle.py --manifest desktop/app/backend/bundle-manifest.json
 
+      - name: Report desktop bundle sizes
+        shell: pwsh
+        run: python .github/scripts/report_bundle_sizes.py --manifest desktop/app/backend/bundle-manifest.json >> $env:GITHUB_STEP_SUMMARY
+
       - name: Smoke frontend bundle after manifest validation
         shell: pwsh
         run: npm --prefix desktop run smoke:frontend-bundle
@@ -424,6 +428,10 @@ jobs:
       - name: Validate desktop bundle manifest
         shell: bash
         run: python3 .github/scripts/validate_desktop_bundle.py --manifest desktop/app/backend/bundle-manifest.json
+
+      - name: Report desktop bundle sizes
+        shell: bash
+        run: python3 .github/scripts/report_bundle_sizes.py --manifest desktop/app/backend/bundle-manifest.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Smoke frontend bundle after manifest validation
         shell: bash
@@ -1062,6 +1070,10 @@ jobs:
       - name: Validate desktop bundle manifest
         shell: bash
         run: python3 .github/scripts/validate_desktop_bundle.py --manifest desktop/app/backend/bundle-manifest.json
+
+      - name: Report desktop bundle sizes
+        shell: bash
+        run: python3 .github/scripts/report_bundle_sizes.py --manifest desktop/app/backend/bundle-manifest.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Smoke frontend bundle after manifest validation
         shell: bash
