@@ -22,6 +22,7 @@
 | B2-Inc4 | 分析簇接线：`build_render_document_analysis` bridge → `analysis/document/builder.py` | 完成 | e768013e |
 | B2-Inc5 | 热路径清扫：整本 overlay 默认路径零 fitz 调用 | 完成 | e768013e |
 | D2 | rendering crates 差分 + 冒烟 parity 接入 CI 门禁（rendering-parity.yml） | 完成 | 6f9e35d9..c2ad4e4a |
+| C1 | Rust 编排器骨架 `rendering_orchestrator`（`render_rs --spec`）：prepare/page_specs 委托 `run_render_delegate.py` 产出 bundle，background→typst→save 全 native；`RETAINPDF_RENDER_ORCHESTRATOR_RS=1` test-gated 切换（未接生产配置）；`orchestrator_parity` 双二进制差分接 CI | 完成 | b88e5e7d（工作区未提交） |
 
 ## 子系统对照（已接线 / 休眠 / 未移植）
 
@@ -41,6 +42,7 @@
 
 ## 生产接线现状
 
+- **C1（骨架 + 委托，未接生产配置）**：`backend/rendering_orchestrator/` 提供 `render_rs --spec <spec>`，镜像 `render_only.py` 编排。`delegate.rs` spawn `run_render_delegate.py` 产出 `render.bundle.v1`（prepare + page_specs + visual profile fill map）；`stages/background.rs`→`typst.rs`→`save.rs` 全 native 直调（`build_clean_background_pdf` + `compile_typst_source` + `copy_toc`/`save_optimized`）。仅支持 `typst`/`typst_visual` 背景模式，其余 mode 明确拒绝。`rust_api` spawn 仍走 Python；仅当 env `RETAINPDF_RENDER_ORCHESTRATOR_RS=1`（`entrypoints.rs::render_only_command`，test-gated）时改发 `render_rs --spec`。差分门禁 `rendering_writer/differential/orchestrator_parity.py` 双二进制 subprocess，已接 `rendering-parity.yml` bridge loop（CI 需先 `cargo build` orchestrator）。本地验证：fixture 双 mode 页 facts 全等、像素逐字节相同、体积比 0.94（Rust 更小）。
 - native 入口：`build_clean_background_pdf` → `source/background/_native.py`；最终保存 `save_optimized_pdf` → `source/_native.py::save_optimized`（fitz `subset_fonts()`+`tobytes()`，native garbage=4+流压缩，失败回退 fitz）。
 - 新增 native 入口：`pdf_structure_profile` sampler → `_native.build_pdf_structure_profile`；`analysis/document/builder` → `_native.build_render_document_analysis`；Typst 源码生成 → `output/typst/_native.py::emit_typst_source`/`emit_typst_book_overlay_source`（均回退 Python）。
 - 接线现状（7R-7 后）：auto / visual_cover / visual_cover_and_remove_text 全走 Rust；仅 `text_layer_only` / `text_redaction` 与 mock（instrumented）场景回退纯 Python。
@@ -49,7 +51,7 @@
 
 ## Python 依赖评估
 
-- **运行时硬依赖未降**：`rust_api` 仍 spawn `python3 run_render_only.py`，渲染管线整体在 Python 进程内执行。
+- **运行时硬依赖未降**：`rust_api` 仍 spawn `python3 run_render_only.py`，渲染管线整体在 Python 进程内执行（C1 `render_rs` 仅 test-gated，`RETAINPDF_RENDER_ORCHESTRATOR_RS=1` 才切换；C2/C3 差分验证后接生产配置）。
 - fitz/PyMuPDF 仍被约百个模块引用。
 - 仅在 `build_clean_background_pdf` stage 内部，PDF 读写由 mupdf-rs 替换 fitz。
 - native `.so` 已构建并装入 `.venv`（Python 3.14），开发环境 `NATIVE=True`。

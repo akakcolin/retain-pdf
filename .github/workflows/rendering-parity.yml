@@ -12,6 +12,7 @@ name: Rendering Parity
       - "backend/rendering_reader/**"
       - "backend/rendering_writer/**"
       - "backend/rendering_bridge/**"
+      - "backend/rendering_orchestrator/**"
       - "backend/scripts/services/rendering/**"
       - "resources/samples/golden-pdfs/**"
       - ".github/workflows/rendering-parity.yml"
@@ -24,6 +25,7 @@ name: Rendering Parity
       - "backend/rendering_reader/**"
       - "backend/rendering_writer/**"
       - "backend/rendering_bridge/**"
+      - "backend/rendering_orchestrator/**"
       - "backend/scripts/services/rendering/**"
       - "resources/samples/golden-pdfs/**"
       - ".github/workflows/rendering-parity.yml"
@@ -87,6 +89,11 @@ jobs:
           cd backend/rendering_bridge
           maturin develop
 
+      - name: Build render orchestrator
+        shell: bash
+        run: |
+          cargo build --manifest-path backend/rendering_orchestrator/Cargo.toml
+
       - name: Setup Typst runtime
         run: |
           typst_url="https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz"
@@ -145,7 +152,16 @@ jobs:
             smoke_visual_profile_bridge \
             smoke_write_bridge \
             smoke_end_to_end_parity \
-            smoke_end_to_end_pixel_parity
+            smoke_end_to_end_pixel_parity \
+            orchestrator_parity
           do
             python "../rendering_writer/differential/$b.py"
           done
+
+      - name: Run rendering pytest suite + guard contract
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          export PYTHONPATH="$GITHUB_WORKSPACE/backend/scripts"
+          cd backend/scripts
+          python -m pytest devtools/tests/rendering/ -q
