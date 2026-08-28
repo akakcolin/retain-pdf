@@ -73,3 +73,35 @@ fn test_geometry_and_vector_profile_parity() {
         }
     }
 }
+
+/// Image-background + classification parity (Inc 3). Once `page_snapshot` fills
+/// `image_rects` with the aggregate placement set, `build_render_page_profile`
+/// reproduces the reference `image_background` (has_large_background /
+/// coverage_ratio) and the derived `kind`. Classification parity is the key gate
+/// for the Inc 4 routing divergence ledger. `kind` from text-layer traces is a
+/// documented divergence surface on "hidden text and <20 words" pages only; the
+/// golden pages (editable-paper / pseudo-editable) carry enough visible text
+/// that the empty-text_traces fallback keeps the classification identical.
+#[test]
+fn test_image_background_and_kind_parity() {
+    let c = corpus();
+    let threshold = c.background_threshold;
+    for (name, entry) in &c.pdfs {
+        let doc = open_golden(name);
+        for (idx_str, page_expected) in &entry.pages {
+            let idx: i64 = idx_str.parse().unwrap();
+            let snapshot = reader::read_page_snapshot(&doc, idx)
+                .unwrap_or_else(|e| panic!("read {name} page {idx}: {e}"));
+            let profile = build_render_page_profile(&snapshot, &[], threshold);
+            assert_close_image_background(
+                &profile.image_background,
+                &page_expected.expected_profile.image_background,
+            );
+            assert_eq!(
+                profile.kind.as_str(),
+                page_expected.expected_profile.kind,
+                "{name} p{idx}: kind"
+            );
+        }
+    }
+}

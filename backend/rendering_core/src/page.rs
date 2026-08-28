@@ -17,6 +17,19 @@ pub struct ImageInfo {
     pub bbox: Rect,
 }
 
+/// One `/Resources/XObject` entry that carries a `/BBox` (Form xobjects always
+/// do; plain images usually do not): the resource name, the referenced xref,
+/// and the Form bounds. Mirrors what `sampler._form_xobject_objects` extracts
+/// from fitz `page.get_xobjects()` for single-level forms (nested
+/// form-invokes-form instances are a documented divergence — the resource dict
+/// carries one entry per named form while fitz reports each `Do` instance).
+#[derive(Debug, Clone, PartialEq)]
+pub struct FormXObjectInfo {
+    pub name: String,
+    pub xref: i64,
+    pub bbox: Rect,
+}
+
 /// One `page.get_bboxlog()` entry: the drawing kind ("fill-text",
 /// "fill-path", "stroke-path", "fill-image", "fill-image-mask") and its
 /// rotation-stripped fitz-space bounds.

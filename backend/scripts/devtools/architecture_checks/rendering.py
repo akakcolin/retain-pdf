@@ -220,6 +220,16 @@ WIRED_PYTHON_REFERENCE_SYMBOLS = {
     ("services.rendering.document.pdf_ops", "_save_optimized_pdf_python"),
     # background stage routed via source/background/_native.py
     ("services.rendering.source.background.stage", "_build_clean_background_pdf_python"),
+    # pdf structure profile routed via pdf_structure_profile/_native.py
+    (
+        "services.rendering.pdf_structure_profile.sampler",
+        "_build_pdf_structure_profile_python",
+    ),
+    # render-document analysis routed via analysis/_native.py
+    (
+        "services.rendering.analysis.document.builder",
+        "_build_render_document_analysis_python",
+    ),
     # Typst output layer routed via output/typst/_native.py
     ("services.rendering.output.typst.emitter", "build_typst_source_from_page_specs"),
     (
@@ -288,6 +298,8 @@ WIRED_PYTHON_REFERENCE_SHIMS = {
     RENDERING_ROOT / "layout" / "payload" / "_native.py",
     RENDERING_ROOT / "visual_profile" / "_native.py",
     RENDERING_ROOT / "source_cleanup" / "planning" / "_native.py",
+    RENDERING_ROOT / "pdf_structure_profile" / "_native.py",
+    RENDERING_ROOT / "analysis" / "_native.py",
 }
 
 

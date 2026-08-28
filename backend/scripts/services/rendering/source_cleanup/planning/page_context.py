@@ -17,6 +17,8 @@ from pathlib import Path
 
 import fitz
 
+from services.rendering.source.rects import Matrix
+from services.rendering.source.rects import inverse_affine
 from services.rendering.source_cleanup.planning.page_probe import page_content_stream_size
 from services.rendering.source_cleanup.planning.page_probe import page_has_form_xobjects
 
@@ -28,18 +30,18 @@ class PlanningPageContext:
     bboxlog_entries: tuple[tuple[str, fitz.Rect], ...] = ()
     content_stream_size: int = 0
     has_form_xobjects: bool = False
-    inverse_ctm: fitz.Matrix = field(default_factory=fitz.Matrix)
+    inverse_ctm: Matrix = field(default_factory=Matrix)
 
 
-def inverse_ctm_from_ctm(ctm: object) -> fitz.Matrix:
+def inverse_ctm_from_ctm(ctm: object) -> Matrix:
     """`~page.transformation_matrix` from a raw `[a,b,c,d,e,f]` ctm.
 
-    fitz inverts the same way it inverts `page.transformation_matrix`, so the
-    native path (ctm from the bridge) and the reference path (fitz page) agree
-    numerically.
+    Returns a pure `Matrix` (attribute-compatible with `fitz.Matrix`, so
+    consumers reading `.a`..`.f` keep working) computed with the same inverse
+    formula fitz uses for `page.transformation_matrix`, so the native path (ctm
+    from the bridge) and the reference path (fitz page) agree numerically.
     """
-    a, b, c, d, e, f = (float(value) for value in ctm)
-    return ~fitz.Matrix(a, b, c, d, e, f)
+    return inverse_affine(ctm)
 
 
 def decode_bboxlog_entries(raw: object) -> tuple[tuple[str, fitz.Rect], ...]:

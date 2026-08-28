@@ -19,6 +19,26 @@ def build_render_document_analysis(
     start_page: int = 0,
     end_page: int = -1,
 ) -> RenderDocumentAnalysis:
+    """Whole-document render analysis, routed through the native shim when
+    built; otherwise the pure-Python reference
+    `_build_render_document_analysis_python`."""
+    from services.rendering.analysis._native import build_render_document_analysis as _impl
+
+    return _impl(
+        source_pdf_path=source_pdf_path,
+        translated_pages=translated_pages,
+        start_page=start_page,
+        end_page=end_page,
+    )
+
+
+def _build_render_document_analysis_python(
+    *,
+    source_pdf_path: Path,
+    translated_pages: dict[int, list[dict]] | None = None,
+    start_page: int = 0,
+    end_page: int = -1,
+) -> RenderDocumentAnalysis:
     doc = fitz.open(source_pdf_path)
     try:
         if not doc:

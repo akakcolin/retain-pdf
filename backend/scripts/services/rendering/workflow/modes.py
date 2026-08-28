@@ -3,8 +3,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import fitz
-
 from services.rendering.legacy.pdf_compress import compress_pdf_images_only
 from services.rendering.document.pdf_ops import save_fast_pdf
 from services.rendering.document.pdf_ops import save_optimized_pdf

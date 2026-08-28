@@ -31,23 +31,41 @@ def prepare_overlay_doc_pages(
 
 
 def build_overlay_page_specs(
-    doc: fitz.Document,
+    doc: fitz.Document | None,
     ordered_page_indices: list[int],
     translated_pages: dict[int, list[dict]],
     *,
     stem: str,
+    source_pdf_path: Path | None = None,
 ) -> list[tuple[int, float, float, list[dict], str]]:
-    page_specs: list[tuple[int, float, float, list[dict], str]] = []
-    for overlay_idx, page_idx in enumerate(ordered_page_indices):
-        page = doc[page_idx]
-        page_specs.append(
-            (page_idx, page.rect.width, page.rect.height, translated_pages[page_idx], f"{stem}-{overlay_idx:03d}")
+    if doc is not None:
+        sizes = {
+            page_idx: (doc[page_idx].rect.width, doc[page_idx].rect.height)
+            for page_idx in ordered_page_indices
+        }
+    elif source_pdf_path is not None:
+        from services.rendering.layout._native import read_source_page_sizes
+
+        sizes = read_source_page_sizes(
+            source_pdf_path=source_pdf_path,
+            page_indices=list(ordered_page_indices),
         )
-    return page_specs
+    else:
+        raise ValueError("build_overlay_page_specs requires a doc or a source_pdf_path")
+    return [
+        (
+            page_idx,
+            sizes[page_idx][0],
+            sizes[page_idx][1],
+            translated_pages[page_idx],
+            f"{stem}-{overlay_idx:03d}",
+        )
+        for overlay_idx, page_idx in enumerate(ordered_page_indices)
+    ]
 
 
 def overlay_pages_via_page_fallback(
-    doc: fitz.Document,
+    doc: fitz.Document | None,
     ordered_page_indices: list[int],
     page_specs: list[tuple[int, float, float, list[dict], str]],
     translated_pages: dict[int, list[dict]],
@@ -62,10 +80,12 @@ def overlay_pages_via_page_fallback(
     cover_only: bool = False,
     apply_source_overlay: bool = True,
     redaction_strategy: str | None = None,
+    source_pdf_path: Path | None = None,
     source_base_pdf_path: Path | None = None,
     pikepdf_output_pdf_path: Path | None = None,
     visual_profile_path: Path | None = None,
     request_chat_content_fn: TypstRepairRequestFn | None = None,
+    doc_slot: dict[str, object] | None = None,
 ) -> dict[str, object]:
     overlay_paths, page_compile_diagnostics, compile_elapsed = compile_overlay_page_specs(
         page_specs,
@@ -120,6 +140,15 @@ def overlay_pages_via_page_fallback(
         diagnostics["pikepdf_overlay_pages"] = pike_result.pages_merged
         diagnostics["pikepdf_overlay_elapsed_seconds"] = pike_result.elapsed_seconds
         return diagnostics
+    if doc is None:
+        if source_pdf_path is None:
+            raise ValueError("overlay_pages_via_page_fallback requires a doc or a source_pdf_path")
+        active_slot = doc_slot if doc_slot is not None else {}
+        existing = active_slot.get("doc")
+        if existing is None:
+            existing = fitz.open(source_pdf_path)
+            active_slot["doc"] = existing
+        doc = existing
     for overlay_page_idx, page_idx in enumerate(ordered_page_indices):
         print(
             f"overlay merge page {overlay_page_idx + 1}/{total_pages} -> source page {page_idx + 1}",

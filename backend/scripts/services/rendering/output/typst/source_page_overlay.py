@@ -46,7 +46,7 @@ def apply_source_page_overlay(
 
 
 def overlay_pages_from_single_pdf(
-    doc: fitz.Document,
+    doc: fitz.Document | None,
     ordered_page_indices: list[int],
     translated_pages: dict[int, list[dict]],
     overlay_pdf_path: Path,
@@ -60,7 +60,17 @@ def overlay_pages_from_single_pdf(
     source_base_pdf_path: Path | None = None,
     pikepdf_output_pdf_path: Path | None = None,
     visual_profile_path: Path | None = None,
+    doc_slot: dict[str, object] | None = None,
 ) -> dict[str, object]:
+    if doc is None:
+        if source_base_pdf_path is None:
+            raise ValueError("overlay_pages_from_single_pdf requires a doc or a source_base_pdf_path")
+        active_slot = doc_slot if doc_slot is not None else {}
+        existing = active_slot.get("doc")
+        if existing is None:
+            existing = fitz.open(source_base_pdf_path)
+            active_slot["doc"] = existing
+        doc = existing
     redaction_pages: dict[int, list[dict]] | None = None
     if apply_source_overlay or remove_source_text_by_bbox or not skip_visual_cover:
         redaction_pages = {

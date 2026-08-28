@@ -478,12 +478,13 @@ def build_book_typst_pdf(
     no_cache: bool = False,
     request_chat_content_fn: TypstRepairRequestFn | None = None,
 ) -> dict[str, object]:
-    doc = _build_overlay_base_doc(source_pdf_path)
+    doc_slot: dict[str, object] = {}
+    doc: fitz.Document | None = None
     try:
         typst_temp_root = resolve_typst_temp_root(output_pdf_path, temp_root)
         overlay_started = time.perf_counter()
         overlay_diagnostics = overlay_translated_pages_on_doc(
-            doc,
+            None,
             translated_pages,
             stem="book-overlay",
             compile_workers=compile_workers,
@@ -510,6 +511,7 @@ def build_book_typst_pdf(
             visual_cover_page_indices=visual_cover_page_indices,
             no_cache=no_cache,
             request_chat_content_fn=request_chat_content_fn,
+            doc_slot=doc_slot,
         )
         overlay_elapsed = time.perf_counter() - overlay_started
         print(
@@ -535,13 +537,20 @@ def build_book_typst_pdf(
         )
         if "pikepdf" in str(overlay_diagnostics.get("mode", "")):
             return overlay_diagnostics
+        doc = doc_slot.get("doc")
+        if doc is None:
+            doc = _build_overlay_base_doc(source_pdf_path)
         if fast_save:
             save_fast_pdf(doc, output_pdf_path)
         else:
             save_optimized_pdf(doc, output_pdf_path)
         return overlay_diagnostics
     finally:
-        doc.close()
+        doc_to_close = doc_slot.get("doc")
+        if doc_to_close is None:
+            doc_to_close = doc
+        if doc_to_close is not None:
+            doc_to_close.close()
 
 
 def build_dual_book_pdf(

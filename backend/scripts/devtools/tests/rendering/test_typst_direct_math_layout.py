@@ -70,8 +70,15 @@ from services.rendering.layout.inline_content.core.markdown import build_direct_
 from devtools.tests.rendering_support.page_specs import sample_page_spec as _page_spec
 
 
+def _measure_font() -> fitz.Font:
+    font_path = fonts.DEFAULT_FONT_PATH
+    if not font_path.exists():
+        font_path = fonts.BACKEND_FONTS_DIR / "SourceHanSerifSC-Regular.otf"
+    return fitz.Font(fontfile=str(font_path))
+
+
 def test_direct_math_layout_shrinks_font_to_fit_rect() -> None:
-    font = fitz.Font(fontfile=str(fonts.DEFAULT_FONT_PATH))
+    font = _measure_font()
     rect = fitz.Rect(0, 0, 90, 30)
     markdown_text = "观察到 $\\mathrm{Ph(i-PrO)SiH_2}$ (6) 的消耗速率快于其他硅烷"
 
@@ -84,7 +91,7 @@ def test_direct_math_layout_shrinks_font_to_fit_rect() -> None:
 
 
 def test_direct_math_layout_keeps_formula_token_atomic_on_wrap() -> None:
-    font = fitz.Font(fontfile=str(fonts.DEFAULT_FONT_PATH))
+    font = _measure_font()
     rect = fitz.Rect(0, 0, 80, 80)
     markdown_text = "前文 $\\mathrm{Ph(i-PrO)SiH_2}$ 后文"
 

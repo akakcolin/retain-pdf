@@ -112,3 +112,78 @@ fn image_rects_replay_matches_fitz() {
         }
     }
 }
+
+/// Inc 3: `page_snapshot().image_rects` reproduces the placement set. mupdf-rs
+/// exposes no placement→xref association, so every real xref maps to the FULL
+/// placement list (aggregate) — the union is exactly `get_image_info`. Assert
+/// (a) the keys match the positive `image_entries` and (b) one xref's value
+/// equals the corpus placement set (the value is identical across keys).
+#[test]
+fn snapshot_image_rects_replay_matches_fitz() {
+    let corpus: ImageRectsCorpus =
+        serde_json::from_str(include_str!("image_rects_corpus.json")).expect("parse image-rects corpus");
+    assert_eq!(corpus.schema, "retainpdf_image_rects_corpus_v1");
+
+    let dir = std::env::temp_dir().join(format!("rps-snap-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("create temp dir");
+
+    for case in &corpus.cases {
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(case.pdf_b64.as_bytes())
+            .unwrap_or_else(|e| panic!("{} decode: {e}", case.name));
+        let path = dir.join(format!("{}.pdf", case.name));
+        std::fs::write(&path, bytes).expect("write case pdf");
+        let doc = open_all::<Document>(&path).unwrap_or_else(|e| panic!("{} open: {e}", case.name));
+
+        for (idx_str, expected) in &case.pages {
+            let idx: i64 = idx_str.parse().unwrap();
+            let label = format!("{} p{idx}", case.name);
+            let snapshot = doc
+                .page_snapshot(idx)
+                .unwrap_or_else(|e| panic!("{label} snapshot: {e}"));
+
+            // Keys: every DISTINCT positive image xref must be present (a
+            // repeated `Do` of the same resource yields duplicate image_entries
+            // that collapse into one HashMap key).
+            let mut keys: Vec<i64> = snapshot.image_rects.keys().copied().collect();
+            keys.sort_unstable();
+            let mut entries: Vec<i64> = snapshot
+                .image_entries
+                .iter()
+                .copied()
+                .filter(|&x| x > 0)
+                .collect();
+            entries.sort_unstable();
+            entries.dedup();
+            assert_eq!(keys, entries, "{label}: image_rects keys (distinct positive xrefs)");
+
+            // Values: all keys carry the same aggregate placement list.
+            let mut values = snapshot.image_rects.values();
+            let Some(agg) = values.next() else {
+                // No positive xrefs → no aggregate attribution possible. This is
+                // the documented nested-Form-XObject divergence: mupdf
+                // `page.images()` reads only the page's own /Resources/XObject
+                // (it does not recurse into Form XObject resources), so
+                // placements carried by nested forms have no page-level xref to
+                // attribute to (fitz `get_images` does recurse). The placement
+                // SET is still pinned by `image_rects_replay_matches_fitz`.
+                assert!(entries.is_empty(), "{label}: image_rects empty requires no positive xrefs");
+                continue;
+            };
+            for other in values {
+                assert_eq!(agg, other, "{label}: image_rects must be aggregate (identical across xrefs)");
+            }
+
+            let mut actual: Vec<[f64; 4]> =
+                agg.iter().map(|r| [r.x0, r.y0, r.x1, r.y1]).collect();
+            let mut recorded: Vec<[f64; 4]> = expected.image_rects.clone();
+            actual.sort_by(|a, b| (a[1], a[0]).partial_cmp(&(b[1], b[0])).unwrap());
+            recorded.sort_by(|a, b| (a[1], a[0]).partial_cmp(&(b[1], b[0])).unwrap());
+
+            assert_eq!(actual.len(), recorded.len(), "{label}: aggregate placement count");
+            for (n, (a, e)) in actual.iter().zip(recorded.iter()).enumerate() {
+                assert_close_rect(&format!("{label} snapshot placement {n}"), *a, *e);
+            }
+        }
+    }
+}

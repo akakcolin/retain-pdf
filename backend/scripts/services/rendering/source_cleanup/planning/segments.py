@@ -2,6 +2,11 @@ from __future__ import annotations
 
 import fitz
 
+from services.rendering.source.rects import Rect
+from services.rendering.source.rects import coerce
+from services.rendering.source.rects import preserve
+from services.rendering.source.rects import preserve_list
+
 
 MIN_CLEANUP_SEGMENT_WIDTH_PT = 1.0
 MIN_CLEANUP_SEGMENT_HEIGHT_PT = 1.0
@@ -62,18 +67,20 @@ def split_rect_around_guards(
     min_height_pt: float = MIN_CLEANUP_SEGMENT_HEIGHT_PT,
     min_area_pt2: float = MIN_CLEANUP_SEGMENT_AREA_PT2,
 ) -> list[fitz.Rect]:
-    if rect.is_empty:
+    pure_rect = coerce(rect)
+    if pure_rect.is_empty:
         return []
-    fragments = [fitz.Rect(rect)]
+    fragments: list[Rect] = [pure_rect]
     for guard in guards:
-        if guard.is_empty:
+        pure_guard = coerce(guard)
+        if pure_guard.is_empty:
             continue
-        next_fragments: list[fitz.Rect] = []
+        next_fragments: list[Rect] = []
         for fragment in fragments:
             next_fragments.extend(
                 subtract_guard_from_rect(
                     fragment,
-                    guard,
+                    pure_guard,
                     min_width_pt=min_width_pt,
                     min_height_pt=min_height_pt,
                     min_area_pt2=min_area_pt2,
@@ -82,7 +89,7 @@ def split_rect_around_guards(
         fragments = next_fragments
         if not fragments:
             break
-    return fragments
+    return preserve_list(rect, fragments)
 
 
 def subtract_guard_from_rect(
@@ -93,17 +100,19 @@ def subtract_guard_from_rect(
     min_height_pt: float = MIN_CLEANUP_SEGMENT_HEIGHT_PT,
     min_area_pt2: float = MIN_CLEANUP_SEGMENT_AREA_PT2,
 ) -> list[fitz.Rect]:
-    overlap = rect & guard
+    pure_rect = coerce(rect)
+    pure_guard = coerce(guard)
+    overlap = pure_rect & pure_guard
     if overlap.is_empty:
-        return [fitz.Rect(rect)]
+        return [preserve(rect, pure_rect)]
 
     candidates = [
-        fitz.Rect(rect.x0, rect.y0, rect.x1, overlap.y0),
-        fitz.Rect(rect.x0, overlap.y1, rect.x1, rect.y1),
-        fitz.Rect(rect.x0, overlap.y0, overlap.x0, overlap.y1),
-        fitz.Rect(overlap.x1, overlap.y0, rect.x1, overlap.y1),
+        Rect(pure_rect.x0, pure_rect.y0, pure_rect.x1, overlap.y0),
+        Rect(pure_rect.x0, overlap.y1, pure_rect.x1, pure_rect.y1),
+        Rect(pure_rect.x0, overlap.y0, overlap.x0, overlap.y1),
+        Rect(overlap.x1, overlap.y0, pure_rect.x1, overlap.y1),
     ]
-    return [
+    usable = [
         fragment
         for fragment in candidates
         if _is_usable_fragment(
@@ -113,6 +122,7 @@ def subtract_guard_from_rect(
             min_area_pt2=min_area_pt2,
         )
     ]
+    return preserve_list(rect, usable)
 
 
 def _is_usable_fragment(

@@ -3,8 +3,9 @@
 
 Reads the real golden sample PDFs (resources/samples/golden-pdfs/{1,2}.pdf) via
 fitz, records per page the reader-contract PageSnapshot (achievable fields only;
-text_traces / image bboxes are Phase 5) plus the Python-computed render-page
-profile, and writes backend/rendering_reader/tests/golden_pdf_corpus.json.
+text_traces are Phase 5, image bboxes stay zero, image_rects carries the
+Inc 3 aggregate placement set) plus the Python-computed render-page profile, and
+writes backend/rendering_reader/tests/golden_pdf_corpus.json.
 
 Rust integration tests open the same PDFs with mupdf-rs and assert the reader
 extracts the same achievable page facts (snapshot parity) and that those facts
@@ -66,6 +67,19 @@ def snapshot_for_page(page):
         number = int(page.number)
     except Exception:
         rect, cropbox, rotation, number = [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], 0, 0
+    # Inc 3: aggregate image_rects — every positive xref maps to the page's full
+    # placement set (== `get_image_info` bboxes). mupdf-rs exposes no
+    # placement→xref association, so the native `page_snapshot` fills the same
+    # aggregate; the reference profile builder (FakePage.get_image_rects) then
+    # computes image_background from this aggregate exactly like the native.
+    try:
+        placements = [
+            [float(v) for v in fitz.Rect(i["bbox"])]
+            for i in page.get_image_info(hashes=False)
+        ]
+    except Exception:
+        placements = []
+    image_rects = {str(x): placements for x in xrefs if x > 0}
     return {
         "number": number,
         "rotation": rotation,
@@ -76,7 +90,7 @@ def snapshot_for_page(page):
         "drawing_count": _safe_len(lambda p: p.get_cdrawings(), page),
         "image_infos": [{"xref": x, "bbox": [0.0, 0.0, 0.0, 0.0]} for x in xrefs if x > 0],
         "image_entries": [x for x in xrefs if x > 0],
-        "image_rects": {},  # Phase 5: no get_image_rects-equivalent.
+        "image_rects": image_rects,
     }
 
 

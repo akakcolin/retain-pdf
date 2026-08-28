@@ -46,16 +46,24 @@
 //!   heights > 0.5 — verified by `tests/text_read_diff.rs`. Word segmentation
 //!   (`extract_item_word_entries`) is NOT exposed here (fitz's clip truncates
 //!   words by glyph-ink bbox, which mupdf-rs cannot reproduce).
-//! - `text_traces`/`image_rects` stay empty (no mupdf-rs text-trace /
-//!   xref-image-bbox API); full fidelity is Phase B2.
+//! - `text_traces` stays empty (no mupdf-rs text-trace type/opacity API).
+//!   `image_rects` is the page's full image-placement set (==
+//!   `page_image_placement_rects`) attributed to EVERY real xref (aggregate):
+//!   mupdf-rs exposes no placement→xref association, so each xref carries the
+//!   whole list. The union is exactly fitz `get_image_info`; the per-xref tie
+//!   is a documented divergence (`profile_build`'s primary-image picker consumes
+//!   only the placement union).
 
 use std::collections::HashMap;
 use std::path::Path;
 
+use mupdf::pdf::PdfObject;
 use mupdf::pdf::PdfPage;
 use mupdf::{Colorspace, Device, Document, Matrix, Pixmap, Rect as MuPdfRect};
 use mupdf::{TextExtractOptions, TextPageFlags};
-use rendering_core::page::{BboxlogEntry, ImageInfo, PageDrawing, PageDrawingType, PageSnapshot};
+use rendering_core::page::{
+    BboxlogEntry, FormXObjectInfo, ImageInfo, PageDrawing, PageDrawingType, PageSnapshot,
+};
 use rendering_core::rect::Rect;
 
 use crate::bboxlog;
@@ -197,6 +205,18 @@ pub trait PdfDocument {
         let _ = idx;
         None
     }
+
+    /// `pdf_structure_profile` form-xobject read — the (inherited)
+    /// `/Resources/XObject` entries that carry a `/BBox`, in resource-dict
+    /// order, as `{name, xref, bbox}`. Mirrors fitz `page.get_xobjects()` for
+    /// single-level forms (a nested form invoking another form is a documented
+    /// divergence: fitz reports each `Do` instance, this returns one entry per
+    /// named resource). A load/read failure yields an empty list (the bridge
+    /// then falls back to the Python reference).
+    fn page_form_xobjects(&self, idx: i64) -> Vec<FormXObjectInfo> {
+        let _ = idx;
+        Vec::new()
+    }
 }
 
 impl PdfDocument for mupdf::Document {
@@ -272,6 +292,7 @@ impl PdfDocument for mupdf::Document {
         };
         let word_count = page.words(options)?.len() as i64;
         let drawing_count = page.drawings()?.len() as i64;
+        let rotation = page.rotation()? as i64;
         let image_entries: Vec<i64> = page
             .images()?
             .into_iter()
@@ -285,9 +306,20 @@ impl PdfDocument for mupdf::Document {
                 bbox: Rect::new(0.0, 0.0, 0.0, 0.0),
             })
             .collect();
+        // Inc 3: image_rects carries the page's full placement set attributed to
+        // every real xref (aggregate). mupdf-rs exposes no placement→xref
+        // association, so each xref gets the same list; the union is exactly
+        // fitz `get_image_info`, and `profile_build`'s primary-image picker
+        // consumes only that union — the per-xref tie is a documented divergence.
+        let placements = image_placements::collect_page_image_rects(page)?;
+        let image_rects: HashMap<i64, Vec<Rect>> = image_entries
+            .iter()
+            .filter(|&&xref| xref > 0)
+            .map(|&xref| (xref, placements.clone()))
+            .collect();
         Ok(PageSnapshot {
             number: idx,
-            rotation: page.rotation()? as i64,
+            rotation,
             rect,
             cropbox,
             text_traces: Vec::new(),
@@ -295,7 +327,7 @@ impl PdfDocument for mupdf::Document {
             drawing_count,
             image_infos,
             image_entries,
-            image_rects: HashMap::new(),
+            image_rects,
         })
     }
 
@@ -432,6 +464,90 @@ impl PdfDocument for mupdf::Document {
         let _ = page.set_rotation(rotation);
         Some([m.a as f64, m.b as f64, m.c as f64, m.d as f64, m.e as f64, m.f as f64])
     }
+
+    fn page_form_xobjects(&self, idx: i64) -> Vec<FormXObjectInfo> {
+        let Ok(page) = load_pdf_page(self, idx) else {
+            return Vec::new();
+        };
+        form_xobjects(&page).unwrap_or_default()
+    }
+}
+
+/// Mirrors `sampler._form_xobject_objects`: scan the page's (inherited)
+/// `/Resources/XObject` dict for entries that carry a `/BBox` (Form xobjects
+/// always do; plain images usually do not). Returns `{name, xref, bbox}` in
+/// resource-dict order. A missing resource / XObject dict is empty; an
+/// unexpected structural error propagates so the caller can mirror the
+/// reference's `except → fallback`.
+fn form_xobjects(page: &PdfPage) -> Result<Vec<FormXObjectInfo>, PdfError> {
+    let resources = page.object().get_dict_inheritable("Resources")?;
+    let Some(resources) = resources else {
+        return Ok(Vec::new());
+    };
+    if !resources.is_dict()? {
+        return Ok(Vec::new());
+    }
+    let xobjects = resources.get_dict("XObject")?;
+    let Some(xobjects) = xobjects else {
+        return Ok(Vec::new());
+    };
+    if !xobjects.is_dict()? {
+        return Ok(Vec::new());
+    }
+    let len = xobjects.dict_len()?;
+    let mut out: Vec<FormXObjectInfo> = Vec::with_capacity(len);
+    for i in 0..len as i32 {
+        let Some(key) = xobjects.get_dict_key(i)? else {
+            continue;
+        };
+        let Some(value) = xobjects.get_dict_val(i)? else {
+            continue;
+        };
+        let Some(bbox) = value.get_dict("BBox")? else {
+            continue;
+        };
+        let Some(rect) = obj_rect(&bbox)? else {
+            continue;
+        };
+        if rect.is_empty() {
+            continue;
+        }
+        out.push(FormXObjectInfo {
+            name: key
+                .as_name()
+                .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+                .unwrap_or_default(),
+            xref: value.as_indirect().unwrap_or(0) as i64,
+            bbox: rect,
+        });
+    }
+    Ok(out)
+}
+
+/// Read a PDF array object as a rect (`/BBox` is `[x0 y0 x1 y1]`), resolving an
+/// indirect reference to the array first. Non-array / too-short values are
+/// skipped, mirroring fitz's rect coercion.
+fn obj_rect(obj: &PdfObject) -> Result<Option<Rect>, PdfError> {
+    if !obj.is_array()? {
+        return Ok(None);
+    }
+    let len = obj.len()?;
+    if len < 4 {
+        return Ok(None);
+    }
+    let mut vals = [0.0f32; 4];
+    for (index, slot) in vals.iter_mut().enumerate() {
+        let Some(item) = obj.get_array(index as i32)? else {
+            return Ok(None);
+        };
+        *slot = item.as_float()?;
+    }
+    Ok(Some(Rect::new(
+        vals[0] as f64,
+        vals[1] as f64,
+        vals[2] as f64,
+        vals[3] as f64,
+    )))
 }
 
 /// Load `idx` as an editing-capable PDF page (PdfPage derefs to Page, so the

@@ -12,7 +12,7 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 use rendering_core::page::PageSnapshot;
-use rendering_core::profile::{PageGeometryProfile, VectorLayerProfile};
+use rendering_core::profile::{ImageBackgroundProfile, PageGeometryProfile, VectorLayerProfile};
 use serde::Deserialize;
 
 // --- corpus loading ----------------------------------------------------------
@@ -190,6 +190,16 @@ pub fn assert_close_vector_layer(a: &VectorLayerProfile, b: &VectorLayerDto) {
     assert_eq!(a.cover_only_preferred, b.cover_only_preferred, "cover_only_preferred");
 }
 
+/// Image-background parity (Inc 3). `has_large_background` / `coverage_ratio`
+/// depend only on the placement union, which the aggregate `image_rects` fill
+/// reproduces; `xref` / `bbox` are intentionally NOT compared — mupdf-rs cannot
+/// attribute placements to xrefs, so the aggregate fill diverges per-xref (the
+/// documented Inc 3 tie).
+pub fn assert_close_image_background(a: &ImageBackgroundProfile, b: &ImageBackgroundDto) {
+    assert_eq!(a.has_large_background, b.has_large_background, "has_large_background");
+    assert_close_f64(a.coverage_ratio, b.coverage_ratio);
+}
+
 /// Word-count tolerance vs fitz. fitz `get_text("words")` extracts via
 /// `fz_stext_words` (PRESERVE_LIGATURES + PyMuPDF's glyph-to-Unicode mapping);
 /// mupdf-rs `words()` calls `fz_page_words` (different path, maps ligature
@@ -201,8 +211,8 @@ const WORD_COUNT_TOLERANCE: f64 = 0.10;
 /// Assert the reader-produced snapshot matches the corpus snapshot on the
 /// achievable fields (number, rotation, rect, cropbox, word_count,
 /// drawing_count, image_entries) and that the Phase-5 placeholder fields are in
-/// their deterministic reader-contract state (empty text_traces / image_rects,
-/// zero image bboxes).
+/// their deterministic reader-contract state (empty text_traces, aggregate
+/// image_rects, zero image bboxes).
 pub fn assert_snapshot_achievable(actual: &PageSnapshot, expected: &PageSnapshotDto) {
     assert_eq!(actual.number, expected.number, "number");
     assert_eq!(actual.rotation, expected.rotation, "rotation");
@@ -229,9 +239,23 @@ pub fn assert_snapshot_achievable(actual: &PageSnapshot, expected: &PageSnapshot
         actual.text_traces.is_empty(),
         "Phase 5: text_traces must be empty (no mupdf-rs texttrace API)"
     );
-    assert!(
-        actual.image_rects.is_empty(),
-        "Phase 5: image_rects must be empty (no get_image_rects API)"
+    // Inc 3: image_rects carries the aggregate placement set — every real xref
+    // maps to the full placement list (mupdf-rs exposes no placement→xref
+    // association). The keys must match the positive image_entries; exact
+    // values are pinned in `image_rects_diff.rs`.
+    let mut actual_keys: Vec<i64> = actual.image_rects.keys().copied().collect();
+    actual_keys.sort_unstable();
+    let mut expected_keys: Vec<i64> = expected
+        .image_entries
+        .iter()
+        .copied()
+        .filter(|&x| x > 0)
+        .collect();
+    expected_keys.sort_unstable();
+    expected_keys.dedup();
+    assert_eq!(
+        actual_keys, expected_keys,
+        "image_rects keys must match the distinct positive image_entries"
     );
     for info in &actual.image_infos {
         assert_eq!(info.bbox.x0, 0.0, "image bbox must be zero (Phase 5)");

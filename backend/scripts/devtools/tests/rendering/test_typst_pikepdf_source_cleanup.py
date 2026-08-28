@@ -127,7 +127,7 @@ def test_typst_cover_fallback_plan_marks_only_target_items() -> None:
     untouched, fallback = patched_pages[0]
 
     assert "_render_policy" not in untouched
-    assert fallback["_render_policy"]["overlay_fill"] == "white"
+    assert fallback["_render_policy"]["overlay_fill"] == "sampled"
     assert fallback["_render_policy"]["reason"] == "typst_item_cover_fallback"
     assert plan.diagnostics() == {
         "typst_cover_fallback_pages": {"count": 0, "head": [], "tail": []},

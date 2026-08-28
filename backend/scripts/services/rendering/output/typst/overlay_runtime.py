@@ -61,45 +61,70 @@ def extract_failed_overlay_indices(
 
 
 def overlay_pdf_size_mismatches(
-    doc: fitz.Document,
+    doc: fitz.Document | None,
     ordered_page_indices: list[int],
     overlay_pdf_path: Path,
+    *,
+    source_pdf_path: Path | None = None,
 ) -> list[dict[str, object]]:
     mismatches: list[dict[str, object]] = []
-    overlay_doc = fitz.open(overlay_pdf_path)
-    try:
-        for overlay_page_idx, page_idx in enumerate(ordered_page_indices):
-            if overlay_page_idx >= len(overlay_doc):
-                mismatches.append(
-                    {
-                        "page_index": page_idx,
-                        "overlay_page_index": overlay_page_idx,
-                        "reason": "overlay_page_missing",
-                    }
+    if doc is None:
+        if source_pdf_path is None:
+            raise ValueError("overlay_pdf_size_mismatches requires a doc or a source_pdf_path")
+        from services.rendering.layout._native import read_source_page_sizes
+
+        source_sizes = read_source_page_sizes(
+            source_pdf_path=source_pdf_path,
+            page_indices=list(ordered_page_indices),
+        )
+        overlay_sizes = read_source_page_sizes(
+            source_pdf_path=overlay_pdf_path,
+            page_indices=list(range(len(ordered_page_indices))),
+        )
+        overlay_count = len(ordered_page_indices)
+    else:
+        source_sizes = {
+            page_idx: (float(doc[page_idx].rect.width), float(doc[page_idx].rect.height))
+            for page_idx in ordered_page_indices
+        }
+        overlay_doc = fitz.open(overlay_pdf_path)
+        try:
+            overlay_sizes = {
+                overlay_page_idx: (
+                    float(overlay_doc[overlay_page_idx].rect.width),
+                    float(overlay_doc[overlay_page_idx].rect.height),
                 )
-                continue
-            source_page = doc[page_idx]
-            overlay_page = overlay_doc[overlay_page_idx]
-            source_w = float(source_page.rect.width)
-            source_h = float(source_page.rect.height)
-            overlay_w = float(overlay_page.rect.width)
-            overlay_h = float(overlay_page.rect.height)
-            if (
-                abs(source_w - overlay_w) > PAGE_SIZE_TOLERANCE_PT
-                or abs(source_h - overlay_h) > PAGE_SIZE_TOLERANCE_PT
-            ):
-                mismatches.append(
-                    {
-                        "page_index": page_idx,
-                        "overlay_page_index": overlay_page_idx,
-                        "source_page_width_pt": round(source_w, 3),
-                        "source_page_height_pt": round(source_h, 3),
-                        "overlay_page_width_pt": round(overlay_w, 3),
-                        "overlay_page_height_pt": round(overlay_h, 3),
-                    }
-                )
-    finally:
-        overlay_doc.close()
+                for overlay_page_idx in range(len(ordered_page_indices))
+            }
+            overlay_count = len(overlay_doc)
+        finally:
+            overlay_doc.close()
+    for overlay_page_idx, page_idx in enumerate(ordered_page_indices):
+        if overlay_page_idx >= overlay_count:
+            mismatches.append(
+                {
+                    "page_index": page_idx,
+                    "overlay_page_index": overlay_page_idx,
+                    "reason": "overlay_page_missing",
+                }
+            )
+            continue
+        source_w, source_h = source_sizes[page_idx]
+        overlay_w, overlay_h = overlay_sizes[overlay_page_idx]
+        if (
+            abs(source_w - overlay_w) > PAGE_SIZE_TOLERANCE_PT
+            or abs(source_h - overlay_h) > PAGE_SIZE_TOLERANCE_PT
+        ):
+            mismatches.append(
+                {
+                    "page_index": page_idx,
+                    "overlay_page_index": overlay_page_idx,
+                    "source_page_width_pt": round(source_w, 3),
+                    "source_page_height_pt": round(source_h, 3),
+                    "overlay_page_width_pt": round(overlay_w, 3),
+                    "overlay_page_height_pt": round(overlay_h, 3),
+                }
+            )
     return mismatches
 
 

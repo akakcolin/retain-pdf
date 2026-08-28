@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import fitz
-
 from foundation.config import layout
 from services.rendering.policy.geometry import item_rect
 from services.rendering.policy.models import CleanupMode
@@ -238,8 +236,8 @@ def item_should_bbox_text_strip(item: dict, *, skip_item_ids: set[str] | None = 
     return block_kind(item) == "text" and item_will_render_translated_overlay(item)
 
 
-def _page_formula_rects(items: list[dict]) -> list[fitz.Rect]:
-    rects: list[fitz.Rect] = []
+def _page_formula_rects(items: list[dict]) -> list:
+    rects: list = []
     for item in items:
         if not item_has_formula_region(item):
             continue

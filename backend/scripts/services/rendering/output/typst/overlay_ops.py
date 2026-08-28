@@ -85,7 +85,7 @@ def overlay_translated_items_on_page(
 
 
 def overlay_translated_pages_on_doc(
-    doc: fitz.Document,
+    doc: fitz.Document | None,
     translated_pages: dict[int, list[dict]],
     stem: str,
     compile_workers: int | None = None,
@@ -113,7 +113,10 @@ def overlay_translated_pages_on_doc(
     visual_cover_page_indices: frozenset[int] = frozenset(),
     no_cache: bool = False,
     request_chat_content_fn: TypstRepairRequestFn | None = None,
+    doc_slot: dict[str, object] | None = None,
 ) -> dict[str, object]:
+    source_page_path = source_pdf_path or source_base_pdf_path
+    active_doc_slot = doc_slot if doc_slot is not None else {}
     prepare_started = time.perf_counter()
     if prepared_overlay_pages is not None:
         translated_pages = prepared_overlay_pages
@@ -125,7 +128,19 @@ def overlay_translated_pages_on_doc(
             effective_inner_bbox_lookup=effective_inner_bbox_lookup,
             skip_policy_page_indices=source_text_precleaned_page_indices,
         )
-    ordered_page_indices, translated_pages = prepare_overlay_doc_pages(doc, translated_pages)
+    if doc is None:
+        if not source_page_path:
+            raise ValueError("overlay_translated_pages_on_doc requires a doc or a source PDF path")
+        from services.rendering.layout._native import read_source_page_sizes
+
+        candidate_indices = sorted(page_idx for page_idx in translated_pages if page_idx >= 0)
+        source_sizes = read_source_page_sizes(
+            source_pdf_path=source_page_path,
+            page_indices=candidate_indices,
+        )
+        ordered_page_indices = sorted(source_sizes.keys())
+    else:
+        ordered_page_indices, translated_pages = prepare_overlay_doc_pages(doc, translated_pages)
     cover_fallback_page_indices = frozenset(
         page_idx
         for page_idx in ordered_page_indices
@@ -176,7 +191,13 @@ def overlay_translated_pages_on_doc(
     if prepared_overlay_pages is None:
         color_elapsed = time.perf_counter() - color_started
     specs_started = time.perf_counter()
-    page_specs = build_overlay_page_specs(doc, ordered_page_indices, translated_pages, stem=stem)
+    page_specs = build_overlay_page_specs(
+        doc,
+        ordered_page_indices,
+        translated_pages,
+        stem=stem,
+        source_pdf_path=source_page_path,
+    )
     book_specs = [(page_width, page_height, items) for _, page_width, page_height, items, _ in page_specs]
     specs_elapsed = time.perf_counter() - specs_started
     include_cover_rect_in_overlay = True
@@ -294,7 +315,12 @@ def overlay_translated_pages_on_doc(
             message=f"整本 Typst overlay 编译完成，共 {len(ordered_page_indices)} 页",
             payload={"render_stage": "typst_book_compile_done"},
         )
-        page_size_mismatches = overlay_pdf_size_mismatches(doc, ordered_page_indices, overlay_pdf)
+        page_size_mismatches = overlay_pdf_size_mismatches(
+            doc,
+            ordered_page_indices,
+            overlay_pdf,
+            source_pdf_path=source_page_path,
+        )
         if page_size_mismatches:
             print(
                 f"typst book overlay page-size mismatch; using per-page fallback pages={len(page_size_mismatches)}",
@@ -315,10 +341,12 @@ def overlay_translated_pages_on_doc(
                 cover_only=cover_only,
                 apply_source_overlay=False,
                 redaction_strategy=redaction_strategy,
+                source_pdf_path=source_page_path,
                 source_base_pdf_path=source_base_pdf_path,
                 pikepdf_output_pdf_path=pikepdf_output_pdf_path,
                 visual_profile_path=visual_profile_path,
                 request_chat_content_fn=request_chat_content_fn,
+                doc_slot=active_doc_slot,
             )
             diagnostics["compile_elapsed_seconds"] = compile_elapsed
             diagnostics["sanitize_elapsed_seconds"] = 0.0
@@ -380,6 +408,7 @@ def overlay_translated_pages_on_doc(
             source_base_pdf_path=source_base_pdf_path,
             pikepdf_output_pdf_path=pikepdf_output_pdf_path,
             visual_profile_path=visual_profile_path,
+            doc_slot=active_doc_slot,
         )
         diagnostics["compile_elapsed_seconds"] = compile_elapsed
         diagnostics["sanitize_elapsed_seconds"] = 0.0
@@ -526,6 +555,7 @@ def overlay_translated_pages_on_doc(
                 source_base_pdf_path=source_base_pdf_path,
                 pikepdf_output_pdf_path=pikepdf_output_pdf_path,
                 visual_profile_path=visual_profile_path,
+                doc_slot=active_doc_slot,
             )
             diagnostics["compile_elapsed_seconds"] = first_compile_elapsed + sanitized_compile_elapsed
             diagnostics["sanitize_elapsed_seconds"] = sanitize_elapsed
@@ -586,10 +616,12 @@ def overlay_translated_pages_on_doc(
         cover_only=cover_only,
         apply_source_overlay=fallback_apply_source_overlay,
         redaction_strategy=redaction_strategy,
+        source_pdf_path=source_page_path,
         source_base_pdf_path=source_base_pdf_path,
         pikepdf_output_pdf_path=pikepdf_output_pdf_path,
         visual_profile_path=visual_profile_path,
         request_chat_content_fn=request_chat_content_fn,
+        doc_slot=active_doc_slot,
     )
     diagnostics["compile_elapsed_seconds"] = (
         first_compile_elapsed

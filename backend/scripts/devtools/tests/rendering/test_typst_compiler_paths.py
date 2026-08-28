@@ -122,7 +122,7 @@ def test_resolved_common_root_uses_shared_ancestor() -> None:
 
         common_root = _resolved_common_root([typ_path, pdf_path, source_pdf])
 
-        assert common_root == root
+        assert common_root == root.resolve()
 
 
 def test_typst_compile_error_carries_structured_context() -> None:
@@ -213,7 +213,7 @@ def test_render_pages_compile_uses_dynamic_project_root() -> None:
 
         command = run_mock.call_args.args[0]
         root_index = command.index("--root")
-        assert Path(command[root_index + 1]) == work_dir
+        assert Path(command[root_index + 1]) == work_dir.resolve()
 
 
 def test_background_book_compile_uses_job_root_as_project_root() -> None:
@@ -248,5 +248,5 @@ def test_background_book_compile_uses_job_root_as_project_root() -> None:
 
         command = run_mock.call_args.args[0]
         root_index = command.index("--root")
-        assert Path(command[root_index + 1]) == root
+        assert Path(command[root_index + 1]) == root.resolve()
 

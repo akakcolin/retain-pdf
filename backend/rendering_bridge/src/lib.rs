@@ -604,6 +604,37 @@ fn read_page_math_rects(pdf_bytes: &[u8], page_index: i64) -> PyResult<String> {
     serde_json::to_string(&rects).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
 }
 
+/// Read a page's form XObjects (B2-Inc2):
+/// `pdf_structure_profile.sampler._form_xobject_objects` — the `/Resources/XObject`
+/// entries that carry a `/BBox` as `[{"name","xref","bbox":[x0,y0,x1,y1]}, ...]`
+/// in resource-dict order. A PDF that cannot be opened, or a page index outside
+/// `[0, page_count)`, raises so the shim falls back to the pure-Python reference
+/// (mirrors the `read_page_text_spans` contract).
+#[pyfunction]
+fn read_page_form_xobjects(pdf_bytes: &[u8], page_index: i64) -> PyResult<String> {
+    let dir = temp_dir()?;
+    let in_path = dir.join("in.pdf");
+    std::fs::write(&in_path, pdf_bytes).map_err(|e| PyRuntimeError::new_err(format!("write: {e}")))?;
+    let doc = Document::open(in_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open: {e}")))?;
+    let count = rendering_reader::PdfDocument::page_count(&doc)
+        .map_err(|e| PyRuntimeError::new_err(format!("page_count: {e}")))?;
+    if page_index < 0 || page_index >= count {
+        return Err(PyRuntimeError::new_err(format!("page_index out of range: {page_index}")));
+    }
+    let entries: Vec<serde_json::Value> = rendering_reader::PdfDocument::page_form_xobjects(&doc, page_index)
+        .iter()
+        .map(|info| {
+            serde_json::json!({
+                "name": info.name,
+                "xref": info.xref,
+                "bbox": [info.bbox.x0, info.bbox.y0, info.bbox.x1, info.bbox.y1],
+            })
+        })
+        .collect();
+    serde_json::to_string(&entries).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
+}
+
 /// Read one page's non-math span heights (B2-9):
 /// `math_spans.collect_page_non_math_span_heights` — `[h0, h1, ...]`.
 #[pyfunction]
@@ -979,6 +1010,59 @@ fn sample_foreground_colors(pdf_bytes: &[u8], probes_json: &str) -> PyResult<Str
     serde_json::to_string(&out).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
 }
 
+/// Build the whole-document render analysis manifest (Inc 4). Opens the PDF
+/// ONCE, walks the pages named by `config_json`, and for each produces a
+/// `RenderPageAnalysis` manifest entry via `page_snapshot` ->
+/// `build_render_page_profile` -> `build_render_page_analysis`. `config_json`:
+/// `{"<page_idx>": [[x0, y0, x1, y1], ...]}` (OCR bboxes per page). Returns
+/// `{"algorithm": "render_document_profile_v1", "pages": [{...}]}` in page-index
+/// order. A page whose snapshot cannot be read raises so the Python shim falls
+/// back to the pure-Python reference.
+#[pyfunction]
+fn build_render_document_analysis(pdf_bytes: &[u8], config_json: &str) -> PyResult<String> {
+    let config: BTreeMap<i64, Vec<[f64; 4]>> = serde_json::from_str(config_json)
+        .map_err(|e| PyValueError::new_err(format!("config_json: {e}")))?;
+    let dir = temp_dir()?;
+    let in_path = dir.join("in.pdf");
+    std::fs::write(&in_path, pdf_bytes).map_err(|e| PyRuntimeError::new_err(format!("write: {e}")))?;
+    let doc = Document::open(in_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open: {e}")))?;
+    let mut pages: Vec<serde_json::Value> = Vec::new();
+    for (idx, ocr_items) in config {
+        let snapshot = doc
+            .page_snapshot(idx)
+            .map_err(|e| PyRuntimeError::new_err(format!("page_snapshot p{idx}: {e}")))?;
+        let profile = rendering_core::profile_build::build_render_page_profile(
+            &snapshot,
+            &ocr_items,
+            rendering_core::profile_build::DEFAULT_BACKGROUND_THRESHOLD,
+        );
+        let analysis = rendering_core::document_builder::build_render_page_analysis(&profile);
+        pages.push(serde_json::json!({
+            "page_index": analysis.page_index,
+            "kind": analysis.kind.as_str(),
+            "redaction": analysis.redaction,
+            "background": analysis.background,
+            "compose": analysis.compose,
+            "layout": analysis.layout,
+            "reason": analysis.reason,
+            "has_large_background": analysis.has_large_background,
+            "background_coverage_ratio":
+                (analysis.background_coverage_ratio * 1_000_000.0).round() / 1_000_000.0,
+            "visible_text": analysis.visible_text,
+            "hidden_text": analysis.hidden_text,
+            "editable_text": analysis.editable_text,
+            "drawing_count": analysis.drawing_count,
+            "vector_heavy": analysis.vector_heavy,
+        }));
+    }
+    let out = serde_json::json!({
+        "algorithm": "render_document_profile_v1",
+        "pages": pages,
+    });
+    serde_json::to_string(&out).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
+}
+
 #[pymodule]
 fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(emit_typst_source, m)?)?;
@@ -1001,6 +1085,7 @@ fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(read_page_text_blocks, m)?)?;
     m.add_function(wrap_pyfunction!(read_page_math_rects, m)?)?;
     m.add_function(wrap_pyfunction!(read_page_span_heights, m)?)?;
+    m.add_function(wrap_pyfunction!(read_page_form_xobjects, m)?)?;
     m.add_function(wrap_pyfunction!(collect_vector_text_rects, m)?)?;
     m.add_function(wrap_pyfunction!(read_page_cleanup_contexts, m)?)?;
     m.add_function(wrap_pyfunction!(detect_first_line_indents, m)?)?;
@@ -1008,5 +1093,6 @@ fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(extract_page_span_dicts, m)?)?;
     m.add_function(wrap_pyfunction!(sample_title_visual_colors, m)?)?;
     m.add_function(wrap_pyfunction!(sample_foreground_colors, m)?)?;
+    m.add_function(wrap_pyfunction!(build_render_document_analysis, m)?)?;
     Ok(())
 }

@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-import fitz
-
 from services.rendering.policy.cleanup_policy import build_render_page_policy
 from services.rendering.policy.cleanup_policy import apply_render_item_policy_fields
 from services.rendering.policy.cleanup_policy import item_has_formula_region
 from services.rendering.policy.geometry import item_rect
 from services.rendering.policy.geometry import merge_rects
 from services.rendering.policy.geometry import rect_list
+# Pure geometry primitives reach the policy layer through segments (its only
+# sanctioned source_cleanup import); segments re-exports them from source.rects.
+from services.rendering.source_cleanup.planning.segments import Rect
+from services.rendering.source_cleanup.planning.segments import preserve
 from services.rendering.source_cleanup.planning.segments import split_rect_around_guards
 from services.document_schema.semantics import block_kind
 
@@ -39,7 +41,7 @@ def protect_formula_regions_in_redaction_items(
         if len(bbox) != 4:
             protected_items.append(source_item)
             continue
-        rect = fitz.Rect(bbox)
+        rect = Rect(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
         if rect.is_empty:
             continue
         fragments = split_rect_away_from_formula_guards(rect, formula_guards)
@@ -60,8 +62,8 @@ def redaction_source_item_id(item: dict) -> str:
     return str(value).removeprefix("item-").strip()
 
 
-def page_formula_rects(items: list[dict]) -> list[fitz.Rect]:
-    rects: list[fitz.Rect] = []
+def page_formula_rects(items: list[dict]) -> list[Rect]:
+    rects: list[Rect] = []
     for item in items:
         if not item_has_formula_region(item):
             continue
@@ -71,8 +73,8 @@ def page_formula_rects(items: list[dict]) -> list[fitz.Rect]:
     return rects
 
 
-def page_text_source_rects(items: list[dict]) -> list[fitz.Rect]:
-    rects: list[fitz.Rect] = []
+def page_text_source_rects(items: list[dict]) -> list[Rect]:
+    rects: list[Rect] = []
     for item in items:
         if block_kind(item) != "text":
             continue
@@ -82,20 +84,25 @@ def page_text_source_rects(items: list[dict]) -> list[fitz.Rect]:
     return merge_rects(rects)
 
 
-def expanded_formula_guards(formula_rects: list[fitz.Rect], text_rects: list[fitz.Rect]) -> list[fitz.Rect]:
-    return merge_rects([expanded_formula_guard(rect, text_rects) for rect in formula_rects if not rect.is_empty])
-
-
-def expanded_formula_guard(formula: fitz.Rect, text_rects: list[fitz.Rect]) -> fitz.Rect:
-    return fitz.Rect(
-        formula.x0 - FORMULA_GUARD_HORIZONTAL_PAD_PT,
-        formula.y0 - FORMULA_GUARD_VERTICAL_PAD_PT,
-        formula.x1 + FORMULA_GUARD_HORIZONTAL_PAD_PT,
-        formula.y1 + FORMULA_GUARD_VERTICAL_PAD_PT,
+def expanded_formula_guards(formula_rects, text_rects):
+    return merge_rects(
+        [expanded_formula_guard(rect, text_rects) for rect in formula_rects if not rect.is_empty]
     )
 
 
-def split_rect_away_from_formula_guards(rect: fitz.Rect, formula_guards: list[fitz.Rect]) -> list[fitz.Rect]:
+def expanded_formula_guard(formula, text_rects):
+    return preserve(
+        formula,
+        Rect(
+            formula.x0 - FORMULA_GUARD_HORIZONTAL_PAD_PT,
+            formula.y0 - FORMULA_GUARD_VERTICAL_PAD_PT,
+            formula.x1 + FORMULA_GUARD_HORIZONTAL_PAD_PT,
+            formula.y1 + FORMULA_GUARD_VERTICAL_PAD_PT,
+        ),
+    )
+
+
+def split_rect_away_from_formula_guards(rect: Rect, formula_guards: list[Rect]) -> list[Rect]:
     return split_rect_around_guards(
         rect,
         formula_guards,

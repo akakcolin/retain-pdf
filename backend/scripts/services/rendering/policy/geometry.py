@@ -1,26 +1,29 @@
 from __future__ import annotations
 
-import fitz
+# The policy layer may import only `services.rendering.policy` and
+# `source_cleanup.planning.segments`; the pure geometry primitive is re-exported
+# through segments (which imports it from source.rects) to respect that boundary.
+from services.rendering.source_cleanup.planning.segments import Rect
 
 
-def item_rect(item: dict) -> fitz.Rect | None:
+def item_rect(item: dict) -> Rect | None:
     bbox = item.get("bbox", [])
     if len(bbox) != 4:
         return None
     try:
-        rect = fitz.Rect(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
+        rect = Rect(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
     except Exception:
         return None
     return None if rect.is_empty else rect
 
 
-def x_overlap_ratio(left: fitz.Rect, right: fitz.Rect) -> float:
+def x_overlap_ratio(left: Rect, right: Rect) -> float:
     overlap = max(0.0, min(left.x1, right.x1) - max(left.x0, right.x0))
     width = max(1.0, min(left.width, right.width))
     return overlap / width
 
 
-def rect_list(rect: fitz.Rect) -> list[float]:
+def rect_list(rect: Rect) -> list[float]:
     return [
         round(float(rect.x0), 3),
         round(float(rect.y0), 3),
@@ -29,7 +32,7 @@ def rect_list(rect: fitz.Rect) -> list[float]:
     ]
 
 
-def rects_should_merge(left: fitz.Rect, right: fitz.Rect) -> bool:
+def rects_should_merge(left: Rect, right: Rect) -> bool:
     union = left | right
     combined_area = _rect_area(left) + _rect_area(right)
     if combined_area <= 0.0:
@@ -47,14 +50,14 @@ def rects_should_merge(left: fitz.Rect, right: fitz.Rect) -> bool:
     return bool(same_row and horizontal_gap <= 3.0)
 
 
-def merge_rects(rects: list[fitz.Rect]) -> list[fitz.Rect]:
-    merged: list[fitz.Rect] = []
+def merge_rects(rects: list[Rect]) -> list[Rect]:
+    merged: list[Rect] = []
     for rect in sorted(rects, key=lambda value: (round(value.y0, 2), round(value.x0, 2), round(value.y1, 2))):
-        current = fitz.Rect(rect)
+        current = rect
         changed = True
         while changed:
             changed = False
-            kept: list[fitz.Rect] = []
+            kept: list[Rect] = []
             for existing in merged:
                 if rects_should_merge(existing, current):
                     current |= existing
@@ -66,5 +69,5 @@ def merge_rects(rects: list[fitz.Rect]) -> list[fitz.Rect]:
     return sorted(merged, key=lambda value: (round(value.y0, 2), round(value.x0, 2), round(value.y1, 2)))
 
 
-def _rect_area(rect: fitz.Rect) -> float:
+def _rect_area(rect: Rect) -> float:
     return max(0.0, float(rect.width)) * max(0.0, float(rect.height))
