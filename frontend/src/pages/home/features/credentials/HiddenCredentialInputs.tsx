@@ -20,6 +20,10 @@
 // 仍照常触发(browser.js 内部一路调用),现在只是多余但无害——真正生效的
 // 写入路径是这里的 store 订阅。
 
+import {
+  DEFAULT_OCR_PROVIDER,
+  DEFAULT_TRANSLATION_PROVIDER,
+} from "../../composition/external.js";
 import { useStoreSnapshot } from "../../../../shared/react/use-store.js";
 import { useHomeServices } from "../../home-services-context.js";
 import { CREDENTIAL_DOM_IDS } from "./credentials-dom-ids.js";
@@ -36,7 +40,9 @@ export function HiddenCredentialInputs() {
 
   return (
     <>
-      <input id={HIDDEN_IDS.ocrProvider} name="ocr_provider" type="hidden" value={credentials.ocrProvider || "paddle"} readOnly />
+      <input id={HIDDEN_IDS.ocrProvider} name="ocr_provider" type="hidden" value={credentials.ocrProvider || DEFAULT_OCR_PROVIDER} readOnly />
+      <input id={HIDDEN_IDS.translationProvider} name="translation_provider" type="hidden" value={credentials.translationProvider || DEFAULT_TRANSLATION_PROVIDER} readOnly />
+      <input id={HIDDEN_IDS.mineruToken} name="mineru_token" type="hidden" value={credentials.mineruToken || ""} readOnly />
       <input id={HIDDEN_IDS.paddleToken} name="paddle_token" type="hidden" value={credentials.paddleToken || ""} readOnly />
       <input id={HIDDEN_IDS.modelApiKey} name="api_key" type="hidden" value={credentials.modelApiKey || ""} readOnly />
     </>

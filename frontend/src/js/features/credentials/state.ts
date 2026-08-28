@@ -4,11 +4,13 @@ import {
   type Store,
   type StoreListener,
 } from "../../app-framework/store.js";
-import { DEFAULT_OCR_PROVIDER } from "../../config/providers.js";
+import { DEFAULT_OCR_PROVIDER, normalizeOcrProvider } from "../../config/providers.js";
 import { normalizeBrowserStoredConfig } from "../../config/storage.js";
 
 export interface CredentialsFields {
   ocrProvider: string;
+  translationProvider: string;
+  mineruToken: string;
   paddleToken: string;
   modelApiKey: string;
 }
@@ -37,6 +39,7 @@ export interface DeepSeekBalanceState {
 
 export interface OcrTokenOptions {
   defaultPaddleToken?: () => string;
+  skipOcr?: boolean;
 }
 
 export interface OcrValidationCachePayload {
@@ -106,6 +109,7 @@ export interface CredentialsStatePort {
 function normalizeCredentials(payload: Partial<CredentialsFields> = {}): CredentialsFields {
   return normalizeBrowserStoredConfig({
     ocrProvider: payload.ocrProvider || DEFAULT_OCR_PROVIDER,
+    translationProvider: payload.translationProvider,
     paddleToken: payload.paddleToken,
     modelApiKey: payload.modelApiKey,
   }) as CredentialsFields;
@@ -217,18 +221,23 @@ export function ocrTokenFromCredentials(
   credentials: Partial<CredentialsFields> = {},
   { defaultPaddleToken }: OcrTokenOptions = {},
 ): string {
-  const token = credentials.paddleToken;
+  const provider = normalizeOcrProvider(credentials.ocrProvider);
+  const token = provider === "paddle" ? credentials.paddleToken : credentials.mineruToken;
   if (token) {
     return token;
   }
-  return defaultPaddleToken?.() || "";
+  if (provider === "paddle") {
+    return defaultPaddleToken?.() || "";
+  }
+  return "";
 }
 
 export function hasCompleteCredentials(
   credentials: Partial<CredentialsFields> = {},
   options: OcrTokenOptions = {},
 ): boolean {
-  return Boolean(ocrTokenFromCredentials(credentials, options) && credentials.modelApiKey);
+  const hasOcrReady = options.skipOcr || Boolean(ocrTokenFromCredentials(credentials, options));
+  return Boolean(hasOcrReady && credentials.modelApiKey);
 }
 
 export function createCredentialsStatePort({

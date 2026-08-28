@@ -2,11 +2,13 @@ import {
   BROWSER_CONFIG_STORAGE_KEY,
   DEVELOPER_CONFIG_STORAGE_KEY,
 } from "./storage-keys.js";
-import { normalizeOcrProvider } from "./providers.js";
+import { normalizeOcrProvider, normalizeTranslationProvider } from "./providers.js";
 
 /** Browser-local credential / OCR settings (localStorage + desktop shadow). */
 export interface BrowserStoredConfig {
   ocrProvider: string;
+  translationProvider: string;
+  mineruToken: string;
   paddleToken: string;
   modelApiKey: string;
   [key: string]: unknown;
@@ -25,6 +27,8 @@ export interface DeveloperStoredConfig {
  */
 export interface RuntimeConfig {
   ocrProvider?: string;
+  translationProvider?: string;
+  mineruToken?: string;
   paddleToken?: string;
   modelApiKey?: string;
   model?: string;
@@ -78,6 +82,8 @@ export function normalizeBrowserStoredConfig(
   const source = (isObject(payload) ? payload : {}) as Partial<BrowserStoredConfig> & Record<string, unknown>;
   return {
     ocrProvider: normalizeOcrProvider(source.ocrProvider),
+    translationProvider: normalizeTranslationProvider(source.translationProvider),
+    mineruToken: typeof source.mineruToken === "string" ? source.mineruToken : "",
     paddleToken: typeof source.paddleToken === "string" ? source.paddleToken : "",
     modelApiKey: typeof source.modelApiKey === "string" ? source.modelApiKey : "",
   };
@@ -95,6 +101,8 @@ export function desktopRuntimeToBrowserConfig(
   const source = (isObject(runtime) ? runtime : {}) as Partial<RuntimeConfig> & Record<string, unknown>;
   return normalizeBrowserStoredConfig({
     ocrProvider: source.ocrProvider as string | undefined,
+    translationProvider: source.translationProvider as string | undefined,
+    mineruToken: source.mineruToken as string | undefined,
     paddleToken: source.paddleToken as string | undefined,
     modelApiKey: source.modelApiKey as string | undefined,
   });
@@ -110,6 +118,8 @@ export function buildRuntimeConfig(
   const nextRuntimeConfig: RuntimeConfig = {
     ...(isObject(baseRuntimeConfig) ? (baseRuntimeConfig as RuntimeConfig) : {}),
     ocrProvider: nextBrowserConfig.ocrProvider,
+    translationProvider: nextBrowserConfig.translationProvider,
+    mineruToken: nextBrowserConfig.mineruToken,
     paddleToken: nextBrowserConfig.paddleToken,
     modelApiKey: nextBrowserConfig.modelApiKey,
     developerConfig: nextDeveloperConfig,

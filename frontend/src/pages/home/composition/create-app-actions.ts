@@ -116,8 +116,13 @@ export function createAppActions({
       currentBudgetState: (w?: string) => workflow().currentBudgetState(w),
       collectRunPayload: () => workflow().collectRunPayload(),
       validateBeforeSubmit: () => upload().validatePageRanges() ?? true,
-      ensureOcrCredentialsReady: (options?: unknown) => creds().ensureOcrCredentialsReady(options),
-      hasBrowserCredentials: () => Boolean(creds().hasBrowserCredentials()),
+      ensureOcrCredentialsReady: (options?: unknown) => {
+        if (Boolean(workflow().readSkipOcr())) {
+          return true;
+        }
+        return creds().ensureOcrCredentialsReady(options);
+      },
+      hasBrowserCredentials: () => Boolean(creds().hasBrowserCredentials({ skipOcr: Boolean(workflow().readSkipOcr()) })),
       openBrowserCredentialsDialog: (options?: unknown) => {
         const opts = (options && typeof options === "object" ? options : {}) as { setupMode?: boolean };
         if (opts.setupMode) {

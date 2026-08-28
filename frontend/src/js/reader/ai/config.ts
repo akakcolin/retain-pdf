@@ -48,7 +48,7 @@ export function resolveReaderAiConfig({
     apiKey: readSettingsModelApiKey(browserConfig),
     baseUrl: firstNonEmpty(developerConfig?.baseUrl, defaultModelBaseUrl()),
     model: firstNonEmpty(developerConfig?.model, defaultModelName()),
-    provider: "deepseek",
+    provider: firstNonEmpty(browserConfig?.translationProvider, "deepseek"),
   };
 }
 

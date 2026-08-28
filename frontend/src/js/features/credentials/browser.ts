@@ -1,7 +1,8 @@
 import {
   getOcrProviderDefinition,
+  getTranslationProviderDefinition,
   normalizeOcrProvider,
-  TRANSLATION_PROVIDER_DEFINITION,
+  normalizeTranslationProvider,
 } from "../../config/providers.js";
 import {
   runOcrTokenValidation,
@@ -105,6 +106,7 @@ export interface UpdateCredentialGateOptions {
   workflowNeedsCredentials?: () => boolean;
   workflowNeedsUpload?: () => boolean;
   refreshSubmitControls?: () => void;
+  skipOcr?: boolean;
 }
 
 export interface RefreshDeepSeekBalanceOptions {
@@ -240,9 +242,10 @@ export function mountBrowserCredentialsFeature({
     viewPort.setDialogStatus("", "");
   }
 
-  function hasBrowserCredentials() {
+  function hasBrowserCredentials(options: { skipOcr?: boolean } = {}) {
     return Boolean(credentialsStatePort.hasComplete?.({
       defaultPaddleToken,
+      skipOcr: options.skipOcr,
     }));
   }
 
@@ -302,6 +305,7 @@ export function mountBrowserCredentialsFeature({
     workflowNeedsCredentials,
     workflowNeedsUpload,
     refreshSubmitControls,
+    skipOcr,
   }: UpdateCredentialGateOptions) {
     const uploadEnabled = workflowNeedsUpload();
     const desktopMode = runtimeEnv.isDesktopMode();
@@ -318,7 +322,7 @@ export function mountBrowserCredentialsFeature({
       refreshSubmitControls();
       return;
     }
-    const show = workflowNeedsCredentials() && !hasBrowserCredentials();
+    const show = workflowNeedsCredentials() && !hasBrowserCredentials({ skipOcr });
     if (!viewPort.updateCredentialGate({
       desktopMode: false,
       show,
@@ -336,7 +340,7 @@ export function mountBrowserCredentialsFeature({
       apiPrefix,
       state,
       providerId: provider,
-      token: ocrTokenFromDialogValues(readCredentialDialogValues({ elementsPort: dialogElementsPort })),
+      token: ocrTokenFromDialogValues(readCredentialDialogValues({ elementsPort: dialogElementsPort }), provider),
       validateOcrToken,
       setOcrValidationMessage: viewPort.setOcrValidationMessage,
       showResult: true,
@@ -376,22 +380,26 @@ export function mountBrowserCredentialsFeature({
 
   async function handleBrowserCredentialSave() {
     const definition = getOcrProviderDefinition(currentOcrProvider());
-    const existing = readCurrentCredentials();
+    // readCurrentCredentials 的返回在 mount 签名里被 `| unknown` 吞成 unknown,这里显式收窄。
+    const existing = readCurrentCredentials() as Partial<CredentialsFields> & Record<string, unknown>;
+    const translationProvider = normalizeTranslationProvider(existing.translationProvider);
+    const translationDefinition = getTranslationProviderDefinition(translationProvider);
     const raw = readCredentialDialogValues({ elementsPort: dialogElementsPort });
     // 密码框未回填/被清空时：空串表示「沿用已保存值」，避免把 localStorage 冲掉
     const values = {
       ...raw,
+      mineruToken: `${raw.mineruToken || ""}`.trim() || `${existing.mineruToken || ""}`.trim(),
       paddleToken: `${raw.paddleToken || ""}`.trim() || `${existing.paddleToken || ""}`.trim(),
       modelApiKey: `${raw.modelApiKey || ""}`.trim() || `${existing.modelApiKey || ""}`.trim(),
     };
-    const ocrToken = ocrTokenFromDialogValues(values);
+    const ocrToken = ocrTokenFromDialogValues(values, currentOcrProvider());
     const modelApiKey = `${values.modelApiKey || ""}`.trim();
     if (!ocrToken || !modelApiKey) {
       if (!ocrToken) {
         viewPort.setOcrValidationMessage(definition.validationMissingMessage, "error", definition.id);
       }
       if (!modelApiKey) {
-        viewPort.setDeepSeekValidationMessage(TRANSLATION_PROVIDER_DEFINITION.validationMissingMessage, "error");
+        viewPort.setDeepSeekValidationMessage(translationDefinition.validationMissingMessage, "error");
       }
       viewPort.setDialogStatus("请填写 OCR Token 与模型 API Key 后再保存", "error");
       return;
@@ -399,7 +407,9 @@ export function mountBrowserCredentialsFeature({
 
     const nextCredentials = {
       ocrProvider: currentOcrProvider(),
-      paddleToken: ocrToken,
+      translationProvider,
+      mineruToken: values.mineruToken,
+      paddleToken: values.paddleToken,
       modelApiKey,
     };
 
@@ -457,17 +467,19 @@ export function mountBrowserCredentialsFeature({
     }
   }
 
+  function resetDeepSeekValidationState() {
+    viewPort.setDeepSeekValidationMessage("", "");
+    viewPort.setDeepSeekTopUpVisible(false);
+    balanceState.resetDeepSeekBalance();
+    onCredentialStateChange?.();
+  }
+
   viewPort.bindEvents({
     resetPaddleValidation: () => {
       credentialsStatePort.resetOcrValidationCache?.();
       viewPort.setOcrValidationMessage("", "", "paddle");
     },
-    resetDeepSeekValidation: () => {
-      viewPort.setDeepSeekValidationMessage("", "");
-      viewPort.setDeepSeekTopUpVisible(false);
-      balanceState.resetDeepSeekBalance();
-      onCredentialStateChange?.();
-    },
+    resetDeepSeekValidation: resetDeepSeekValidationState,
     validateOcr: handleBrowserOcrValidate,
     validateDeepSeek: handleBrowserDeepSeekValidate,
     save: handleBrowserCredentialSave,
@@ -480,6 +492,14 @@ export function mountBrowserCredentialsFeature({
       viewPort.setHiddenOcrProvider(provider);
       syncOcrProviderControls(provider);
     },
+    changeTranslationProvider: (event) => {
+      const target = event.currentTarget as HTMLSelectElement | HTMLInputElement | null;
+      const provider = normalizeTranslationProvider(target?.value);
+      credentialsStatePort.patchCredentials?.({ translationProvider: provider });
+    },
+    // 视图层在 provider 切换 re-render 后调用（自定义端点的 base_url/model 可见输入
+    // 需要等挂载完成再回填），见 DeepSeekPanel.jsx 的 useEffect。
+    syncCredentialFields: () => syncBrowserDialogFromCredentialState(),
   });
 
   return {

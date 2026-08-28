@@ -67,6 +67,8 @@ export type BindCredentialViewEventsOptions = {
   open?: (options?: OpenCredentialDialogOptions) => void;
   activateCredentialTab?: (tabName: string) => void;
   changeProvider?: (event: Event) => void;
+  changeTranslationProvider?: (event: Event) => void;
+  syncCredentialFields?: () => void;
 };
 
 const noopUploadTilePort: CredentialUploadTilePort = Object.freeze({
@@ -138,6 +140,7 @@ export function bindCredentialViewEvents({
   open,
   activateCredentialTab,
   changeProvider,
+  changeTranslationProvider,
 }: BindCredentialViewEventsOptions = {}) {
   $(BROWSER_CREDENTIAL_IDS.paddleToken)?.addEventListener("input", resetPaddleValidation);
   $(BROWSER_CREDENTIAL_IDS.apiKey)?.addEventListener("input", resetDeepSeekValidation);
@@ -180,4 +183,5 @@ export function bindCredentialViewEvents({
     });
   });
   $(BROWSER_CREDENTIAL_IDS.ocrProviderSelect)?.addEventListener("change", changeProvider);
+  $(BROWSER_CREDENTIAL_IDS.translationProviderSelect)?.addEventListener("change", changeTranslationProvider);
 }

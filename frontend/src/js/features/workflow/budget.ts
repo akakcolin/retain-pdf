@@ -34,9 +34,11 @@ export function resolveTranslationBudgetState({
   balanceCny = null,
   balanceChecked = false,
   needsTranslation = true,
+  translationProvider = "deepseek",
 }: any = {}) {
   const pageCount = pageRangeCount(pageRanges, uploadedPageCount);
-  if (!needsTranslation || pageCount <= 0) {
+  // 只有 DeepSeek 有余额/单页价格概念;自定义 OpenAI 兼容端点不展示预算估算。
+  if (!needsTranslation || pageCount <= 0 || translationProvider !== "deepseek") {
     return {
       visible: false,
       blocking: false,

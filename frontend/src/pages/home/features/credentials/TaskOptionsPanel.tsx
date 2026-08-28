@@ -9,7 +9,10 @@ import { CREDENTIAL_DOM_IDS } from "./credentials-dom-ids.js";
 const { browser: BROWSER_IDS } = CREDENTIAL_DOM_IDS;
 
 export function TaskOptionsPanel({ hidden = false } = {}) {
-  const { elementsRef } = useCredentialsController();
+  const { credentials, elementsRef } = useCredentialsController();
+  // 自定义 OpenAI 兼容端点时,base_url/model 可见输入改由 DeepSeekPanel 渲染
+  // (复用同名 id + elementsRef 槽位);这里隐藏副本,避免重复 DOM id。
+  const hideModelFields = credentials.translationProvider === "openai-compatible";
 
   return (
     <section
@@ -38,21 +41,26 @@ export function TaskOptionsPanel({ hidden = false } = {}) {
             </select>
           </label>
           {/* 模型地址/模型名不在旧模板可见布局里,但 dialog-values.js/
-              dialog-sync.js 仍读写这两个字段——保留隐藏字段契约,不新增可见 UI。 */}
-          <input
-            id={BROWSER_IDS.modelBaseUrl}
-            name="model_base_url"
-            type="hidden"
-            defaultValue=""
-            ref={(node) => { elementsRef.modelBaseUrlInput = node || null; }}
-          />
-          <input
-            id={BROWSER_IDS.modelName}
-            name="model_name"
-            type="hidden"
-            defaultValue=""
-            ref={(node) => { elementsRef.modelNameInput = node || null; }}
-          />
+              dialog-sync.js 仍读写这两个字段——保留隐藏字段契约,不新增可见 UI。
+              自定义翻译端点时改由 DeepSeekPanel 渲染可见输入,这里跳过。 */}
+          {!hideModelFields ? (
+            <>
+              <input
+                id={BROWSER_IDS.modelBaseUrl}
+                name="model_base_url"
+                type="hidden"
+                defaultValue=""
+                ref={(node) => { elementsRef.modelBaseUrlInput = node || null; }}
+              />
+              <input
+                id={BROWSER_IDS.modelName}
+                name="model_name"
+                type="hidden"
+                defaultValue=""
+                ref={(node) => { elementsRef.modelNameInput = node || null; }}
+              />
+            </>
+          ) : null}
         </section>
       </div>
     </section>

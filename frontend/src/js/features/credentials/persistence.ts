@@ -1,3 +1,4 @@
+import { normalizeTranslationProvider } from "../../config/providers.js";
 import {
   buildBrowserCredentialConfig,
   buildTaskOptionsFromDialogValues,
@@ -42,6 +43,7 @@ export async function persistDesktopCredentialsFromDialog({
   setupModePort = createCredentialSetupModePort(),
 }: any) {
   const provider = currentOcrProvider();
+  const mineruToken = `${values.mineruToken || ""}`.trim();
   const paddleToken = values.paddleToken;
   // 与浏览器一致：只存用户在设置里填的 Key，不从 runtime 静默回填
   void defaultModelApiKey;
@@ -49,6 +51,8 @@ export async function persistDesktopCredentialsFromDialog({
   await saveDesktopConfig?.(
     {
       ocrProvider: provider,
+      translationProvider: normalizeTranslationProvider(values.translationProvider),
+      mineruToken,
       paddleToken,
       modelApiKey,
       markConfigured: setupModePort.currentSetupMode(),

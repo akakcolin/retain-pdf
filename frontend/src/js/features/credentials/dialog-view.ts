@@ -28,6 +28,7 @@ export function browserCredentialElements() {
     modelBaseUrlInput: $(BROWSER_CREDENTIAL_IDS.modelBaseUrl) as HTMLInputElement | null,
     modelNameInput: $(BROWSER_CREDENTIAL_IDS.modelName) as HTMLInputElement | null,
     mathModeSelect: $(BROWSER_CREDENTIAL_IDS.mathMode) as HTMLSelectElement | null,
+    translationProviderSelect: $(BROWSER_CREDENTIAL_IDS.translationProviderSelect) as HTMLSelectElement | null,
     trigger: $(CREDENTIAL_DOM_IDS.trigger) as HTMLElement | null,
   };
 }

@@ -9,6 +9,7 @@ export function syncCredentialDialogFields({
   elementsPort = createCredentialDialogElementsPort(),
 }: any) {
   const {
+    mineruInput,
     paddleInput,
     apiKeyInput,
     modelBaseUrlInput,
@@ -16,6 +17,9 @@ export function syncCredentialDialogFields({
     mathModeSelect,
   } = elementsPort.elements();
 
+  if (mineruInput) {
+    mineruInput.value = credentials.mineruToken || "";
+  }
   if (paddleInput) {
     paddleInput.value = credentials.paddleToken || "";
   }

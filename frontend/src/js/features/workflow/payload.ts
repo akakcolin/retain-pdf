@@ -48,6 +48,7 @@ export interface BuildOcrPayloadOptions {
   pageRanges?: string;
   ocrProvider?: string;
   ocrToken?: string;
+  skipOcr?: boolean;
   defaultPaddleApiUrl: () => string;
   constants: WorkflowPayloadConstants;
 }
@@ -79,6 +80,7 @@ export function buildOcrPayload({
   pageRanges,
   ocrProvider,
   ocrToken,
+  skipOcr,
   defaultPaddleApiUrl,
   constants,
 }: BuildOcrPayloadOptions) {
@@ -91,6 +93,9 @@ export function buildOcrPayload({
     language: constants.DEFAULT_LANGUAGE,
     page_ranges: pageRanges,
   };
+  if (skipOcr) {
+    payload.skip_ocr = true;
+  }
   if (definition.id === "paddle") {
     payload.paddle_api_url = defaultPaddleApiUrl() || "https://paddleocr.aistudio-app.com";
   }

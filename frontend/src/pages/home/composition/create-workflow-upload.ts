@@ -38,6 +38,7 @@ import type {
 } from "./types.js";
 
 type WorkflowViewPort = {
+  readSkipOcr: () => boolean;
   selectedGlossaryId: () => string;
   viewPort: unknown;
 };
@@ -97,7 +98,9 @@ export function createWorkflowAndUpload({
       ocrProvider,
       ocrToken,
       modelApiKey: credentials?.modelApiKey || modelApiKeyFallback,
+      translationProvider: credentials?.translationProvider || "deepseek",
       selectedGlossaryId: workflowView.selectedGlossaryId(),
+      skipOcr: workflowView.readSkipOcr(),
     };
   }
 
@@ -124,7 +127,7 @@ export function createWorkflowAndUpload({
     viewPort: workflowView.viewPort as import("../../../js/features/workflow/controller.js").WorkflowViewPortLike,
     readSubmitValues,
     renderPageRangeSummary: () => features.uploadFeature.renderPageRangeSummary(),
-    hasBrowserCredentials: () => Boolean(features.browserCredentialsFeature.hasBrowserCredentials()),
+    hasBrowserCredentials: ({ skipOcr }: { skipOcr?: boolean } = {}) => Boolean(features.browserCredentialsFeature.hasBrowserCredentials({ skipOcr })),
     updateCredentialGate: (options?: unknown) => features.browserCredentialsFeature.updateCredentialGate(options),
     fetchGlossaries,
     apiPrefix: API_PREFIX,

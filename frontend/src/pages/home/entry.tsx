@@ -14,6 +14,11 @@ import { bootTheme } from "../../shared/theme/theme.js";
 import { DecorStage } from "../../shared/decor/DecorStage.jsx";
 import { createHomeComposition } from "./composition.js";
 import { HomeApp } from "./HomeApp.jsx";
+import {
+  isDesktopMode,
+  loadPersistedConfig,
+} from "../../js/config/desktop-persistence.js";
+import { applyDefaultCredentialInputs } from "../../js/features/credentials/default-state-port.js";
 
 // 尽早挂 data-theme，减少换肤 FOUC（见 docs/theme-system/THEME_SYSTEM.md）
 bootTheme();
@@ -24,6 +29,15 @@ bootTheme();
 // port 行为等价。
 const services = createHomeComposition({ appUpdateAutoCheckEnabled: true });
 services.initialize();
+
+// 桌面端启动时恢复持久化配置(desktop-config.json → credentials store)。
+// React home 页没有旧世界的 bootstrapDesktop 调用点,不在这里补一次加载的话,
+// 持久化的 ocrProvider/token 永不生效(只会用 runtime-config 注入的默认值)。
+if (isDesktopMode()) {
+  void loadPersistedConfig().then((payload) => {
+    applyDefaultCredentialInputs(payload.browserConfig || {});
+  });
+}
 
 function resolveHomeRoot(body = document.body) {
   let host = document.getElementById("home-root");

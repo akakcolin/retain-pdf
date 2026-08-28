@@ -16,8 +16,10 @@ export const CREDENTIAL_DOM_IDS = {
   file: "file",
   hidden: {
     ocrProvider: "ocr_provider",
+    mineruToken: "mineru_token",
     paddleToken: "paddle_token",
     modelApiKey: "api_key",
+    translationProvider: "translation_provider",
   },
   browser: {
     title: "browser-credentials-title",
@@ -29,6 +31,7 @@ export const CREDENTIAL_DOM_IDS = {
     tabTask: "browser-credential-tab-task",
     saveButton: "browser-credentials-save-btn",
     ocrProviderSelect: "browser-ocr-provider-select",
+    translationProviderSelect: "browser-translation-provider-select",
     apiKey: "browser-api-key",
     modelBaseUrl: "browser-model-base-url",
     modelName: "browser-model-name",

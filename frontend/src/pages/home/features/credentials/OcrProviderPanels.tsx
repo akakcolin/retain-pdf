@@ -2,12 +2,15 @@
 // 的 ocrProviderPanels 拼接 + features/credentials/validation-view.js 的
 // 校验徽标语义,死文件不 import,这里用 JSX 结构化重写)。
 //
-// 当前 OCR_PROVIDER_DEFINITIONS 只注册了 paddle 一个 provider(config/providers.js),
-// 面板按配置数组渲染,不硬编码 provider id——未来加回 provider 只需扩数组。
+// OCR_PROVIDER_DEFINITIONS 注册 mineru/paddle 两个 provider(config/providers.js);
+// 顶部下拉切换激活 provider(changeProvider → patchCredentials),面板按配置数组
+// 渲染,不硬编码 provider id——未来加回 provider 只需扩数组。
 // token 输入是非受控 ref(见 credentials-view-store.js elementsRef),
 // dialog-values.js/dialog-sync.js(kept)直接读写 .value。
 
+import { useEffect } from "react";
 import {
+  CREDENTIAL_DOM_IDS,
   credentialTokenInputId,
   credentialValidateButtonId,
   credentialValidationId,
@@ -34,10 +37,33 @@ function resetHandlerFor(handlers) {
 
 export function OcrProviderPanels() {
   const { credentials, view, handlers, tokenInputRef } = useCredentialsController();
-  const activeProvider = credentials.ocrProvider;
+  const activeProvider = OCR_PROVIDER_DEFINITIONS.some((item) => item.id === credentials.ocrProvider)
+    ? credentials.ocrProvider
+    : OCR_PROVIDER_DEFINITIONS[0].id;
+
+  // provider 切换后，新激活面板的 token input 是已挂载的非受控节点
+  // (defaultValue="")；从 store 回填已保存 token(镜像 DeepSeekPanel 做法)。
+  useEffect(() => {
+    handlers?.syncCredentialFields?.();
+  }, [activeProvider]);
 
   return (
     <div className="credential-provider-panels">
+      <label>
+        <span className="developer-label">
+          <span>OCR Provider</span>
+        </span>
+        <select
+          id={CREDENTIAL_DOM_IDS.browser.ocrProviderSelect}
+          aria-label="OCR Provider"
+          value={activeProvider}
+          onChange={(event) => handlers?.changeProvider?.(event)}
+        >
+          {OCR_PROVIDER_DEFINITIONS.map((provider) => (
+            <option key={provider.id} value={provider.id}>{provider.label}</option>
+          ))}
+        </select>
+      </label>
       {OCR_PROVIDER_DEFINITIONS.map((provider) => {
         const active = provider.id === activeProvider;
         const validation = view.validations[provider.id] || { message: "", tone: "" };

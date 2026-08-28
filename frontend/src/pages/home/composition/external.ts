@@ -32,6 +32,9 @@ export { DEFAULT_MODEL_VERSION } from "../../../js/config/model-constants.js";
 export {
   OCR_PROVIDER_DEFINITIONS,
   TRANSLATION_PROVIDER_DEFINITION,
+  TRANSLATION_PROVIDER_DEFINITIONS,
+  DEFAULT_OCR_PROVIDER,
+  DEFAULT_TRANSLATION_PROVIDER,
 } from "../../../js/config/providers.js";
 export {
   DEFAULT_BATCH_SIZE,

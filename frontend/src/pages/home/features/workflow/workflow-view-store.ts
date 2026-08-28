@@ -55,6 +55,7 @@ export type WorkflowViewState = {
   submitDisabled: boolean;
   submitBusy: boolean;
   pageRangeButtonVisible: boolean;
+  skipOcr: boolean;
   budget: WorkflowBudgetNote;
   jobWarningVisible: boolean;
   glossaries: WorkflowGlossaryOption[];
@@ -95,6 +96,7 @@ export function createWorkflowViewStore(): WorkflowViewStore {
       submitDisabled: true,
       submitBusy: false,
       pageRangeButtonVisible: true,
+      skipOcr: false,
       budget: {
         visible: false,
         tone: "",
@@ -143,6 +145,14 @@ export function createWorkflowViewFeature({
 
   function setJobWarningVisible(visible: boolean) {
     patch({ jobWarningVisible: Boolean(visible) });
+  }
+
+  function setSkipOcr(value = false) {
+    patch({ skipOcr: Boolean(value) });
+  }
+
+  function readSkipOcr() {
+    return Boolean(store.getSnapshot().skipOcr);
   }
 
   // ---- features/workflow/view.js 镜像 ----
@@ -293,9 +303,11 @@ export function createWorkflowViewFeature({
 
   return {
     patch,
+    readSkipOcr,
     selectedGlossaryId,
     setJobWarningVisible,
     setSelectedGlossaryId,
+    setSkipOcr,
     setSubmitBusy,
     setSubmitDisabled,
     store,

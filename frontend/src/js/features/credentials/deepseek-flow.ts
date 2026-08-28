@@ -1,4 +1,7 @@
-import { TRANSLATION_PROVIDER_DEFINITION } from "../../config/providers.js";
+import {
+  getTranslationProviderDefinition,
+  normalizeTranslationProvider,
+} from "../../config/providers.js";
 import {
   runDeepSeekBalanceCheck,
   runDeepSeekConnectivityCheck,
@@ -28,11 +31,13 @@ export async function handleBrowserDeepSeekValidate({
   credentialsStatePort = defaultCredentialsStatePort,
   viewPort,
 }: any) {
+  const storedCredentials = credentialsStatePort.getCredentials?.() || {};
+  const translationProvider = normalizeTranslationProvider(storedCredentials.translationProvider);
+  const definition = getTranslationProviderDefinition(translationProvider);
   const {
     apiKeyInput,
     modelBaseUrlInput,
   } = viewPort.elements();
-  const storedCredentials = credentialsStatePort.getCredentials?.() || {};
   const modelApiKey = apiKeyInput?.value?.trim() || storedCredentials.modelApiKey || defaultModelApiKey?.() || "";
   if (apiKeyInput && !apiKeyInput.value && modelApiKey) {
     apiKeyInput.value = modelApiKey;
@@ -45,17 +50,25 @@ export async function handleBrowserDeepSeekValidate({
   }
   viewPort.setTopUpVisible(false);
   if (!silent) {
-    viewPort.setValidationMessage("正在检测 DeepSeek 和余额…");
+    viewPort.setValidationMessage(`正在检测 ${definition.label} 和余额…`);
   }
   const result = await runDeepSeekConnectivityCheck({
     apiPrefix,
     apiKey: modelApiKey,
     baseUrl,
+    provider: translationProvider,
     validateDeepSeekToken,
     setDeepSeekValidationMessage: viewPort.setValidationMessage,
     showResult: false,
   });
   if (result.ok) {
+    // 自定义 OpenAI 兼容端点只做连通性校验，不查余额/不显示充值。
+    if (translationProvider !== "deepseek") {
+      if (!silent) {
+        viewPort.setValidationMessage(definition.validationSuccessMessage, "valid");
+      }
+      return result;
+    }
     const balance = await runDeepSeekBalanceCheck({
       apiPrefix,
       apiKey: modelApiKey,
@@ -89,7 +102,7 @@ export async function handleBrowserDeepSeekValidate({
   viewPort.setTopUpVisible(false);
   if (!silent) {
     viewPort.setValidationMessage(
-      result.summary || TRANSLATION_PROVIDER_DEFINITION.validationNetworkMessage,
+      result.summary || definition.validationNetworkMessage,
       "error",
     );
   }

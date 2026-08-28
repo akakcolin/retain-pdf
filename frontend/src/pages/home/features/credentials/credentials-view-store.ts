@@ -133,16 +133,19 @@ export function createCredentialsViewFeature({
     modelBaseUrlInput: null,
     modelNameInput: null,
     mathModeSelect: null,
+    translationProviderSelect: null,
     tokenInputs: {}, // { [providerId]: HTMLInputElement }
   };
 
   function elements() {
     return {
+      mineruInput: elementsRef.tokenInputs.mineru || null,
       paddleInput: elementsRef.tokenInputs.paddle || null,
       apiKeyInput: elementsRef.apiKeyInput,
       modelBaseUrlInput: elementsRef.modelBaseUrlInput,
       modelNameInput: elementsRef.modelNameInput,
       mathModeSelect: elementsRef.mathModeSelect,
+      translationProviderSelect: elementsRef.translationProviderSelect,
     };
   }
 

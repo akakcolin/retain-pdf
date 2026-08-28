@@ -80,6 +80,8 @@ async function saveDesktopPersistedConfig(partial: any = {}) {
     firstRunCompleted: merged.firstRunCompleted,
     closeToTrayHintShown: merged.closeToTrayHintShown,
     ocrProvider: merged.browserConfig.ocrProvider,
+    translationProvider: merged.browserConfig.translationProvider,
+    mineruToken: merged.browserConfig.mineruToken,
     paddleToken: merged.browserConfig.paddleToken,
     modelApiKey: merged.browserConfig.modelApiKey,
     developerConfig: merged.developerConfig,

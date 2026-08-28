@@ -1,20 +1,25 @@
+import { normalizeOcrProvider, normalizeTranslationProvider } from "../../config/providers.js";
 import { createCredentialDialogElementsPort } from "./dialog-elements-port.js";
 
 /** Values read from the browser credential dialog inputs. */
 export interface CredentialDialogValues {
+  mineruToken: string;
   paddleToken: string;
   modelApiKey: string;
   modelBaseUrl: string;
   modelName: string;
   mathMode: string;
+  translationProvider: string;
 }
 
 export interface CredentialDialogElementsLike {
+  mineruInput?: { value?: string } | null;
   paddleInput?: { value?: string } | null;
   apiKeyInput?: { value?: string } | null;
   modelBaseUrlInput?: { value?: string } | null;
   modelNameInput?: { value?: string } | null;
   mathModeSelect?: { value?: string } | null;
+  translationProviderSelect?: { value?: string } | null;
 }
 
 export interface ReadCredentialDialogValuesOptions {
@@ -24,7 +29,7 @@ export interface ReadCredentialDialogValuesOptions {
 }
 
 export interface BuildBrowserCredentialConfigOptions {
-  values: Pick<CredentialDialogValues, "paddleToken" | "modelApiKey">;
+  values: Pick<CredentialDialogValues, "mineruToken" | "paddleToken" | "modelApiKey" | "translationProvider">;
   currentOcrProvider: () => string;
   defaultModelApiKey?: () => string;
 }
@@ -38,18 +43,22 @@ export function readCredentialDialogValues({
   elementsPort = createCredentialDialogElementsPort(),
 }: ReadCredentialDialogValuesOptions = {}): CredentialDialogValues {
   const {
+    mineruInput,
     paddleInput,
     apiKeyInput,
     modelBaseUrlInput,
     modelNameInput,
     mathModeSelect,
+    translationProviderSelect,
   } = elementsPort.elements();
   return {
+    mineruToken: mineruInput?.value?.trim() || "",
     paddleToken: paddleInput?.value?.trim() || "",
     modelApiKey: apiKeyInput?.value?.trim() || "",
     modelBaseUrl: modelBaseUrlInput?.value?.trim() || "",
     modelName: modelNameInput?.value?.trim() || "",
     mathMode: mathModeSelect?.value || "direct_typst",
+    translationProvider: `${translationProviderSelect?.value || ""}`.trim(),
   };
 }
 
@@ -61,6 +70,8 @@ export function buildBrowserCredentialConfig({
 }: BuildBrowserCredentialConfigOptions) {
   return {
     ocrProvider: currentOcrProvider(),
+    translationProvider: normalizeTranslationProvider(values.translationProvider),
+    mineruToken: `${values.mineruToken || ""}`.trim(),
     paddleToken: values.paddleToken,
     modelApiKey: `${values.modelApiKey || ""}`.trim(),
   };
@@ -79,7 +90,9 @@ export function buildTaskOptionsFromDialogValues({
 }
 
 export function ocrTokenFromDialogValues(
-  values: Partial<Pick<CredentialDialogValues, "paddleToken">> = {},
+  values: Partial<Pick<CredentialDialogValues, "mineruToken" | "paddleToken">> = {},
+  provider = "",
 ) {
-  return values.paddleToken;
+  const normalized = normalizeOcrProvider(provider);
+  return normalized === "paddle" ? values.paddleToken : values.mineruToken;
 }

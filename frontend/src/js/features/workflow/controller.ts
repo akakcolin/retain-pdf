@@ -28,6 +28,8 @@ export interface WorkflowSubmitValues {
   ocrToken?: string;
   modelApiKey?: string;
   selectedGlossaryId?: string;
+  skipOcr?: boolean;
+  translationProvider?: string;
 }
 
 export interface LoadGlossaryOptionsParams {
@@ -70,6 +72,7 @@ export interface WorkflowViewPortLike {
     defaultPaddleToken?: string;
     defaultModelApiKey?: string;
   }) => WorkflowSubmitValues;
+  readSkipOcr?: () => boolean;
 }
 
 export interface WorkflowConstants extends WorkflowPayloadConstants {
@@ -112,11 +115,12 @@ export interface MountWorkflowFeatureOptions {
   viewPort: WorkflowViewPortLike;
   readSubmitValues?: WorkflowViewPortLike["readSubmitValues"];
   renderPageRangeSummary: () => void;
-  hasBrowserCredentials?: () => boolean;
+  hasBrowserCredentials?: (options?: { skipOcr?: boolean }) => boolean;
   updateCredentialGate?: (options?: {
     workflowNeedsCredentials?: () => boolean;
     workflowNeedsUpload?: () => boolean;
     refreshSubmitControls?: () => void;
+    skipOcr?: boolean;
   }) => void;
   fetchGlossaries?: (apiPrefix?: string) => Promise<{ items?: unknown[] } | unknown>;
   apiPrefix?: string;
@@ -261,7 +265,7 @@ export function mountWorkflowFeature({
       desktopMode: isDesktopMode(),
       uploadId: uploadState.uploadId,
       renderSourceJobId: currentRenderSourceJobId(),
-      hasBrowserCredentials: Boolean(hasBrowserCredentials?.()),
+      hasBrowserCredentials: Boolean(hasBrowserCredentials?.({ skipOcr: currentSkipOcr() })),
       budgetBlocking: budget.blocking,
       workflowNeedsUpload,
       workflowNeedsCredentials,
@@ -280,6 +284,7 @@ export function mountWorkflowFeature({
       balanceCny: balanceState.balanceCny,
       balanceChecked: balanceState.balanceChecked,
       needsTranslation: workflowNeedsUpload(workflow) && workflowUsesTranslation(workflow) && Boolean(uploadState.uploadId),
+      translationProvider: currentWorkflowSubmitValues().translationProvider,
     });
   }
 
@@ -291,6 +296,7 @@ export function mountWorkflowFeature({
       workflowNeedsCredentials: () => workflowNeedsCredentials(currentWorkflow()),
       workflowNeedsUpload: () => workflowNeedsUpload(currentWorkflow()),
       refreshSubmitControls,
+      skipOcr: currentSkipOcr(),
     });
   }
 
@@ -361,11 +367,16 @@ export function mountWorkflowFeature({
     }) || {};
   }
 
+  function currentSkipOcr() {
+    return Boolean(currentWorkflowSubmitValues().skipOcr || viewPort.readSkipOcr?.());
+  }
+
   function buildOcrPayload(pageRanges, submitValues: WorkflowSubmitValues = currentWorkflowSubmitValues()) {
     return buildOcrPayloadRequest({
       pageRanges,
       ocrProvider: submitValues.ocrProvider,
       ocrToken: submitValues.ocrToken,
+      skipOcr: submitValues.skipOcr,
       defaultPaddleApiUrl,
       constants,
     });
@@ -442,10 +453,12 @@ export function mountWorkflowFeature({
     buildTranslateJobConfig,
     collectRunPayload,
     currentRenderSourceJobId,
+    currentSkipOcr,
     currentWorkflow,
     currentBudgetState,
     developerConfigWithDefaults,
     loadGlossaryOptions,
+    readSkipOcr: currentSkipOcr,
     refreshSubmitControls,
     resetDeveloperDialog,
     saveDeveloperDialog,

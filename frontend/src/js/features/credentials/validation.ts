@@ -1,5 +1,6 @@
 import {
   getOcrProviderDefinition,
+  getTranslationProviderDefinition,
   TRANSLATION_PROVIDER_DEFINITION,
 } from "../../config/providers.js";
 import type {
@@ -52,6 +53,7 @@ export interface RunDeepSeekConnectivityCheckOptions {
   apiPrefix?: string;
   apiKey?: string;
   baseUrl?: string;
+  provider?: string;
   validateDeepSeekToken?: (
     apiPrefix?: unknown,
     payload?: unknown,
@@ -158,20 +160,22 @@ export async function runDeepSeekConnectivityCheck({
   apiPrefix,
   apiKey,
   baseUrl,
+  provider,
   validateDeepSeekToken,
   setDeepSeekValidationMessage,
   showResult = true,
 }: RunDeepSeekConnectivityCheckOptions) {
+  const definition = getTranslationProviderDefinition(provider || "deepseek");
   const modelApiKey = `${apiKey || ""}`.trim();
   const modelBaseUrl = `${baseUrl || ""}`.trim();
   if (!modelApiKey) {
     if (showResult) {
-      setDeepSeekValidationMessage(TRANSLATION_PROVIDER_DEFINITION.validationMissingMessage, "error");
+      setDeepSeekValidationMessage(definition.validationMissingMessage, "error");
     }
     return { ok: false, status: 0 };
   }
   if (showResult) {
-    setDeepSeekValidationMessage("正在检测 DeepSeek 接口…");
+    setDeepSeekValidationMessage(`正在检测 ${definition.label} 接口…`);
   }
   try {
     const result = asValidationResult(await validateDeepSeekToken(apiPrefix, {
@@ -181,15 +185,15 @@ export async function runDeepSeekConnectivityCheck({
     if (showResult) {
       setDeepSeekValidationMessage(
         result.summary || (result.ok
-          ? TRANSLATION_PROVIDER_DEFINITION.validationSuccessMessage
-          : TRANSLATION_PROVIDER_DEFINITION.validationNetworkMessage),
+          ? definition.validationSuccessMessage
+          : definition.validationNetworkMessage),
         result.ok ? "valid" : "error",
       );
     }
     return result;
   } catch (_err) {
     if (showResult) {
-      setDeepSeekValidationMessage(TRANSLATION_PROVIDER_DEFINITION.validationNetworkMessage, "error");
+      setDeepSeekValidationMessage(definition.validationNetworkMessage, "error");
     }
     return { ok: false, status: 0 };
   }

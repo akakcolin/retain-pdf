@@ -202,6 +202,8 @@ test("凭据入口：设置 API 区内嵌工作台；#credential-gate-action 也
 test("CredentialsDialog：OCR/DeepSeek 校验三态(缺失/错误/通过)", async () => {
   const services = createServices();
   const { host, root } = await mountHome(services);
+  // 默认 OCR provider 已是 mineru(Part 1);本测试聚焦 Paddle 校验,显式切回。
+  defaultCredentialsStatePort.patchCredentials({ ocrProvider: "paddle" });
 
   // 校验走设置内嵌工作台（与日常入口一致）
   dom.window.document.dispatchEvent(new dom.window.CustomEvent(APP_EVENTS.openBrowserCredentials));
@@ -253,6 +255,8 @@ test("CredentialsDialog：OCR/DeepSeek 校验三态(缺失/错误/通过)", asyn
 test("CredentialsDialog：保存(浏览器模式)——写隐藏 input、同步 credentialsStatePort", async () => {
   const services = createServices();
   const { host, root } = await mountHome(services);
+  // 默认 OCR provider 已是 mineru(Part 1);本测试聚焦 Paddle 保存,显式切回。
+  defaultCredentialsStatePort.patchCredentials({ ocrProvider: "paddle" });
 
   // 阶段 C(shadcn 改造):paddle_token/api_key/ocr_provider 等隐藏 input
   // (HiddenCredentialInputs)挂在 TranslationWorkflowDialog 内部(job-form),
@@ -299,6 +303,8 @@ test("CredentialsDialog：保存(桌面模式)——走 saveDesktopConfig 分支
     },
   });
   const { host, root } = await mountHome(services);
+  // 默认 OCR provider 已是 mineru(Part 1);本测试聚焦 Paddle 保存,显式切回。
+  defaultCredentialsStatePort.patchCredentials({ ocrProvider: "paddle" });
 
   // 阶段 C(shadcn 改造):saveDesktopConfig 分支同样会读 HiddenCredentialInputs
   // 挂在 TranslationWorkflowDialog 内部的隐藏 input(paddle_token 等),需要先

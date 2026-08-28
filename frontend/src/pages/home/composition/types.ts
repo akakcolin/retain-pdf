@@ -38,6 +38,7 @@ export type WorkflowFeature = {
   currentBudgetState: (workflow?: string) => unknown;
   developerConfigWithDefaults: () => Record<string, unknown>;
   loadGlossaryOptions: (options?: unknown) => unknown;
+  readSkipOcr: () => boolean;
   refreshSubmitControls: () => void;
   resetDeveloperDialog: () => void;
   saveDeveloperDialog: () => unknown;
@@ -64,7 +65,7 @@ export type UploadFeature = {
 export type BrowserCredentialsFeature = {
   activateCredentialTab: (tabName?: string) => void;
   ensureOcrCredentialsReady: (options?: unknown) => Promise<boolean> | boolean | unknown;
-  hasBrowserCredentials: () => boolean;
+  hasBrowserCredentials: (options?: { skipOcr?: boolean }) => boolean;
   openBrowserCredentialsDialog: (options?: unknown) => void;
   refreshDeepSeekBalance: (options?: unknown) => Promise<unknown> | unknown;
   setDialogStatus: (message?: string, tone?: string) => void;
@@ -169,6 +170,7 @@ export type CredentialsElementsRef = {
   modelBaseUrlInput: HTMLInputElement | null;
   modelNameInput: HTMLInputElement | null;
   mathModeSelect: HTMLSelectElement | null;
+  translationProviderSelect: HTMLSelectElement | null;
   tokenInputs: Record<string, HTMLInputElement | null | undefined>;
 };
 
@@ -365,6 +367,7 @@ export type UploadViewActions = {
 
 export type WorkflowViewActions = {
   setSelectedGlossaryId: (id: string) => unknown;
+  setSkipOcr: (value?: boolean) => unknown;
 };
 
 export type WorkflowDialogRuntime = {
@@ -444,6 +447,7 @@ export type HomeServicesViews = {
   workflowView: {
     store: AppStore;
     setSelectedGlossaryId: (id: string) => unknown;
+    setSkipOcr: (value?: boolean) => unknown;
   };
   statusArea: StatusAreaBag;
   workflowDialog: WorkflowDialogRuntime;

@@ -94,6 +94,15 @@ export function PageRangeDialog() {
                     ) : null}
                   </select>
                 </label>
+                <label className="professional-skip-ocr-field">
+                  <input
+                    id="skip-ocr-toggle"
+                    type="checkbox"
+                    checked={Boolean(workflow.skipOcr)}
+                    onChange={(event) => services.workflowViewActions.setSkipOcr(event.target.checked)}
+                  />
+                  <span>跳过 OCR（PDF 自带文本层时直接提取）</span>
+                </label>
                 <div className="actions">
                   <button
                     id="page-range-clear-btn"

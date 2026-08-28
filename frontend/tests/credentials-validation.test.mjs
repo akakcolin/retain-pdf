@@ -235,7 +235,8 @@ test("credentials state port owns credential source of truth and token helpers",
 
   port.patchCredentials({ ocrProvider: "bad-provider", paddleToken: "" });
 
-  assert.equal(port.getCredentials().ocrProvider, "paddle");
+  // Part 1 后默认 OCR provider 是 mineru,非法值应归一化回默认。
+  assert.equal(port.getCredentials().ocrProvider, "mineru");
   assert.equal(port.getCredentials().paddleToken, "");
   assert.equal(mirrored.length, 1);
 });

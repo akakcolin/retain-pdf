@@ -126,6 +126,7 @@ export function buildHomeServices({
     },
     workflowViewActions: {
       setSelectedGlossaryId: views.workflowView.setSelectedGlossaryId,
+      setSkipOcr: views.workflowView.setSkipOcr,
     },
     workflowDialog: views.workflowDialog,
   };
