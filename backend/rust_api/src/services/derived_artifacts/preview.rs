@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error::AppError;
 use crate::models::domain::JobSnapshot;
+use crate::process::python::PythonCommand;
 
 use super::{job_artifacts_dir, DerivedArtifactDeps};
 
@@ -111,12 +112,12 @@ with fitz.open(source) as doc:
     output.parent.mkdir(parents=True, exist_ok=True)
     pix.save(output)
 "#;
-    let status = std::process::Command::new(python_bin)
-        .arg("-c")
-        .arg(script)
+    let status = PythonCommand::new(python_bin)
+        .inline(script)
         .arg(source_pdf)
         .arg(output_path)
         .arg(width_px.to_string())
+        .to_std_command()
         .status()
         .map_err(|error| AppError::internal(format!("failed to render book image: {error}")))?;
     if !status.success() || !output_path.exists() {
@@ -156,14 +157,14 @@ with fitz.open(source) as doc:
     output.parent.mkdir(parents=True, exist_ok=True)
     pix.save(output, jpg_quality=82)
 "#;
-    let status = std::process::Command::new(python_bin)
-        .arg("-c")
-        .arg(script)
+    let status = PythonCommand::new(python_bin)
+        .inline(script)
         .arg(source_pdf)
         .arg(output_path)
         .arg(page_index.to_string())
         .arg(width_px.to_string())
         .arg(dpi.to_string())
+        .to_std_command()
         .status()
         .map_err(|error| AppError::internal(format!("failed to render page preview: {error}")))?;
     if !status.success() || !output_path.exists() {

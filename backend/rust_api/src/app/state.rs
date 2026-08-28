@@ -8,6 +8,7 @@ use tracing::warn;
 use super::state_recovery::reconcile_stale_running_jobs;
 use crate::config::AppConfig;
 use crate::db::Db;
+use crate::metrics::MetricsRegistry;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -16,6 +17,7 @@ pub struct AppState {
     pub downloads_lock: Arc<Mutex<()>>,
     pub canceled_jobs: Arc<RwLock<HashSet<String>>>,
     pub job_slots: Arc<Semaphore>,
+    pub metrics: MetricsRegistry,
 }
 
 pub fn build_state(config: Arc<AppConfig>) -> Result<AppState> {
@@ -38,6 +40,7 @@ pub fn build_state(config: Arc<AppConfig>) -> Result<AppState> {
         downloads_lock: Arc::new(Mutex::new(())),
         canceled_jobs: Arc::new(RwLock::new(HashSet::new())),
         job_slots: Arc::new(Semaphore::new(config.max_running_jobs)),
+        metrics: MetricsRegistry::new(),
     })
 }
 

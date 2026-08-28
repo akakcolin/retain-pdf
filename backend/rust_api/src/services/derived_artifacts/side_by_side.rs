@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error::AppError;
 use crate::models::domain::JobSnapshot;
+use crate::process::python::PythonCommand;
 
 use super::{cached_output_is_fresh, job_artifacts_dir, DerivedArtifactDeps};
 
@@ -31,14 +32,15 @@ fn build_side_by_side_pdf(
     let script = deps.scripts_dir.join(SIDE_BY_SIDE_SCRIPT);
     let tmp_pdf = output_pdf.with_extension("pdf.tmp");
     let _ = std::fs::remove_file(&tmp_pdf);
-    let status = std::process::Command::new(deps.python_bin)
-        .arg(&script)
+    let status = PythonCommand::new(deps.python_bin)
+        .script(&script)
         .arg("--source-pdf")
         .arg(source_pdf)
         .arg("--translated-pdf")
         .arg(translated_pdf)
         .arg("--output-pdf")
         .arg(&tmp_pdf)
+        .to_std_command()
         .status()
         .map_err(|error| {
             AppError::internal(format!("failed to build side-by-side pdf: {error}"))

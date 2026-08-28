@@ -10,6 +10,7 @@ use crate::auth;
 use crate::routes::glossaries;
 use crate::routes::health;
 use crate::routes::jobs;
+use crate::routes::metrics;
 use crate::routes::ai_proxy;
 use crate::routes::collections;
 use crate::routes::library;
@@ -290,6 +291,7 @@ pub fn build_app(state: AppState) -> Router {
 
     Router::new()
         .route("/health", get(health::health))
+        .route("/metrics", get(metrics::metrics))
         .merge(api_routes)
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
@@ -299,6 +301,7 @@ pub fn build_app(state: AppState) -> Router {
 pub fn build_simple_app(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health::health))
+        .route("/metrics", get(metrics::metrics))
         .route(
             "/api/v1/translate/bundle",
             post(jobs::translate_bundle).layer(DefaultBodyLimit::disable()),

@@ -1,11 +1,9 @@
-use std::process::Stdio;
-
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tokio::process::Command;
 use tokio::time::{timeout, Duration};
 
 use crate::job_events::record_custom_runtime_event_with_resources;
+use crate::process::python::PythonCommand;
 use crate::models::api::{public_request_payload, PublicResolvedJobSpec};
 use crate::models::domain::{
     now_iso, JobAiDiagnostic, JobFailureInfo, JobRuntimeInfo, JobRuntimeState, JobStatusKind,
@@ -93,31 +91,31 @@ pub(super) async fn maybe_attach_ai_failure_diagnosis(
         return;
     }
 
-    let mut command = Command::new(config.python_bin);
-    command
-        .arg("-u")
-        .arg(script_path)
+    let mut command = PythonCommand::new(config.python_bin)
+        .script(script_path)
         .arg("--input-json")
         .arg(&request_path)
         .arg("--model")
         .arg(&job.request_payload.translation.model)
         .arg("--base-url")
         .arg(&job.request_payload.translation.base_url)
-        .env("RUST_API_DATA_ROOT", config.data_root)
-        .env("RUST_API_OUTPUT_ROOT", config.output_root)
-        .env("OUTPUT_ROOT", config.output_root)
-        .env("PYTHONUNBUFFERED", "1")
+        .data_roots(config.data_root, config.output_root)
         .current_dir(config.project_root)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stdout_piped()
+        .stderr_piped();
     if !job.request_payload.translation.api_key.trim().is_empty() {
-        command.env(
+        command = command.env(
             "RETAIN_TRANSLATION_API_KEY",
             job.request_payload.translation.api_key.trim(),
         );
     }
 
-    let output = match timeout(Duration::from_secs(config.timeout_secs), command.output()).await {
+    let output = match timeout(
+        Duration::from_secs(config.timeout_secs),
+        command.to_tokio_command().output(),
+    )
+    .await
+    {
         Ok(Ok(value)) => value,
         _ => return,
     };

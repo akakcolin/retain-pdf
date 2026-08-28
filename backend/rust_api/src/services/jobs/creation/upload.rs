@@ -2,10 +2,10 @@ use std::path::{Path, PathBuf};
 
 use lopdf::Document;
 use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
 
 use crate::db::Db;
 use crate::error::AppError;
+use crate::process::python::PythonCommand;
 use crate::models::domain::{build_job_id, now_iso, UploadRecord};
 
 #[derive(Debug)]
@@ -131,11 +131,11 @@ doc = fitz.open(source)
 doc.save(target, garbage=4, deflate=True)
 doc.close()
 "#;
-    let output = Command::new(python_bin)
-        .arg("-c")
-        .arg(script)
+    let output = PythonCommand::new(python_bin)
+        .inline(script)
         .arg(path)
         .arg(&repaired_path)
+        .to_tokio_command()
         .output()
         .await
         .map_err(|e| e.to_string())?;

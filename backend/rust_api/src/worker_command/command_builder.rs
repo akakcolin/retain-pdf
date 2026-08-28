@@ -11,16 +11,14 @@ impl CommandBuilder {
         python_bin: &str,
         mode: PythonWorkerEntrypointMode,
         entrypoint: &PythonEntrypoint<'_>,
-        unbuffered: bool,
     ) -> Self {
+        // Script mode is `[python, script, ...]`: the script path stays at
+        // argv index 1, which `WorkerContract::from_command` depends on.
+        // Unbuffered output needs no `-u` flag here because the spawner
+        // always sets `PYTHONUNBUFFERED=1` (see `worker_env`).
         let parts = match mode {
             PythonWorkerEntrypointMode::Script => {
-                let mut parts = vec![python_bin.to_string()];
-                if unbuffered {
-                    parts.push("-u".to_string());
-                }
-                parts.push(entrypoint.script_path.to_string_lossy().to_string());
-                parts
+                vec![python_bin.to_string(), entrypoint.script_path.to_string_lossy().to_string()]
             }
             PythonWorkerEntrypointMode::Console => vec![entrypoint.console_command.to_string()],
         };

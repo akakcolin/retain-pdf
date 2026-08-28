@@ -10,7 +10,7 @@ pub struct ServerRuntimeConfig {
 impl ServerRuntimeConfig {
     pub fn from_env() -> Self {
         Self {
-            python_bin: env_string("PYTHON_BIN", "python"),
+            python_bin: env_string("PYTHON_BIN", crate::process::python::platform_python_bin()),
             // Default to loopback-only: binding 0.0.0.0 by default combined with
             // CorsLayer::permissive() and a single static API key would expose the
             // API to the network unintentionally. Docker deployments need

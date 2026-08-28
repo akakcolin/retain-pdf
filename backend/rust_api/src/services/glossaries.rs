@@ -534,6 +534,7 @@ mod tests {
             downloads_lock: Arc::new(Mutex::new(())),
             canceled_jobs: Arc::new(RwLock::new(HashSet::new())),
             job_slots: Arc::new(Semaphore::new(1)),
+            metrics: crate::metrics::MetricsRegistry::new(),
         }
     }
 

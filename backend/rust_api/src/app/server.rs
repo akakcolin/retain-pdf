@@ -11,6 +11,7 @@ use crate::app::cleanup::{
 };
 use crate::app::{build_app, build_simple_app, build_state};
 use crate::config::AppConfig;
+use crate::process::python::probe_python_binary;
 
 pub struct RunningServers {
     pub base_url: String,
@@ -33,6 +34,11 @@ async fn serve_with_shutdown(
     shutdown: impl std::future::Future<Output = ()> + Send + 'static,
 ) -> Result<()> {
     let state = build_state(config.clone())?;
+
+    // Non-fatal: a broken python config surfaces here at boot with a clear
+    // warning instead of as a runtime job 500. Desktop already hard-fails its
+    // own probe, so this is best-effort at the server boundary.
+    probe_python_binary(&config.python_bin).await;
 
     // Retention/cleanup is operational maintenance, not startup correctness
     // (unlike `reconcile_stale_running_jobs`/`cleanup_legacy_workflows`

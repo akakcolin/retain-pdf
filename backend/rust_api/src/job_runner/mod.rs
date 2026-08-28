@@ -6,7 +6,7 @@ mod execution_queue;
 mod lifecycle;
 mod ocr_flow;
 mod pipeline_plan;
-mod process_contract;
+pub(crate) mod process_contract;
 mod process_runner;
 mod render_flow;
 mod render_flow_artifacts;

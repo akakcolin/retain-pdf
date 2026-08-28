@@ -7,6 +7,7 @@ use axum::Json;
 use crate::app::{build_jobs_facade_from_state, AppState};
 use crate::config::{DeepSeekRuntimeConfig, MineruRuntimeConfig, PaddleRuntimeConfig};
 use crate::db::Db;
+use crate::metrics::MetricsRegistry;
 use crate::models::api::ApiResponse;
 use crate::services::jobs::JobsFacade;
 use crate::services::library::LibraryDeps;
@@ -134,11 +135,15 @@ pub fn build_library_route_deps(state: &AppState) -> LibraryRouteDeps<'_> {
 
 pub struct HealthRouteDeps<'a> {
     pub db: &'a Db,
+    pub metrics: &'a MetricsRegistry,
+    pub data_root: &'a Path,
 }
 
 pub fn build_health_route_deps(state: &AppState) -> HealthRouteDeps<'_> {
     HealthRouteDeps {
         db: state.db.as_ref(),
+        metrics: &state.metrics,
+        data_root: &state.config.data_root,
     }
 }
 

@@ -12,12 +12,13 @@ use anyhow::{Context, Result};
 use tokio::process::{Child, Command};
 use tokio::time::{sleep, Duration};
 
-use crate::config::WorkerProcessRuntimeConfig;
+use crate::config::{PythonWorkerEntrypointMode, WorkerProcessRuntimeConfig};
 use crate::models::domain::JobRuntimeState;
 use crate::ocr_provider::{
     configured_provider_credential_env, is_configured_command_provider, provider_token,
     provider_token_env_name, require_supported_provider,
 };
+use crate::process::python::{prepend_python_bin_dir_to_path, worker_env};
 
 pub(super) fn spawn_worker_process(
     config: &WorkerProcessRuntimeConfig<'_>,
@@ -26,13 +27,17 @@ pub(super) fn spawn_worker_process(
     let mut command = Command::new(&job.command[0]);
     command
         .args(&job.command[1..])
-        .env("RUST_API_DATA_ROOT", config.data_root)
-        .env("RUST_API_OUTPUT_ROOT", config.output_root)
-        .env("OUTPUT_ROOT", config.output_root)
-        .env("PYTHONUNBUFFERED", "1")
+        .envs(worker_env(config.data_root, config.output_root))
         .current_dir(config.project_root)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    if config.python_entrypoint_mode == PythonWorkerEntrypointMode::Console {
+        // Console entrypoints are pip console-script wrappers resolved by name,
+        // so the interpreter's own directory must be reachable on PATH.
+        if let Some(path) = prepend_python_bin_dir_to_path(Path::new(config.python_bin)) {
+            command.env("PATH", path);
+        }
+    }
     if render_rs_env(Path::new(&job.command[0]), config.render_rs_bin) {
         // The native orchestrator spawns the delegate itself; point it at the
         // same python and script rust_api would have used.
@@ -53,6 +58,22 @@ pub(super) fn spawn_worker_process(
 /// wires delegate-python env vars for it).
 fn render_rs_env(program: &Path, bin: &Path) -> bool {
     program == bin
+}
+
+/// Resolve the renderer label recorded on a render job's runtime info:
+/// `render_rs` when the command targets the native orchestrator, `python`
+/// otherwise. Non-render workers yield None.
+pub(super) fn renderer_label(command: &[String], render_rs_bin: &Path) -> Option<&'static str> {
+    use super::process_contract::WorkerContract;
+    if WorkerContract::from_command(command) != WorkerContract::Render {
+        return None;
+    }
+    let program = Path::new(command.first().map(String::as_str).unwrap_or_default());
+    Some(if render_rs_env(program, render_rs_bin) {
+        "render_rs"
+    } else {
+        "python"
+    })
 }
 
 fn apply_job_credentials(command: &mut Command, job: &JobRuntimeState) {
@@ -224,6 +245,7 @@ fn terminate_job_process_tree_windows(pid: u32) -> Result<()> {
 
 #[cfg(all(test, unix))]
 mod tests {
+    use super::renderer_label;
     use super::worker_process_exists;
     use super::render_rs_env;
     use std::path::Path;
@@ -236,6 +258,28 @@ mod tests {
         ));
         assert!(render_rs_env(Path::new("render_rs"), Path::new("render_rs")));
         assert!(!render_rs_env(Path::new("python3"), Path::new("/opt/bin/render_rs")));
+    }
+
+    #[test]
+    fn renderer_label_discriminates_render_flavors() {
+        let bin = Path::new("/opt/bin/render_rs");
+        let render_rs_cmd = vec!["/opt/bin/render_rs".to_string(), "--spec".to_string(), "spec.json".to_string()];
+        assert_eq!(renderer_label(&render_rs_cmd, bin), Some("render_rs"));
+        let python_cmd = vec![
+            "/opt/bin/python3".to_string(),
+            "run_render_only.py".to_string(),
+            "spec.json".to_string(),
+        ];
+        assert_eq!(renderer_label(&python_cmd, bin), Some("python"));
+    }
+
+    #[test]
+    fn renderer_label_none_for_non_render_workers() {
+        let bin = Path::new("/opt/bin/render_rs");
+        let normalize_cmd = vec!["/opt/bin/python3".to_string(), "run_normalize_ocr.py".to_string()];
+        assert_eq!(renderer_label(&normalize_cmd, bin), None);
+        let unknown_cmd = vec!["/opt/bin/python3".to_string(), "custom.py".to_string()];
+        assert_eq!(renderer_label(&unknown_cmd, bin), None);
     }
 
     #[test]

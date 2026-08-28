@@ -32,6 +32,8 @@ mod schema;
 #[path = "db/uploads.rs"]
 mod uploads;
 
+pub use jobs::JobMetricRow;
+
 use schema::{
     ensure_events_column, ensure_glossaries_column, ensure_jobs_column,
     ensure_no_legacy_artifacts_json, ensure_uploads_column, run_versioned_migrations,

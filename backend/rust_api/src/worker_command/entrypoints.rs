@@ -15,7 +15,6 @@ pub(super) fn provider_case_command(
             config.run_provider_case_script,
             "retainpdf-run-provider-case",
         ),
-        true,
     );
     cmd.path_arg("--spec", spec_path);
     cmd.finish()
@@ -29,7 +28,6 @@ pub(super) fn provider_ocr_command(
         config.python_bin,
         config.python_entrypoint_mode,
         &PythonEntrypoint::new(config.run_provider_ocr_script, "retainpdf-run-provider-ocr"),
-        true,
     );
     cmd.path_arg("--spec", spec_path);
     cmd.finish()
@@ -46,7 +44,6 @@ pub(super) fn translate_only_command(
             config.run_translate_only_script,
             "retainpdf-run-translate-only",
         ),
-        true,
     );
     cmd.path_arg("--spec", spec_path);
     cmd.finish()
@@ -66,7 +63,6 @@ pub(super) fn render_only_command(
         config.python_bin,
         config.python_entrypoint_mode,
         &PythonEntrypoint::new(config.run_render_only_script, "retainpdf-run-render-only"),
-        true,
     );
     cmd.path_arg("--spec", spec_path);
     cmd.finish()
@@ -125,6 +121,24 @@ mod tests {
     }
 
     #[test]
+    fn script_mode_puts_script_at_index_1_for_worker_contract() {
+        // WorkerContract::from_command reads the .py script path at argv
+        // index 1, so Script mode must be `[python, script, --spec, ...]`
+        // with no `-u` flag shifting the script.
+        let config = test_command_config(Path::new("/opt/bin/render_rs"));
+        let cmd = translate_only_command(&config, Path::new("/tmp/spec.json"));
+        assert_eq!(cmd[0], "python");
+        assert_eq!(cmd[1], "/tmp/scripts");
+        assert_eq!(cmd[2], "--spec");
+        assert_eq!(cmd[3], "/tmp/spec.json");
+        assert!(!contains(&cmd, "-u"));
+    }
+
+    fn contains(cmd: &[String], value: &str) -> bool {
+        cmd.iter().any(|arg| arg == value)
+    }
+
+    #[test]
     fn should_route_render_rs_defaults_to_native_for_typst_modes() {
         assert!(should_route_render_rs("typst", false, false));
         assert!(should_route_render_rs("typst_visual", false, false));
@@ -157,7 +171,6 @@ pub(super) fn extract_text_layer_command(
             config.run_extract_text_layer_script,
             "retainpdf-run-extract-text-layer",
         ),
-        false,
     );
     cmd.path_arg("--spec", spec_path);
     cmd.finish()
@@ -174,7 +187,6 @@ pub(super) fn normalize_ocr_command(
             config.run_normalize_ocr_script,
             "retainpdf-run-normalize-ocr",
         ),
-        false,
     );
     cmd.path_arg("--spec", spec_path);
     cmd.finish()

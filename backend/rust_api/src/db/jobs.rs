@@ -8,6 +8,18 @@ use crate::models::domain::{
 use super::rows::{row_to_job_snapshot, JOB_SELECT_SQL};
 use super::{Db, JobProcessRecord};
 
+/// One job row shaped for the /metrics aggregation (see `metrics.rs`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct JobMetricRow {
+    pub job_id: String,
+    /// snake_case status (`queued`/`running`/`succeeded`/`failed`/`canceled`).
+    pub status: String,
+    pub command: Vec<String>,
+    /// `runtime_json.renderer` (`render_rs`/`python`); None for non-render jobs
+    /// and for jobs started before the field existed.
+    pub renderer: Option<String>,
+}
+
 impl Db {
     pub fn get_job(&self, job_id: &str) -> Result<JobSnapshot> {
         let conn = self.connect()?;
@@ -201,4 +213,46 @@ impl Db {
         )?;
         Ok(count)
     }
+
+    /// Lightweight per-job rows for the /metrics endpoint. Skips rows with
+    /// malformed status/runtime JSON rather than failing the whole query.
+    pub fn list_job_metric_rows(&self) -> Result<Vec<JobMetricRow>> {
+        let conn = self.connect()?;
+        let mut stmt = conn.prepare(
+            "SELECT job_id, status_json, command_json, runtime_json FROM jobs",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let status_json: String = row.get(1)?;
+            let command_json: String = row.get(2)?;
+            let runtime_json: Option<String> = row.get(3)?;
+            let status = serde_json::from_str::<JobStatusKind>(&status_json)
+                .map(status_str)
+                .unwrap_or_else(|_| "unknown".to_string());
+            let renderer = runtime_json
+                .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+                .and_then(|value| value.get("renderer")?.as_str().map(str::to_string));
+            Ok(JobMetricRow {
+                job_id: row.get(0)?,
+                status,
+                command: serde_json::from_str(&command_json).unwrap_or_default(),
+                renderer,
+            })
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row?);
+        }
+        Ok(out)
+    }
+}
+
+fn status_str(status: JobStatusKind) -> String {
+    match status {
+        JobStatusKind::Queued => "queued",
+        JobStatusKind::Running => "running",
+        JobStatusKind::Succeeded => "succeeded",
+        JobStatusKind::Failed => "failed",
+        JobStatusKind::Canceled => "canceled",
+    }
+    .to_string()
 }

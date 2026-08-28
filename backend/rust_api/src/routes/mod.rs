@@ -10,5 +10,6 @@ pub mod jobs;
 pub mod library;
 pub mod library_data;
 pub mod library_extras;
+pub mod metrics;
 pub mod providers;
 pub mod uploads;

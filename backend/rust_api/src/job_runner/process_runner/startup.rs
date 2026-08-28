@@ -1,22 +1,24 @@
 use anyhow::Result;
 use std::collections::HashSet;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
 use crate::job_events::persist_runtime_job_with_resources;
 use crate::models::domain::{
-    job_stage_detail, job_stage_str, now_iso, JobRuntimeState, JobStage, JobStatusKind,
+    job_stage_detail, job_stage_str, now_iso, JobRuntimeInfo, JobRuntimeState, JobStage,
+    JobStatusKind,
 };
 
 use super::super::cancel_registry::is_cancel_requested_any;
 use super::super::{
-    sync_runtime_state, terminate_job_process_tree, worker_process::spawn_worker_process,
+    sync_runtime_state, terminate_job_process_tree, worker_process::{renderer_label, spawn_worker_process},
     JobPersistDeps,
 };
 use crate::config::WorkerProcessRuntimeConfig;
 
-fn prepare_job_for_spawn(job: &mut JobRuntimeState) {
+fn prepare_job_for_spawn(job: &mut JobRuntimeState, render_rs_bin: &Path) {
     job.status = JobStatusKind::Running;
     if job.started_at.is_none() {
         job.started_at = Some(now_iso());
@@ -24,6 +26,11 @@ fn prepare_job_for_spawn(job: &mut JobRuntimeState) {
     if job.stage.is_none() || matches!(job.stage.as_deref(), Some("queued")) {
         job.stage = Some(job_stage_str(JobStage::Running).to_string());
         job.stage_detail = Some(job_stage_detail(JobStage::Running).to_string());
+    }
+    if let Some(renderer) = renderer_label(&job.command, render_rs_bin) {
+        job.runtime
+            .get_or_insert_with(JobRuntimeInfo::default)
+            .renderer = Some(renderer.to_string());
     }
     job.updated_at = now_iso();
     sync_runtime_state(job);
@@ -36,7 +43,7 @@ pub(super) async fn spawn_started_process(
     mut job: JobRuntimeState,
     extra_cancel_job_ids: &[String],
 ) -> Result<(JobRuntimeState, tokio::process::Child)> {
-    prepare_job_for_spawn(&mut job);
+    prepare_job_for_spawn(&mut job, worker_runtime.render_rs_bin);
 
     let child = spawn_worker_process(worker_runtime, &job)?;
     job.pid = child.id();

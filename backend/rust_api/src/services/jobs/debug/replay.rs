@@ -1,8 +1,7 @@
-use tokio::process::Command;
-
 use crate::error::AppError;
 use crate::models::api::{redact_json_value, sensitive_values, TranslationReplayView};
 use crate::models::domain::JobSnapshot;
+use crate::process::python::PythonCommand;
 use crate::storage_paths::resolve_job_root;
 
 use super::super::creation::context::ReplayDeps;
@@ -25,23 +24,22 @@ pub(crate) async fn replay_translation_item(
         )));
     }
 
-    let mut command = Command::new(deps.python_bin);
-    command
-        .arg(&script_path)
+    let mut command = PythonCommand::new(deps.python_bin)
+        .script(&script_path)
         .arg("--job-root")
         .arg(&job_root)
         .arg("--item-id")
         .arg(item_id)
-        .current_dir(deps.project_root)
-        .env("PYTHONUNBUFFERED", "1");
+        .current_dir(deps.project_root);
     if !job.request_payload.translation.api_key.trim().is_empty() {
-        command.env(
+        command = command.env(
             "RETAIN_TRANSLATION_API_KEY",
             job.request_payload.translation.api_key.trim(),
         );
     }
 
     let output = command
+        .to_tokio_command()
         .output()
         .await
         .map_err(|err| AppError::internal(format!("spawn replay script: {err}")))?;

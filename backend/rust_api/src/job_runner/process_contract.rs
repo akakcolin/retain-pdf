@@ -8,7 +8,7 @@ use crate::storage_paths::TRANSLATION_MANIFEST_FILE_NAME;
 use super::artifact_requirements::{required_existing_dir, required_existing_file};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum WorkerContract {
+pub(crate) enum WorkerContract {
     Normalize,
     Translate,
     Render,
@@ -17,7 +17,7 @@ pub(super) enum WorkerContract {
 }
 
 impl WorkerContract {
-    pub(super) fn from_command(command: &[String]) -> Self {
+    pub(crate) fn from_command(command: &[String]) -> Self {
         // render_rs command shape is `[bin, "--spec", spec.json]` (python
         // workers always carry the .py script path at index 1).
         if command.get(1).map(String::as_str) == Some("--spec") {
