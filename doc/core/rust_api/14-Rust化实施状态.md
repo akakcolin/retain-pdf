@@ -21,6 +21,7 @@
 | B2-Inc3 | reader PageSnapshot 补全（image_rects 聚合 + form_xobjects 原语） | 完成 | e768013e |
 | B2-Inc4 | 分析簇接线：`build_render_document_analysis` bridge → `analysis/document/builder.py` | 完成 | e768013e |
 | B2-Inc5 | 热路径清扫：整本 overlay 默认路径零 fitz 调用 | 完成 | e768013e |
+| B2-Inc6 | save_optimized 子集化接 native：C shim `subset_and_clean`（隔离 context 跑 mupdf `pdf_subset_fonts` + garbage=4/流压缩，异常转 `mupdf_error_t**`），bridge 直调 `subset_and_save_optimized_pdf`，生产 `doc.tobytes()` 直传 native，fitz subset_fonts 移入回退 | 完成 | e2a7e9e7 |
 | D2 | rendering crates 差分 + 冒烟 parity 接入 CI 门禁（rendering-parity.yml） | 完成 | 6f9e35d9..c2ad4e4a |
 | C1 | Rust 编排器骨架 `rendering_orchestrator`（`render_rs --spec`）：prepare/page_specs 委托 `run_render_delegate.py` 产出 bundle，background→typst→save 全 native；`RETAINPDF_RENDER_ORCHESTRATOR_RS=1` test-gated 切换（未接生产配置）；`orchestrator_parity` 双二进制差分接 CI | 完成 | 092bc885 |
 | C3 | 生产接线 + 桌面打包：rust_api 按 mode 默认路由 typst/typst_visual→`render_rs`（auto/overlay/dual 仍走 python3），env 逃逸阀 `RETAINPDF_RENDER_ORCHESTRATOR_OFF/RS`；spawn 时给 delegate 透传 `RETAIN_PDF_PYTHON_BIN`/`RETAIN_PDF_RENDER_DELEGATE_SCRIPT`；`prepare-app.mjs` 打包 `bin/render_rs` + `build:render-rs` + release-desktop.yml 每平台构建 | 完成 | ccd4f5f3 |
