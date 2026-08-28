@@ -85,9 +85,6 @@ def _pixmap_indent_metrics() -> SimpleNamespace:
 
 def test_pixmap_first_line_indent_defaults_disabled_for_larger_prewarm(monkeypatch) -> None:
     monkeypatch.delenv("RETAIN_RENDER_PIXMAP_INDENT", raising=False)
-    doc = fitz.open()
-    for _ in range(3):
-        doc.new_page(width=240, height=180)
     stats: dict[str, object] = {
         "pixmap_candidates": 0,
         "pixmap_checked": 0,
@@ -97,18 +94,18 @@ def test_pixmap_first_line_indent_defaults_disabled_for_larger_prewarm(monkeypat
     sink: dict[str, float] = {}
 
     with mock.patch(
-        "services.rendering.source.prewarm_payload.detect_first_line_indent_pt_with_displaylist",
+        "services.rendering.layout.payload._native.detect_first_line_indents",
         side_effect=AssertionError("pixmap indent should be opt-in for larger documents"),
     ):
         collect_first_line_indent_lookup(
-            source_doc=doc,
+            source_pdf_path=Path("unused.pdf"),
+            page_count=3,
             page_idx=0,
             items=[_pixmap_indent_candidate_item()],
             metrics=_pixmap_indent_metrics(),
             sink=sink,
             stats=stats,
         )
-    doc.close()
 
     assert sink == {}
     assert stats["pixmap_candidates"] == 1
@@ -120,9 +117,6 @@ def test_pixmap_first_line_indent_defaults_disabled_for_larger_prewarm(monkeypat
 
 def test_pixmap_first_line_indent_env_opt_in_runs_detector(monkeypatch) -> None:
     monkeypatch.setenv("RETAIN_RENDER_PIXMAP_INDENT", "1")
-    doc = fitz.open()
-    for _ in range(3):
-        doc.new_page(width=240, height=180)
     stats: dict[str, object] = {
         "pixmap_candidates": 0,
         "pixmap_checked": 0,
@@ -132,18 +126,18 @@ def test_pixmap_first_line_indent_env_opt_in_runs_detector(monkeypatch) -> None:
     sink: dict[str, float] = {}
 
     with mock.patch(
-        "services.rendering.source.prewarm_payload.detect_first_line_indent_pt_with_displaylist",
-        return_value=12.5,
+        "services.rendering.layout.payload._native.detect_first_line_indents",
+        return_value={"p001-b001": 12.5},
     ) as detector:
         collect_first_line_indent_lookup(
-            source_doc=doc,
+            source_pdf_path=Path("unused.pdf"),
+            page_count=3,
             page_idx=0,
             items=[_pixmap_indent_candidate_item()],
             metrics=_pixmap_indent_metrics(),
             sink=sink,
             stats=stats,
         )
-    doc.close()
 
     assert sink == {"p001-b001": 12.5}
     assert detector.call_count == 1
@@ -157,8 +151,6 @@ def test_pixmap_first_line_indent_env_opt_in_runs_detector(monkeypatch) -> None:
 
 def test_pixmap_first_line_indent_auto_enabled_for_tiny_documents(monkeypatch) -> None:
     monkeypatch.delenv("RETAIN_RENDER_PIXMAP_INDENT", raising=False)
-    doc = fitz.open()
-    doc.new_page(width=240, height=180)
     stats: dict[str, object] = {
         "pixmap_candidates": 0,
         "pixmap_checked": 0,
@@ -168,18 +160,18 @@ def test_pixmap_first_line_indent_auto_enabled_for_tiny_documents(monkeypatch) -
     sink: dict[str, float] = {}
 
     with mock.patch(
-        "services.rendering.source.prewarm_payload.detect_first_line_indent_pt_with_displaylist",
-        return_value=9.25,
+        "services.rendering.layout.payload._native.detect_first_line_indents",
+        return_value={"p001-b001": 9.25},
     ):
         collect_first_line_indent_lookup(
-            source_doc=doc,
+            source_pdf_path=Path("unused.pdf"),
+            page_count=1,
             page_idx=0,
             items=[_pixmap_indent_candidate_item()],
             metrics=_pixmap_indent_metrics(),
             sink=sink,
             stats=stats,
         )
-    doc.close()
 
     assert sink == {"p001-b001": 9.25}
     assert stats["pixmap_enabled"] is True

@@ -24,7 +24,7 @@ use crate::contents::replace_page_contents;
 const TEXT_SHOW_OPERATORS: [&str; 4] = ["Tj", "TJ", "'", "\""];
 
 /// Per-document hidden-text strip outcome, mirroring `HiddenTextStripResult`.
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, serde::Serialize)]
 pub struct HiddenTextStripResult {
     pub changed: bool,
     pub pages_changed: usize,

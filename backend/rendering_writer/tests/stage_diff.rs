@@ -11,7 +11,7 @@
 //! `RedactionDiagnostics` + `toc_entries`, saves optimized, then measures the
 //! output page facts (words / ink) and the output outline list.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
@@ -19,7 +19,8 @@ use mupdf::pdf::PdfDocument;
 use mupdf::{Document, Error, Outline};
 use rendering_core::source_cleanup::hit_test::RectTuple;
 use rendering_reader::render::render_page_clip_rgb;
-use rendering_writer::background::redaction::{RedactionDiagnostics, RedactionItem};
+use rendering_writer::background::redaction::page_specs;
+use rendering_writer::background::redaction::RedactionDiagnostics;
 use rendering_writer::background::fill::RgbPixmap;
 use rendering_writer::background::stage::build_clean_background_pdf;
 use rendering_writer::save::{delete_trailer_id, save_optimized};
@@ -94,6 +95,14 @@ fn flatten_outlines(outlines: &[Outline], level: i64, out: &mut Vec<StageTocEntr
     }
 }
 
+/// Corpus `visual_profile_fill_map` (`Vec<f64>` for leniency) -> the
+/// `[f64; 3]` fill table the conversion expects.
+fn fill_map_from(raw: &HashMap<String, Vec<f64>>) -> HashMap<String, [f64; 3]> {
+    raw.iter()
+        .map(|(k, v)| (k.clone(), [v[0], v[1], v[2]]))
+        .collect()
+}
+
 fn replay_case(case: &StageCase, scale: f32, threshold: u8) {
     let dir = std::env::temp_dir().join(format!("rps-{}-{}", case.name, std::process::id()));
     fs::create_dir_all(&dir).expect("create temp dir");
@@ -113,7 +122,7 @@ fn replay_case(case: &StageCase, scale: f32, threshold: u8) {
     ];
 
     let render_clip = |page_index: i32, clip: &RectTuple| -> Option<RgbPixmap> {
-        let rect = mupdf::Rect::new(clip[0] as f32, clip[1] as f32, clip[2] as f32, clip[3] as f32);
+        let rect = rendering_core::rect::Rect::new(clip[0], clip[1], clip[2], clip[3]);
         render_page_clip_rgb(&doc, page_index, Some(&rect), scale)
             .ok()
             .map(|px| RgbPixmap {
@@ -126,7 +135,14 @@ fn replay_case(case: &StageCase, scale: f32, threshold: u8) {
     let mut pdf = PdfDocument::open(in_path.as_path())
         .unwrap_or_else(|e| panic!("{} open for edit: {e}", case.name));
 
-    let translated_pages: BTreeMap<i32, Vec<RedactionItem>> = case.translated_pages.clone();
+    let (translated_pages, formula_source) = page_specs::apply_page_specs_and_fills(
+        &case.translated_pages,
+        &case.page_specs,
+        &fill_map_from(&case.visual_profile_fill_map),
+    );
+    if let Some(expected) = &case.expected_replaced_pages {
+        assert_eq!(&translated_pages, expected, "{}: replaced pages", case.name);
+    }
     let precleaned: HashSet<i32> = case.precleaned_page_indices.iter().copied().collect();
 
     let outcome = build_clean_background_pdf(
@@ -134,6 +150,7 @@ fn replay_case(case: &StageCase, scale: f32, threshold: u8) {
         &mut pdf,
         &page_rect,
         &translated_pages,
+        &formula_source,
         case.redaction_strategy.as_deref(),
         &precleaned,
         &render_clip,

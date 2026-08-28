@@ -13,6 +13,7 @@ pub struct RuntimePathsConfig {
     pub run_provider_case_script: PathBuf,
     pub run_provider_ocr_script: PathBuf,
     pub run_normalize_ocr_script: PathBuf,
+    pub run_extract_text_layer_script: PathBuf,
     pub run_translate_from_ocr_script: PathBuf,
     pub run_translate_only_script: PathBuf,
     pub run_render_only_script: PathBuf,
@@ -88,6 +89,9 @@ impl RuntimePathsConfig {
             ),
             run_provider_ocr_script: resolve_entrypoint_script(&scripts_dir, "run_provider_ocr.py"),
             run_normalize_ocr_script: scripts_dir.join("entrypoints").join("run_normalize_ocr.py"),
+            run_extract_text_layer_script: scripts_dir
+                .join("entrypoints")
+                .join("run_extract_text_layer.py"),
             run_translate_from_ocr_script: scripts_dir
                 .join("entrypoints")
                 .join("run_translate_from_ocr.py"),

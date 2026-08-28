@@ -17,6 +17,46 @@ pub struct ImageInfo {
     pub bbox: Rect,
 }
 
+/// One `page.get_bboxlog()` entry: the drawing kind ("fill-text",
+/// "fill-path", "stroke-path", "fill-image", "fill-image-mask") and its
+/// rotation-stripped fitz-space bounds.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct BboxlogEntry {
+    pub kind: String,
+    pub rect: Rect,
+}
+
+/// A vector drawing's paint operation, mirroring fitz `get_cdrawings` `type`
+/// ("f"/"s"/"fs").
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PageDrawingType {
+    Fill,
+    Stroke,
+    FillStroke,
+}
+
+impl PageDrawingType {
+    /// fitz `get_cdrawings` type strings.
+    pub fn as_fitz_str(self) -> &'static str {
+        match self {
+            PageDrawingType::Fill => "f",
+            PageDrawingType::Stroke => "s",
+            PageDrawingType::FillStroke => "fs",
+        }
+    }
+}
+
+/// One fitz `get_cdrawings` drawing: path bounds, paint type, and stroke width
+/// (`line_width * path_factor`, None for fills). Fill/color/items are
+/// deliberately NOT carried: mupdf-rs converts fills to DeviceRGB while fitz
+/// preserves the drawing's colorspace, and no B2-7 consumer reads them.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PageDrawing {
+    pub rect: Rect,
+    pub drawing_type: PageDrawingType,
+    pub width: Option<f32>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct PageSnapshot {
     pub number: i64,

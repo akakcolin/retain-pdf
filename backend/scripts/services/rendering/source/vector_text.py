@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import fitz
 
+from services.rendering.source import _native
 from services.rendering.source_cleanup.planning.spatial_index import RectOverlapIndex
 
 
@@ -54,6 +55,10 @@ def _looks_like_large_black_text_cluster(drawing: dict) -> bool:
 
 
 def collect_vector_text_rects(page: fitz.Page, target_rects: list[fitz.Rect]) -> list[fitz.Rect]:
+    return _native.collect_vector_text_rects(page=page, target_rects=target_rects)
+
+
+def _collect_vector_text_rects_python(page: fitz.Page, target_rects: list[fitz.Rect]) -> list[fitz.Rect]:
     rects: list[fitz.Rect] = []
     target_index = RectOverlapIndex.build(target_rects)
     if not target_index.rects:

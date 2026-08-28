@@ -7,6 +7,9 @@ edition = "2021"
 name = "rendering_bridge"
 crate-type = ["cdylib"]
 
+[build-dependencies]
+pyo3-build-config = { version = "0.29" }
+
 [dependencies]
 pyo3 = { version = "0.29", features = ["extension-module"] }
 serde = { version = "1", features = ["derive"] }

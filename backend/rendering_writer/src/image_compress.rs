@@ -29,7 +29,7 @@ pub const IMAGE_JPEG_QUALITY: u8 = 78;
 
 /// Per-image recompression outcome, mirroring production's `changed` flag and
 /// `skipped_*` counters.
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, serde::Serialize)]
 pub struct ImageCompressResult {
     pub changed: bool,
     pub recompressed_xrefs: Vec<i32>,

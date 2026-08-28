@@ -12,6 +12,7 @@ from foundation.shared.ocr_provider_config import paddle_default_model
 
 
 NORMALIZE_STAGE_SCHEMA_VERSION = "normalize.stage.v1"
+EXTRACT_TEXT_LAYER_STAGE_SCHEMA_VERSION = "extract_text_layer.stage.v1"
 TRANSLATE_STAGE_SCHEMA_VERSION = "translate.stage.v1"
 RENDER_STAGE_SCHEMA_VERSION = "render.stage.v1"
 PROVIDER_STAGE_SCHEMA_VERSION = "provider.stage.v1"
@@ -116,6 +117,59 @@ class NormalizeStageSpec:
         )
         if not inputs.source_json.exists():
             raise RuntimeError(f"source json not found: {inputs.source_json}")
+        if not inputs.source_pdf.exists():
+            raise RuntimeError(f"source pdf not found: {inputs.source_pdf}")
+        return cls(
+            schema_version=schema_version,
+            stage=stage,
+            job=job,
+            inputs=inputs,
+        )
+
+    @property
+    def job_dirs(self) -> JobDirs:
+        return resolve_job_dirs(self.job.job_root)
+
+
+@dataclass(frozen=True)
+class ExtractTextLayerStageInputs:
+    source_pdf: Path
+    output_json: Path
+
+
+@dataclass(frozen=True)
+class ExtractTextLayerStageSpec:
+    schema_version: str
+    stage: str
+    job: StageJobRef
+    inputs: ExtractTextLayerStageInputs
+
+    @classmethod
+    def load(cls, path: Path) -> "ExtractTextLayerStageSpec":
+        spec_path = path.resolve()
+        if not spec_path.exists():
+            raise RuntimeError(f"stage spec not found: {spec_path}")
+        payload = _load_json(spec_path)
+        schema_version = _require_text(payload, "schema_version")
+        if schema_version != EXTRACT_TEXT_LAYER_STAGE_SCHEMA_VERSION:
+            raise RuntimeError(
+                f"unsupported extract_text_layer stage schema_version: {schema_version}"
+            )
+        stage = _require_text(payload, "stage")
+        if stage != "extract_text_layer":
+            raise RuntimeError(f"unexpected stage spec kind: {stage}")
+        job_payload = _require_object(payload, "job")
+        inputs_payload = _require_object(payload, "inputs")
+
+        job = StageJobRef(
+            job_id=_require_text(job_payload, "job_id"),
+            job_root=Path(_require_text(job_payload, "job_root")).resolve(),
+            workflow=_require_text(job_payload, "workflow"),
+        )
+        inputs = ExtractTextLayerStageInputs(
+            source_pdf=Path(_require_text(inputs_payload, "source_pdf")).resolve(),
+            output_json=Path(_require_text(inputs_payload, "output_json")).resolve(),
+        )
         if not inputs.source_pdf.exists():
             raise RuntimeError(f"source pdf not found: {inputs.source_pdf}")
         return cls(

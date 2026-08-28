@@ -5,9 +5,11 @@ from dataclasses import dataclass
 
 import fitz
 
-from services.rendering.source_cleanup.planning.geometry import ocr_bbox_to_pdf_rect
+from services.rendering.source_cleanup.planning.geometry import ocr_bbox_to_pdf_rect_with_ctm
 from services.rendering.source_cleanup.planning.coordinate_resolver import PageBBoxResolver
 from services.rendering.source_cleanup.planning.intent_classifier import classify_source_cleanup_intent
+from services.rendering.source_cleanup.planning.page_context import PlanningPageContext
+from services.rendering.source_cleanup.planning.page_context import _build_context_from_fitz
 from services.rendering.source_cleanup.planning.rects import merge_rects
 
 
@@ -19,14 +21,14 @@ class SourceCleanupItemRects:
     probe_rects: tuple[fitz.Rect, ...] = ()
 
 
-def iter_strip_item_rect_pairs_for_page(
-    page: fitz.Page,
+def iter_strip_item_rect_pairs_for_page_ctx(
+    ctx: PlanningPageContext,
     translated_items: list[dict],
     *,
     resolver: PageBBoxResolver | None = None,
     prefiltered: bool = False,
 ) -> Iterator[SourceCleanupItemRects]:
-    active_resolver = resolver or PageBBoxResolver.build(page)
+    active_resolver = resolver or PageBBoxResolver.build(ctx)
     for item in translated_items:
         if not prefiltered and not item_should_emit_strip_rect(item):
             continue
@@ -42,18 +44,60 @@ def iter_strip_item_rect_pairs_for_page(
             )
 
 
-def iter_strip_item_rects_for_page(page: fitz.Page, translated_items: list[dict]) -> Iterator[tuple[dict, fitz.Rect]]:
-    for pair in iter_strip_item_rect_pairs_for_page(page, translated_items):
+def iter_strip_item_rect_pairs_for_page(
+    page: fitz.Page,
+    translated_items: list[dict],
+    *,
+    resolver: PageBBoxResolver | None = None,
+    prefiltered: bool = False,
+) -> Iterator[SourceCleanupItemRects]:
+    ctx = _build_context_from_fitz(None, page)
+    yield from iter_strip_item_rect_pairs_for_page_ctx(
+        ctx,
+        translated_items,
+        resolver=resolver,
+        prefiltered=prefiltered,
+    )
+
+
+def iter_strip_item_rects_for_page_ctx(
+    ctx: PlanningPageContext,
+    translated_items: list[dict],
+) -> Iterator[tuple[dict, fitz.Rect]]:
+    for pair in iter_strip_item_rect_pairs_for_page_ctx(ctx, translated_items):
         yield pair.item, pair.pdf_rect
 
 
-def iter_formula_item_rects_for_page(page: fitz.Page, translated_items: list[dict]) -> Iterator[tuple[dict, fitz.Rect]]:
+def iter_strip_item_rects_for_page(
+    page: fitz.Page,
+    translated_items: list[dict],
+) -> Iterator[tuple[dict, fitz.Rect]]:
+    yield from iter_strip_item_rects_for_page_ctx(
+        _build_context_from_fitz(None, page),
+        translated_items,
+    )
+
+
+def iter_formula_item_rects_for_page_ctx(
+    ctx: PlanningPageContext,
+    translated_items: list[dict],
+) -> Iterator[tuple[dict, fitz.Rect]]:
     for item in translated_items:
         if not classify_source_cleanup_intent(item).should_protect_source:
             continue
-        rect = ocr_bbox_to_pdf_rect(page, item.get("bbox", []))
+        rect = ocr_bbox_to_pdf_rect_with_ctm(ctx.inverse_ctm, item.get("bbox", []))
         if rect is not None:
             yield item, rect
+
+
+def iter_formula_item_rects_for_page(
+    page: fitz.Page,
+    translated_items: list[dict],
+) -> Iterator[tuple[dict, fitz.Rect]]:
+    yield from iter_formula_item_rects_for_page_ctx(
+        _build_context_from_fitz(None, page),
+        translated_items,
+    )
 
 
 def build_source_item_rects(page: fitz.Page, translated_items: list[dict]) -> list[fitz.Rect]:

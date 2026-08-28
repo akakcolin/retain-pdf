@@ -17,11 +17,13 @@ class XObjectSanitizeResult:
     elapsed_seconds: float = 0.0
 
 
-def build_invalid_xobject_sanitized_pdf_copy(
+def _build_invalid_xobject_sanitized_pdf_copy_python(
     *,
     source_pdf_path: Path,
     output_pdf_path: Path,
 ) -> XObjectSanitizeResult:
+    """Pure-Python reference for `build_invalid_xobject_sanitized_pdf_copy`
+    (routed through `_native.py` when the native module is built)."""
     started = time.perf_counter()
     output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
     pages_changed: set[int] = set()
@@ -156,6 +158,21 @@ def _int_or_none(value: object) -> int | None:
         return int(value)  # type: ignore[arg-type]
     except Exception:
         return None
+
+
+def build_invalid_xobject_sanitized_pdf_copy(
+    *,
+    source_pdf_path: Path,
+    output_pdf_path: Path,
+) -> XObjectSanitizeResult:
+    """Route to the native Rust sanitize when built (see `_native.py`); otherwise
+    the pure-Python implementation above."""
+    from services.rendering.source import _native
+
+    return _native.sanitize_pdf_copy(
+        source_pdf_path=source_pdf_path,
+        output_pdf_path=output_pdf_path,
+    )
 
 
 __all__ = [

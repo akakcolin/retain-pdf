@@ -36,6 +36,10 @@ ENTRYPOINT_IMPORT_ALLOWLIST: dict[Path, tuple[str, ...]] = {
         "from services.translation.public import",
     ),
     Path("run_normalize_ocr.py"): ("from services.document_schema.normalize_pipeline import main",),
+    Path("run_extract_text_layer.py"): (
+        "from services.document_schema.providers import",
+        "from services.pipeline_shared.io import",
+    ),
     Path("run_provider_case.py"): ("from services.ocr_provider.provider_pipeline import main",),
     Path("run_provider_ocr.py"): ("from services.ocr_provider.provider_pipeline import main",),
     Path("run_render_only.py"): ("from services.rendering.workflow.render_only import main",),

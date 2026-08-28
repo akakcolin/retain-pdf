@@ -201,14 +201,17 @@ def test_prewarm_color_adapt_uses_full_visual_profile_without_resampling() -> No
         },
     )
 
-    with mock.patch.object(prewarm_color_profile.fitz, "open") as open_mock:
+    with mock.patch.object(
+        prewarm_color_profile,
+        "apply_adaptive_overlay_colors_batch",
+    ) as batch_mock:
         adapted = prewarm_color_profile.apply_page_color_adapt_for_prewarm(
             Path("/does/not/need/source.pdf"),
             pages,
             visual_profile=profile,
         )
 
-    open_mock.assert_not_called()
+    batch_mock.assert_not_called()
     assert adapted[0][0]["_render_cover_fill"] == (0.9, 0.9, 0.9)
     assert adapted[0][1]["_render_text_color"] == (0.2, 0.2, 0.2)
 

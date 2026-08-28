@@ -56,6 +56,7 @@ pub struct AppConfig {
     pub run_provider_case_script: PathBuf,
     pub run_provider_ocr_script: PathBuf,
     pub run_normalize_ocr_script: PathBuf,
+    pub run_extract_text_layer_script: PathBuf,
     pub run_translate_from_ocr_script: PathBuf,
     pub run_translate_only_script: PathBuf,
     pub run_render_only_script: PathBuf,
@@ -85,6 +86,7 @@ pub struct WorkerCommandRuntimeConfig<'a> {
     pub run_provider_case_script: &'a Path,
     pub run_provider_ocr_script: &'a Path,
     pub run_normalize_ocr_script: &'a Path,
+    pub run_extract_text_layer_script: &'a Path,
     pub run_translate_only_script: &'a Path,
     pub run_render_only_script: &'a Path,
 }
@@ -134,6 +136,7 @@ impl AppConfig {
             run_provider_case_script: &self.run_provider_case_script,
             run_provider_ocr_script: &self.run_provider_ocr_script,
             run_normalize_ocr_script: &self.run_normalize_ocr_script,
+            run_extract_text_layer_script: &self.run_extract_text_layer_script,
             run_translate_only_script: &self.run_translate_only_script,
             run_render_only_script: &self.run_render_only_script,
         }
@@ -227,6 +230,7 @@ impl AppConfig {
             run_provider_case_script: paths.run_provider_case_script,
             run_provider_ocr_script: paths.run_provider_ocr_script,
             run_normalize_ocr_script: paths.run_normalize_ocr_script,
+            run_extract_text_layer_script: paths.run_extract_text_layer_script,
             run_translate_from_ocr_script: paths.run_translate_from_ocr_script,
             run_translate_only_script: paths.run_translate_only_script,
             run_render_only_script: paths.run_render_only_script,

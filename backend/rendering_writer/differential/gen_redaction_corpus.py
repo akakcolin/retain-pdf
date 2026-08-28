@@ -44,7 +44,7 @@ from services.rendering.source.cleanup.redaction_flow import (  # noqa: E402
     execute_redaction_flow,
 )
 from services.rendering.source.cleanup.text_extract import (  # noqa: E402
-    extract_page_text_spans,
+    _extract_page_text_spans_python as extract_page_text_spans,
 )
 from services.rendering.source.cleanup.text_matching import (  # noqa: E402
     item_removable_text_rects,

@@ -132,7 +132,9 @@ RENDERING_LAYER_IMPORT_RULES: dict[str, tuple[str, ...]] = {
         "services.rendering.layout.font_roles",
         "services.rendering.layout.typography.geometry",
         "services.rendering.policy",
-        "services.rendering.source.background.fill",
+        # Covers sampler.py's `source.background.fill` imports and the native shim's
+        # `source.background._native` primitive routing.
+        "services.rendering.source.background",
     ),
     "legacy": (
         "services.rendering.workflow",
@@ -164,6 +166,11 @@ RENDERING_LAYER_IMPORT_EXCEPTIONS: dict[Path, tuple[str, ...]] = {
     Path("source/items.py"): (
         "services.rendering.layout.model.render_text",
     ),
+    # The extract primitive routes through the write-path native shim (A2/A3);
+    # scope the cross-layer import to the shim module only, not the whole source layer.
+    Path("document/pikepdf_pages.py"): (
+        "services.rendering.source._native",
+    ),
 }
 REMOVED_SOURCE_PREPARATION_BBOX_MODULES = (
     "services.rendering.source.preparation.bbox_text_strip_accumulator",
@@ -184,6 +191,95 @@ SOURCE_CLEANUP_NEXT_EXPERIMENTAL_MODULES = (
 )
 SOURCE_CLEANUP_NEXT_EXPERIMENTAL_SYMBOLS = {
     ("services.rendering.source_cleanup", "build_source_cleanup_plan"),
+}
+# A3 (wired write-path/background subsystems): production must reach the ported
+# primitives ONLY through their `_native` shims. The pure-Python references below
+# are the differential-corpus oracle and the NATIVE=False fallback; importing one
+# from a production module is a dual-path regression. The shims own the fallback;
+# differential corpus generators live outside services/rendering and are not
+# scanned here. The Typst emitter is included because the Rust emitter is the
+# wired path and production must route via `output.typst._native.emit_typst_source`.
+WIRED_PYTHON_REFERENCE_SYMBOLS = {
+    # write-path primitives routed via source/_native.py
+    ("services.rendering.document.pikepdf_pages", "_extract_pages_with_pikepdf_python"),
+    (
+        "services.rendering.source.compression.image_pipeline",
+        "_compress_pdf_images_only_impl_python",
+    ),
+    (
+        "services.rendering.source.preparation.xobject_sanitize",
+        "_build_invalid_xobject_sanitized_pdf_copy_python",
+    ),
+    # background stage routed via source/background/_native.py
+    ("services.rendering.source.background.stage", "_build_clean_background_pdf_python"),
+    # Typst output layer routed via output/typst/_native.py
+    ("services.rendering.output.typst.emitter", "build_typst_source_from_page_specs"),
+    (
+        "services.rendering.output.typst.source_builder",
+        "build_typst_book_overlay_source",
+    ),
+    # layout page-size read routed via layout/_native.py
+    ("services.rendering.layout.page_specs", "_read_source_page_sizes_python"),
+    # prewarm page-count / page-width read routed via source/_native.py
+    (
+        "services.rendering.source.prewarm_payload",
+        "_read_source_page_sizes_and_count_python",
+    ),
+    # vector drawing reads (get_cdrawings) routed via source/_native.py; the
+    # shared `_rects_from_drawings` loop is production logic, not a wired symbol
+    ("services.rendering.source.vector_text", "_collect_vector_text_rects_python"),
+    (
+        "services.rendering.source.vector_profile",
+        "_collect_page_drawing_rects_python",
+    ),
+    ("services.rendering.source.vector_profile", "_page_drawing_count_python"),
+    # background-image read (get_image_info) routed via source/_native.py; the
+    # shared `_has_large_background_image_from_rects` / `_tiled_images_covered`
+    # helpers are production logic, not wired symbols
+    (
+        "services.rendering.source.background.detect",
+        "_page_has_large_background_image_python",
+    ),
+    # cleanup text-read (get_text("dict"/"blocks") consumers) routed via
+    # source/_native.py; `extract_item_word_entries` is NOT wired (de-scoped —
+    # fitz clip truncates words by glyph-ink bbox, which native cannot
+    # reproduce), and `is_special_math_font`/`rect_key` stay shared logic
+    (
+        "services.rendering.source.cleanup.text_extract",
+        "_extract_page_text_spans_python",
+    ),
+    (
+        "services.rendering.source.cleanup.text_extract",
+        "_extract_page_text_blocks_python",
+    ),
+    (
+        "services.rendering.source.cleanup.math_spans",
+        "_collect_page_math_protection_rects_python",
+    ),
+    (
+        "services.rendering.source.cleanup.math_spans",
+        "_collect_page_non_math_span_heights_python",
+    ),
+    # layout first-line-indent pixel detection routed via layout/payload/_native.py
+    ("services.rendering.layout.payload.first_line_indent", "detect_first_line_indent_pt_with_displaylist"),
+    # color-adapt decision tree + span/visual probes routed via output/typst/_native.py
+    # and source/background/_native.py; fill.py primitives are intentionally NOT wired
+    # here because color_adapt.py (reference) imports LocalBackgroundSampler directly.
+    ("services.rendering.output.typst.color_adapt", "apply_adaptive_overlay_colors"),
+    ("services.rendering.output.typst.color_adapt", "title_text_color_from_text_spans"),
+    (
+        "services.rendering.output.typst.color_adapt",
+        "title_text_color_from_visual_components",
+    ),
+}
+WIRED_PYTHON_REFERENCE_SHIMS = {
+    RENDERING_ROOT / "source" / "_native.py",
+    RENDERING_ROOT / "source" / "background" / "_native.py",
+    RENDERING_ROOT / "output" / "typst" / "_native.py",
+    RENDERING_ROOT / "layout" / "_native.py",
+    RENDERING_ROOT / "layout" / "payload" / "_native.py",
+    RENDERING_ROOT / "visual_profile" / "_native.py",
+    RENDERING_ROOT / "source_cleanup" / "planning" / "_native.py",
 }
 
 
@@ -549,6 +645,16 @@ def check_rendering_internal_boundaries(errors: list[str]) -> None:
                     f"{rel_path}: cleanup dev overlay compatibility path was removed; import from services.rendering.source.dev_overlay instead of '{module}'"
                 )
                 break
+
+    for path in scan_py_files(RENDERING_ROOT):
+        if path in WIRED_PYTHON_REFERENCE_SHIMS:
+            continue
+        rel_path = rel(path)
+        for module, symbol in imported_from_symbols(path):
+            if (module, symbol) in WIRED_PYTHON_REFERENCE_SYMBOLS:
+                errors.append(
+                    f"{rel_path}: import pure-Python wired-subsystem reference '{symbol}' directly; route through the _native shim instead"
+                )
 
     for path in scan_py_files(RENDERING_ROOT):
         layer = rendering_layer_for(path)

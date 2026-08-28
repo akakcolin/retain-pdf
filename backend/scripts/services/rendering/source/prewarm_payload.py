@@ -6,13 +6,10 @@ from statistics import median
 import time
 from typing import Any
 
-import fitz
-
 from foundation.config import layout
 from services.pipeline_shared.events import emit_stage_progress
 from services.rendering.layout.payload.block_seed_metrics import collect_page_seed_metrics
 from services.rendering.layout.payload.first_line_indent import MAX_INDENT_EM
-from services.rendering.layout.payload.first_line_indent import detect_first_line_indent_pt_with_displaylist
 from services.rendering.layout.payload.first_line_indent import is_first_line_indent_candidate
 from services.rendering.layout.payload.render_item import get_render_first_line_indent_pt
 from services.rendering.layout.payload.render_item import seed_render_fields
@@ -22,6 +19,7 @@ from services.rendering.pdf_structure_profile.io import pdf_structure_profile_pa
 from services.rendering.pdf_structure_profile.io import read_pdf_structure_profile
 from services.rendering.pdf_structure_profile.io import write_pdf_structure_profile
 from services.rendering.pdf_structure_profile.sampler import build_pdf_structure_profile
+from services.rendering.source import _native
 from services.rendering.source_cleanup.types import BBoxTextStripCandidates
 from services.rendering.source_cleanup import plan_source_cleanup
 from services.rendering.source.prewarm_color_profile import apply_page_color_adapt_for_prewarm
@@ -64,35 +62,35 @@ def build_payload_prewarm(
     }
     geometry_started = time.perf_counter()
     pixmap_indent_deadline = geometry_started + _pixmap_first_line_indent_max_seconds()
-    page_widths = page_widths_by_index(source_pdf_path)
-    with fitz.open(source_pdf_path) as source_doc:
-        pixmap_policy = _pixmap_first_line_indent_policy(page_count=len(source_doc))
-        indent_stats["pixmap_enabled"] = pixmap_policy["enabled"]
-        indent_stats["pixmap_reason"] = pixmap_policy["reason"]
-        indent_stats["pixmap_auto_max_pages"] = PIXMAP_INDENT_AUTO_ENABLE_MAX_PAGES
-        for page_idx, items in prepared_pages.items():
-            page_width = page_widths.get(page_idx)
-            try:
-                metrics = collect_page_seed_metrics(items, page_width=page_width)
-            except Exception as exc:
-                print(f"render payload prewarm: geometry build failed page={page_idx + 1} {type(exc).__name__}: {exc}", flush=True)
+    page_count, page_widths = _native.read_page_sizes_and_count(source_pdf_path=source_pdf_path)
+    pixmap_policy = _pixmap_first_line_indent_policy(page_count=page_count)
+    indent_stats["pixmap_enabled"] = pixmap_policy["enabled"]
+    indent_stats["pixmap_reason"] = pixmap_policy["reason"]
+    indent_stats["pixmap_auto_max_pages"] = PIXMAP_INDENT_AUTO_ENABLE_MAX_PAGES
+    for page_idx, items in prepared_pages.items():
+        page_width = page_widths.get(page_idx)
+        try:
+            metrics = collect_page_seed_metrics(items, page_width=page_width)
+        except Exception as exc:
+            print(f"render payload prewarm: geometry build failed page={page_idx + 1} {type(exc).__name__}: {exc}", flush=True)
+            continue
+        for index, bbox in metrics.effective_inner_bboxes.items():
+            if index < 0 or index >= len(items):
                 continue
-            for index, bbox in metrics.effective_inner_bboxes.items():
-                if index < 0 or index >= len(items):
-                    continue
-                item_id = str(items[index].get("item_id", "") or "")
-                if item_id:
-                    effective_inner_bbox_by_item_id[item_id] = [round(float(value), 3) for value in bbox]
-            collect_first_line_indent_lookup(
-                source_doc=source_doc,
-                page_idx=page_idx,
-                items=items,
-                metrics=metrics,
-                sink=first_line_indent_by_item_id,
-                stats=indent_stats,
-                pixmap_deadline=pixmap_indent_deadline,
-                pixmap_policy=pixmap_policy,
-            )
+            item_id = str(items[index].get("item_id", "") or "")
+            if item_id:
+                effective_inner_bbox_by_item_id[item_id] = [round(float(value), 3) for value in bbox]
+        collect_first_line_indent_lookup(
+            source_pdf_path=source_pdf_path,
+            page_count=page_count,
+            page_idx=page_idx,
+            items=items,
+            metrics=metrics,
+            sink=first_line_indent_by_item_id,
+            stats=indent_stats,
+            pixmap_deadline=pixmap_indent_deadline,
+            pixmap_policy=pixmap_policy,
+        )
     timings["geometry_indent"] = time.perf_counter() - geometry_started
     structure_started = time.perf_counter()
     pdf_structure_profile_path, pdf_structure_profile = ensure_pdf_structure_profile(
@@ -283,7 +281,8 @@ def seed_pages_for_payload_prewarm(translated_pages: dict[int, list[dict]]) -> d
 
 def collect_first_line_indent_lookup(
     *,
-    source_doc: fitz.Document,
+    source_pdf_path: Path,
+    page_count: int,
     page_idx: int,
     items: list[dict],
     metrics,
@@ -292,11 +291,11 @@ def collect_first_line_indent_lookup(
     pixmap_deadline: float | None = None,
     pixmap_policy: dict[str, Any] | None = None,
 ) -> None:
-    if page_idx < 0 or page_idx >= len(source_doc):
+    if page_idx < 0 or page_idx >= page_count:
         return
     candidates: list[tuple[dict, float]] = []
     max_candidates = _pixmap_first_line_indent_max_candidates_per_page()
-    policy = pixmap_policy or _pixmap_first_line_indent_policy(page_count=len(source_doc))
+    policy = pixmap_policy or _pixmap_first_line_indent_policy(page_count=page_count)
     pixmap_enabled = bool(policy.get("enabled"))
     if stats is not None:
         stats.setdefault("pixmap_enabled", pixmap_enabled)
@@ -336,23 +335,17 @@ def collect_first_line_indent_lookup(
         if stats is not None:
             stats["pixmap_budget_exhausted"] = int(stats.get("pixmap_budget_exhausted", 0)) + len(candidates)
         return
-    displaylist = source_doc[page_idx].get_displaylist()
-    for item, font_size_pt in candidates:
-        if pixmap_deadline is not None and time.perf_counter() >= pixmap_deadline:
-            if stats is not None:
-                stats["pixmap_budget_exhausted"] = int(stats.get("pixmap_budget_exhausted", 0)) + 1
-            break
+    from services.rendering.layout.payload import _native
+
+    lookup = _native.detect_first_line_indents(
+        source_pdf_path=source_pdf_path,
+        by_page={page_idx: (metrics.page_text_width_med, candidates)},
+    )
+    for item, _font_size_pt in candidates:
         item_id = str(item.get("item_id", "") or "")
         if stats is not None:
             stats["pixmap_checked"] = int(stats.get("pixmap_checked", 0)) + 1
-        indent_pt = detect_first_line_indent_pt_with_displaylist(
-            source_doc,
-            displaylist,
-            item,
-            page_idx=page_idx,
-            font_size_pt=font_size_pt,
-            page_text_width_med=metrics.page_text_width_med,
-        )
+        indent_pt = float(lookup.get(item_id, 0.0) or 0.0)
         if indent_pt > 0:
             sink[item_id] = round(indent_pt, 2)
             if stats is not None:
@@ -388,12 +381,17 @@ def first_line_indent_from_item_lines(item: dict, *, font_size_pt: float) -> flo
     return round(max(0.0, min(indent_pt, max_indent)), 2)
 
 
-def page_widths_by_index(source_pdf_path: Path) -> dict[int, float]:
+def _read_source_page_sizes_and_count_python(source_pdf_path: Path) -> tuple[int, dict[int, float]]:
+    """Pure-Python reference for `_native.read_page_sizes_and_count`: fitz
+    `len(doc)` plus per-page `page.rect` width (the pre-B2-6 prewarm geometry
+    block). Unreadable docs return `(0, {})`."""
+    import fitz
+
     try:
         with fitz.open(source_pdf_path) as doc:
-            return {index: float(page.rect.width) for index, page in enumerate(doc)}
+            return len(doc), {index: float(page.rect.width) for index, page in enumerate(doc)}
     except Exception:
-        return {}
+        return 0, {}
 
 
 def _pixmap_first_line_indent_policy(*, page_count: int) -> dict[str, Any]:
@@ -427,6 +425,5 @@ __all__ = [
     "build_payload_prewarm",
     "collect_first_line_indent_lookup",
     "first_line_indent_from_item_lines",
-    "page_widths_by_index",
     "seed_pages_for_payload_prewarm",
 ]

@@ -5,6 +5,7 @@
 //! pixel buffers and `[x0, y0, x1, y1]` rects. Phase 5D-7 adds the mupdf
 //! bindings (`detect`, `extract`, `image_route`, `stage`) on top.
 
+pub mod color_adapt;
 pub mod config;
 pub mod detect;
 pub mod extract;

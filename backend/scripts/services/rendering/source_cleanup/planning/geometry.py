@@ -14,12 +14,16 @@ def rect_tuple(rect: fitz.Rect) -> tuple[float, float, float, float]:
     return (round(float(rect.x0), 3), round(float(rect.y0), 3), round(float(rect.x1), 3), round(float(rect.y1), 3))
 
 
-def ocr_bbox_to_pdf_rect(page: fitz.Page, bbox: object) -> fitz.Rect | None:
+def ocr_bbox_to_pdf_rect_with_ctm(inverse_ctm: fitz.Matrix, bbox: object) -> fitz.Rect | None:
     rect = raw_bbox_rect(bbox)
     if rect is None:
         return None
-    pdf_rect = rect * ~page.transformation_matrix
+    pdf_rect = rect * inverse_ctm
     return None if pdf_rect.is_empty else pdf_rect
+
+
+def ocr_bbox_to_pdf_rect(page: fitz.Page, bbox: object) -> fitz.Rect | None:
+    return ocr_bbox_to_pdf_rect_with_ctm(~page.transformation_matrix, bbox)
 
 
 def ocr_bbox_to_view_rect(page: fitz.Page, bbox: object) -> fitz.Rect | None:

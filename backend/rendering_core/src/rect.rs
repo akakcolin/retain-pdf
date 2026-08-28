@@ -1,7 +1,7 @@
 // Data shape mirroring fitz.Rect, used by the profile collectors
 // (services/rendering/analysis/profile/rect_area.py + page geometry).
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
 pub struct Rect {
     pub x0: f64,
     pub y0: f64,

@@ -17,7 +17,6 @@ from services.rendering.source_cleanup import plan_source_cleanup
 from services.rendering.source_cleanup.planning import geometry
 from services.rendering.source_cleanup.planning import test_support
 from services.rendering.source_cleanup.planning.drawing_classifier import bboxlog_path_blocks_text_strip
-from services.rendering.source_cleanup.planning.drawing_classifier import drawing_blocks_text_strip
 from services.rendering.source_cleanup.planning.planner import plan_source_cleanup_page
 
 
@@ -91,24 +90,10 @@ def test_cleanup_vector_text_drawings_uses_background_covers_instead_of_redactio
 
 
 def test_text_like_fill_path_blocks_text_strip() -> None:
-    drawing = {
-        "type": "f",
-        "fill": (0.0, 0.0, 0.0),
-        "rect": fitz.Rect(368.1, 531.67, 373.78, 540.54),
-    }
-
-    assert drawing_blocks_text_strip(drawing) is True
     assert bboxlog_path_blocks_text_strip("fill-path", fitz.Rect(368.1, 531.67, 373.78, 540.54)) is True
 
 
 def test_large_fill_path_does_not_block_text_strip() -> None:
-    large_background = {
-        "type": "f",
-        "fill": (1.0, 1.0, 1.0),
-        "rect": fitz.Rect(0, 0, 300, 400),
-    }
-
-    assert drawing_blocks_text_strip(large_background) is False
     assert bboxlog_path_blocks_text_strip("fill-path", fitz.Rect(0, 0, 300, 400)) is False
 
 

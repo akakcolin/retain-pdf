@@ -19,11 +19,13 @@ from services.rendering.source.compression.image_ops import should_skip_recompre
 from services.rendering.source.compression.save_ops import replace_if_smaller
 
 
-def compress_pdf_images_only_impl(
+def _compress_pdf_images_only_impl_python(
     pdf_path: Path,
     *,
     dpi: int = 200,
 ) -> bool:
+    """Pure-Python reference for `compress_pdf_images_only_impl` (routed through
+    `_native.py` when the native module is built)."""
     if dpi <= 0 or not pdf_path.exists():
         return False
 
@@ -170,3 +172,15 @@ def compress_pdf_images_only_impl(
     finally:
         if temp_path.exists():
             temp_path.unlink(missing_ok=True)
+
+
+def compress_pdf_images_only_impl(
+    pdf_path: Path,
+    *,
+    dpi: int = 200,
+) -> bool:
+    """Route to the native Rust image compression when built (see `_native.py`);
+    otherwise the pure-Python implementation above."""
+    from services.rendering.source import _native
+
+    return _native.compress_images_only(pdf_path, dpi=dpi)

@@ -16,6 +16,7 @@ use base64::Engine;
 use mupdf::{Document, TextExtractOptions, TextPageFlags};
 use rendering_core::source_cleanup::hit_test::RectTuple;
 use rendering_reader::render::render_page_clip_gray;
+use rendering_writer::background::redaction::page_specs::RenderPageSpec;
 use serde::Deserialize;
 
 /// Relative word-count tolerance vs fitz `get_text("words")` (different
@@ -255,7 +256,22 @@ pub struct StageCase {
     pub name: String,
     pub source_pdf_b64: String,
     pub page_rect: Vec<f64>,
+    /// The ORIGINAL translated items (pre-page-spec-replacement, pre-fill) —
+    /// exactly what the 7R-8 bridge receives. The replay applies
+    /// `apply_page_specs_and_fills` before running the stage.
     pub translated_pages: std::collections::BTreeMap<i32, Vec<rendering_writer::background::redaction::RedactionItem>>,
+    /// Raw `RenderPageSpec` JSON the shim sends the bridge (only `page_index` +
+    /// `blocks` consumed).
+    #[serde(default)]
+    pub page_specs: Vec<RenderPageSpec>,
+    /// Flat first-wins `{item_id: [r,g,b]}` fill table extracted from the
+    /// visual profile.
+    #[serde(default)]
+    pub visual_profile_fill_map: std::collections::HashMap<String, Vec<f64>>,
+    /// The generator's inline page-spec-replaced + profile-filled reference;
+    /// recorded only when it differs from `translated_pages`.
+    #[serde(default)]
+    pub expected_replaced_pages: Option<std::collections::BTreeMap<i32, Vec<rendering_writer::background::redaction::RedactionItem>>>,
     pub redaction_strategy: Option<String>,
     pub precleaned_page_indices: Vec<i32>,
     pub toc_entries: usize,

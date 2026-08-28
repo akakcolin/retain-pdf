@@ -29,6 +29,7 @@ mod provider_result;
 mod provider_transport;
 mod status;
 mod support;
+mod text_layer;
 mod transport;
 mod workspace;
 
@@ -36,6 +37,7 @@ use super::cancel_registry::is_cancel_requested_with_registry;
 use provider_transport::execute_provider_transport;
 pub use support::sync_parent_with_ocr_child;
 use support::{fail_missing_source_pdf, fail_ocr_transport, save_ocr_job};
+use text_layer::execute_text_layer_extraction;
 use transport::resolve_local_upload_path;
 use workspace::OcrWorkspace;
 
@@ -45,6 +47,15 @@ pub async fn execute_ocr_job(
     output_job_id_override: Option<String>,
     parent_job_id: Option<String>,
 ) -> Result<JobRuntimeState> {
+    if job.request_payload.ocr.skip_ocr {
+        return execute_text_layer_extraction(
+            deps,
+            job,
+            output_job_id_override,
+            parent_job_id,
+        )
+        .await;
+    }
     let is_command_provider = is_configured_command_provider(&job.request_payload.ocr.provider);
     let provider_kind = if is_command_provider {
         OcrProviderKind::Local

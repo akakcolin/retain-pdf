@@ -14,6 +14,7 @@ use crate::ocr_provider::{provider_token, provider_token_env_name};
 use crate::storage_paths::JobPaths;
 
 const NORMALIZE_STAGE_SCHEMA_VERSION: &str = "normalize.stage.v1";
+const EXTRACT_TEXT_LAYER_STAGE_SCHEMA_VERSION: &str = "extract_text_layer.stage.v1";
 const TRANSLATE_STAGE_SCHEMA_VERSION: &str = "translate.stage.v1";
 const RENDER_STAGE_SCHEMA_VERSION: &str = "render.stage.v1";
 const PROVIDER_STAGE_SCHEMA_VERSION: &str = "provider.stage.v1";
@@ -21,6 +22,10 @@ pub(crate) const TRANSLATION_API_KEY_ENV_NAME: &str = "RETAIN_TRANSLATION_API_KE
 
 fn normalize_stage_spec_path(job_paths: &JobPaths) -> PathBuf {
     job_paths.specs_dir.join("normalize.spec.json")
+}
+
+fn extract_text_layer_stage_spec_path(job_paths: &JobPaths) -> PathBuf {
+    job_paths.specs_dir.join("extract_text_layer.spec.json")
 }
 
 fn translate_stage_spec_path(job_paths: &JobPaths) -> PathBuf {
@@ -76,6 +81,34 @@ pub(crate) fn write_normalize_stage_spec(
     let content = serde_json::to_string_pretty(&payload)?;
     fs::write(&spec_path, content)
         .with_context(|| format!("write normalize stage spec: {}", spec_path.display()))?;
+    Ok(spec_path)
+}
+
+pub(crate) fn write_extract_text_layer_stage_spec(
+    request: &ResolvedJobSpec,
+    job_paths: &JobPaths,
+    source_pdf_path: &Path,
+    output_json_path: &Path,
+) -> Result<PathBuf> {
+    ensure_specs_dir(job_paths)?;
+    let spec_path = extract_text_layer_stage_spec_path(job_paths);
+    let payload = json!({
+        "schema_version": EXTRACT_TEXT_LAYER_STAGE_SCHEMA_VERSION,
+        "stage": "extract_text_layer",
+        "job": {
+            "job_id": request.job_id,
+            "job_root": job_paths.root,
+            "workflow": request.workflow,
+        },
+        "inputs": {
+            "source_pdf": source_pdf_path,
+            "output_json": output_json_path,
+        },
+        "params": {},
+    });
+    let content = serde_json::to_string_pretty(&payload)?;
+    fs::write(&spec_path, content)
+        .with_context(|| format!("write extract_text_layer stage spec: {}", spec_path.display()))?;
     Ok(spec_path)
 }
 

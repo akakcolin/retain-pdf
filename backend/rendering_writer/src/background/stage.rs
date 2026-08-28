@@ -84,12 +84,21 @@ pub fn collect_vector_text_rects(
 /// and saves afterward (e.g. `save_optimized`). The sampler is adapted per
 /// page inside the loop so the redaction executors keep their single-rect
 /// `render_clip` shape.
+///
+/// `translated_pages` are the items actually redacted; `formula_source_pages`
+/// are the pre-page-specs translated items used for formula detection
+/// (`stage.py` runs `redaction_items_from_layout_blocks` over
+/// `translated_pages[page_index]` when `page_index` has a spec, but reads the
+/// ORIGINAL items for `protect_formula_regions_in_redaction_items` and
+/// `page_has_formula_region`). They are the same map when no page spec replaces
+/// any page.
 #[allow(clippy::too_many_arguments)]
 pub fn build_clean_background_pdf(
     source_doc: &Document,
     edit_pdf: &mut PdfDocument,
     page_rect: &RectTuple,
     translated_pages: &BTreeMap<i32, Vec<RedactionItem>>,
+    formula_source_pages: &BTreeMap<i32, Vec<RedactionItem>>,
     redaction_strategy: Option<&str>,
     precleaned_page_indices: &HashSet<i32>,
     render_clip: &dyn Fn(i32, &RectTuple) -> Option<RgbPixmap>,
@@ -112,11 +121,12 @@ pub fn build_clean_background_pdf(
         let mut edit_page = edit_pdf.load_pdf_page(idx)?;
 
         let items: Vec<RedactionItem> = translated_pages[&idx].clone();
-        let protected = protect_formula_regions_in_redaction_items(items.clone(), &items);
+        let formula_source: &Vec<RedactionItem> = &formula_source_pages[&idx];
+        let protected = protect_formula_regions_in_redaction_items(items.clone(), formula_source);
 
         let strategy = match redaction_strategy {
             Some(s) => Some(s),
-            None if page_has_formula_region(&items) => Some("visual_cover"),
+            None if page_has_formula_region(formula_source) => Some("visual_cover"),
             None => None,
         };
 

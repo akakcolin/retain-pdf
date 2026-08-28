@@ -7,19 +7,18 @@ import fitz
 from services.rendering.contracts import RenderDocumentAnalysis
 from services.rendering.source_cleanup.planning.accumulator import BBoxTextStripCandidateAccumulator
 from services.rendering.source_cleanup.planning.geometry import formula_guard_rects
-from services.rendering.source_cleanup.planning.geometry import ocr_bbox_to_pdf_rect
+from services.rendering.source_cleanup.planning.geometry import ocr_bbox_to_pdf_rect_with_ctm
 from services.rendering.source_cleanup.planning.item_classifier import item_allows_item_cover_fallback
-from services.rendering.source_cleanup.planning.items import build_source_item_rects
-from services.rendering.source_cleanup.planning.items import iter_formula_item_rects_for_page
-from services.rendering.source_cleanup.planning.items import iter_strip_item_rect_pairs_for_page
-from services.rendering.source_cleanup.planning.items import iter_strip_item_rects_for_page
+from services.rendering.source_cleanup.planning.items import iter_formula_item_rects_for_page_ctx
+from services.rendering.source_cleanup.planning.items import iter_strip_item_rect_pairs_for_page_ctx
+from services.rendering.source_cleanup.planning.items import iter_strip_item_rects_for_page_ctx
 from services.rendering.source_cleanup.planning.items import item_should_emit_strip_rect
 from services.rendering.source_cleanup.planning.page_gate import bbox_text_strip_items_skip_reason
+from services.rendering.source_cleanup.planning.page_context import PlanningPageContext
+from services.rendering.source_cleanup.planning.page_context import _build_context_from_fitz
 from services.rendering.source_cleanup.planning.rect_filter import rect_overlaps_any_unsafe_vector
 from services.rendering.source_cleanup.planning.rects import merge_rects
 from services.rendering.source_cleanup.planning.coordinate_resolver import PageBBoxResolver
-from services.rendering.source_cleanup.planning.page_probe import page_has_form_xobjects
-from services.rendering.source_cleanup.planning.page_probe import page_content_stream_too_large
 from services.rendering.source_cleanup.planning.page_features import PageCleanupFeatures
 from services.rendering.source_cleanup.planning.page_features import build_page_cleanup_features
 from services.rendering.source_cleanup.pdf.constants import BBOX_TEXT_STRIP_CONTENT_STREAM_SIZE_THRESHOLD
@@ -42,10 +41,67 @@ def plan_source_cleanup(
     document_analysis: RenderDocumentAnalysis | None = None,
     pdf_structure_profile=None,
 ) -> BBoxTextStripCandidates:
+    """Production entry, driven by `PlanningPageContext` per page. When the
+    native bridge is absent this behaves identically through the Python
+    reference context builder; `_plan_source_cleanup_python` is the pure-fitz
+    reference for parity checks."""
+    return _plan_source_cleanup_from_contexts(
+        source_pdf_path=source_pdf_path,
+        translated_pages=translated_pages,
+        protected_pages=protected_pages or {},
+        skip_formula_pages=skip_formula_pages,
+        skip_form_xobject_pages=skip_form_xobject_pages,
+        document_analysis=document_analysis,
+    )
+
+
+def _plan_source_cleanup_from_contexts(
+    *,
+    source_pdf_path: Path,
+    translated_pages: dict[int, list[dict]],
+    protected_pages: dict[int, list[dict]],
+    skip_formula_pages: bool,
+    skip_form_xobject_pages: bool,
+    document_analysis: RenderDocumentAnalysis | None,
+) -> BBoxTextStripCandidates:
+    from services.rendering.source_cleanup.planning import _native
+
+    accumulator = BBoxTextStripCandidateAccumulator()
+    contexts = _native.build_page_contexts(source_pdf_path, sorted(translated_pages))
+    for page_idx, items in translated_pages.items():
+        ctx = contexts.get(page_idx)
+        if ctx is None:
+            continue
+        features = PageCleanupFeatures(
+            content_stream_size=ctx.content_stream_size,
+            has_form_xobjects=ctx.has_form_xobjects,
+        )
+        accumulator.add_page_features(page_idx, features)
+        page_plan = plan_source_cleanup_page_ctx(
+            ctx,
+            translated_items=items,
+            protected_items=protected_pages.get(page_idx, []),
+            skip_formula_pages=skip_formula_pages,
+            skip_form_xobject_pages=skip_form_xobject_pages,
+            features=features,
+            document_analysis=document_analysis,
+        )
+        accumulator.add_page_plan(page_idx, page_plan)
+    return accumulator.build()
+
+
+def _plan_source_cleanup_python(
+    *,
+    source_pdf_path: Path,
+    translated_pages: dict[int, list[dict]],
+    protected_pages: dict[int, list[dict]],
+    skip_formula_pages: bool,
+    skip_form_xobject_pages: bool,
+    document_analysis: RenderDocumentAnalysis | None,
+) -> BBoxTextStripCandidates:
     accumulator = BBoxTextStripCandidateAccumulator()
     doc = fitz.open(source_pdf_path)
     try:
-        protected_pages = protected_pages or {}
         for page_idx, items in translated_pages.items():
             if page_idx < 0 or page_idx >= len(doc):
                 continue
@@ -68,9 +124,8 @@ def plan_source_cleanup(
     return accumulator.build()
 
 
-def plan_source_cleanup_page(
-    doc: fitz.Document,
-    page: fitz.Page,
+def plan_source_cleanup_page_ctx(
+    ctx: PlanningPageContext,
     *,
     translated_items: list[dict],
     protected_items: list[dict] | None = None,
@@ -79,8 +134,10 @@ def plan_source_cleanup_page(
     features: PageCleanupFeatures | None = None,
     document_analysis: RenderDocumentAnalysis | None = None,
 ) -> BBoxTextStripPagePlan:
+    # `features` mirrors the fitz wrapper's signature; the ctx already carries
+    # the content-stream / form-xobject facts it would hold.
     if document_analysis is not None:
-        route = document_analysis.page(page.number)
+        route = document_analysis.page(ctx.page_index)
         if route is not None and not route.allows_pikepdf_text_strip:
             return BBoxTextStripPagePlan(skip_reason=BBOX_TEXT_STRIP_PAGE_SKIP_VISUAL_BACKGROUND)
     items_skip_reason = bbox_text_strip_items_skip_reason(
@@ -92,19 +149,18 @@ def plan_source_cleanup_page(
     strip_items = [item for item in translated_items if item_should_emit_strip_rect(item)]
     if not strip_items:
         return BBoxTextStripPagePlan()
-    page_features = features or build_page_cleanup_features(doc, page)
-    if page_features.content_stream_size >= BBOX_TEXT_STRIP_CONTENT_STREAM_SIZE_THRESHOLD:
+    if ctx.content_stream_size >= BBOX_TEXT_STRIP_CONTENT_STREAM_SIZE_THRESHOLD:
         return BBoxTextStripPagePlan(skip_reason=BBOX_TEXT_STRIP_PAGE_SKIP_COMPLEX)
-    if skip_form_xobject_pages and page_features.has_form_xobjects:
-        return _plan_form_xobject_page(
-            page,
+    if skip_form_xobject_pages and ctx.has_form_xobjects:
+        return _plan_form_xobject_page_ctx(
+            ctx,
             translated_items=translated_items,
             strip_items=strip_items,
             protected_items=protected_items or [],
         )
 
-    resolver = PageBBoxResolver.build(page, bboxes=[item.get("bbox", []) for item in strip_items])
-    strip_pairs = list(iter_strip_item_rect_pairs_for_page(page, strip_items, resolver=resolver, prefiltered=True))
+    resolver = PageBBoxResolver.build(ctx, bboxes=[item.get("bbox", []) for item in strip_items])
+    strip_pairs = list(iter_strip_item_rect_pairs_for_page_ctx(ctx, strip_items, resolver=resolver, prefiltered=True))
     item_view_rects = merge_rects([pair.view_rect for pair in strip_pairs if not pair.view_rect.is_empty])
     if not item_view_rects:
         return BBoxTextStripPagePlan()
@@ -113,8 +169,8 @@ def plan_source_cleanup_page(
     if resolver.has_large_background_image():
         return BBoxTextStripPagePlan(skip_reason=BBOX_TEXT_STRIP_PAGE_SKIP_VISUAL_BACKGROUND)
 
-    formula_rects = [rect for _item, rect in iter_formula_item_rects_for_page(page, translated_items)]
-    source_protected_rects = [rect for _item, rect in iter_protected_item_rects_for_page(page, protected_items or [])]
+    formula_rects = [rect for _item, rect in iter_formula_item_rects_for_page_ctx(ctx, translated_items)]
+    source_protected_rects = [rect for _item, rect in iter_protected_item_rects_for_page_ctx(ctx, protected_items or [])]
     source_strip_rects = merge_rects([pair.pdf_rect for pair in strip_pairs])
     strip_rects = _build_page_strip_rects_from_pairs(
         strip_pairs,
@@ -137,14 +193,37 @@ def plan_source_cleanup_page(
     )
 
 
+def plan_source_cleanup_page(
+    doc: fitz.Document,
+    page: fitz.Page,
+    *,
+    translated_items: list[dict],
+    protected_items: list[dict] | None = None,
+    skip_formula_pages: bool = False,
+    skip_form_xobject_pages: bool = True,
+    features: PageCleanupFeatures | None = None,
+    document_analysis: RenderDocumentAnalysis | None = None,
+) -> BBoxTextStripPagePlan:
+    return plan_source_cleanup_page_ctx(
+        _build_context_from_fitz(doc, page),
+        translated_items=translated_items,
+        protected_items=protected_items,
+        skip_formula_pages=skip_formula_pages,
+        skip_form_xobject_pages=skip_form_xobject_pages,
+        features=features,
+        document_analysis=document_analysis,
+    )
+
+
 def build_page_strip_rects_for_page(
     page: fitz.Page,
     *,
     translated_items: list[dict],
 ) -> list[fitz.Rect]:
-    protected_formula_rects = build_page_formula_rects_for_page(page, translated_items=translated_items)
-    resolver = PageBBoxResolver.build(page)
-    strip_pairs = list(iter_strip_item_rect_pairs_for_page(page, translated_items, resolver=resolver))
+    ctx = _build_context_from_fitz(None, page)
+    protected_formula_rects = build_page_formula_rects_for_page_ctx(ctx, translated_items=translated_items)
+    resolver = PageBBoxResolver.build(ctx)
+    strip_pairs = list(iter_strip_item_rect_pairs_for_page_ctx(ctx, translated_items, resolver=resolver))
     return _build_page_strip_rects_from_pairs(
         strip_pairs,
         formula_rects=protected_formula_rects,
@@ -164,18 +243,18 @@ def _build_page_strip_rects_from_pairs(
     return merge_rects(rects)
 
 
-def _plan_form_xobject_page(
-    page: fitz.Page,
+def _plan_form_xobject_page_ctx(
+    ctx: PlanningPageContext,
     *,
     translated_items: list[dict],
     strip_items: list[dict],
     protected_items: list[dict] | None = None,
 ) -> BBoxTextStripPagePlan:
-    formula_rects = [rect for _item, rect in iter_formula_item_rects_for_page(page, translated_items)]
+    formula_rects = [rect for _item, rect in iter_formula_item_rects_for_page_ctx(ctx, translated_items)]
     source_strip_rects = [
         rect
         for item in strip_items
-        if (rect := ocr_bbox_to_pdf_rect(page, item.get("bbox", []))) is not None
+        if (rect := ocr_bbox_to_pdf_rect_with_ctm(ctx.inverse_ctm, item.get("bbox", []))) is not None
     ]
     strip_rects = merge_rects(
         segment
@@ -185,7 +264,7 @@ def _plan_form_xobject_page(
     protected_rects = merge_rects(
         [
             *build_formula_guard_rects(formula_rects, strip_rects=merge_rects(source_strip_rects)),
-            *(rect for _item, rect in iter_protected_item_rects_for_page(page, protected_items or [])),
+            *(rect for _item, rect in iter_protected_item_rects_for_page_ctx(ctx, protected_items or [])),
         ]
     )
     return BBoxTextStripPagePlan(
@@ -194,15 +273,57 @@ def _plan_form_xobject_page(
     )
 
 
-def iter_protected_item_rects_for_page(page: fitz.Page, protected_items: list[dict]):
-    resolver = PageBBoxResolver.build(page, bboxes=[item.get("bbox", []) for item in protected_items])
+def _plan_form_xobject_page(
+    page: fitz.Page,
+    *,
+    translated_items: list[dict],
+    strip_items: list[dict],
+    protected_items: list[dict] | None = None,
+) -> BBoxTextStripPagePlan:
+    return _plan_form_xobject_page_ctx(
+        _build_context_from_fitz(None, page),
+        translated_items=translated_items,
+        strip_items=strip_items,
+        protected_items=protected_items,
+    )
+
+
+def iter_protected_item_rects_for_page_ctx(
+    ctx: PlanningPageContext,
+    protected_items: list[dict],
+):
+    resolver = PageBBoxResolver.build(ctx, bboxes=[item.get("bbox", []) for item in protected_items])
     for item in protected_items:
         rect = resolver.ocr_bbox_to_pdf_rect(item.get("bbox", []))
         if rect is not None:
             yield item, rect
 
 
+def iter_protected_item_rects_for_page(page: fitz.Page, protected_items: list[dict]):
+    yield from iter_protected_item_rects_for_page_ctx(
+        _build_context_from_fitz(None, page),
+        protected_items,
+    )
+
+
 def item_ids_with_uncovered_unsafe_vector_overlap(
+    *,
+    source_pdf_path: Path,
+    translated_pages: dict[int, list[dict]],
+) -> frozenset[str]:
+    from services.rendering.source_cleanup.planning import _native
+
+    contexts = _native.build_page_contexts(source_pdf_path, sorted(translated_pages))
+    item_ids: set[str] = set()
+    for page_idx, items in translated_pages.items():
+        ctx = contexts.get(page_idx)
+        if ctx is None:
+            continue
+        item_ids.update(page_uncovered_unsafe_vector_item_ids_ctx(ctx, items))
+    return frozenset(item_ids)
+
+
+def _item_ids_with_uncovered_unsafe_vector_overlap_python(
     *,
     source_pdf_path: Path,
     translated_pages: dict[int, list[dict]],
@@ -219,14 +340,24 @@ def item_ids_with_uncovered_unsafe_vector_overlap(
     return frozenset(item_ids)
 
 
-def page_uncovered_unsafe_vector_item_ids(page: fitz.Page, translated_items: list[dict]) -> frozenset[str]:
+def page_uncovered_unsafe_vector_item_ids_ctx(
+    ctx: PlanningPageContext,
+    translated_items: list[dict],
+) -> frozenset[str]:
     strip_items = [item for item in translated_items if item_should_emit_strip_rect(item)]
     if not strip_items:
         return frozenset()
-    resolver = PageBBoxResolver.build(page, bboxes=[item.get("bbox", []) for item in strip_items])
+    resolver = PageBBoxResolver.build(ctx, bboxes=[item.get("bbox", []) for item in strip_items])
     return uncovered_unsafe_vector_item_ids(
-        iter_strip_item_rect_pairs_for_page(page, strip_items, resolver=resolver, prefiltered=True),
+        iter_strip_item_rect_pairs_for_page_ctx(ctx, strip_items, resolver=resolver, prefiltered=True),
         unsafe_rects=resolver.unsafe_vector_index,
+    )
+
+
+def page_uncovered_unsafe_vector_item_ids(page: fitz.Page, translated_items: list[dict]) -> frozenset[str]:
+    return page_uncovered_unsafe_vector_item_ids_ctx(
+        _build_context_from_fitz(None, page),
+        translated_items,
     )
 
 
@@ -250,12 +381,23 @@ def pair_overlaps_unsafe_vector(pair, unsafe_rects) -> bool:
     return any(rect_overlaps_any_unsafe_vector(rect, unsafe_rects) for rect in probe_rects)
 
 
+def build_page_formula_rects_for_page_ctx(
+    ctx: PlanningPageContext,
+    *,
+    translated_items: list[dict],
+) -> list[fitz.Rect]:
+    return [rect for _item, rect in iter_formula_item_rects_for_page_ctx(ctx, translated_items)]
+
+
 def build_page_formula_rects_for_page(
     page: fitz.Page,
     *,
     translated_items: list[dict],
 ) -> list[fitz.Rect]:
-    return [rect for _item, rect in iter_formula_item_rects_for_page(page, translated_items)]
+    return build_page_formula_rects_for_page_ctx(
+        _build_context_from_fitz(None, page),
+        translated_items=translated_items,
+    )
 
 
 def build_formula_guard_rects(
@@ -267,4 +409,6 @@ def build_formula_guard_rects(
 
 
 def build_page_strip_source_rects_for_page(page: fitz.Page, *, translated_items: list[dict]) -> list[fitz.Rect]:
-    return merge_rects([rect for _item, rect in iter_strip_item_rects_for_page(page, translated_items)])
+    return merge_rects(
+        [rect for _item, rect in iter_strip_item_rects_for_page_ctx(_build_context_from_fitz(None, page), translated_items)]
+    )

@@ -28,6 +28,13 @@ def build_document_visual_profile(
     source_pdf_path: Path,
     pages: dict[int, list[dict]],
 ) -> DocumentVisualProfile:
+    from services.rendering.visual_profile import _native
+
+    if _native.NATIVE:
+        return _native.build_document_visual_profile(
+            source_pdf_path=source_pdf_path,
+            pages=pages,
+        )
     doc = fitz.open(source_pdf_path)
     try:
         page_profiles: dict[int, PageVisualProfile] = {}
@@ -70,18 +77,10 @@ def build_page_visual_profile(
             continue
         rect = item_rects.get(item_id)
         if rect is None:
-            profiles[item_id] = ItemVisualProfile(
-                item_id=item_id,
+            profiles[item_id] = _fallback_item_profile(
                 page_index=page_index,
-                bbox=(0.0, 0.0, 0.0, 0.0),
-                bbox_space="page_pt",
-                bbox_source="missing_bbox",
-                source_item_kind=_source_item_kind(item),
-                background_rgb=page_background,
-                text_rgb=text_color_for_background(page_background),
-                confidence=0.1,
-                method="page_fallback",
-                warnings=("missing_bbox",),
+                item=item,
+                item_id=item_id,
             )
             continue
         profiles[item_id] = _sample_item_profile(
@@ -101,6 +100,27 @@ def build_page_visual_profile(
     )
 
 
+def _fallback_item_profile(
+    *,
+    page_index: int,
+    item: dict,
+    item_id: str,
+) -> ItemVisualProfile:
+    return ItemVisualProfile(
+        item_id=item_id,
+        page_index=page_index,
+        bbox=(0.0, 0.0, 0.0, 0.0),
+        bbox_space="page_pt",
+        bbox_source="missing_bbox",
+        source_item_kind=_source_item_kind(item),
+        background_rgb=DEFAULT_PAGE_BACKGROUND,
+        text_rgb=text_color_for_background(DEFAULT_PAGE_BACKGROUND),
+        confidence=0.1,
+        method="page_fallback",
+        warnings=("missing_bbox",),
+    )
+
+
 def _sample_item_profile(
     *,
     page: fitz.Page,
@@ -117,6 +137,34 @@ def _sample_item_profile(
         if should_sample_background
         else DEFAULT_PAGE_BACKGROUND
     )
+    foreground_color = None
+    foreground_confidence = 0.0
+    if _is_document_title(item):
+        foreground_color, foreground_confidence = sample_foreground_color_from_pixels(page, rect, background)
+    return _sample_item_profile_with_data(
+        page_index=page_index,
+        item=item,
+        item_id=item_id,
+        rect=rect,
+        background=background,
+        span_sampler=span_sampler,
+        foreground_color=foreground_color,
+        foreground_confidence=foreground_confidence,
+    )
+
+
+def _sample_item_profile_with_data(
+    *,
+    page_index: int,
+    item: dict,
+    item_id: str,
+    rect: fitz.Rect,
+    background: tuple[float, float, float] | list[float],
+    span_sampler: PageSpanColorSampler | None,
+    foreground_color: tuple[float, float, float] | list[float] | None = None,
+    foreground_confidence: float = 0.0,
+) -> ItemVisualProfile:
+    should_sample_background = _item_needs_visual_profile_background(item)
     warnings: list[str] = []
     method_parts: list[str] = ["background_pixels" if should_sample_background else "background_default"]
     confidence = 0.55
@@ -133,11 +181,10 @@ def _sample_item_profile(
         method_parts.append("span_color")
         confidence = 0.86
     elif _is_document_title(item):
-        sampled_color, sampled_confidence = sample_foreground_color_from_pixels(page, rect, background)
-        if sampled_color is not None:
-            text_color = sampled_color
+        if foreground_color is not None:
+            text_color = tuple(foreground_color)
             method_parts.append("foreground_pixels")
-            confidence = max(confidence, sampled_confidence)
+            confidence = max(confidence, foreground_confidence)
         else:
             text_color = text_color_for_background(background)
             method_parts.append("contrast_fallback")

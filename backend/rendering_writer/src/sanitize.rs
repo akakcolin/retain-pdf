@@ -19,7 +19,7 @@ use mupdf::Error;
 use crate::contents::resolve;
 
 /// Per-document sanitize outcome, mirroring `XObjectSanitizeResult`.
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, serde::Serialize)]
 pub struct SanitizeResult {
     pub changed: bool,
     pub invalid_image_xobjects: usize,

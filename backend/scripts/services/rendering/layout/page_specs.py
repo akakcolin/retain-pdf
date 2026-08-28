@@ -3,8 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable
 
-import fitz
-
 from services.rendering.layout.payload.prepare import prepare_render_payloads_by_page
 from services.rendering.layout.payload.blocks import build_render_block_payloads
 from services.rendering.layout.payload.blocks import resolve_book_body_font_target_from_payloads
@@ -95,6 +93,27 @@ def _layout_page_spec(
     )
 
 
+def _read_source_page_sizes_python(*, source_pdf_path: Path, page_indices: list[int]) -> PageSizeLookup:
+    """Pure-Python reference for `_native.read_source_page_sizes`: fitz
+    `page.rect` width/height per readable index (the pre-B2-1
+    `build_render_page_specs` fitz block)."""
+    import fitz
+
+    source_doc = fitz.open(source_pdf_path)
+    try:
+        return {
+            page_index: (
+                float(source_doc[page_index].rect.width),
+                float(source_doc[page_index].rect.height),
+            )
+            for page_index in sorted(
+                page_idx for page_idx in page_indices if 0 <= page_idx < len(source_doc)
+            )
+        }
+    finally:
+        source_doc.close()
+
+
 def build_render_page_specs(
     *,
     source_pdf_path: Path,
@@ -109,27 +128,19 @@ def build_render_page_specs(
         if prepared
         else apply_render_pages_policy_fields(prepare_render_payloads_by_page(translated_pages))
     )
-    if page_size_lookup is not None:
-        return build_render_page_specs_from_page_sizes(
-            translated_pages=prepared_pages,
-            page_size_lookup=page_size_lookup,
-            background_pdf_path=background_pdf_path,
-            on_page_spec_built=on_page_spec_built,
+    if page_size_lookup is None:
+        from services.rendering.layout import _native
+
+        page_size_lookup = _native.read_source_page_sizes(
+            source_pdf_path=source_pdf_path,
+            page_indices=sorted(prepared_pages),
         )
-    source_doc = fitz.open(source_pdf_path)
-    try:
-        source_page_sizes = {
-            page_index: (float(source_doc[page_index].rect.width), float(source_doc[page_index].rect.height))
-            for page_index in sorted(page_idx for page_idx in prepared_pages if 0 <= page_idx < len(source_doc))
-        }
-        return build_render_page_specs_from_page_sizes(
-            translated_pages=prepared_pages,
-            page_size_lookup=source_page_sizes,
-            background_pdf_path=background_pdf_path,
-            on_page_spec_built=on_page_spec_built,
-        )
-    finally:
-        source_doc.close()
+    return build_render_page_specs_from_page_sizes(
+        translated_pages=prepared_pages,
+        page_size_lookup=page_size_lookup,
+        background_pdf_path=background_pdf_path,
+        on_page_spec_built=on_page_spec_built,
+    )
 
 
 def build_render_page_specs_from_page_sizes(

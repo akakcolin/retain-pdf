@@ -158,22 +158,20 @@ def overlay_translated_pages_on_doc(
     if prepared_overlay_pages is not None:
         color_elapsed = 0.0
     elif color_sample_pdf_path is not None:
-        sample_doc = fitz.open(color_sample_pdf_path)
-        try:
-            translated_pages = apply_overlay_page_colors(
-                sample_doc,
-                ordered_page_indices,
-                translated_pages,
-                precomputed_colors_by_item_id=active_colors_by_item_id,
-            )
-        finally:
-            sample_doc.close()
+        translated_pages = apply_overlay_page_colors(
+            doc,
+            ordered_page_indices,
+            translated_pages,
+            precomputed_colors_by_item_id=active_colors_by_item_id,
+            source_pdf_path=color_sample_pdf_path,
+        )
     else:
         translated_pages = apply_overlay_page_colors(
             doc,
             ordered_page_indices,
             translated_pages,
             precomputed_colors_by_item_id=active_colors_by_item_id,
+            source_pdf_path=source_pdf_path or source_base_pdf_path,
         )
     if prepared_overlay_pages is None:
         color_elapsed = time.perf_counter() - color_started

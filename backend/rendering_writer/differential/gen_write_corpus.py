@@ -36,13 +36,13 @@ _SCRIPTS_DIR = os.path.abspath(os.path.join(_HERE, "..", "..", "scripts"))
 sys.path.insert(0, _SCRIPTS_DIR)
 
 from services.rendering.source.compression.image_pipeline import (  # noqa: E402
-    compress_pdf_images_only_impl,
+    _compress_pdf_images_only_impl_python,
 )
 from services.rendering.source.preparation.hidden_text_strip import (  # noqa: E402
     build_hidden_text_stripped_pdf_copy,
 )
 from services.rendering.source.preparation.xobject_sanitize import (  # noqa: E402
-    build_invalid_xobject_sanitized_pdf_copy,
+    _build_invalid_xobject_sanitized_pdf_copy_python,
 )
 from services.rendering.source_cleanup.pdf.document import (  # noqa: E402
     strip_bbox_text_rects_from_pdf_copy,
@@ -344,9 +344,10 @@ def multi_page_doc(texts_per_page: list[list[str]]) -> fitz.Document:
 
 
 def case_subset(name: str, texts_per_page: list[list[str]], start_page: int, end_page: int) -> dict:
-    """Page extraction via the production pikepdf `extract_pages_with_pikepdf`;
-    expected facts are per-page words/ink_ratio of input and selected output."""
-    from services.rendering.document.pikepdf_pages import extract_pages_with_pikepdf
+    """Page extraction via the pure-Python reference
+    `_extract_pages_with_pikepdf_python`; expected facts are per-page
+    words/ink_ratio of input and selected output."""
+    from services.rendering.document.pikepdf_pages import _extract_pages_with_pikepdf_python
 
     doc = multi_page_doc(texts_per_page)
     input_bytes = deterministic_tobytes(doc)
@@ -358,7 +359,7 @@ def case_subset(name: str, texts_per_page: list[list[str]], start_page: int, end
         out = os.path.join(tmp, "out.pdf")
         with open(src, "wb") as fh:
             fh.write(input_bytes)
-        extract_pages_with_pikepdf(
+        _extract_pages_with_pikepdf_python(
             source_pdf_path=Path(src),
             output_pdf_path=Path(out),
             start_page=start_page,
@@ -480,7 +481,7 @@ def case_image_compress(name: str, dpi: int = 200) -> dict:
         src = os.path.join(tmp, "in.pdf")
         with open(src, "wb") as fh:
             fh.write(input_bytes)
-        changed = compress_pdf_images_only_impl(Path(src), dpi=dpi)
+        changed = _compress_pdf_images_only_impl_python(Path(src), dpi=dpi)
         if not changed:
             raise RuntimeError(f"case {name}: expected changed=True, got unchanged")
         with fitz.open(src) as out_doc:
@@ -664,7 +665,7 @@ def case_sanitize() -> dict:
         out = os.path.join(tmp, "out.pdf")
         with open(src, "wb") as fh:
             fh.write(input_bytes)
-        result = build_invalid_xobject_sanitized_pdf_copy(
+        result = _build_invalid_xobject_sanitized_pdf_copy_python(
             source_pdf_path=Path(src),
             output_pdf_path=Path(out),
         )

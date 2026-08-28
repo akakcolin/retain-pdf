@@ -526,6 +526,1413 @@
           }
         ]
       }
+    },
+    {
+      "expected_input": {
+        "pages": [
+          {
+            "ink_ratio": 0.0005219680464778504,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.00034969795999207764,
+            "words": 1
+          }
+        ]
+      },
+      "expected_output": {
+        "pages": [
+          {
+            "ink_ratio": 0.0010552832244008715,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.0,
+            "words": 1
+          }
+        ]
+      },
+      "expected_replaced_pages": {
+        "0": [
+          {
+            "_visual_profile_fill": [
+              0.85,
+              0.87,
+              0.9
+            ],
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              90.68399047851562,
+              103.58799743652344
+            ],
+            "item_id": "line-0",
+            "translated_text": "Alpha"
+          },
+          {
+            "bbox": [
+              60.0,
+              137.10000610351562,
+              84.68399047851562,
+              153.58799743652344
+            ],
+            "translated_text": "Beta"
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      },
+      "name": "visual_profile_partial_hit",
+      "page_rect": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+      ],
+      "per_page_diagnostics": [
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 2,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 2,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 1
+        },
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 1,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 1,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 0
+        }
+      ],
+      "precleaned_page_indices": [],
+      "redaction_strategy": "visual_cover",
+      "source_pdf_b64": "JVBERi0xLjcKJcK1wrYKCjEgMCBvYmoKPDwvVHlwZS9DYXRhbG9nL1BhZ2VzIDIgMCBSPj4KZW5kb2JqCgoyIDAgb2JqCjw8L1R5cGUvUGFnZXMvQ291bnQgMi9LaWRzWzQgMCBSIDkgMCBSXT4+CmVuZG9iagoKMyAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo0IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDMgMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1s2IDAgUiA3IDAgUl0+PgplbmRvYmoKCjUgMCBvYmoKPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhL0VuY29kaW5nL1dpbkFuc2lFbmNvZGluZz4+CmVuZG9iagoKNiAwIG9iago8PC9MZW5ndGggNzQvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE0CzZ3MDMwszQLjbEi8s1hCuQCwAulxK/CmVuZHN0cmVhbQplbmRvYmoKCjcgMCBvYmoKPDwvTGVuZ3RoIDcyL0ZpbHRlci9GbGF0ZURlY29kZT4+CnN0cmVhbQp42uMq5HIK4TJUMABCQwUzAwUzEyOFkFwu/YzUnDIFQyA7TUEPSMFwkDsKtyhdIdrGxMjM1NzEzNAuNsSLyzWEK5ALAAW4EiMKZW5kc3RyZWFtCmVuZG9iagoKOCAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo5IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDggMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1sxMCAwIFJdPj4KZW5kb2JqCgoxMCAwIG9iago8PC9MZW5ndGggNzIvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE3MzQLAUIDe1iQ7y4XEO4ArkAMO8S8gplbmRzdHJlYW0KZW5kb2JqCgp4cmVmCjAgMTEKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE2IDAwMDAwIG4gCjAwMDAwMDAwNjIgMDAwMDAgbiAKMDAwMDAwMDEyMCAwMDAwMCBuIAowMDAwMDAwMTYxIDAwMDAwIG4gCjAwMDAwMDAyNzQgMDAwMDAgbiAKMDAwMDAwMDM2MyAwMDAwMCBuIAowMDAwMDAwNTA1IDAwMDAwIG4gCjAwMDAwMDA2NDUgMDAwMDAgbiAKMDAwMDAwMDY4NiAwMDAwMCBuIAowMDAwMDAwNzk0IDAwMDAwIG4gCgp0cmFpbGVyCjw8L1NpemUgMTEvUm9vdCAxIDAgUi9JRC9JRFs8MzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzA+PDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwPl0+PgpzdGFydHhyZWYKOTM1CiUlRU9GCg==",
+      "toc": [],
+      "toc_entries": 0,
+      "translated_pages": {
+        "0": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              90.68399047851562,
+              103.58799743652344
+            ],
+            "item_id": "line-0",
+            "translated_text": "Alpha"
+          },
+          {
+            "bbox": [
+              60.0,
+              137.10000610351562,
+              84.68399047851562,
+              153.58799743652344
+            ],
+            "translated_text": "Beta"
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      },
+      "visual_profile_fill_map": {
+        "line-0": [
+          0.85,
+          0.87,
+          0.9
+        ]
+      }
+    },
+    {
+      "expected_input": {
+        "pages": [
+          {
+            "ink_ratio": 0.0005219680464778504,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.00034969795999207764,
+            "words": 1
+          }
+        ]
+      },
+      "expected_output": {
+        "pages": [
+          {
+            "ink_ratio": 0.0,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.0,
+            "words": 1
+          }
+        ]
+      },
+      "name": "visual_profile_all_miss",
+      "page_rect": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+      ],
+      "per_page_diagnostics": [
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 2,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 2,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 0
+        },
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 1,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 1,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 0
+        }
+      ],
+      "precleaned_page_indices": [],
+      "redaction_strategy": "visual_cover",
+      "source_pdf_b64": "JVBERi0xLjcKJcK1wrYKCjEgMCBvYmoKPDwvVHlwZS9DYXRhbG9nL1BhZ2VzIDIgMCBSPj4KZW5kb2JqCgoyIDAgb2JqCjw8L1R5cGUvUGFnZXMvQ291bnQgMi9LaWRzWzQgMCBSIDkgMCBSXT4+CmVuZG9iagoKMyAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo0IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDMgMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1s2IDAgUiA3IDAgUl0+PgplbmRvYmoKCjUgMCBvYmoKPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhL0VuY29kaW5nL1dpbkFuc2lFbmNvZGluZz4+CmVuZG9iagoKNiAwIG9iago8PC9MZW5ndGggNzQvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE0CzZ3MDMwszQLjbEi8s1hCuQCwAulxK/CmVuZHN0cmVhbQplbmRvYmoKCjcgMCBvYmoKPDwvTGVuZ3RoIDcyL0ZpbHRlci9GbGF0ZURlY29kZT4+CnN0cmVhbQp42uMq5HIK4TJUMABCQwUzAwUzEyOFkFwu/YzUnDIFQyA7TUEPSMFwkDsKtyhdIdrGxMjM1NzEzNAuNsSLyzWEK5ALAAW4EiMKZW5kc3RyZWFtCmVuZG9iagoKOCAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo5IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDggMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1sxMCAwIFJdPj4KZW5kb2JqCgoxMCAwIG9iago8PC9MZW5ndGggNzIvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE3MzQLAUIDe1iQ7y4XEO4ArkAMO8S8gplbmRzdHJlYW0KZW5kb2JqCgp4cmVmCjAgMTEKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE2IDAwMDAwIG4gCjAwMDAwMDAwNjIgMDAwMDAgbiAKMDAwMDAwMDEyMCAwMDAwMCBuIAowMDAwMDAwMTYxIDAwMDAwIG4gCjAwMDAwMDAyNzQgMDAwMDAgbiAKMDAwMDAwMDM2MyAwMDAwMCBuIAowMDAwMDAwNTA1IDAwMDAwIG4gCjAwMDAwMDA2NDUgMDAwMDAgbiAKMDAwMDAwMDY4NiAwMDAwMCBuIAowMDAwMDAwNzk0IDAwMDAwIG4gCgp0cmFpbGVyCjw8L1NpemUgMTEvUm9vdCAxIDAgUi9JRC9JRFs8MzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzA+PDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwPl0+PgpzdGFydHhyZWYKOTM1CiUlRU9GCg==",
+      "toc": [],
+      "toc_entries": 0,
+      "translated_pages": {
+        "0": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              90.68399047851562,
+              103.58799743652344
+            ],
+            "translated_text": "Alpha"
+          },
+          {
+            "bbox": [
+              60.0,
+              137.10000610351562,
+              84.68399047851562,
+              153.58799743652344
+            ],
+            "translated_text": "Beta"
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      },
+      "visual_profile_fill_map": {
+        "ghost-item": [
+          0.9,
+          0.9,
+          0.9
+        ]
+      }
+    },
+    {
+      "expected_input": {
+        "pages": [
+          {
+            "ink_ratio": 0.0005219680464778504,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.00034969795999207764,
+            "words": 1
+          }
+        ]
+      },
+      "expected_output": {
+        "pages": [
+          {
+            "ink_ratio": 0.0,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.0,
+            "words": 1
+          }
+        ]
+      },
+      "name": "visual_profile_not_loaded",
+      "page_rect": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+      ],
+      "per_page_diagnostics": [
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 2,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 2,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 0
+        },
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 1,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 1,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 0
+        }
+      ],
+      "precleaned_page_indices": [],
+      "redaction_strategy": "visual_cover",
+      "source_pdf_b64": "JVBERi0xLjcKJcK1wrYKCjEgMCBvYmoKPDwvVHlwZS9DYXRhbG9nL1BhZ2VzIDIgMCBSPj4KZW5kb2JqCgoyIDAgb2JqCjw8L1R5cGUvUGFnZXMvQ291bnQgMi9LaWRzWzQgMCBSIDkgMCBSXT4+CmVuZG9iagoKMyAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo0IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDMgMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1s2IDAgUiA3IDAgUl0+PgplbmRvYmoKCjUgMCBvYmoKPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhL0VuY29kaW5nL1dpbkFuc2lFbmNvZGluZz4+CmVuZG9iagoKNiAwIG9iago8PC9MZW5ndGggNzQvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE0CzZ3MDMwszQLjbEi8s1hCuQCwAulxK/CmVuZHN0cmVhbQplbmRvYmoKCjcgMCBvYmoKPDwvTGVuZ3RoIDcyL0ZpbHRlci9GbGF0ZURlY29kZT4+CnN0cmVhbQp42uMq5HIK4TJUMABCQwUzAwUzEyOFkFwu/YzUnDIFQyA7TUEPSMFwkDsKtyhdIdrGxMjM1NzEzNAuNsSLyzWEK5ALAAW4EiMKZW5kc3RyZWFtCmVuZG9iagoKOCAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo5IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDggMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1sxMCAwIFJdPj4KZW5kb2JqCgoxMCAwIG9iago8PC9MZW5ndGggNzIvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE3MzQLAUIDe1iQ7y4XEO4ArkAMO8S8gplbmRzdHJlYW0KZW5kb2JqCgp4cmVmCjAgMTEKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE2IDAwMDAwIG4gCjAwMDAwMDAwNjIgMDAwMDAgbiAKMDAwMDAwMDEyMCAwMDAwMCBuIAowMDAwMDAwMTYxIDAwMDAwIG4gCjAwMDAwMDAyNzQgMDAwMDAgbiAKMDAwMDAwMDM2MyAwMDAwMCBuIAowMDAwMDAwNTA1IDAwMDAwIG4gCjAwMDAwMDA2NDUgMDAwMDAgbiAKMDAwMDAwMDY4NiAwMDAwMCBuIAowMDAwMDAwNzk0IDAwMDAwIG4gCgp0cmFpbGVyCjw8L1NpemUgMTEvUm9vdCAxIDAgUi9JRC9JRFs8MzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzA+PDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwPl0+PgpzdGFydHhyZWYKOTM1CiUlRU9GCg==",
+      "toc": [],
+      "toc_entries": 0,
+      "translated_pages": {
+        "0": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              90.68399047851562,
+              103.58799743652344
+            ],
+            "translated_text": "Alpha"
+          },
+          {
+            "bbox": [
+              60.0,
+              137.10000610351562,
+              84.68399047851562,
+              153.58799743652344
+            ],
+            "translated_text": "Beta"
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      }
+    },
+    {
+      "expected_input": {
+        "pages": [
+          {
+            "ink_ratio": 0.0005219680464778504,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.00034969795999207764,
+            "words": 1
+          }
+        ]
+      },
+      "expected_output": {
+        "pages": [
+          {
+            "ink_ratio": 0.0,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.0,
+            "words": 1
+          }
+        ]
+      },
+      "expected_replaced_pages": {
+        "0": [
+          {
+            "_render_block_id": "block-0",
+            "_render_block_index": 0,
+            "bbox": [
+              50.0,
+              85.0,
+              320.0,
+              200.0
+            ],
+            "block_kind": "render_block",
+            "block_type": "render_block",
+            "item_id": "block-0",
+            "protected_translated_text": "Alpha Beta",
+            "render_protected_text": "Alpha Beta",
+            "source_block_kind": null,
+            "source_item_id": null,
+            "source_text": "Alpha Beta",
+            "translated_text": "Alpha Beta"
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      },
+      "name": "page_specs_replace_items",
+      "page_rect": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+      ],
+      "page_specs": [
+        {
+          "background_pdf_path": null,
+          "blocks": [
+            {
+              "background_rect": [
+                50.0,
+                85.0,
+                320.0,
+                200.0
+              ],
+              "block_id": "block-0",
+              "content_kind": "text",
+              "content_rect": [
+                50.0,
+                85.0,
+                320.0,
+                200.0
+              ],
+              "content_text": "Alpha Beta",
+              "plain_text": "Alpha Beta"
+            }
+          ],
+          "page_height_pt": 792.0,
+          "page_index": 0,
+          "page_width_pt": 612.0
+        }
+      ],
+      "per_page_diagnostics": [
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 1,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 1,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 0
+        },
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 1,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 1,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 0
+        }
+      ],
+      "precleaned_page_indices": [],
+      "redaction_strategy": "visual_cover",
+      "source_pdf_b64": "JVBERi0xLjcKJcK1wrYKCjEgMCBvYmoKPDwvVHlwZS9DYXRhbG9nL1BhZ2VzIDIgMCBSPj4KZW5kb2JqCgoyIDAgb2JqCjw8L1R5cGUvUGFnZXMvQ291bnQgMi9LaWRzWzQgMCBSIDkgMCBSXT4+CmVuZG9iagoKMyAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo0IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDMgMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1s2IDAgUiA3IDAgUl0+PgplbmRvYmoKCjUgMCBvYmoKPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhL0VuY29kaW5nL1dpbkFuc2lFbmNvZGluZz4+CmVuZG9iagoKNiAwIG9iago8PC9MZW5ndGggNzQvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE0CzZ3MDMwszQLjbEi8s1hCuQCwAulxK/CmVuZHN0cmVhbQplbmRvYmoKCjcgMCBvYmoKPDwvTGVuZ3RoIDcyL0ZpbHRlci9GbGF0ZURlY29kZT4+CnN0cmVhbQp42uMq5HIK4TJUMABCQwUzAwUzEyOFkFwu/YzUnDIFQyA7TUEPSMFwkDsKtyhdIdrGxMjM1NzEzNAuNsSLyzWEK5ALAAW4EiMKZW5kc3RyZWFtCmVuZG9iagoKOCAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo5IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDggMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1sxMCAwIFJdPj4KZW5kb2JqCgoxMCAwIG9iago8PC9MZW5ndGggNzIvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE3MzQLAUIDe1iQ7y4XEO4ArkAMO8S8gplbmRzdHJlYW0KZW5kb2JqCgp4cmVmCjAgMTEKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE2IDAwMDAwIG4gCjAwMDAwMDAwNjIgMDAwMDAgbiAKMDAwMDAwMDEyMCAwMDAwMCBuIAowMDAwMDAwMTYxIDAwMDAwIG4gCjAwMDAwMDAyNzQgMDAwMDAgbiAKMDAwMDAwMDM2MyAwMDAwMCBuIAowMDAwMDAwNTA1IDAwMDAwIG4gCjAwMDAwMDA2NDUgMDAwMDAgbiAKMDAwMDAwMDY4NiAwMDAwMCBuIAowMDAwMDAwNzk0IDAwMDAwIG4gCgp0cmFpbGVyCjw8L1NpemUgMTEvUm9vdCAxIDAgUi9JRC9JRFs8MzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzA+PDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwPl0+PgpzdGFydHhyZWYKOTM1CiUlRU9GCg==",
+      "toc": [],
+      "toc_entries": 0,
+      "translated_pages": {
+        "0": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              90.68399047851562,
+              103.58799743652344
+            ],
+            "translated_text": "Alpha"
+          },
+          {
+            "bbox": [
+              60.0,
+              137.10000610351562,
+              84.68399047851562,
+              153.58799743652344
+            ],
+            "translated_text": "Beta"
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      }
+    },
+    {
+      "expected_input": {
+        "pages": [
+          {
+            "ink_ratio": 0.0005219680464778504,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.00034969795999207764,
+            "words": 1
+          }
+        ]
+      },
+      "expected_output": {
+        "pages": [
+          {
+            "ink_ratio": 0.0,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.0,
+            "words": 0
+          }
+        ]
+      },
+      "expected_replaced_pages": {
+        "0": [
+          {
+            "_render_block_id": "block-0",
+            "_render_block_index": 0,
+            "bbox": [
+              50.0,
+              85.0,
+              320.0,
+              200.0
+            ],
+            "block_kind": "render_block",
+            "block_type": "render_block",
+            "item_id": "block-0",
+            "protected_translated_text": "Alpha Beta",
+            "render_protected_text": "Alpha Beta",
+            "source_block_kind": null,
+            "source_item_id": null,
+            "source_text": "Alpha Beta",
+            "translated_text": "Alpha Beta"
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      },
+      "name": "page_specs_formula_source_flip",
+      "page_rect": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+      ],
+      "page_specs": [
+        {
+          "background_pdf_path": null,
+          "blocks": [
+            {
+              "background_rect": [
+                50.0,
+                85.0,
+                320.0,
+                200.0
+              ],
+              "block_id": "block-0",
+              "content_kind": "text",
+              "content_rect": [
+                50.0,
+                85.0,
+                320.0,
+                200.0
+              ],
+              "content_text": "Alpha Beta",
+              "plain_text": "Alpha Beta"
+            }
+          ],
+          "page_height_pt": 792.0,
+          "page_index": 0,
+          "page_width_pt": 612.0
+        }
+      ],
+      "per_page_diagnostics": [
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 1,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 1,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 0
+        },
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 0,
+          "fast_page_cover_only": false,
+          "item_fast_cover_count": 0,
+          "items": 1,
+          "legacy_pdf_write_reason": "auto_text_cleanup",
+          "merged_removable_rects": 1,
+          "raw_removable_rects": 1,
+          "route": "auto",
+          "strategy": "auto",
+          "uses_pymupdf_redaction": true,
+          "visual_profile_cover_rects": 0
+        }
+      ],
+      "precleaned_page_indices": [],
+      "redaction_strategy": null,
+      "source_pdf_b64": "JVBERi0xLjcKJcK1wrYKCjEgMCBvYmoKPDwvVHlwZS9DYXRhbG9nL1BhZ2VzIDIgMCBSPj4KZW5kb2JqCgoyIDAgb2JqCjw8L1R5cGUvUGFnZXMvQ291bnQgMi9LaWRzWzQgMCBSIDkgMCBSXT4+CmVuZG9iagoKMyAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo0IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDMgMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1s2IDAgUiA3IDAgUl0+PgplbmRvYmoKCjUgMCBvYmoKPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhL0VuY29kaW5nL1dpbkFuc2lFbmNvZGluZz4+CmVuZG9iagoKNiAwIG9iago8PC9MZW5ndGggNzQvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE0CzZ3MDMwszQLjbEi8s1hCuQCwAulxK/CmVuZHN0cmVhbQplbmRvYmoKCjcgMCBvYmoKPDwvTGVuZ3RoIDcyL0ZpbHRlci9GbGF0ZURlY29kZT4+CnN0cmVhbQp42uMq5HIK4TJUMABCQwUzAwUzEyOFkFwu/YzUnDIFQyA7TUEPSMFwkDsKtyhdIdrGxMjM1NzEzNAuNsSLyzWEK5ALAAW4EiMKZW5kc3RyZWFtCmVuZG9iagoKOCAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo5IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDggMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1sxMCAwIFJdPj4KZW5kb2JqCgoxMCAwIG9iago8PC9MZW5ndGggNzIvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE3MzQLAUIDe1iQ7y4XEO4ArkAMO8S8gplbmRzdHJlYW0KZW5kb2JqCgp4cmVmCjAgMTEKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE2IDAwMDAwIG4gCjAwMDAwMDAwNjIgMDAwMDAgbiAKMDAwMDAwMDEyMCAwMDAwMCBuIAowMDAwMDAwMTYxIDAwMDAwIG4gCjAwMDAwMDAyNzQgMDAwMDAgbiAKMDAwMDAwMDM2MyAwMDAwMCBuIAowMDAwMDAwNTA1IDAwMDAwIG4gCjAwMDAwMDA2NDUgMDAwMDAgbiAKMDAwMDAwMDY4NiAwMDAwMCBuIAowMDAwMDAwNzk0IDAwMDAwIG4gCgp0cmFpbGVyCjw8L1NpemUgMTEvUm9vdCAxIDAgUi9JRC9JRFs8MzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzA+PDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwPl0+PgpzdGFydHhyZWYKOTM1CiUlRU9GCg==",
+      "toc": [],
+      "toc_entries": 0,
+      "translated_pages": {
+        "0": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              90.68399047851562,
+              103.58799743652344
+            ],
+            "translated_text": "Alpha"
+          },
+          {
+            "bbox": [
+              60.0,
+              137.10000610351562,
+              84.68399047851562,
+              153.58799743652344
+            ],
+            "translated_text": "Beta"
+          },
+          {
+            "bbox": [
+              250.0,
+              300.0,
+              350.0,
+              320.0
+            ],
+            "block_type": "formula",
+            "normalized_sub_type": "display_formula",
+            "translated_text": ""
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      }
+    },
+    {
+      "expected_input": {
+        "pages": [
+          {
+            "ink_ratio": 0.0005219680464778504,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.00034969795999207764,
+            "words": 1
+          }
+        ]
+      },
+      "expected_output": {
+        "pages": [
+          {
+            "ink_ratio": 0.06405971479500891,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.0,
+            "words": 0
+          }
+        ]
+      },
+      "expected_replaced_pages": {
+        "0": [
+          {
+            "_render_block_id": "block-0",
+            "_render_block_index": 0,
+            "_visual_profile_fill": [
+              0.82,
+              0.84,
+              0.86
+            ],
+            "bbox": [
+              50.0,
+              85.0,
+              320.0,
+              200.0
+            ],
+            "block_kind": "render_block",
+            "block_type": "render_block",
+            "item_id": "block-0",
+            "protected_translated_text": "Alpha Beta",
+            "render_protected_text": "Alpha Beta",
+            "source_block_kind": null,
+            "source_item_id": null,
+            "source_text": "Alpha Beta",
+            "translated_text": "Alpha Beta"
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      },
+      "name": "page_specs_formula_profile_combo",
+      "page_rect": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+      ],
+      "page_specs": [
+        {
+          "background_pdf_path": null,
+          "blocks": [
+            {
+              "background_rect": [
+                50.0,
+                85.0,
+                320.0,
+                200.0
+              ],
+              "block_id": "block-0",
+              "content_kind": "text",
+              "content_rect": [
+                50.0,
+                85.0,
+                320.0,
+                200.0
+              ],
+              "content_text": "Alpha Beta",
+              "plain_text": "Alpha Beta"
+            }
+          ],
+          "page_height_pt": 792.0,
+          "page_index": 0,
+          "page_width_pt": 612.0
+        }
+      ],
+      "per_page_diagnostics": [
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 1,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 1,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 1
+        },
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 0,
+          "fast_page_cover_only": false,
+          "item_fast_cover_count": 0,
+          "items": 1,
+          "legacy_pdf_write_reason": "auto_text_cleanup",
+          "merged_removable_rects": 1,
+          "raw_removable_rects": 1,
+          "route": "auto",
+          "strategy": "auto",
+          "uses_pymupdf_redaction": true,
+          "visual_profile_cover_rects": 0
+        }
+      ],
+      "precleaned_page_indices": [],
+      "redaction_strategy": null,
+      "source_pdf_b64": "JVBERi0xLjcKJcK1wrYKCjEgMCBvYmoKPDwvVHlwZS9DYXRhbG9nL1BhZ2VzIDIgMCBSPj4KZW5kb2JqCgoyIDAgb2JqCjw8L1R5cGUvUGFnZXMvQ291bnQgMi9LaWRzWzQgMCBSIDkgMCBSXT4+CmVuZG9iagoKMyAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo0IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDMgMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1s2IDAgUiA3IDAgUl0+PgplbmRvYmoKCjUgMCBvYmoKPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhL0VuY29kaW5nL1dpbkFuc2lFbmNvZGluZz4+CmVuZG9iagoKNiAwIG9iago8PC9MZW5ndGggNzQvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE0CzZ3MDMwszQLjbEi8s1hCuQCwAulxK/CmVuZHN0cmVhbQplbmRvYmoKCjcgMCBvYmoKPDwvTGVuZ3RoIDcyL0ZpbHRlci9GbGF0ZURlY29kZT4+CnN0cmVhbQp42uMq5HIK4TJUMABCQwUzAwUzEyOFkFwu/YzUnDIFQyA7TUEPSMFwkDsKtyhdIdrGxMjM1NzEzNAuNsSLyzWEK5ALAAW4EiMKZW5kc3RyZWFtCmVuZG9iagoKOCAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo5IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDggMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1sxMCAwIFJdPj4KZW5kb2JqCgoxMCAwIG9iago8PC9MZW5ndGggNzIvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE3MzQLAUIDe1iQ7y4XEO4ArkAMO8S8gplbmRzdHJlYW0KZW5kb2JqCgp4cmVmCjAgMTEKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE2IDAwMDAwIG4gCjAwMDAwMDAwNjIgMDAwMDAgbiAKMDAwMDAwMDEyMCAwMDAwMCBuIAowMDAwMDAwMTYxIDAwMDAwIG4gCjAwMDAwMDAyNzQgMDAwMDAgbiAKMDAwMDAwMDM2MyAwMDAwMCBuIAowMDAwMDAwNTA1IDAwMDAwIG4gCjAwMDAwMDA2NDUgMDAwMDAgbiAKMDAwMDAwMDY4NiAwMDAwMCBuIAowMDAwMDAwNzk0IDAwMDAwIG4gCgp0cmFpbGVyCjw8L1NpemUgMTEvUm9vdCAxIDAgUi9JRC9JRFs8MzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzA+PDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwPl0+PgpzdGFydHhyZWYKOTM1CiUlRU9GCg==",
+      "toc": [],
+      "toc_entries": 0,
+      "translated_pages": {
+        "0": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              90.68399047851562,
+              103.58799743652344
+            ],
+            "translated_text": "Alpha"
+          },
+          {
+            "bbox": [
+              60.0,
+              137.10000610351562,
+              84.68399047851562,
+              153.58799743652344
+            ],
+            "translated_text": "Beta"
+          },
+          {
+            "bbox": [
+              250.0,
+              300.0,
+              350.0,
+              320.0
+            ],
+            "block_type": "formula",
+            "normalized_sub_type": "display_formula",
+            "translated_text": ""
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      },
+      "visual_profile_fill_map": {
+        "block-0": [
+          0.82,
+          0.84,
+          0.86
+        ]
+      }
+    },
+    {
+      "expected_input": {
+        "pages": [
+          {
+            "ink_ratio": 0.0005219680464778504,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.00034969795999207764,
+            "words": 1
+          }
+        ]
+      },
+      "expected_output": {
+        "pages": [
+          {
+            "ink_ratio": 0.06405971479500891,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.0,
+            "words": 1
+          }
+        ]
+      },
+      "expected_replaced_pages": {
+        "0": [
+          {
+            "_render_block_id": "item-line-0",
+            "_render_block_index": 0,
+            "_visual_profile_fill": [
+              0.82,
+              0.84,
+              0.86
+            ],
+            "bbox": [
+              50.0,
+              85.0,
+              320.0,
+              200.0
+            ],
+            "block_kind": "render_block",
+            "block_type": "render_block",
+            "item_id": "item-line-0",
+            "normalized_sub_type": "body",
+            "protected_translated_text": "Alpha Beta",
+            "raw_block_type": "paragraph",
+            "render_protected_text": "Alpha Beta",
+            "source_block_kind": null,
+            "source_item_id": "line-0",
+            "source_text": "Alpha Beta",
+            "translated_text": "Alpha Beta"
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      },
+      "name": "page_specs_merge_by_id_source_fields",
+      "page_rect": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+      ],
+      "page_specs": [
+        {
+          "background_pdf_path": null,
+          "blocks": [
+            {
+              "background_rect": [
+                50.0,
+                85.0,
+                320.0,
+                200.0
+              ],
+              "block_id": "item-line-0",
+              "content_kind": "text",
+              "content_rect": [
+                50.0,
+                85.0,
+                320.0,
+                200.0
+              ],
+              "content_text": "Alpha Beta",
+              "plain_text": "Alpha Beta"
+            }
+          ],
+          "page_height_pt": 792.0,
+          "page_index": 0,
+          "page_width_pt": 612.0
+        }
+      ],
+      "per_page_diagnostics": [
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 1,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 1,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 1
+        },
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 1,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 1,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 0
+        }
+      ],
+      "precleaned_page_indices": [],
+      "redaction_strategy": "visual_cover",
+      "source_pdf_b64": "JVBERi0xLjcKJcK1wrYKCjEgMCBvYmoKPDwvVHlwZS9DYXRhbG9nL1BhZ2VzIDIgMCBSPj4KZW5kb2JqCgoyIDAgb2JqCjw8L1R5cGUvUGFnZXMvQ291bnQgMi9LaWRzWzQgMCBSIDkgMCBSXT4+CmVuZG9iagoKMyAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo0IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDMgMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1s2IDAgUiA3IDAgUl0+PgplbmRvYmoKCjUgMCBvYmoKPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhL0VuY29kaW5nL1dpbkFuc2lFbmNvZGluZz4+CmVuZG9iagoKNiAwIG9iago8PC9MZW5ndGggNzQvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE0CzZ3MDMwszQLjbEi8s1hCuQCwAulxK/CmVuZHN0cmVhbQplbmRvYmoKCjcgMCBvYmoKPDwvTGVuZ3RoIDcyL0ZpbHRlci9GbGF0ZURlY29kZT4+CnN0cmVhbQp42uMq5HIK4TJUMABCQwUzAwUzEyOFkFwu/YzUnDIFQyA7TUEPSMFwkDsKtyhdIdrGxMjM1NzEzNAuNsSLyzWEK5ALAAW4EiMKZW5kc3RyZWFtCmVuZG9iagoKOCAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo5IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDggMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1sxMCAwIFJdPj4KZW5kb2JqCgoxMCAwIG9iago8PC9MZW5ndGggNzIvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE3MzQLAUIDe1iQ7y4XEO4ArkAMO8S8gplbmRzdHJlYW0KZW5kb2JqCgp4cmVmCjAgMTEKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE2IDAwMDAwIG4gCjAwMDAwMDAwNjIgMDAwMDAgbiAKMDAwMDAwMDEyMCAwMDAwMCBuIAowMDAwMDAwMTYxIDAwMDAwIG4gCjAwMDAwMDAyNzQgMDAwMDAgbiAKMDAwMDAwMDM2MyAwMDAwMCBuIAowMDAwMDAwNTA1IDAwMDAwIG4gCjAwMDAwMDA2NDUgMDAwMDAgbiAKMDAwMDAwMDY4NiAwMDAwMCBuIAowMDAwMDAwNzk0IDAwMDAwIG4gCgp0cmFpbGVyCjw8L1NpemUgMTEvUm9vdCAxIDAgUi9JRC9JRFs8MzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzA+PDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwPl0+PgpzdGFydHhyZWYKOTM1CiUlRU9GCg==",
+      "toc": [],
+      "toc_entries": 0,
+      "translated_pages": {
+        "0": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              90.68399047851562,
+              103.58799743652344
+            ],
+            "item_id": "line-0",
+            "normalized_sub_type": "body",
+            "raw_block_type": "paragraph",
+            "translated_text": "Alpha"
+          },
+          {
+            "bbox": [
+              60.0,
+              137.10000610351562,
+              84.68399047851562,
+              153.58799743652344
+            ],
+            "translated_text": "Beta"
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      },
+      "visual_profile_fill_map": {
+        "line-0": [
+          0.82,
+          0.84,
+          0.86
+        ]
+      }
+    },
+    {
+      "expected_input": {
+        "pages": [
+          {
+            "ink_ratio": 0.0005219680464778504,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.00034969795999207764,
+            "words": 1
+          }
+        ]
+      },
+      "expected_output": {
+        "pages": [
+          {
+            "ink_ratio": 0.0,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.0,
+            "words": 1
+          }
+        ]
+      },
+      "expected_replaced_pages": {
+        "0": [
+          {
+            "_render_block_id": "item-1",
+            "_render_block_index": 0,
+            "bbox": [
+              50.0,
+              85.0,
+              320.0,
+              200.0
+            ],
+            "block_kind": "render_block",
+            "block_type": "render_block",
+            "item_id": "item-1",
+            "normalized_sub_type": "second",
+            "protected_translated_text": "Alpha Beta",
+            "render_protected_text": "Alpha Beta",
+            "source_block_kind": null,
+            "source_item_id": null,
+            "source_text": "Alpha Beta",
+            "translated_text": "Alpha Beta"
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      },
+      "name": "page_specs_merge_by_index_fallback",
+      "page_rect": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+      ],
+      "page_specs": [
+        {
+          "background_pdf_path": null,
+          "blocks": [
+            {
+              "background_rect": [
+                50.0,
+                85.0,
+                320.0,
+                200.0
+              ],
+              "block_id": "item-1",
+              "content_kind": "text",
+              "content_rect": [
+                50.0,
+                85.0,
+                320.0,
+                200.0
+              ],
+              "content_text": "Alpha Beta",
+              "plain_text": "Alpha Beta"
+            }
+          ],
+          "page_height_pt": 792.0,
+          "page_index": 0,
+          "page_width_pt": 612.0
+        }
+      ],
+      "per_page_diagnostics": [
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 1,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 1,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 0
+        },
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 1,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 1,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 0
+        }
+      ],
+      "precleaned_page_indices": [],
+      "redaction_strategy": "visual_cover",
+      "source_pdf_b64": "JVBERi0xLjcKJcK1wrYKCjEgMCBvYmoKPDwvVHlwZS9DYXRhbG9nL1BhZ2VzIDIgMCBSPj4KZW5kb2JqCgoyIDAgb2JqCjw8L1R5cGUvUGFnZXMvQ291bnQgMi9LaWRzWzQgMCBSIDkgMCBSXT4+CmVuZG9iagoKMyAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo0IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDMgMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1s2IDAgUiA3IDAgUl0+PgplbmRvYmoKCjUgMCBvYmoKPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhL0VuY29kaW5nL1dpbkFuc2lFbmNvZGluZz4+CmVuZG9iagoKNiAwIG9iago8PC9MZW5ndGggNzQvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE0CzZ3MDMwszQLjbEi8s1hCuQCwAulxK/CmVuZHN0cmVhbQplbmRvYmoKCjcgMCBvYmoKPDwvTGVuZ3RoIDcyL0ZpbHRlci9GbGF0ZURlY29kZT4+CnN0cmVhbQp42uMq5HIK4TJUMABCQwUzAwUzEyOFkFwu/YzUnDIFQyA7TUEPSMFwkDsKtyhdIdrGxMjM1NzEzNAuNsSLyzWEK5ALAAW4EiMKZW5kc3RyZWFtCmVuZG9iagoKOCAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo5IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDggMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1sxMCAwIFJdPj4KZW5kb2JqCgoxMCAwIG9iago8PC9MZW5ndGggNzIvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE3MzQLAUIDe1iQ7y4XEO4ArkAMO8S8gplbmRzdHJlYW0KZW5kb2JqCgp4cmVmCjAgMTEKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE2IDAwMDAwIG4gCjAwMDAwMDAwNjIgMDAwMDAgbiAKMDAwMDAwMDEyMCAwMDAwMCBuIAowMDAwMDAwMTYxIDAwMDAwIG4gCjAwMDAwMDAyNzQgMDAwMDAgbiAKMDAwMDAwMDM2MyAwMDAwMCBuIAowMDAwMDAwNTA1IDAwMDAwIG4gCjAwMDAwMDA2NDUgMDAwMDAgbiAKMDAwMDAwMDY4NiAwMDAwMCBuIAowMDAwMDAwNzk0IDAwMDAwIG4gCgp0cmFpbGVyCjw8L1NpemUgMTEvUm9vdCAxIDAgUi9JRC9JRFs8MzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzA+PDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwPl0+PgpzdGFydHhyZWYKOTM1CiUlRU9GCg==",
+      "toc": [],
+      "toc_entries": 0,
+      "translated_pages": {
+        "0": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              90.68399047851562,
+              103.58799743652344
+            ],
+            "normalized_sub_type": "first",
+            "translated_text": "Alpha"
+          },
+          {
+            "bbox": [
+              60.0,
+              137.10000610351562,
+              84.68399047851562,
+              153.58799743652344
+            ],
+            "normalized_sub_type": "second",
+            "translated_text": "Beta"
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      }
+    },
+    {
+      "expected_input": {
+        "pages": [
+          {
+            "ink_ratio": 0.0005219680464778504,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.00034969795999207764,
+            "words": 1
+          }
+        ]
+      },
+      "expected_output": {
+        "pages": [
+          {
+            "ink_ratio": 0.0,
+            "words": 2
+          },
+          {
+            "ink_ratio": 0.0,
+            "words": 1
+          }
+        ]
+      },
+      "expected_replaced_pages": {
+        "0": [
+          {
+            "_render_block_id": "block-0",
+            "_render_block_index": 0,
+            "bbox": [
+              50.0,
+              85.0,
+              320.0,
+              200.0
+            ],
+            "block_kind": "render_block",
+            "block_type": "render_block",
+            "item_id": "block-0",
+            "protected_translated_text": "**Alpha Beta**",
+            "render_protected_text": "**Alpha Beta**",
+            "source_block_kind": null,
+            "source_item_id": null,
+            "source_text": "Alpha Beta",
+            "translated_text": "Alpha Beta"
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      },
+      "name": "page_specs_markdown_protected_text",
+      "page_rect": [
+        0.0,
+        0.0,
+        612.0,
+        792.0
+      ],
+      "page_specs": [
+        {
+          "background_pdf_path": null,
+          "blocks": [
+            {
+              "background_rect": [
+                50.0,
+                85.0,
+                320.0,
+                200.0
+              ],
+              "block_id": "block-0",
+              "content_kind": "markdown",
+              "content_rect": [
+                50.0,
+                85.0,
+                320.0,
+                200.0
+              ],
+              "content_text": "**Alpha Beta**",
+              "plain_text": "Alpha Beta"
+            }
+          ],
+          "page_height_pt": 792.0,
+          "page_index": 0,
+          "page_width_pt": 612.0
+        }
+      ],
+      "per_page_diagnostics": [
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 1,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 1,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 0
+        },
+        {
+          "auto_text_cleanup_items_skipped": 0,
+          "auto_text_cleanup_math_protected": false,
+          "cover_rects": 1,
+          "fast_page_cover_only": true,
+          "item_fast_cover_count": 0,
+          "items": 1,
+          "legacy_pdf_write_reason": "",
+          "merged_removable_rects": 0,
+          "raw_removable_rects": 0,
+          "route": "visual_cover",
+          "strategy": "visual_cover",
+          "uses_pymupdf_redaction": false,
+          "visual_profile_cover_rects": 0
+        }
+      ],
+      "precleaned_page_indices": [],
+      "redaction_strategy": "visual_cover",
+      "source_pdf_b64": "JVBERi0xLjcKJcK1wrYKCjEgMCBvYmoKPDwvVHlwZS9DYXRhbG9nL1BhZ2VzIDIgMCBSPj4KZW5kb2JqCgoyIDAgb2JqCjw8L1R5cGUvUGFnZXMvQ291bnQgMi9LaWRzWzQgMCBSIDkgMCBSXT4+CmVuZG9iagoKMyAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo0IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDMgMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1s2IDAgUiA3IDAgUl0+PgplbmRvYmoKCjUgMCBvYmoKPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhL0VuY29kaW5nL1dpbkFuc2lFbmNvZGluZz4+CmVuZG9iagoKNiAwIG9iago8PC9MZW5ndGggNzQvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE0CzZ3MDMwszQLjbEi8s1hCuQCwAulxK/CmVuZHN0cmVhbQplbmRvYmoKCjcgMCBvYmoKPDwvTGVuZ3RoIDcyL0ZpbHRlci9GbGF0ZURlY29kZT4+CnN0cmVhbQp42uMq5HIK4TJUMABCQwUzAwUzEyOFkFwu/YzUnDIFQyA7TUEPSMFwkDsKtyhdIdrGxMjM1NzEzNAuNsSLyzWEK5ALAAW4EiMKZW5kc3RyZWFtCmVuZG9iagoKOCAwIG9iago8PC9Gb250PDwvaGVsdiA1IDAgUj4+Pj4KZW5kb2JqCgo5IDAgb2JqCjw8L1R5cGUvUGFnZS9NZWRpYUJveFswIDAgNjEyIDc5Ml0vUm90YXRlIDAvUmVzb3VyY2VzIDggMCBSL1BhcmVudCAyIDAgUi9Db250ZW50c1sxMCAwIFJdPj4KZW5kb2JqCgoxMCAwIG9iago8PC9MZW5ndGggNzIvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnja4yrkcgrhMlQwAEJDBTMDBTNLI4WQXC79jNScMgVDIDtNQQ9IwXCQOwq3KF0h2sbE3MzQLAUIDe1iQ7y4XEO4ArkAMO8S8gplbmRzdHJlYW0KZW5kb2JqCgp4cmVmCjAgMTEKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE2IDAwMDAwIG4gCjAwMDAwMDAwNjIgMDAwMDAgbiAKMDAwMDAwMDEyMCAwMDAwMCBuIAowMDAwMDAwMTYxIDAwMDAwIG4gCjAwMDAwMDAyNzQgMDAwMDAgbiAKMDAwMDAwMDM2MyAwMDAwMCBuIAowMDAwMDAwNTA1IDAwMDAwIG4gCjAwMDAwMDA2NDUgMDAwMDAgbiAKMDAwMDAwMDY4NiAwMDAwMCBuIAowMDAwMDAwNzk0IDAwMDAwIG4gCgp0cmFpbGVyCjw8L1NpemUgMTEvUm9vdCAxIDAgUi9JRC9JRFs8MzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzA+PDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwMzAzMDMwPl0+PgpzdGFydHhyZWYKOTM1CiUlRU9GCg==",
+      "toc": [],
+      "toc_entries": 0,
+      "translated_pages": {
+        "0": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              90.68399047851562,
+              103.58799743652344
+            ],
+            "translated_text": "Alpha"
+          },
+          {
+            "bbox": [
+              60.0,
+              137.10000610351562,
+              84.68399047851562,
+              153.58799743652344
+            ],
+            "translated_text": "Beta"
+          }
+        ],
+        "1": [
+          {
+            "bbox": [
+              60.0,
+              87.0999984741211,
+              102.6719970703125,
+              103.58799743652344
+            ],
+            "translated_text": "Gamma"
+          }
+        ]
+      }
     }
   ],
   "ink_threshold": 250,

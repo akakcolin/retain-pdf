@@ -145,7 +145,7 @@ def _item_hits(page: fitz.Page, items: list[dict], text_objects: list[PdfObjectB
         raw_rect = raw_bbox_rect(item.get("bbox", []))
         if not item_id or raw_rect is None:
             continue
-        item_rect = candidate.transform(page, raw_rect)
+        item_rect = candidate.transform(~page.transformation_matrix, raw_rect)
         if item_rect.is_empty:
             continue
         best_object: PdfObjectBox | None = None

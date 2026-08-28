@@ -28,7 +28,7 @@ from services.rendering.layout.page_specs import build_render_page_specs
 from services.rendering.layout.model.models import RenderLayoutBlock
 from services.rendering.layout.model.models import RenderPageSpec
 from services.rendering.output.typst.compiler import compile_typst_render_pages_pdf
-from services.rendering.output.typst.color_adapt import apply_adaptive_overlay_colors
+from services.rendering.output.typst.color_adapt import apply_adaptive_overlay_colors_batch
 from services.rendering.output.typst.overlay_ops import overlay_translated_items_on_page
 from services.rendering.output.typst.overlay_ops import overlay_translated_pages_on_doc
 from services.rendering.output.typst.sanitize import sanitize_page_specs_for_typst_book_background
@@ -187,21 +187,11 @@ def _apply_background_page_color_adapt(
         visual_profile_path=visual_profile_path,
         precomputed_colors_by_item_id=precomputed_colors_by_item_id,
     )
-    sample_doc = fitz.open(sample_pdf_path)
-    try:
-        adapted: dict[int, list[dict]] = {}
-        for page_idx, items in translated_pages.items():
-            if 0 <= page_idx < len(sample_doc):
-                adapted[page_idx] = apply_adaptive_overlay_colors(
-                    sample_doc[page_idx],
-                    items,
-                    precomputed_colors_by_item_id=active_colors_by_item_id,
-                )
-            else:
-                adapted[page_idx] = list(items)
-        return adapted
-    finally:
-        sample_doc.close()
+    return apply_adaptive_overlay_colors_batch(
+        source_pdf_path=sample_pdf_path,
+        pages=translated_pages,
+        precomputed_colors_by_item_id=active_colors_by_item_id,
+    )
 
 
 def _compile_render_page_subset(

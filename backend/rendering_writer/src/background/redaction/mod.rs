@@ -8,6 +8,7 @@ pub mod auto;
 pub mod config;
 pub mod diagnostics;
 pub mod dto;
+pub mod page_specs;
 pub mod primitives;
 pub mod redaction_padding;
 pub mod routes;
@@ -30,8 +31,9 @@ use diagnostics::new_empty_redaction_result;
 /// `redaction_flow.py::execute_redaction_flow` — build the valid-item plan; an
 /// empty plan yields the empty result; otherwise dispatch to the route.
 /// `render_page` is the pristine render-side page (text extraction and clip
-/// sampling read it before redaction mutates the edit page). The visual profile
-/// is always `None` in 7R-2, so `profile_fill` yields no per-item fills.
+/// sampling read it before redaction mutates the edit page). `profile_fill`
+/// reads the shim-injected `_visual_profile_fill` field (production resolves
+/// it per item from the visual profile's `background_fill_for_item`).
 #[allow(clippy::too_many_arguments)]
 pub fn execute_redaction_flow(
     render_page: &Page,
@@ -47,7 +49,7 @@ pub fn execute_redaction_flow(
     if valid_items.is_empty() {
         return Ok(new_empty_redaction_result(strategy));
     }
-    let profile_fill = |_item: &RedactionItem| -> Option<[f64; 3]> { None };
+    let profile_fill = |item: &RedactionItem| -> Option<[f64; 3]> { item.visual_profile_fill };
     apply_redaction_route(
         render_page,
         edit_page,

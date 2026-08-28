@@ -2,25 +2,40 @@ from __future__ import annotations
 
 import fitz
 
+from services.rendering.source import _native
+
 
 HEAVY_VECTOR_PAGE_DRAWINGS_THRESHOLD = 5000
 VECTOR_HEAVY_PAGE_DRAWINGS_THRESHOLD = 2000
 
 
 def collect_page_drawing_rects(page: fitz.Page) -> list[fitz.Rect]:
+    return _native.collect_page_drawing_rects(page=page)
+
+
+def _collect_page_drawing_rects_python(page: fitz.Page) -> list[fitz.Rect]:
     try:
         drawings = page.get_cdrawings() if hasattr(page, "get_cdrawings") else page.get_drawings()
     except Exception:
         return []
+    return _rects_from_drawings(drawings)
 
+
+def _rects_from_drawings(drawings: list[dict]) -> list[fitz.Rect]:
+    """Shared drawing-rect loop for the reference (`_collect_page_drawing_rects_python`)
+    and the native path (`_native.py`). `rect` may be a `fitz.Rect` (get_cdrawings)
+    or a `[x0, y0, x1, y1]` list (bridge JSON); normalize before the truthiness
+    check so both inputs behave identically."""
     rects: list[fitz.Rect] = []
     for drawing in drawings:
-        rect = drawing.get("rect")
-        if not rect:
+        raw_rect = drawing.get("rect")
+        if not raw_rect:
             continue
         try:
-            draw_rect = fitz.Rect(rect)
+            draw_rect = raw_rect if isinstance(raw_rect, fitz.Rect) else fitz.Rect(raw_rect)
         except Exception:
+            continue
+        if not draw_rect:
             continue
         draw_rect = _expand_thin_drawing_rect(draw_rect, drawing)
         if draw_rect.is_empty:
@@ -52,6 +67,10 @@ def _drawing_stroke_width(drawing: dict) -> float:
 
 
 def page_drawing_count(page: fitz.Page) -> int:
+    return _native.page_drawing_count(page=page)
+
+
+def _page_drawing_count_python(page: fitz.Page) -> int:
     try:
         drawings = page.get_cdrawings() if hasattr(page, "get_cdrawings") else page.get_drawings()
     except Exception:

@@ -7,6 +7,18 @@ from services.rendering.source.rects import rect_key
 
 
 def collect_page_math_protection_rects(page: fitz.Page) -> list[fitz.Rect]:
+    """Math-font span rects (deduped by `rect_key`), routed through the native
+    bridge when built on a file-backed page; otherwise the pure-Python reference
+    `_collect_page_math_protection_rects_python`.
+
+    The `_native` import is lazy (circular-import gotcha shared with
+    `detect`/`text_extract`)."""
+    from services.rendering.source import _native
+
+    return _native.collect_page_math_protection_rects(page=page)
+
+
+def _collect_page_math_protection_rects_python(page: fitz.Page) -> list[fitz.Rect]:
     try:
         text_dict = page.get_text("dict")
     except Exception:
@@ -34,6 +46,15 @@ def collect_page_math_protection_rects(page: fitz.Page) -> list[fitz.Rect]:
 
 
 def collect_page_non_math_span_heights(page: fitz.Page) -> list[float]:
+    """Non-math span heights > 0.5, routed through the native bridge when built
+    on a file-backed page; otherwise the pure-Python reference
+    `_collect_page_non_math_span_heights_python`."""
+    from services.rendering.source import _native
+
+    return _native.collect_page_non_math_span_heights(page=page)
+
+
+def _collect_page_non_math_span_heights_python(page: fitz.Page) -> list[float]:
     try:
         text_dict = page.get_text("dict")
     except Exception:

@@ -87,12 +87,7 @@ fn replay_case(case: &BackgroundCase, scale: f32, threshold: u8) {
     // RGB clip renderer in page space; reads the pristine `doc` throughout so
     // all fills come from the uncovered page (same as the corpus generator).
     let render_clip = |clip: &RectTuple| -> Option<RgbPixmap> {
-        let rect = mupdf::Rect::new(
-            clip[0] as f32,
-            clip[1] as f32,
-            clip[2] as f32,
-            clip[3] as f32,
-        );
+        let rect = rendering_core::rect::Rect::new(clip[0], clip[1], clip[2], clip[3]);
         render_page_clip_rgb(&doc, 0, Some(&rect), scale)
             .ok()
             .map(|px| RgbPixmap {

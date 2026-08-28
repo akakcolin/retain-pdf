@@ -52,7 +52,7 @@ VERSION
 
 # Local environment (ExFAT USB drive repo)
 .venv311/
-backend/rust_api/._target
+._*
 desktop/build/icon.icns
 desktop/app/
 

@@ -15,7 +15,9 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
 
 from services.rendering.layout.model.models import RenderLayoutBlock, RenderPageSpec
+from services.rendering.layout.model.models import RenderLineBox, RenderTocEntry
 from services.rendering.output.typst.emitter import build_typst_source_from_page_specs
+from services.rendering.output.typst import _native
 
 WORK_DIR = "/render_work"
 
@@ -64,28 +66,10 @@ def main():
                 "name": name,
                 "work_dir": work_dir,
                 "background_pdf_path": background_path,
-                "page_specs": [
-                    {
-                        "page_index": spec.page_index,
-                        "page_width_pt": spec.page_width_pt,
-                        "page_height_pt": spec.page_height_pt,
-                        "background_pdf_path": spec.background_pdf_path,
-                        "blocks": [
-                            {
-                                **{
-                                    f.name: (
-                                        list(getattr(block, f.name))
-                                        if isinstance(getattr(block, f.name), tuple)
-                                        else ([] if getattr(block, f.name) is None else getattr(block, f.name))
-                                    )
-                                    for f in __import__("dataclasses").fields(block)
-                                }
-                            }
-                            for block in spec.blocks
-                        ],
-                    }
-                    for spec in page_specs
-                ],
+                # Serialize via the `_native` shim so the corpus records exactly
+                # what the production bridge receives (nested `RenderLineBox` /
+                # `RenderTocEntry` dataclasses are flattened to Rust DTO shape).
+                "page_specs": [_native._page_spec_to_dict(spec) for spec in page_specs],
                 "expected": expected,
             }
         )
@@ -180,6 +164,52 @@ def main():
                         content_text="X" * 60,
                         plain_text="Y" * 60,
                         first_line_indent_pt=8.0,
+                    ),
+                ],
+            )
+        ],
+    )
+
+    add(
+        "nested_dataclass_toc_and_line_boxes",
+        WORK_DIR,
+        os.path.join(WORK_DIR, "background.pdf"),
+        [
+            page_spec(
+                0,
+                [
+                    rblock(
+                        "t0",
+                        content_kind="markdown",
+                        content_text="目录",
+                        plain_text="目录",
+                        toc_entries=[
+                            RenderTocEntry(
+                                title="第一章",
+                                page_label="12",
+                                bbox=[10.0, 20.0, 200.0, 30.0],
+                                number="1",
+                                level=1,
+                            ),
+                            RenderTocEntry(
+                                title="第二章",
+                                page_label="34",
+                                bbox=[10.0, 40.0, 200.0, 50.0],
+                                number="2",
+                                level=2,
+                            ),
+                        ],
+                    ),
+                    rblock(
+                        "b0",
+                        content_kind="markdown",
+                        content_text="保留换行\n第二行",
+                        plain_text="保留换行\n第二行",
+                        preserve_line_breaks=True,
+                        preserved_line_boxes=[
+                            RenderLineBox(text="保留换行", bbox=[10.0, 20.0, 50.0, 30.0]),
+                            RenderLineBox(text="第二行", bbox=[10.0, 34.0, 50.0, 44.0]),
+                        ],
                     ),
                 ],
             )

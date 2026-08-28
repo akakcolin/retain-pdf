@@ -1094,6 +1094,7 @@ version = "0.1.0"
 dependencies = [
  "mupdf",
  "pyo3",
+ "pyo3-build-config",
  "rendering_core",
  "rendering_output",
  "rendering_reader",
@@ -1105,6 +1106,9 @@ dependencies = [
 [[package]]
 name = "rendering_core"
 version = "0.1.0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "rendering_output"
@@ -1135,6 +1139,7 @@ dependencies = [
  "image",
  "mupdf",
  "rendering_core",
+ "serde",
 ]
 
 [[package]]

@@ -3,10 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import fitz
-
 from services.rendering.output.typst.book_support import prepare_translated_pages_for_render
-from services.rendering.output.typst.color_adapt import apply_adaptive_overlay_colors
+from services.rendering.output.typst.color_adapt import apply_adaptive_overlay_colors_batch
 from services.rendering.source.prewarm_manifest import color_tuple
 from services.rendering.source.prewarm_manifest import relative_to_manifest
 from services.rendering.source.prewarm_manifest import resolve_manifest_path
@@ -80,20 +78,11 @@ def apply_page_color_adapt_for_prewarm(
     precomputed = render_colors_from_visual_profile(profile)
     if _precomputed_colors_cover_pages(translated_pages, precomputed):
         return _apply_precomputed_colors_to_pages(translated_pages, precomputed)
-    sample_doc = fitz.open(source_pdf_path)
-    try:
-        return {
-            page_idx: apply_adaptive_overlay_colors(
-                sample_doc[page_idx],
-                items,
-                precomputed_colors_by_item_id=precomputed,
-            )
-            if 0 <= page_idx < len(sample_doc)
-            else list(items)
-            for page_idx, items in translated_pages.items()
-        }
-    finally:
-        sample_doc.close()
+    return apply_adaptive_overlay_colors_batch(
+        source_pdf_path=source_pdf_path,
+        pages=translated_pages,
+        precomputed_colors_by_item_id=precomputed,
+    )
 
 
 def _precomputed_colors_cover_pages(

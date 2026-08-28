@@ -15,8 +15,9 @@
 use std::path::Path;
 
 use base64::Engine;
-use mupdf::{DisplayList, Document, Rect};
+use mupdf::{DisplayList, Document};
 use rendering_core::first_line_indent::detect_first_line_indent_pt_from_samples;
+use rendering_core::rect::Rect;
 use rendering_reader::reader::open as open_doc;
 use rendering_reader::render::{render_display_list_clip_gray, render_page_clip_gray};
 use serde::Deserialize;
@@ -69,8 +70,8 @@ fn decode(b64: &str) -> Vec<u8> {
         .unwrap_or_else(|e| panic!("base64 decode failed: {e}"))
 }
 
-fn to_mupdf_rect(bbox: &[f64; 4]) -> Rect {
-    Rect::new(bbox[0] as f32, bbox[1] as f32, bbox[2] as f32, bbox[3] as f32)
+fn to_core_rect(bbox: &[f64; 4]) -> Rect {
+    Rect::new(bbox[0], bbox[1], bbox[2], bbox[3])
 }
 
 fn golden_doc(name: &str) -> Document {
@@ -111,7 +112,7 @@ fn rust_render_matches_fitz_pixels() {
     for cand in corpus.candidates.iter().filter(|c| c.pixels.is_some()) {
         let px = cand.pixels.as_ref().unwrap();
         let doc = golden_doc(&cand.pdf);
-        let clip = to_mupdf_rect(&cand.bbox);
+        let clip = to_core_rect(&cand.bbox);
         let page_out = render_page_clip_gray(&doc, cand.page as i32, Some(&clip), scale)
             .unwrap_or_else(|e| panic!("page render {} p{}: {e}", cand.pdf, cand.page));
         let dl = doc
@@ -160,7 +161,7 @@ fn rust_dl_render_matches_rust_page_render() {
     let scale = corpus.render_scale as f32;
     let mut checked = 0u32;
     for_each_candidate(&corpus, |cand, doc, dl| {
-        let clip = to_mupdf_rect(&cand.bbox);
+        let clip = to_core_rect(&cand.bbox);
         let page_out = render_page_clip_gray(doc, cand.page as i32, Some(&clip), scale).unwrap();
         let dl_out = render_display_list_clip_gray(dl, Some(&clip), scale).unwrap();
         assert_eq!(
@@ -189,7 +190,7 @@ fn rust_indent_matches_fitz() {
     let mut checked = 0u32;
     let mut nonzero = 0u32;
     for_each_candidate(&corpus, |cand, doc, dl| {
-        let clip = to_mupdf_rect(&cand.bbox);
+        let clip = to_core_rect(&cand.bbox);
         let page_out = render_page_clip_gray(doc, cand.page as i32, Some(&clip), scale).unwrap();
         let dl_out = render_display_list_clip_gray(dl, Some(&clip), scale).unwrap();
         let rust_page = detect_first_line_indent_pt_from_samples(

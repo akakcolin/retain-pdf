@@ -20,6 +20,19 @@ def extract_page_words(page: fitz.Page) -> list[tuple]:
 
 
 def extract_page_text_blocks(page: fitz.Page) -> list[tuple[fitz.Rect, str]]:
+    """`page.get_text("blocks")` text blocks (type 0, stripped non-empty text),
+    routed through the native bridge when built on a file-backed page; otherwise
+    the pure-Python reference `_extract_page_text_blocks_python`.
+
+    The `_native` import is lazy: `_native`'s shims import this module's
+    reference lazily, but `_native`'s own module-top imports must not pull this
+    module in at import time."""
+    from services.rendering.source import _native
+
+    return _native.extract_page_text_blocks(page=page)
+
+
+def _extract_page_text_blocks_python(page: fitz.Page) -> list[tuple[fitz.Rect, str]]:
     try:
         raw_blocks = page.get_text("blocks")
     except Exception:
@@ -43,6 +56,15 @@ def extract_page_text_blocks(page: fitz.Page) -> list[tuple[fitz.Rect, str]]:
 
 
 def extract_page_text_spans(page: fitz.Page) -> list[tuple[fitz.Rect, str]]:
+    """`page.get_text("dict")` spans (text blocks, stripped non-empty text),
+    routed through the native bridge when built on a file-backed page; otherwise
+    the pure-Python reference `_extract_page_text_spans_python."""
+    from services.rendering.source import _native
+
+    return _native.extract_page_text_spans(page=page)
+
+
+def _extract_page_text_spans_python(page: fitz.Page) -> list[tuple[fitz.Rect, str]]:
     try:
         text_dict = page.get_text("dict")
     except Exception:

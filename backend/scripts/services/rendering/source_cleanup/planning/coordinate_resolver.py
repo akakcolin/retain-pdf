@@ -10,9 +10,13 @@ import fitz
 from services.rendering.source.rects import rect_area
 from services.rendering.source_cleanup.planning.spatial_index import RectOverlapIndex
 from services.rendering.source_cleanup.planning.drawing_classifier import bboxlog_path_blocks_text_strip
+from services.rendering.source_cleanup.planning.page_context import PlanningPageContext
+from services.rendering.source_cleanup.planning.page_context import _build_context_from_fitz
 
 
-BBoxTransform = Callable[[fitz.Page, fitz.Rect], fitz.Rect]
+# The coordinate transform takes the inverse page matrix (rotation-stripped),
+# not a live page, so the core planning path needs no fitz primitive access.
+BBoxTransform = Callable[[fitz.Matrix, fitz.Rect], fitz.Rect]
 
 
 @dataclass(frozen=True)
@@ -62,7 +66,8 @@ class TextRectIndex:
 
 @dataclass(frozen=True)
 class PageBBoxResolver:
-    page: fitz.Page
+    inverse_ctm: fitz.Matrix
+    page_rect: fitz.Rect
     text_rects: tuple[fitz.Rect, ...]
     text_index: TextRectIndex
     image_rects: tuple[fitz.Rect, ...]
@@ -71,24 +76,33 @@ class PageBBoxResolver:
     preferred_candidate: BBoxCoordinateCandidate
 
     @classmethod
-    def build(cls, page: fitz.Page, bboxes: Iterable[object] = ()) -> "PageBBoxResolver":
-        text_rects, image_rects, unsafe_vector_rects = page_bboxlog_rect_groups(page)
+    def build(cls, ctx: PlanningPageContext, bboxes: Iterable[object] = ()) -> "PageBBoxResolver":
+        text_rects, image_rects, unsafe_vector_rects = page_bboxlog_rect_groups(ctx.bboxlog_entries)
         text_index = TextRectIndex.build(text_rects)
         return cls(
-            page=page,
+            inverse_ctm=ctx.inverse_ctm,
+            page_rect=ctx.page_rect,
             text_rects=text_rects,
             text_index=text_index,
             image_rects=image_rects,
             unsafe_vector_rects=unsafe_vector_rects,
             unsafe_vector_index=RectOverlapIndex.build(unsafe_vector_rects),
-            preferred_candidate=choose_page_coordinate_candidate(page, bboxes, text_index),
+            preferred_candidate=choose_page_coordinate_candidate_with_inverse_ctm(
+                ctx.inverse_ctm,
+                bboxes,
+                text_index,
+            ),
         )
+
+    @classmethod
+    def build_from_page(cls, page: fitz.Page, bboxes: Iterable[object] = ()) -> "PageBBoxResolver":
+        return cls.build(_build_context_from_fitz(None, page), bboxes=bboxes)
 
     def resolve_bbox_rect(self, bbox: object) -> fitz.Rect | None:
         raw_rect = raw_bbox_rect(bbox)
         if raw_rect is None:
             return None
-        rect = self.preferred_candidate.transform(self.page, raw_rect)
+        rect = self.preferred_candidate.transform(self.inverse_ctm, raw_rect)
         return None if rect.is_empty else rect
 
     def resolve_bbox_probe_rects(self, bbox: object) -> tuple[fitz.Rect, ...]:
@@ -97,7 +111,7 @@ class PageBBoxResolver:
             return ()
         rects: dict[tuple[int, int, int, int], fitz.Rect] = {}
         for candidate in BBOX_COORDINATE_CANDIDATES:
-            rect = candidate.transform(self.page, raw_rect)
+            rect = candidate.transform(self.inverse_ctm, raw_rect)
             if not rect.is_empty:
                 rects.setdefault(_rect_probe_key(rect), rect)
         return tuple(rects.values())
@@ -106,32 +120,32 @@ class PageBBoxResolver:
         raw_rect = raw_bbox_rect(bbox)
         if raw_rect is None:
             return None
-        pdf_rect = raw_rect * ~self.page.transformation_matrix
+        pdf_rect = raw_rect * self.inverse_ctm
         return None if pdf_rect.is_empty else pdf_rect
 
     def has_large_background_image(self, *, coverage_ratio_threshold: float = 0.75) -> bool:
         if not self.image_rects:
             return False
-        page_area = max(rect_area(self.page.rect), 1.0)
-        if any(rect_area(rect & self.page.rect) / page_area >= coverage_ratio_threshold for rect in self.image_rects):
+        page_area = max(rect_area(self.page_rect), 1.0)
+        if any(rect_area(rect & self.page_rect) / page_area >= coverage_ratio_threshold for rect in self.image_rects):
             return True
-        return page_has_tiled_background_images_from_rects(self.page, self.image_rects)
+        return page_has_tiled_background_images_from_rects(self.page_rect, self.image_rects)
 
 
 BBOX_COORDINATE_CANDIDATES: tuple[BBoxCoordinateCandidate, ...] = (
     BBoxCoordinateCandidate(
         name="pdf_matrix",
-        transform=lambda page, rect: rect * ~page.transformation_matrix,
+        transform=lambda inverse_ctm, rect: rect * inverse_ctm,
     ),
     BBoxCoordinateCandidate(
         name="raw_top_left",
-        transform=lambda _page, rect: fitz.Rect(rect),
+        transform=lambda _inverse_ctm, rect: fitz.Rect(rect),
     ),
 )
 
 
-def choose_page_coordinate_candidate(
-    page: fitz.Page,
+def choose_page_coordinate_candidate_with_inverse_ctm(
+    inverse_ctm: fitz.Matrix,
     bboxes: Iterable[object],
     text_index: TextRectIndex,
 ) -> BBoxCoordinateCandidate:
@@ -139,14 +153,26 @@ def choose_page_coordinate_candidate(
     if not raw_rects:
         return BBOX_COORDINATE_CANDIDATES[0]
     scores = [
-        aggregate_candidate_score(page, candidate, raw_rects, text_index)
+        aggregate_candidate_score_with_inverse_ctm(inverse_ctm, candidate, raw_rects, text_index)
         for candidate in BBOX_COORDINATE_CANDIDATES
     ]
     return max(scores, key=lambda score: (score.text_overlap_count, score.text_overlap_area)).candidate
 
 
-def aggregate_candidate_score(
+def choose_page_coordinate_candidate(
     page: fitz.Page,
+    bboxes: Iterable[object],
+    text_index: TextRectIndex,
+) -> BBoxCoordinateCandidate:
+    return choose_page_coordinate_candidate_with_inverse_ctm(
+        ~page.transformation_matrix,
+        bboxes,
+        text_index,
+    )
+
+
+def aggregate_candidate_score_with_inverse_ctm(
+    inverse_ctm: fitz.Matrix,
     candidate: BBoxCoordinateCandidate,
     raw_rects: tuple[fitz.Rect, ...],
     text_index: TextRectIndex,
@@ -155,7 +181,7 @@ def aggregate_candidate_score(
     area = 0.0
     union_rect = fitz.Rect()
     for raw_rect in raw_rects:
-        rect = candidate.transform(page, raw_rect)
+        rect = candidate.transform(inverse_ctm, raw_rect)
         if union_rect.is_empty:
             union_rect = fitz.Rect(rect)
         else:
@@ -168,6 +194,20 @@ def aggregate_candidate_score(
         rect=union_rect,
         text_overlap_count=count,
         text_overlap_area=area,
+    )
+
+
+def aggregate_candidate_score(
+    page: fitz.Page,
+    candidate: BBoxCoordinateCandidate,
+    raw_rects: tuple[fitz.Rect, ...],
+    text_index: TextRectIndex,
+) -> BBoxCoordinateScore:
+    return aggregate_candidate_score_with_inverse_ctm(
+        ~page.transformation_matrix,
+        candidate,
+        raw_rects,
+        text_index,
     )
 
 
@@ -201,7 +241,7 @@ def score_bbox_candidate(
     candidate: BBoxCoordinateCandidate,
     raw_rect: fitz.Rect,
 ) -> BBoxCoordinateScore:
-    rect = candidate.transform(page, raw_rect)
+    rect = candidate.transform(~page.transformation_matrix, raw_rect)
     count, area = text_overlap_score(page, rect)
     return BBoxCoordinateScore(
         candidate=candidate,
@@ -217,7 +257,7 @@ def score_bbox_candidate_with_text_rects(
     raw_rect: fitz.Rect,
     text_rects: tuple[fitz.Rect, ...],
 ) -> BBoxCoordinateScore:
-    rect = candidate.transform(page, raw_rect)
+    rect = candidate.transform(~page.transformation_matrix, raw_rect)
     count, area = TextRectIndex.build(text_rects).score(rect)
     return BBoxCoordinateScore(
         candidate=candidate,
@@ -236,18 +276,16 @@ def text_overlap_score_from_rects(target_rect: fitz.Rect, text_rects: tuple[fitz
 
 
 def page_text_rects(page: fitz.Page) -> tuple[fitz.Rect, ...]:
-    return page_bboxlog_rect_groups(page)[0]
+    return page_bboxlog_rect_groups_from_page(page)[0]
 
 
-def page_bboxlog_rect_groups(page: fitz.Page) -> tuple[tuple[fitz.Rect, ...], tuple[fitz.Rect, ...], tuple[fitz.Rect, ...]]:
-    try:
-        bboxlog = page.get_bboxlog()
-    except Exception:
-        return (), (), ()
+def page_bboxlog_rect_groups(
+    entries: object,
+) -> tuple[tuple[fitz.Rect, ...], tuple[fitz.Rect, ...], tuple[fitz.Rect, ...]]:
     rects: list[fitz.Rect] = []
     image_rects: list[fitz.Rect] = []
     unsafe_vector_rects: list[fitz.Rect] = []
-    for entry in bboxlog:
+    for entry in entries:
         kind = bboxlog_kind(entry)
         rect = bboxlog_rect(entry)
         if rect is None:
@@ -261,6 +299,16 @@ def page_bboxlog_rect_groups(page: fitz.Page) -> tuple[tuple[fitz.Rect, ...], tu
         if bboxlog_path_blocks_text_strip(kind, rect):
             unsafe_vector_rects.append(rect)
     return tuple(rects), tuple(image_rects), tuple(unsafe_vector_rects)
+
+
+def page_bboxlog_rect_groups_from_page(
+    page: fitz.Page,
+) -> tuple[tuple[fitz.Rect, ...], tuple[fitz.Rect, ...], tuple[fitz.Rect, ...]]:
+    try:
+        entries = page.get_bboxlog()
+    except Exception:
+        return (), (), ()
+    return page_bboxlog_rect_groups(entries)
 
 
 def bboxlog_text_rect(entry: object) -> fitz.Rect | None:
@@ -289,7 +337,7 @@ def bboxlog_rect(entry: object) -> fitz.Rect | None:
 
 
 def page_has_tiled_background_images_from_rects(
-    page: fitz.Page,
+    page_rect: fitz.Rect,
     image_rects: tuple[fitz.Rect, ...],
     *,
     coverage_ratio_threshold: float = 0.65,
@@ -298,16 +346,16 @@ def page_has_tiled_background_images_from_rects(
 ) -> bool:
     if len(image_rects) < min_image_count:
         return False
-    page_area = max(rect_area(page.rect), 1.0)
-    page_width = max(float(page.rect.width), 1.0)
+    page_area = max(rect_area(page_rect), 1.0)
+    page_width = max(float(page_rect.width), 1.0)
     page_wide_rects = [
-        rect & page.rect
+        rect & page_rect
         for rect in image_rects
-        if not (rect & page.rect).is_empty and (rect & page.rect).width / page_width >= min_width_ratio
+        if not (rect & page_rect).is_empty and (rect & page_rect).width / page_width >= min_width_ratio
     ]
     if len(page_wide_rects) < min_image_count:
         return False
-    covered_area = sum(rect_area(rect & page.rect) for rect in _merge_vertical_image_bands(page_wide_rects))
+    covered_area = sum(rect_area(rect & page_rect) for rect in _merge_vertical_image_bands(page_wide_rects))
     return covered_area / page_area >= coverage_ratio_threshold
 
 

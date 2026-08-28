@@ -15,13 +15,26 @@ pub struct ValidRedactionItem {
     pub translated_text: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 pub struct RedactionItem {
     /// Any-length array in production (`iter_valid_translated_items` checks
     /// `len(bbox) != 4`); `None` when absent.
     pub bbox: Option<Vec<f64>>,
     #[serde(default)]
     pub translated_text: String,
+    /// Translated-item id; the `redaction_items_from_layout_blocks` by-id key
+    /// (production `source_items_by_id = {str(item.get("item_id") or ""): item}`).
+    #[serde(default)]
+    pub item_id: String,
+    /// Source-item id carried onto page-spec-replaced items; `None` when the
+    /// source association is absent (production JSON `null`).
+    #[serde(default)]
+    pub source_item_id: Option<String>,
+    /// Third key of the visual-profile fill match (`runtime.py`
+    /// `background_fill_for_item`); production replaced items only carry
+    /// `_render_block_id`, so this stays empty for them.
+    #[serde(default)]
+    pub block_id: String,
     #[serde(default)]
     pub protected_translated_text: String,
     #[serde(default)]
@@ -52,6 +65,12 @@ pub struct RedactionItem {
     pub formula_guard_fragment: bool,
     #[serde(default, rename = "_formula_guard_fragment_index")]
     pub formula_guard_fragment_index: Option<i32>,
+    /// Per-item visual-profile fill, injected by the Python shim via
+    /// `visual_profile.background_fill_for_item(item)` (production's
+    /// `visual_cover_execution.py` resolves the fill on the valid item set).
+    /// `None` when the profile is absent/not loaded or the item ids miss.
+    #[serde(default, rename = "_visual_profile_fill")]
+    pub visual_profile_fill: Option<[f64; 3]>,
     #[serde(default, rename = "_render_cleanup_mode")]
     pub render_cleanup_mode: String,
     #[serde(default, rename = "_render_overlay_fill")]
@@ -62,7 +81,7 @@ pub struct RedactionItem {
     pub render_policy: Option<RenderPolicyPayload>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 pub struct RenderPolicyPayload {
     #[serde(default)]
     pub cleanup_mode: String,
@@ -233,5 +252,24 @@ mod tests {
     fn unknown_keys_ignored() {
         let it = item(r#"{"bbox":[0,0,1,1],"translated_text":"x","bogus_key":123}"#);
         assert_eq!(it.translated_text, "x");
+    }
+
+    #[test]
+    fn visual_profile_fill_roundtrips() {
+        let it = item(r#"{"translated_text":"x","_visual_profile_fill":[0.12,0.34,0.56]}"#);
+        assert_eq!(it.visual_profile_fill, Some([0.12, 0.34, 0.56]));
+        assert_eq!(item(r#"{"translated_text":"x"}"#).visual_profile_fill, None);
+    }
+
+    #[test]
+    fn source_association_fields_roundtrip() {
+        let it = item(
+            r#"{"translated_text":"x","item_id":"line-0","source_item_id":"src","block_id":"blk"}"#,
+        );
+        assert_eq!(it.item_id, "line-0");
+        assert_eq!(it.source_item_id, Some("src".to_string()));
+        assert_eq!(it.block_id, "blk");
+        assert_eq!(item(r#"{"translated_text":"x","source_item_id":null}"#).source_item_id, None);
+        assert_eq!(item(r#"{"translated_text":"x"}"#).source_item_id, None);
     }
 }

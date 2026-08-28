@@ -9,12 +9,9 @@ from typing import Any
 from foundation.config import fonts
 from foundation.config import paths
 from services.rendering.layout.model.models import RenderPageSpec
-from services.rendering.output.typst.emitter import build_typst_source_from_page_specs
 from services.rendering.output.typst.shared import TYPST_BIN
 from services.rendering.output.typst.shared import TYPST_OVERLAY_DIR
 from services.rendering.output.typst.source_builder import build_typst_book_background_source
-from services.rendering.output.typst.source_builder import build_typst_book_overlay_source
-from services.rendering.output.typst.source_builder import build_typst_overlay_source
 
 # Typst compiles can perform network I/O (downloading `@preview/...` packages from
 # packages.typst.org) and a large book can legitimately take minutes to typeset, so the
@@ -203,11 +200,11 @@ def compile_typst_overlay_pdf(
     work_dir.mkdir(parents=True, exist_ok=True)
     typ_path = work_dir / f"{stem}.typ"
     pdf_path = work_dir / f"{stem}.pdf"
+    from services.rendering.output.typst import _native
+
     typ_path.write_text(
-        build_typst_overlay_source(
-            page_width,
-            page_height,
-            translated_items,
+        _native.emit_typst_book_overlay_source(
+            page_specs=[(page_width, page_height, translated_items)],
             font_family=font_family,
             include_cover_rect=include_cover_rect,
         ),
@@ -243,9 +240,11 @@ def compile_typst_book_overlay_pdf(
         # Byte-for-byte copy — no need to decode/re-encode a multi-MB source file.
         shutil.copyfile(prebuilt_source_path, typ_path)
     else:
+        from services.rendering.output.typst import _native
+
         typ_path.write_text(
-            build_typst_book_overlay_source(
-                page_specs,
+            _native.emit_typst_book_overlay_source(
+                page_specs=page_specs,
                 font_family=font_family,
                 include_cover_rect=include_cover_rect,
             ),
@@ -322,8 +321,10 @@ def compile_typst_render_pages_pdf(
     if prebuilt_source_path is not None:
         typ_path.write_text(Path(prebuilt_source_path).read_text(encoding="utf-8"), encoding="utf-8")
     else:
+        from services.rendering.output.typst import _native
+
         typ_path.write_text(
-            build_typst_source_from_page_specs(
+            _native.emit_typst_source(
                 background_pdf_path=background_pdf_path,
                 page_specs=page_specs,
                 work_dir=work_dir,

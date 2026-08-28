@@ -7,12 +7,14 @@ use crate::models::domain::ResolvedJobSpec;
 use crate::storage_paths::JobPaths;
 
 use super::entrypoints::{
+    extract_text_layer_command as build_extract_text_layer_entrypoint,
     normalize_ocr_command as build_normalize_entrypoint,
     render_only_command as build_render_only_entrypoint,
     translate_only_command as build_translate_only_entrypoint,
 };
 use super::stage_specs::{
-    write_normalize_stage_spec, write_render_stage_spec, write_translate_stage_spec,
+    write_extract_text_layer_stage_spec, write_normalize_stage_spec, write_render_stage_spec,
+    write_translate_stage_spec,
 };
 
 pub(crate) enum WorkerStageCommand<'a> {
@@ -22,6 +24,10 @@ pub(crate) enum WorkerStageCommand<'a> {
         provider_result_json_path: &'a Path,
         provider_zip_path: &'a Path,
         provider_raw_dir: &'a Path,
+    },
+    ExtractTextLayer {
+        source_pdf_path: &'a Path,
+        output_json_path: &'a Path,
     },
     Translate {
         source_json_path: &'a Path,
@@ -56,6 +62,16 @@ pub(crate) fn build_worker_stage_command(
             provider_result_json_path,
             provider_zip_path,
             provider_raw_dir,
+        ),
+        WorkerStageCommand::ExtractTextLayer {
+            source_pdf_path,
+            output_json_path,
+        } => build_extract_text_layer_command(
+            config,
+            request,
+            job_paths,
+            source_pdf_path,
+            output_json_path,
         ),
         WorkerStageCommand::Translate {
             source_json_path,
@@ -109,6 +125,22 @@ fn build_render_only_command(
 ) -> Result<Vec<String>> {
     let spec_path = write_render_stage_spec(request, job_paths, source_pdf_path, translations_dir)?;
     Ok(build_render_only_entrypoint(config, &spec_path))
+}
+
+fn build_extract_text_layer_command(
+    config: &WorkerCommandRuntimeConfig<'_>,
+    request: &ResolvedJobSpec,
+    job_paths: &JobPaths,
+    source_pdf_path: &Path,
+    output_json_path: &Path,
+) -> Result<Vec<String>> {
+    let spec_path = write_extract_text_layer_stage_spec(
+        request,
+        job_paths,
+        source_pdf_path,
+        output_json_path,
+    )?;
+    Ok(build_extract_text_layer_entrypoint(config, &spec_path))
 }
 
 fn build_normalize_ocr_command(

@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 
 from foundation.config import fonts
-from services.rendering.output.typst.source_builder import build_typst_book_overlay_source
+from services.rendering.output.typst._native import emit_typst_book_overlay_source
 
 
 PREBUILT_SOURCE_RENDER_VERSION = "overlay_cover_fill_title_color_v10_inline_math_compat"
@@ -89,8 +89,8 @@ def resolve_prebuilt_overlay_source(
     active_path.write_text(
         f"// {_source_version_marker(include_cover_rect=include_cover_rect)}\n"
         f"{SOURCE_FINGERPRINT_PREFIX}{fingerprint}\n"
-        + build_typst_book_overlay_source(
-            book_specs,
+        + emit_typst_book_overlay_source(
+            page_specs=book_specs,
             font_family=font_family,
             include_cover_rect=include_cover_rect,
         ),
