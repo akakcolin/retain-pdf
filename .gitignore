@@ -55,4 +55,5 @@ VERSION
 ._*
 desktop/build/icon.icns
 desktop/app/
+/package-lock.json
 
