@@ -171,6 +171,12 @@ RENDERING_LAYER_IMPORT_EXCEPTIONS: dict[Path, tuple[str, ...]] = {
     Path("document/pikepdf_pages.py"): (
         "services.rendering.source._native",
     ),
+    # The save-optimized byte-compaction half routes through the write-path
+    # native shim (B2); font subsetting stays on fitz, so only the shim is
+    # allowed cross-layer, not the whole source layer.
+    Path("document/pdf_ops.py"): (
+        "services.rendering.source._native",
+    ),
 }
 REMOVED_SOURCE_PREPARATION_BBOX_MODULES = (
     "services.rendering.source.preparation.bbox_text_strip_accumulator",
@@ -210,6 +216,8 @@ WIRED_PYTHON_REFERENCE_SYMBOLS = {
         "services.rendering.source.preparation.xobject_sanitize",
         "_build_invalid_xobject_sanitized_pdf_copy_python",
     ),
+    # final save byte compaction routed via source/_native.py
+    ("services.rendering.document.pdf_ops", "_save_optimized_pdf_python"),
     # background stage routed via source/background/_native.py
     ("services.rendering.source.background.stage", "_build_clean_background_pdf_python"),
     # Typst output layer routed via output/typst/_native.py

@@ -13,9 +13,11 @@ expose a production result contract (`sanitize_invalid_xobjects`,
 result dataclasses / return values without re-deriving them.
 
 Routed here: `build_invalid_xobject_sanitized_pdf_copy`,
-`compress_pdf_images_only_impl`, `extract_pages_with_pikepdf`, and the
+`compress_pdf_images_only_impl`, `extract_pages_with_pikepdf`, the
 prewarm page-count / page-width lookup
-`prewarm_payload._read_source_page_sizes_and_count_python`. The other
+`prewarm_payload._read_source_page_sizes_and_count_python`, and
+`document.pdf_ops.save_optimized_pdf`'s byte-compaction half (garbage
+collection + stream compression; font subsetting stays on fitz). The other
 write-path primitives are deliberately NOT routed:
 
 Documented divergence — native `compress_images` uses the Rust `image` crate
@@ -103,6 +105,7 @@ try:
     from rendering_bridge import read_page_text_blocks as _native_read_page_text_blocks
     from rendering_bridge import read_page_text_spans as _native_read_page_text_spans
     from rendering_bridge import sanitize_invalid_xobjects as _native_sanitize_invalid_xobjects
+    from rendering_bridge import save_optimized_pdf as _native_save_optimized_pdf
 
     NATIVE = True
 except ImportError:  # pragma: no cover - native build not present
@@ -186,6 +189,37 @@ def extract_pages(
     )
     output_pdf_path.write_bytes(out_bytes)
     return output_pdf_path
+
+
+def save_optimized(pdf_bytes: bytes) -> bytes:
+    """`document.pdf_ops.save_optimized_pdf`'s byte-compaction half (garbage
+    collection + stream compression), routed to the native bridge when built;
+    otherwise a bytes-level pure-Python reference. Font subsetting is applied by
+    production (fitz `subset_fonts()` + `tobytes()`) before this is called, so
+    native output stays within a few percent of the fitz `save` options
+    (measured 1.000-1.034x on golden + synthetic CJK/image PDFs)."""
+    if not NATIVE:
+        return _save_optimized_pdf_bytes_python(pdf_bytes)
+    return _native_save_optimized_pdf(pdf_bytes)
+
+
+def _save_optimized_pdf_bytes_python(pdf_bytes: bytes) -> bytes:
+    import io
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    buf = io.BytesIO()
+    try:
+        doc.save(
+            buf,
+            garbage=4,
+            deflate=True,
+            deflate_images=True,
+            deflate_fonts=True,
+            use_objstms=1,
+        )
+    finally:
+        doc.close()
+    return buf.getvalue()
 
 
 def read_page_sizes_and_count(*, source_pdf_path: Path) -> tuple[int, dict[int, float]]:

@@ -412,6 +412,25 @@ fn build_clean_background_pdf(
     std::fs::read(&out_path).map_err(|e| PyRuntimeError::new_err(format!("read: {e}")))
 }
 
+/// `save_optimized_pdf` entry point — PDF bytes in, optimised bytes out
+/// (garbage=4 + image/font stream compression). Port of the compaction half of
+/// `document/pdf_ops.save_optimized_pdf`; font subsetting is intentionally NOT
+/// performed here because mupdf-rs exposes no subset API — production applies
+/// fitz `subset_fonts()` + `tobytes()` before handing bytes over (see the
+/// `source/_native.py::save_optimized` shim).
+#[pyfunction]
+fn save_optimized_pdf(pdf_bytes: &[u8]) -> PyResult<Vec<u8>> {
+    let dir = temp_dir()?;
+    let in_path = dir.join("in.pdf");
+    std::fs::write(&in_path, pdf_bytes).map_err(|e| PyRuntimeError::new_err(format!("write: {e}")))?;
+    let pdf = PdfDocument::open(in_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open: {e}")))?;
+    delete_trailer_id(&pdf).map_err(|e| PyRuntimeError::new_err(format!("delete_trailer_id: {e}")))?;
+    let out_path = dir.join("out.pdf");
+    save_optimized(&pdf, &out_path).map_err(|e| PyRuntimeError::new_err(format!("save_optimized: {e}")))?;
+    std::fs::read(&out_path).map_err(|e| PyRuntimeError::new_err(format!("read: {e}")))
+}
+
 // --- reader entry -----------------------------------------------------------
 
 /// Read per-page rects (rotation-applied bounds, == fitz `page.rect`) for the
@@ -973,6 +992,7 @@ fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(overlay_page, m)?)?;
     m.add_function(wrap_pyfunction!(clean_background, m)?)?;
     m.add_function(wrap_pyfunction!(build_clean_background_pdf, m)?)?;
+    m.add_function(wrap_pyfunction!(save_optimized_pdf, m)?)?;
     m.add_function(wrap_pyfunction!(read_page_sizes, m)?)?;
     m.add_function(wrap_pyfunction!(read_page_geometry, m)?)?;
     m.add_function(wrap_pyfunction!(read_page_drawing_count, m)?)?;

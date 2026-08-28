@@ -620,6 +620,81 @@ def case_hidden_text() -> dict:
     }
 
 
+def case_save(name: str, raw_bytes: bytes) -> dict:
+    """Final-save byte-compaction case (B2).
+
+    The recorded input is the post-`subset_fonts` `tobytes()` bytes — exactly
+    what native `save_optimized_pdf` receives in production (fitz subsetting,
+    native garbage+compression). The oracle is the pure-fitz
+    `_save_optimized_pdf_python` run on that input: its output page facts and
+    byte size are what the Rust `save_replay` must reproduce (facts equal,
+    native output within `SAVE_SIZE_K` of the fitz reference)."""
+    from services.rendering.document.pdf_ops import _save_optimized_pdf_python
+
+    doc = fitz.open(stream=raw_bytes, filetype="pdf")
+    doc.subset_fonts()
+    input_bytes = deterministic_tobytes(doc)
+    doc.close()
+
+    input_doc = fitz.open(stream=input_bytes, filetype="pdf")
+    input_facts = page_facts(input_doc)
+    input_doc.close()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        out = os.path.join(tmp, "out.pdf")
+        ref_doc = fitz.open(stream=input_bytes, filetype="pdf")
+        _save_optimized_pdf_python(ref_doc, Path(out))
+        ref_doc.close()
+        ref_bytes = Path(out).read_bytes()
+        with fitz.open(out) as ref_opened:
+            ref_facts = page_facts(ref_opened)
+
+    return {
+        "name": name,
+        "input_pdf_b64": base64.b64encode(input_bytes).decode("ascii"),
+        "expected": {
+            "input": {"pages": input_facts},
+            "output": {"pages": ref_facts},
+            "output_page_count": len(ref_facts),
+            "output_bytes": len(ref_bytes),
+        },
+    }
+
+
+def build_cjk_pdf() -> bytes:
+    """A two-line CJK page using an embedded TrueType font (exercises native
+    font-stream compression after fitz subsetting). Uses the repo-local
+    DroidSansFallbackFull.ttf — a CFF OpenType CJK font would embed the full
+    24 MB glyph set because fitz `subset_fonts()` only subsets TrueType."""
+    cjk = os.path.join(REPO_ROOT, "desktop", "app", "backend", "fonts", "DroidSansFallbackFull.ttf")
+    doc = fitz.open()
+    page = doc.new_page(width=300.0, height=200.0)
+    page.insert_font(fontname="cjk", fontfile=cjk)
+    page.insert_text((20.0, 40.0), "中文测试排版页面 保留第一行", fontname="cjk", fontsize=12)
+    page.insert_text((20.0, 70.0), "第二行中文内容 需要删除", fontname="cjk", fontsize=12)
+    page.insert_text((20.0, 100.0), "THIRD ASCII LINE MIXED", fontsize=12)
+    out = doc.tobytes()
+    doc.close()
+    return out
+
+
+def build_image_pdf() -> bytes:
+    """A noisy JPEG image plus caption text (exercises native image-stream
+    compression)."""
+    random.seed(0)
+    raw = bytes(random.getrandbits(8) for _ in range(400 * 300 * 3))
+    img = Image.frombytes("RGB", (400, 300), raw)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=85)
+    doc = fitz.open()
+    page = doc.new_page(width=300.0, height=200.0)
+    page.insert_image(fitz.Rect(10.0, 10.0, 150.0, 120.0), stream=buf.getvalue())
+    page.insert_text((160.0, 40.0), "CAPTION TEXT", fontsize=12)
+    out = doc.tobytes()
+    doc.close()
+    return out
+
+
 def case_sanitize() -> dict:
     """A page whose /Resources/XObject holds a valid 1x1 DeviceGray image
     (drawn over the page) and an invalid image missing /Width//Height (never
@@ -755,6 +830,21 @@ def main():
             overlay_rotate=90,
         ),
     ]
+    _plain_doc = text_page(["ALPHA LINE ONE", "BETA LINE TWO"])
+    _plain_bytes = _plain_doc.tobytes()
+    _plain_doc.close()
+    save_cases = [
+        case_save("save_text_plain", _plain_bytes),
+        case_save("save_cjk_embedded", build_cjk_pdf()),
+        case_save("save_image_heavy", build_image_pdf()),
+        case_save(
+            "save_golden_2",
+            open(
+                os.path.join(REPO_ROOT, "resources", "samples", "golden-pdfs", "2.pdf"),
+                "rb",
+            ).read(),
+        ),
+    ]
     subset_cases = [
         case_subset(
             "subset_first_two",
@@ -782,6 +872,7 @@ def main():
         "render_scale": RENDER_SCALE,
         "ink_threshold": INK_THRESHOLD,
         "cases": cases,
+        "save_cases": save_cases,
         "subset_cases": subset_cases,
         "overlay_cases": overlay_cases,
         "image_cases": image_cases,
@@ -792,7 +883,8 @@ def main():
         json.dump(payload, fh, ensure_ascii=False, sort_keys=True, indent=1)
     size = os.path.getsize(OUT_PATH)
     print(
-        f"wrote {len(cases)} strip + {len(subset_cases)} subset "
+        f"wrote {len(cases)} strip + {len(save_cases)} save "
+        f"+ {len(subset_cases)} subset "
         f"+ {len(overlay_cases)} overlay + {len(image_cases)} image "
         f"+ {len(prep_cases)} prep cases ({size / 1024:.0f} KiB) -> {OUT_PATH}"
     )

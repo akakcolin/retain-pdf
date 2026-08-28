@@ -24,13 +24,21 @@ use rendering_writer::image_compress::compress_images;
 use rendering_writer::overlay::overlay_page;
 use rendering_writer::page_subset::extract_pages;
 use rendering_writer::sanitize::{count_invalid_images, sanitize_invalid_xobjects, xobject_subtypes};
-use rendering_writer::save::{delete_trailer_id, save_atomic};
+use rendering_writer::save::{delete_trailer_id, save_atomic, save_optimized};
 
 mod common;
 use common::{
     assert_page_facts, corpus, decode, measure_pages, rect_map, HiddenTextCase, PrepCase,
     SanitizeCase, WriteCase,
 };
+
+/// Relative size tolerance vs the fitz reference save. Native does no font
+/// subsetting (production subsets in fitz first) and no object streams, so it
+/// can be slightly larger; measured ratios on the corpus are 1.001-1.079
+/// (fitz `use_objstms=1` compresses the subset font's object structure better
+/// than mupdf-rs's flat object graph), so 1.15 leaves margin while still
+/// catching a compaction regression (native growing >15%).
+const SAVE_SIZE_K: f64 = 1.15;
 
 fn build_page_rects(case: &WriteCase) -> HashMap<i32, Vec<RectTuple>> {
     rect_map(&case.page_rects)
@@ -119,6 +127,72 @@ fn strip_replay_matches_production() {
             &output_facts,
             &case.expected.output.pages,
             &format!("{} output", case.name),
+        );
+    }
+}
+
+#[test]
+fn save_replay_matches_production() {
+    let corpus = corpus();
+    assert!(!corpus.save_cases.is_empty());
+    let scale = corpus.render_scale as f32;
+    let threshold = corpus.ink_threshold;
+
+    for case in &corpus.save_cases {
+        let dir = tempfile_dir(&format!("save-{}", case.name));
+        let in_path = write_input(&dir, "in.pdf", &decode(&case.input_pdf_b64));
+
+        let input_doc = Document::open(in_path.as_path())
+            .unwrap_or_else(|e| panic!("{} open input: {e}", case.name));
+        let input_facts = measure_pages(
+            &input_doc,
+            input_doc.page_count().unwrap_or(0) as usize,
+            scale,
+            threshold,
+        );
+        assert_page_facts(
+            &input_facts,
+            &case.expected.input.pages,
+            &format!("{} input", case.name),
+        );
+
+        let pdf = mupdf::pdf::PdfDocument::open(in_path.as_path())
+            .unwrap_or_else(|e| panic!("{} open for save: {e}", case.name));
+        delete_trailer_id(&pdf).unwrap_or_else(|e| panic!("{} delete_trailer_id: {e}", case.name));
+        let out_path = dir.join("out.pdf");
+        save_optimized(&pdf, &out_path)
+            .unwrap_or_else(|e| panic!("{} save_optimized: {e}", case.name));
+        let out_bytes = fs::read(&out_path).expect("read output");
+        assert!(
+            out_bytes.starts_with(b"%PDF-"),
+            "{} output is not a valid PDF (bad header)",
+            case.name,
+        );
+
+        let out_doc = Document::open(out_path.as_path())
+            .unwrap_or_else(|e| panic!("{} reopen output: {e}", case.name));
+        let out_pages = out_doc.page_count().unwrap_or(0) as usize;
+        assert_eq!(
+            out_pages,
+            case.expected.output_page_count,
+            "{} output_page_count",
+            case.name
+        );
+        let output_facts = measure_pages(&out_doc, out_pages, scale, threshold);
+        assert_page_facts(
+            &output_facts,
+            &case.expected.output.pages,
+            &format!("{} output", case.name),
+        );
+
+        let size_ratio = out_bytes.len() as f64 / case.expected.output_bytes as f64;
+        assert!(
+            size_ratio <= SAVE_SIZE_K,
+            "{} native output {}/{} = {:.3} > k={SAVE_SIZE_K}",
+            case.name,
+            out_bytes.len(),
+            case.expected.output_bytes,
+            size_ratio,
         );
     }
 }

@@ -1,6 +1,6 @@
 # Rust 化实施状态
 
-> 记录时间：2026-08-27。基于 git 历史 + 代码勘察（含未提交的工作区改动）。
+> 记录时间：2026-08-28。基于 git 历史 + 代码勘察（含未提交的工作区改动）。
 > 进度远超 [13-Rust化实施计划.md](./13-Rust化实施计划.md)（该文档只写到 Phase 5）。
 
 ## 阶段进度
@@ -23,7 +23,8 @@
 |---|---|---|
 | `source/background/stage.py`（build_clean_background_pdf） | `rendering_writer::background`（stage/redaction/detect/image_route/toc/formula_guard/vector_text） | **已接线**：生产走 Rust |
 | `output/typst/`（emitter/compiler/block_renderer） | `rendering_output` | **休眠**：`output/typst/_native.py` 无任何 import |
-| `document/pdf_ops`、`legacy/pdf_compress` | `rendering_writer`（save/strip/compress/extract_pages/overlay） | **休眠**：bridge 已导出，Python 无调用点 |
+| `document/pdf_ops.py`（save_optimized_pdf 字节压缩） | `rendering_writer::save::save_optimized` | **已接线**：生产走 `source/_native.py::save_optimized`（fitz 子集化 + native garbage=4/流压缩，失败回退纯 fitz） |
+| `legacy/pdf_compress` | `rendering_writer`（save/strip/compress/extract_pages/overlay） | **休眠**：bridge 已导出，Python 无调用点 |
 | `layout/`、`analysis/route/` | `rendering_core` | **未接线**：无 Python 引用，仅差分测试 |
 | `analysis/profile/`、`classifier.py` | `rendering_core::profile/classifier` | **未接线** |
 | `source_cleanup/` | `rendering_core::source_cleanup` | **部分**：被 Rust background 内部用；Python planning 仍跑 |
@@ -32,10 +33,10 @@
 
 ## 生产接线现状
 
-- 唯一 native 入口：`build_clean_background_pdf` → `source/background/_native.py` → `rendering_bridge` → `rendering_writer`。
+- native 入口：`build_clean_background_pdf` → `source/background/_native.py`；最终保存 `save_optimized_pdf` → `source/_native.py::save_optimized`（fitz `subset_fonts()`+`tobytes()`，native garbage=4+流压缩，失败回退 fitz）。
 - WIP 状态：auto / visual_cover / visual_cover_and_remove_text 全走 Rust；仅 `text_layer_only` / `text_redaction` 与 mock（instrumented）场景回退纯 Python。
 - `output/typst/_native.py` shim 存在但未被任何生产代码 import，Python `emitter.py` 仍在跑。
-- 生产渲染流程其余环节（page_specs 构建、prepare、颜色适配、visual profile 加载、Typst 源码生成、typst CLI 编译、保存/叠加）仍是 Python + fitz。
+- 生产渲染流程其余环节（page_specs 构建、prepare、颜色适配、visual profile 加载、Typst 源码生成、typst CLI 编译、叠加）仍是 Python + fitz；`save_fast_pdf` 仍走 fitz `doc.save`。
 
 ## Python 依赖评估
 
@@ -47,4 +48,4 @@
 
 ## 结论
 
-移植覆盖度高、每阶段带 corpus + 差分门禁，但生产接入度低：目前只有"背景涂改/红批"一个热点 stage 真正跑 Rust。整体替代程度按代码量算中等，按运行时算偏低；Python 库的整体依赖尚未实质下降。
+移植覆盖度高、每阶段带 corpus + 差分门禁，但生产接入度仍低：目前只有"背景涂改/红批"stage 与"最终保存字节压缩"两个热点真正跑 Rust。整体替代程度按代码量算中等，按运行时算偏低；Python 库的整体依赖尚未实质下降。

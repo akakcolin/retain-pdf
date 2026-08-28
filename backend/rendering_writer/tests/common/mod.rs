@@ -35,6 +35,8 @@ pub struct WriteCorpus {
     pub ink_threshold: u8,
     pub cases: Vec<WriteCase>,
     #[serde(default)]
+    pub save_cases: Vec<SaveCase>,
+    #[serde(default)]
     pub subset_cases: Vec<SubsetCase>,
     #[serde(default)]
     pub overlay_cases: Vec<OverlayCase>,
@@ -142,6 +144,21 @@ pub struct SubsetExpected {
     pub input: PageFacts,
     pub output: PageFacts,
     pub output_page_count: usize,
+}
+
+#[derive(Deserialize)]
+pub struct SaveCase {
+    pub name: String,
+    pub input_pdf_b64: String,
+    pub expected: SaveExpected,
+}
+
+#[derive(Deserialize)]
+pub struct SaveExpected {
+    pub input: PageFacts,
+    pub output: PageFacts,
+    pub output_page_count: usize,
+    pub output_bytes: usize,
 }
 
 #[derive(Deserialize)]
