@@ -53,7 +53,7 @@
 - fitz/PyMuPDF 仍被约百个模块引用。
 - 仅在 `build_clean_background_pdf` stage 内部，PDF 读写由 mupdf-rs 替换 fitz。
 - native `.so` 已构建并装入 `.venv`（Python 3.14），开发环境 `NATIVE=True`。
-- 桌面发布包 bundle 的是 `desktop/app/backend` 副本，未发现 maturin 构建脚本；发布版是否走 native 取决于部署时是否执行构建。
+- 桌面发布版**不走 native**：`desktop/scripts/prepare-app.mjs` 只拷贝 `backend/scripts` Python 源码 + `rust_api` 二进制，无 maturin 构建步骤；`release-desktop.yml` 同样无 maturin/`rendering_bridge` 引用。`import rendering_bridge` 在发布包内必然 ImportError，所有 `_native.py` shim 回落纯 Python（`NATIVE=False`）。maturin 仅出现在 `backend/rendering_bridge/pyproject.toml` 与 parity CI（`maturin develop` 装进测试 venv）。发布版接入 native 需在 `prepare-app.mjs` 增加构建 + 拷贝 `.so` 步骤。
 
 ## 分歧台账（reader 原语 vs fitz）
 
