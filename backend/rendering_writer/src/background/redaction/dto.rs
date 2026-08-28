@@ -38,7 +38,11 @@ pub struct RedactionItem {
     #[serde(default)]
     pub protected_translated_text: String,
     #[serde(default)]
+    pub render_protected_text: String,
+    #[serde(default)]
     pub translation_unit_protected_translated_text: String,
+    #[serde(default)]
+    pub translation_unit_protected_source_text: String,
     #[serde(default)]
     pub translation_unit_translated_text: String,
     #[serde(default)]

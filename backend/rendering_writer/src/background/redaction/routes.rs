@@ -1,8 +1,5 @@
 //! Redaction route resolution, decision, and dispatch, port of
-//! `source/cleanup/{strategy,route_decider,routes}.py`. The `text_layer_only`
-//! subroutes (image_page / cover_only_count / vector_heavy / standard) are
-//! deferred to 7R-4+ and surface as a `deferred_text_layer_only` diagnostic
-//! route so the bridge shim can fall back to Python.
+//! `source/cleanup/{strategy,route_decider,routes}.py`.
 
 use mupdf::pdf::{PdfDocument, PdfPage};
 use mupdf::{Error, Page};
@@ -10,8 +7,12 @@ use mupdf::{Error, Page};
 use rendering_core::source_cleanup::hit_test::RectTuple;
 
 use super::auto::apply_auto_redaction;
-use super::diagnostics::{new_redaction_diagnostics, RedactionDiagnostics};
+use super::diagnostics::RedactionDiagnostics;
 use super::dto::{RedactionItem, ValidRedactionItem};
+use super::text_layer_only::{
+    apply_cover_only_count_redaction, apply_image_page_redaction, apply_standard_redaction,
+    apply_vector_heavy_redaction, decide_text_layer_only, TextLayerOnlySubroute,
+};
 use super::visual_cover::apply_visual_cover_redaction;
 use super::super::fill::RgbPixmap;
 
@@ -44,14 +45,14 @@ pub fn resolve_redaction_route(strategy: Option<&str>, cover_only: bool) -> Resu
     }
 }
 
-/// `route_decider.py::decide_redaction_execution` — for the three routes the
-/// 7R-2 corpus reaches, the decision is the route itself. `text_layer_only` is
-/// deferred (its subroute predicates land in 7R-4).
+/// `route_decider.py::decide_redaction_execution` — for the auto / visual_cover
+/// routes the decision is the route itself; `text_layer_only` resolves its
+/// subroute from the page context at dispatch time.
 pub enum RedactionExecution {
     Auto,
     VisualCover,
     VisualCoverAndRemoveText,
-    DeferredTextLayerOnly,
+    TextLayerOnly,
 }
 
 pub fn decide_redaction_execution(route: &str) -> RedactionExecution {
@@ -59,14 +60,8 @@ pub fn decide_redaction_execution(route: &str) -> RedactionExecution {
         ROUTE_AUTO => RedactionExecution::Auto,
         ROUTE_VISUAL_COVER => RedactionExecution::VisualCover,
         ROUTE_VISUAL_COVER_AND_REMOVE_TEXT => RedactionExecution::VisualCoverAndRemoveText,
-        _ => RedactionExecution::DeferredTextLayerOnly,
+        _ => RedactionExecution::TextLayerOnly,
     }
-}
-
-fn deferred_diagnostics(items: usize) -> RedactionDiagnostics {
-    let mut d = new_redaction_diagnostics(items);
-    d.route = "deferred_text_layer_only".to_string();
-    d
 }
 
 /// `routes.py::apply_redaction_route` — resolve, decide, dispatch.
@@ -117,7 +112,41 @@ pub fn apply_redaction_route(
             cover_only,
             ROUTE_VISUAL_COVER_AND_REMOVE_TEXT,
         ),
-        RedactionExecution::DeferredTextLayerOnly => Ok(deferred_diagnostics(valid_items.len())),
+        RedactionExecution::TextLayerOnly => {
+            // `route_context.py::build_redaction_route_context` with no plan:
+            // image_page from the edit page, drawing_count from the raw drawing
+            // scan of the pristine render page (== `page_drawing_count` for the
+            // corpus pages, whose drawings all carry non-empty rects).
+            let image_page = super::super::detect::page_has_large_background_image(edit_page, page_rect)?;
+            let drawing_count = render_page.drawings()?.len();
+            match decide_text_layer_only(image_page, drawing_count) {
+                TextLayerOnlySubroute::ImagePage => {
+                    apply_image_page_redaction(edit_page, doc, page_rect, valid_items, render_clip)
+                }
+                TextLayerOnlySubroute::CoverOnlyCount => apply_cover_only_count_redaction(
+                    edit_page,
+                    doc,
+                    page_rect,
+                    valid_items,
+                    render_clip,
+                ),
+                TextLayerOnlySubroute::VectorHeavy => apply_vector_heavy_redaction(
+                    edit_page,
+                    doc,
+                    page_rect,
+                    valid_items,
+                    render_clip,
+                ),
+                TextLayerOnlySubroute::Standard => apply_standard_redaction(
+                    render_page,
+                    edit_page,
+                    doc,
+                    page_rect,
+                    valid_items,
+                    render_clip,
+                ),
+            }
+        }
     }
 }
 
@@ -146,7 +175,7 @@ mod tests {
         ));
         assert!(matches!(
             decide_redaction_execution("text_layer_only"),
-            RedactionExecution::DeferredTextLayerOnly
+            RedactionExecution::TextLayerOnly
         ));
     }
 }

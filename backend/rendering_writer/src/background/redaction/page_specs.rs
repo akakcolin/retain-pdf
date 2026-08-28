@@ -61,8 +61,9 @@ fn protected_text(block: &RenderLayoutBlock) -> String {
 /// inherits every source field; the merge overrides the id/kind/text/bbox
 /// keys production sets. `source_item_id = source_item.get("item_id")` maps an
 /// absent/empty source id to `None` (the corpus never carries an explicit
-/// empty `item_id`). `render_protected_text`, `_render_block_id`, and
-/// `_render_block_index` are dropped from the DTO consistently on both sides.
+/// empty `item_id`). `render_protected_text` mirrors `protected_translated_text`
+/// (production sets both to `render_block_protected_text`); `_render_block_id`
+/// and `_render_block_index` are dropped from the DTO consistently on both sides.
 fn redaction_item_from_render_block(
     block: &RenderLayoutBlock,
     source_item: Option<&RedactionItem>,
@@ -85,7 +86,8 @@ fn redaction_item_from_render_block(
         });
     out.source_text = source_text.map(str::to_string).unwrap_or_else(|| block.plain_text.clone());
     out.translated_text = block.plain_text.clone();
-    out.protected_translated_text = protected;
+    out.protected_translated_text = protected.clone();
+    out.render_protected_text = protected;
     out.bbox = Some(block.background_rect.clone());
     out
 }

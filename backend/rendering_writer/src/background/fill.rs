@@ -645,6 +645,148 @@ pub fn draw_solid_cover(
     Ok(())
 }
 
+/// `fill.py::PreparedBackgroundCover` — a text-layer rect with either a sampled
+/// background pixmap to paint over it or a resolved solid fill.
+pub struct PreparedBackgroundCover {
+    pub rect: RectTuple,
+    pub pixmap: Option<RgbPixmap>,
+    pub fill: Option<[f64; 3]>,
+}
+
+/// `fill.py::prepare_background_cover` — best patch strip whose render is
+/// low-complexity (bucket 0) and not text-contaminated becomes the pixmap;
+/// otherwise the local background fill.
+pub fn prepare_background_cover(
+    page_rect: &RectTuple,
+    render_clip: &dyn Fn(&RectTuple) -> Option<RgbPixmap>,
+    rect: &RectTuple,
+) -> PreparedBackgroundCover {
+    let mut best_pixmap: Option<RgbPixmap> = None;
+    let mut best_score: Option<(u8, u8, f64)> = None;
+    for candidate in patch_candidate_rects(page_rect, rect) {
+        let Some(pix) = render_clip(&candidate) else {
+            continue;
+        };
+        let pixels = pixmap_rgb_pixels(&pix);
+        if pixels.len() < BACKGROUND_COVER_MIN_SAMPLE_PIXELS {
+            continue;
+        }
+        if looks_like_text_contaminated_light_patch(&pixels) {
+            continue;
+        }
+        let spread = brightness_spread(&pixels);
+        let complexity_bucket = if spread <= BACKGROUND_COVER_COMPLEXITY_BRIGHTNESS_SPREAD {
+            0
+        } else {
+            1
+        };
+        let score = (complexity_bucket, spread, -rect_area(&candidate));
+        if match best_score {
+            None => true,
+            Some(bs) => neighbor_score_less(score, bs),
+        } {
+            best_score = Some(score);
+            best_pixmap = Some(pix);
+        }
+    }
+    if let (Some(pix), Some(score)) = (best_pixmap, best_score) {
+        if score.0 == 0 {
+            return PreparedBackgroundCover {
+                rect: *rect,
+                pixmap: Some(pix),
+                fill: None,
+            };
+        }
+    }
+    let fill = sample_local_background_fill(page_rect, render_clip, rect, None);
+    PreparedBackgroundCover {
+        rect: *rect,
+        pixmap: None,
+        fill: Some(fill),
+    }
+}
+
+/// `fill.py::prepare_background_covers` — per-rect prepare; never `None`
+/// (the production fallback inside the loop is unreachable).
+pub fn prepare_background_covers(
+    page_rect: &RectTuple,
+    render_clip: &dyn Fn(&RectTuple) -> Option<RgbPixmap>,
+    rects: &[RectTuple],
+) -> Vec<PreparedBackgroundCover> {
+    rects.iter()
+        .map(|rect| prepare_background_cover(page_rect, render_clip, rect))
+        .collect()
+}
+
+/// `fill.py::apply_prepared_background_cover` — paint the sampled pixmap into
+/// the rect (`insert_image`, stretch to fill, overlay), falling back to a solid
+/// fill cover when the pixmap path errors (Python swallows the exception).
+pub fn apply_prepared_background_cover(
+    page: &mut mupdf::pdf::PdfPage,
+    doc: &mut mupdf::pdf::PdfDocument,
+    page_rect: &RectTuple,
+    render_clip: &dyn Fn(&RectTuple) -> Option<RgbPixmap>,
+    cover: &PreparedBackgroundCover,
+) -> Result<(), mupdf::Error> {
+    if let Some(pixmap) = &cover.pixmap {
+        let inserted = (|| -> Result<(), mupdf::Error> {
+            let mut pix = mupdf::Pixmap::new_with_w_h(
+                &mupdf::Colorspace::device_rgb(),
+                pixmap.width as i32,
+                pixmap.height as i32,
+                false,
+            )?;
+            let stride = pix.stride() as usize;
+            if stride == pixmap.width * 3 {
+                pix.samples_mut().copy_from_slice(&pixmap.samples);
+            } else {
+                for y in 0..pixmap.height {
+                    let src = &pixmap.samples[y * pixmap.width * 3..(y + 1) * pixmap.width * 3];
+                    let dst =
+                        &mut pix.samples_mut()[y * stride..y * stride + pixmap.width * 3];
+                    dst.copy_from_slice(src);
+                }
+            }
+            page.insert_image(
+                doc,
+                mupdf::Rect::new(
+                    cover.rect[0] as f32,
+                    cover.rect[1] as f32,
+                    cover.rect[2] as f32,
+                    cover.rect[3] as f32,
+                ),
+                mupdf::pdf::PageImageSource::Pixmap(&pix),
+                mupdf::pdf::InsertImageOptions {
+                    overlay: true,
+                    ..Default::default()
+                },
+            )?;
+            Ok(())
+        })();
+        if inserted.is_ok() {
+            return Ok(());
+        }
+    }
+    let fill = cover
+        .fill
+        .unwrap_or_else(|| sample_local_background_fill(page_rect, render_clip, &cover.rect, None));
+    draw_solid_cover(page, doc, &cover.rect, &fill)
+}
+
+/// `fill.py::apply_prepared_background_covers`.
+pub fn apply_prepared_background_covers(
+    page: &mut mupdf::pdf::PdfPage,
+    doc: &mut mupdf::pdf::PdfDocument,
+    page_rect: &RectTuple,
+    render_clip: &dyn Fn(&RectTuple) -> Option<RgbPixmap>,
+    covers: &[PreparedBackgroundCover],
+) -> Result<(), mupdf::Error> {
+    for cover in covers {
+        apply_prepared_background_cover(page, doc, page_rect, render_clip, cover)?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -25,10 +25,6 @@ impl RedactionDiagnostics {
     pub fn is_empty_route(&self) -> bool {
         self.route == "empty"
     }
-
-    pub fn is_deferred(&self) -> bool {
-        self.route == "deferred_text_layer_only"
-    }
 }
 
 /// `new_redaction_diagnostics(valid_items)` — the initial dict shape every

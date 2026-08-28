@@ -1,17 +1,20 @@
 //! Redaction engine, port of `source/cleanup/redaction_flow.py` and its
 //! executors. Phase 7R-2 scope: routing/decision for the auto / visual_cover /
-//! visual_cover_and_remove_text routes, the cover + text-removal primitives,
-//! and a safe-direct-only text matcher (full span/word matching in 7R-3).
-//! Math protection and vector-text routes are shimmed empty/deferred.
+//! visual_cover_and_remove_text / text_layer_only routes, the cover +
+//! text-removal primitives, and a safe-direct-only text matcher (full
+//! span/word matching in 7R-3). Math protection is shimmed empty.
 
 pub mod auto;
+pub mod complex_math;
 pub mod config;
 pub mod diagnostics;
 pub mod dto;
 pub mod page_specs;
 pub mod primitives;
+pub mod standard_thresholds;
 pub mod redaction_padding;
 pub mod routes;
+pub mod text_layer_only;
 pub mod text_matching;
 pub mod text_ownership;
 pub mod visual_cover;

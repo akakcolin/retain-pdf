@@ -39,6 +39,7 @@ sys.path.insert(0, _HERE)
 
 import gen_stage_corpus as gen  # noqa: E402
 
+from services.rendering import _routing  # noqa: E402
 from services.rendering.source.background import _native  # noqa: E402
 from services.rendering.source.background.stage import _build_clean_background_pdf_python  # noqa: E402
 
@@ -162,9 +163,12 @@ def synthetic_book_renderer_scenario(name, *, loaded_profile):
 
 def main() -> None:
     assert _native.NATIVE, "native module not built"
-    assert _native._native_eligible(None), "auto/visual_cover should route native"
-    assert not _native._native_eligible("text_layer_only"), "text_layer_only must fall back"
-    assert not _native._native_eligible("text_redaction"), "text_redaction must fall back"
+    eligible, reason = _native._native_eligible(None)
+    assert eligible and reason is None, "auto/visual_cover should route native"
+    eligible, reason = _native._native_eligible("text_layer_only")
+    assert eligible and reason is None, "text_layer_only should route native"
+    eligible, reason = _native._native_eligible("text_redaction")
+    assert eligible and reason is None, "text_redaction should route native"
 
     corpus = json.load(open(CORPUS_PATH))
     assert corpus["schema"] == "retainpdf_stage_corpus_v1"

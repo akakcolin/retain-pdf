@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Redaction engine corpus generator (Phase 7R-2).
+"""Redaction engine corpus generator (Phase 7R-2, extended in 7R-8).
 
 Builds deterministic synthetic letter PDFs with text lines placed at known
 positions, runs the REAL production `execute_redaction_flow`, and records:
@@ -132,15 +132,65 @@ def page_facts(doc: fitz.Document) -> list[dict]:
     return [{"words": page_words(doc[i]), "ink_ratio": ink_ratio(doc[i])} for i in range(doc.page_count)]
 
 
-def build_text_page(lines: list[tuple[float, str]]) -> bytes:
-    """Letter page with one text line per (y, text) entry (font helv, 12pt)."""
+def build_text_page(lines: list[tuple[float, str]], *, fontsize: float = 12.0) -> bytes:
+    """Letter page with one text line per (y, text) entry (font helv)."""
     doc = fitz.open()
     page = doc.new_page(width=PAGE_W, height=PAGE_H)
     for y, text in lines:
-        page.insert_text((60.0, y), text, fontsize=12, fontname="helv", color=DARK)
+        page.insert_text((60.0, y), text, fontsize=fontsize, fontname="helv", color=DARK)
     raw = _pin_pdf_id(doc.tobytes(garbage=0))
     doc.close()
     return raw
+
+
+def build_drawing_heavy_page(n_drawings: int) -> bytes:
+    """Letter page with `n_drawings` small filled rects on a deterministic grid
+    (non-empty rects, so every drawing counts toward `drawing_count`)."""
+    doc = fitz.open()
+    page = doc.new_page(width=PAGE_W, height=PAGE_H)
+    ops = bytearray()
+    per_row = 66
+    pitch = 9.0
+    for i in range(n_drawings):
+        x = 10.0 + (i % per_row) * pitch
+        y = 10.0 + (i // per_row) * pitch
+        ops += b"%f %f 4 4 re f\n" % (x, y)
+    cxref = doc.get_new_xref()
+    doc.update_object(cxref, "<< >>")
+    doc.update_stream(cxref, bytes(ops), new=1)
+    doc.xref_set_key(page.xref, "Contents", "%d 0 R" % cxref)
+    raw = _pin_pdf_id(doc.tobytes(garbage=0))
+    doc.close()
+    return raw
+
+
+def build_image_text_page(lines: list[tuple[float, str]]) -> bytes:
+    """Letter page with a full-page flat RGB image painted first, then the text
+    lines on top (image_page detection sees the placement; text stays in the
+    layer)."""
+    doc = fitz.open()
+    page = doc.new_page(width=PAGE_W, height=PAGE_H)
+    w, h = 120, 156
+    raw = bytes(bytearray([250, 250, 250]) * (w * h))
+    xref = doc.get_new_xref()
+    obj = (
+        "<< /Type /XObject /Subtype /Image /Width %d /Height %d /BitsPerComponent 8 "
+        "/ColorSpace /DeviceRGB /Filter /FlateDecode >>" % (w, h)
+    )
+    doc.update_object(xref, obj)
+    doc.update_stream(xref, raw, new=1, compress=1)
+    res = int(doc.xref_get_key(page.xref, "Resources")[1].split()[0])
+    doc.xref_set_key(res, "XObject/Bg0", "%d 0 R" % xref)
+    ops = "q %f 0 0 %f 0 0 cm /Bg0 Do Q" % (PAGE_W, PAGE_H)
+    cxref = doc.get_new_xref()
+    doc.update_object(cxref, "<< >>")
+    doc.update_stream(cxref, ops.encode(), new=1)
+    doc.xref_set_key(page.xref, "Contents", "%d 0 R" % cxref)
+    for y, text in lines:
+        page.insert_text((60.0, y), text, fontsize=12, fontname="helv", color=DARK)
+    raw_bytes = _pin_pdf_id(doc.tobytes(garbage=0))
+    doc.close()
+    return raw_bytes
 
 
 def span_items_for(page: fitz.Page, y_text_pairs: list[tuple[float, str]]) -> list[dict]:
@@ -365,6 +415,113 @@ def main() -> None:
         "source_text": "!!!",
     }
     cases.append(make_case("textmatch_whole_bbox_fallback", None, False, long_line, [bbox_item], [True]))
+
+    # --- Phase 7R-8 text_layer_only subroute cases ------------------------------
+    # Production `decide_redaction_execution` routes by (image_page, drawing_count)
+    # with fill_background always None; each case below pins one subroute.
+
+    # 15. Standard: two safe-direct lines, no drawings, no image.
+    lines_t = [(100.0, "Alpha"), (150.0, "Beta")]
+    d_t = fitz.open(stream=build_text_page(lines_t), filetype="pdf")
+    items_t = span_items_for(d_t.load_page(0), lines_t)
+    cases.append(make_case(
+        "text_layer_only_standard",
+        "text_layer_only",
+        False,
+        lines_t,
+        items_t,
+        [True, True],
+    ))
+
+    # 16. Standard + complex-inline-math item -> per-item force visual cover.
+    math_item = {
+        "bbox": [100.0, 400.0, 500.0, 420.0],
+        "translated_text": "Math",
+        "render_protected_text": "$\\frac{1}{2}$",
+    }
+    cases.append(make_case(
+        "text_layer_only_complex_math_cover",
+        "text_layer_only",
+        False,
+        lines_t,
+        items_t + [math_item],
+        [True, True, False],
+    ))
+
+    # 17. Fast page cover: one 5pt line of short words that FITS FULLY inside the
+    #     page (no edge truncation, so fitz / mupdf-rs extract the same words),
+    #     item bbox over the first 28 words (block center mid-line outside the
+    #     bbox -> word layer -> 28 rects, avg 28.0 >= 24.0 -> fast_page_cover_only).
+    fast_words = (
+        "cat dog fox hen pig cow rat bat ant owl bee elk emu yak ape ram ewe sow "
+        "boa cod eel gnu jay kit pug ray sea toad newt mink ibex oryx crow dove "
+        "duck gull hawk loon swan teal tern wren dodo rook kite coot snipe quail "
+        "curlew plover stint godwit"
+    ).split()
+    fast_line = [(100.0, " ".join(fast_words))]
+    d_fast = fitz.open(stream=build_text_page(fast_line, fontsize=5.0), filetype="pdf")
+    p_fast = d_fast.load_page(0)
+    fast_ws = p_fast.get_text("words")
+    assert len(fast_ws) == len(fast_words), (
+        f"fast page line must fit fully, got {len(fast_ws)}/{len(fast_words)} words"
+    )
+    assert fast_ws[-1][2] < 600.0, "fast page line truncated at the page edge"
+    fast_item = {
+        "bbox": [
+            fast_ws[0][0] - 1.0,
+            fast_ws[0][1] - 2.0,
+            fast_ws[27][2] + 1.0,
+            fast_ws[0][3] + 2.0,
+        ],
+        "translated_text": "译文",
+        "source_text": " ".join(fast_words),
+    }
+    assert fast_item["bbox"][2] < (fast_ws[0][0] + fast_ws[-1][2]) / 2.0, (
+        "fast page item must keep the line block center outside its bbox"
+    )
+    cases.append(run_case(
+        "text_layer_only_fast_page_cover",
+        build_text_page(fast_line, fontsize=5.0),
+        [fast_item],
+        strategy="text_layer_only",
+        cover_only=False,
+        expected_removable=[True],
+    ))
+
+    # 18. Vector heavy: 2000 drawings (>= 2000) with the item in the empty bottom
+    #     margin -> vector_heavy_redaction.
+    cover_item = {"bbox": [50.0, 730.0, 550.0, 750.0], "translated_text": "Covered"}
+    cases.append(run_case(
+        "text_layer_only_vector_heavy",
+        build_drawing_heavy_page(2000),
+        [cover_item],
+        strategy="text_layer_only",
+        cover_only=False,
+        expected_removable=None,
+    ))
+
+    # 19. Cover-only count: 5000 drawings (>= 5000) -> cover_only_count.
+    cases.append(run_case(
+        "text_layer_only_cover_only_count",
+        build_drawing_heavy_page(5000),
+        [cover_item],
+        strategy="text_layer_only",
+        cover_only=False,
+        expected_removable=None,
+    ))
+
+    # 20. Image page: full-page flat image + two safe-direct lines -> image_page.
+    d_img = fitz.open(stream=build_image_text_page(lines_t), filetype="pdf")
+    p_img = d_img.load_page(0)
+    items_img = span_items_for(p_img, lines_t)
+    cases.append(run_case(
+        "text_layer_only_image_page",
+        build_image_text_page(lines_t),
+        items_img,
+        strategy="text_layer_only",
+        cover_only=False,
+        expected_removable=[True, True],
+    ))
 
     corpus = {
         "schema": "retainpdf_redaction_corpus_v1",
