@@ -76,6 +76,40 @@ def _restore(module, attr: str, saved) -> None:
     setattr(module, attr, saved)
 
 
+def _install_fitz_counters(calls: dict):
+    """Wrap the fitz document/render surface the default overlay path must not
+    touch. Returns the `(module, attr, saved)` list for `_restore_fitz_counters`."""
+    # `fitz.open` is `pymupdf.Document` itself (the class), so wrapping it also
+    # covers every `fitz.Document(...)` construction. `Document.__new__` is
+    # `object.__new__`, which CPython calls with the class only, so it must NOT
+    # be wrapped (a Python wrapper would be passed the filename and blow up).
+    patched = []
+    for module, attr in [
+        (fitz, "open"),
+        (fitz.Document, "__len__"),
+        (fitz.Document, "__getitem__"),
+        (fitz.Document, "save"),
+        (fitz.Document, "tobytes"),
+        (fitz.Document, "subset_fonts"),
+        (fitz.Page, "show_pdf_page"),
+        (fitz.Page, "get_pixmap"),
+    ]:
+        saved = getattr(module, attr)
+
+        def counting(*args, _orig=saved, **kwargs):
+            calls["n"] += 1
+            return _orig(*args, **kwargs)
+
+        setattr(module, attr, counting)
+        patched.append((module, attr, saved))
+    return patched
+
+
+def _restore_fitz_counters(patched) -> None:
+    for module, attr, saved in patched:
+        setattr(module, attr, saved)
+
+
 def page_facts(doc):
     facts = []
     for i in range(doc.page_count):
@@ -163,12 +197,23 @@ def check_end_to_end_parity() -> None:
         saved_emit = _install_counter(
             _typst_native, "_native_emit_typst_book_overlay_source", emit_calls
         )
+        fitz_calls = {"n": 0}
+        patched_fitz = _install_fitz_counters(fitz_calls)
         try:
+            # control: prove the wrappers are live, then reset before the render.
+            control = fitz.open(source_pdf)
+            control.close()
+            assert fitz_calls["n"] >= 1, "fitz counters not live"
+            fitz_calls["n"] = 0
             native_out, native_typ = _render_output(root / "native", source_pdf)
         finally:
+            _restore_fitz_counters(patched_fitz)
             _restore(_typst_native, "_native_emit_typst_book_overlay_source", saved_emit)
         assert emit_calls["n"] > 0, "overlay emit never hit the native bridge end-to-end"
-        print(f"native hit: emit={emit_calls['n']}")
+        assert fitz_calls["n"] == 0, (
+            f"default overlay render invoked {fitz_calls['n']} fitz calls"
+        )
+        print(f"native hit: emit={emit_calls['n']} fitz=0")
 
         _set_native_all(False)
         py_emit_calls = {"n": 0}
