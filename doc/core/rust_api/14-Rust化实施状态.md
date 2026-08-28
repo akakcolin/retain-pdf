@@ -15,7 +15,7 @@
 | 5 | 5A 逻辑 + 5B 渲染链 + 5C 写路径 | 完成 | f1095aca |
 | 6-8 | Typst 输出层 + source/background + pyo3 接入 | 完成 | 10988cca |
 | 7R-1..6 | background/redaction 完整移植 | 完成 | cc1bfef0..0bfef7d6 |
-| 7R-7 (WIP) | 移除 page_specs/visual_profile 门禁 | 未提交 | 工作区改动 |
+| 7R-7 | 移除 page_specs/visual_profile 门禁 | 完成 | b88e5e7d |
 | B2 | save_optimized 字节压缩接 native（fitz 子集化 + native garbage=4/流压缩，失败回退） | 完成 | a74d9e84 |
 | B2-Inc2 | pdf_structure_profile 表单 xobject/几何/文本 span 接 reader 原语 | 完成 | e768013e |
 | B2-Inc3 | reader PageSnapshot 补全（image_rects 聚合 + form_xobjects 原语） | 完成 | e768013e |
@@ -43,7 +43,7 @@
 
 - native 入口：`build_clean_background_pdf` → `source/background/_native.py`；最终保存 `save_optimized_pdf` → `source/_native.py::save_optimized`（fitz `subset_fonts()`+`tobytes()`，native garbage=4+流压缩，失败回退 fitz）。
 - 新增 native 入口：`pdf_structure_profile` sampler → `_native.build_pdf_structure_profile`；`analysis/document/builder` → `_native.build_render_document_analysis`；Typst 源码生成 → `output/typst/_native.py::emit_typst_source`/`emit_typst_book_overlay_source`（均回退 Python）。
-- WIP 状态：auto / visual_cover / visual_cover_and_remove_text 全走 Rust；仅 `text_layer_only` / `text_redaction` 与 mock（instrumented）场景回退纯 Python。
+- 接线现状（7R-7 后）：auto / visual_cover / visual_cover_and_remove_text 全走 Rust；仅 `text_layer_only` / `text_redaction` 与 mock（instrumented）场景回退纯 Python。
 - CI 门禁（D2）：`.github/workflows/rendering-parity.yml` 跑 rendering crates 差分 replay（writer+reader，含 form_xobjects）+ 17 个 native 冒烟桥（含 B3 整本 E2E + 像素 parity，CI 装 typst 0.14.2 + cmarker/mitex），锁 native==fitz 页 facts、体积与像素。
 - 生产渲染流程其余环节：整本 overlay 默认路径（`build_book_typst_pdf` → pikepdf 合并）已零 fitz 调用（B2-Inc5，用调用计数探针验证）；`save_fast_pdf` 仍走 fitz `doc.save`；颜色适配（`apply_adaptive_overlay_colors_batch`）PDF 访问已 native（`sample_page_color_fills`/`extract_page_span_dicts`/`sample_title_visual_colors`），仅剩纯几何 `fitz.Rect` 强转；单页/dual-book 路径仍传 fitz doc。
 
@@ -66,4 +66,4 @@
 
 ## 结论
 
-移植覆盖度高、每阶段带 corpus + 差分门禁（现已接 CI），但生产接入度仍偏低：真正跑 Rust 的热点是"背景涂改/红批"stage、最终保存字节压缩、pdf_structure_profile 采样、Typst 源码生成。B2 已把整本 overlay 默认路径拉成零 fitz；颜色适配与保存字节压缩回退仍残留 fitz。整体替代程度按代码量算中等，按运行时算偏低；Python 库的整体依赖尚未实质下降。
+移植覆盖度高、每阶段带 corpus + 差分门禁（现已接 CI），但生产接入度仍偏低：真正跑 Rust 的热点是"背景涂改/红批"stage、最终保存字节压缩、pdf_structure_profile 采样、Typst 源码生成。B2 已把整本 overlay 默认路径拉成零 fitz（CI 门禁断言）；颜色适配 batch 已 native，仅参考实现与纯几何 `fitz.Rect` 残留；保存字节压缩仍走 fitz 子集化 + native 压缩（mupdf-rs 无 `subset_fonts`，失败回退纯 fitz）。整体替代程度按代码量算中等，按运行时算偏低；Python 库的整体依赖尚未实质下降。
