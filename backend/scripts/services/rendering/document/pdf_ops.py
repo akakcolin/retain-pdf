@@ -8,16 +8,14 @@ import fitz
 
 def save_optimized_pdf(doc: fitz.Document, output_pdf_path: Path) -> None:
     output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
-    print("save optimized pdf: subset fonts", flush=True)
-    doc.subset_fonts()
-    # Byte compaction (garbage collection + stream compression) runs in Rust when
-    # the bridge is built; font subsetting stays on fitz (mupdf-rs has no subset
-    # API). Fall back to the pure-fitz save on any native failure.
+    # Font subsetting + byte compaction (garbage collection + stream compression)
+    # run together in Rust when the bridge is built (`subset_and_clean` in
+    # `source/_native.py`). The fitz subset+save path is the fallback only.
     import services.rendering.source._native as _native
 
     if _native.NATIVE:
         try:
-            print("save optimized pdf: native compaction", flush=True)
+            print("save optimized pdf: native subset + compaction", flush=True)
             out = _native.save_optimized(doc.tobytes())
             output_pdf_path.write_bytes(out)
             print(f"save optimized pdf: done {output_pdf_path}", flush=True)
@@ -28,6 +26,8 @@ def save_optimized_pdf(doc: fitz.Document, output_pdf_path: Path) -> None:
 
 
 def _save_optimized_pdf_python(doc: fitz.Document, output_pdf_path: Path) -> None:
+    print("save optimized pdf: subset fonts", flush=True)
+    doc.subset_fonts()
     print(f"save optimized pdf: writing {output_pdf_path}", flush=True)
     doc.save(
         output_pdf_path,

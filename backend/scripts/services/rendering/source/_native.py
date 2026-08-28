@@ -16,9 +16,9 @@ Routed here: `build_invalid_xobject_sanitized_pdf_copy`,
 `compress_pdf_images_only_impl`, `extract_pages_with_pikepdf`, the
 prewarm page-count / page-width lookup
 `prewarm_payload._read_source_page_sizes_and_count_python`, and
-`document.pdf_ops.save_optimized_pdf`'s byte-compaction half (garbage
-collection + stream compression; font subsetting stays on fitz). The other
-write-path primitives are deliberately NOT routed:
+`document.pdf_ops.save_optimized_pdf` (mupdf `pdf_subset_fonts` + garbage
+collection + stream compression in one native pass). The other write-path
+primitives are deliberately NOT routed:
 
 Documented divergence — native `compress_images` uses the Rust `image` crate
 JPEG encoder (fixed Huffman tables, 4:4:4 chroma), which emits larger output
@@ -105,7 +105,7 @@ try:
     from rendering_bridge import read_page_text_blocks as _native_read_page_text_blocks
     from rendering_bridge import read_page_text_spans as _native_read_page_text_spans
     from rendering_bridge import sanitize_invalid_xobjects as _native_sanitize_invalid_xobjects
-    from rendering_bridge import save_optimized_pdf as _native_save_optimized_pdf
+    from rendering_bridge import subset_and_save_optimized_pdf as _native_subset_and_save_optimized_pdf
 
     NATIVE = True
 except ImportError:  # pragma: no cover - native build not present
@@ -192,15 +192,14 @@ def extract_pages(
 
 
 def save_optimized(pdf_bytes: bytes) -> bytes:
-    """`document.pdf_ops.save_optimized_pdf`'s byte-compaction half (garbage
-    collection + stream compression), routed to the native bridge when built;
-    otherwise a bytes-level pure-Python reference. Font subsetting is applied by
-    production (fitz `subset_fonts()` + `tobytes()`) before this is called, so
-    native output stays within a few percent of the fitz `save` options
-    (measured 1.000-1.034x on golden + synthetic CJK/image PDFs)."""
+    """`document.pdf_ops.save_optimized_pdf`'s full byte-compaction, routed to
+    the native bridge when built; otherwise a bytes-level pure-Python reference.
+    The native path runs mupdf `pdf_subset_fonts` (fitz `subset_fonts()`
+    equivalent) + garbage=4/stream compression in one pass, so production no
+    longer subsets in fitz first."""
     if not NATIVE:
         return _save_optimized_pdf_bytes_python(pdf_bytes)
-    return _native_save_optimized_pdf(pdf_bytes)
+    return _native_subset_and_save_optimized_pdf(pdf_bytes)
 
 
 def _save_optimized_pdf_bytes_python(pdf_bytes: bytes) -> bytes:

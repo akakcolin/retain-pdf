@@ -1076,9 +1076,11 @@ dependencies = [
 name = "rendering_writer"
 version = "0.1.0"
 dependencies = [
+ "cc",
  "flate2",
  "image",
  "mupdf",
+ "mupdf-sys",
  "rendering_core",
  "serde",
 ]

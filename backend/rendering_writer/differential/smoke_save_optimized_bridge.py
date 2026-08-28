@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Native bridge smoke test for the final-save byte compaction (B2).
+"""Native bridge smoke test for the final-save subset + byte compaction.
 
 Replays `rendering_writer/tests/write_corpus.json` `save_cases` through the
-PRODUCTION `document.pdf_ops.save_optimized_pdf` (fitz `subset_fonts()` +
-`tobytes()` then native `save_optimized`) and the pure-fitz reference
-`_save_optimized_pdf_python` on the same inputs, then asserts:
+PRODUCTION `document.pdf_ops.save_optimized_pdf` (`doc.tobytes()` then native
+`subset_and_clean` — mupdf `pdf_subset_fonts` + garbage=4/stream compression in
+one pass) and the pure-fitz reference `_save_optimized_pdf_python` on the same
+inputs, then asserts:
 
-  * native is actually hit (the bridge `_native_save_optimized_pdf` is called
-    exactly once per save),
+  * native is actually hit (the bridge
+    `_native_subset_and_save_optimized_pdf` is called exactly once per save),
   * native output page facts equal the fitz reference facts and the corpus
     oracle,
   * native output stays within `SIZE_K` of the fitz reference size (no
@@ -73,22 +74,22 @@ def replay_save(case, tmp: Path):
     py_out = tmp / f"save-{case['name']}-py.pdf"
     fallback_out = tmp / f"save-{case['name']}-fallback.pdf"
 
-    # Production path: fitz subset + tobytes -> native compaction. Count hits.
+    # Production path: tobytes -> native subset + compaction. Count hits.
     hits = []
-    original = _native._native_save_optimized_pdf
+    original = _native._native_subset_and_save_optimized_pdf
 
     def counting(pdf_bytes):
         hits.append(1)
         return original(pdf_bytes)
 
-    _native._native_save_optimized_pdf = counting
+    _native._native_subset_and_save_optimized_pdf = counting
     doc = fitz.open(stream=input_bytes, filetype="pdf")
     try:
         save_optimized_pdf(doc, native_out)
     finally:
         doc.close()
-        _native._native_save_optimized_pdf = original
-    assert len(hits) == 1, f"{case['name']}: native save_optimized hit count {len(hits)} != 1"
+        _native._native_subset_and_save_optimized_pdf = original
+    assert len(hits) == 1, f"{case['name']}: native subset+save hit count {len(hits)} != 1"
 
     # Pure-fitz reference.
     ref_doc = fitz.open(stream=input_bytes, filetype="pdf")
@@ -110,16 +111,16 @@ def replay_save(case, tmp: Path):
     # Fallback: force the native call to raise; production must still produce a
     # valid PDF via the pure-fitz save.
     fallback_doc = fitz.open(stream=input_bytes, filetype="pdf")
-    original = _native._native_save_optimized_pdf
+    original = _native._native_subset_and_save_optimized_pdf
 
     def raising(pdf_bytes):
         raise RuntimeError("forced native failure")
 
-    _native._native_save_optimized_pdf = raising
+    _native._native_subset_and_save_optimized_pdf = raising
     try:
         save_optimized_pdf(fallback_doc, fallback_out)
     finally:
-        _native._native_save_optimized_pdf = original
+        _native._native_subset_and_save_optimized_pdf = original
         fallback_doc.close()
     assert fallback_out.exists() and fallback_out.read_bytes().startswith(b"%PDF-"), (
         f"{case['name']}: fallback save did not produce a valid PDF"

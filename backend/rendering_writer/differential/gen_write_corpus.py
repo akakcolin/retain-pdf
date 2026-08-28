@@ -623,12 +623,14 @@ def case_hidden_text() -> dict:
 def case_save(name: str, raw_bytes: bytes) -> dict:
     """Final-save byte-compaction case (B2).
 
-    The recorded input is the post-`subset_fonts` `tobytes()` bytes — exactly
-    what native `save_optimized_pdf` receives in production (fitz subsetting,
-    native garbage+compression). The oracle is the pure-fitz
-    `_save_optimized_pdf_python` run on that input: its output page facts and
-    byte size are what the Rust `save_replay` must reproduce (facts equal,
-    native output within `SAVE_SIZE_K` of the fitz reference)."""
+    The recorded input is the post-`subset_fonts` `tobytes()` bytes — the fitz
+    REFERENCE path (production now routes raw `doc.tobytes()` to the native
+    `subset_and_clean`, which does the subsetting in mupdf; the corpus stays
+    fitz-subset because it pins the fitz reference for `save_replay`).
+    The oracle is the pure-fitz `_save_optimized_pdf_python` run on that input:
+    its output page facts and byte size are what the Rust `save_replay` must
+    reproduce (facts equal, native output within `SAVE_SIZE_K` of the fitz
+    reference)."""
     from services.rendering.document.pdf_ops import _save_optimized_pdf_python
 
     doc = fitz.open(stream=raw_bytes, filetype="pdf")

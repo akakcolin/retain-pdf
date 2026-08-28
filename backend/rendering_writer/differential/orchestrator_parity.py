@@ -45,7 +45,7 @@ from foundation.shared.job_dirs import resolve_job_dirs  # noqa: E402
 
 WORD_TOL = 0.10
 INK_TOL = 0.02
-SIZE_RATIO_TOL = 1.5  # Rust save has no fitz subset_fonts; headroom on size
+SIZE_RATIO_TOL = 1.5  # Rust subset+write vs python pikepdf save; headroom on size
 
 _PY_BIN = os.environ.get("RETAIN_PDF_PYTHON_BIN") or sys.executable
 _RENDER_ONLY_ENTRY = os.path.join(_SCRIPTS_DIR, "entrypoints", "run_render_only.py")
