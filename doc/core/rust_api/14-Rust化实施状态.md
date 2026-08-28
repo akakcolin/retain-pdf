@@ -25,6 +25,7 @@
 | D2 | rendering crates 差分 + 冒烟 parity 接入 CI 门禁（rendering-parity.yml） | 完成 | 6f9e35d9..c2ad4e4a |
 | C1 | Rust 编排器骨架 `rendering_orchestrator`（`render_rs --spec`）：prepare/page_specs 委托 `run_render_delegate.py` 产出 bundle，background→typst→save 全 native；`RETAINPDF_RENDER_ORCHESTRATOR_RS=1` test-gated 切换（未接生产配置）；`orchestrator_parity` 双二进制差分接 CI | 完成 | 092bc885 |
 | C3 | 生产接线 + 桌面打包：rust_api 按 mode 默认路由 typst/typst_visual→`render_rs`（auto/overlay/dual 仍走 python3），env 逃逸阀 `RETAINPDF_RENDER_ORCHESTRATOR_OFF/RS`；spawn 时给 delegate 透传 `RETAIN_PDF_PYTHON_BIN`/`RETAIN_PDF_RENDER_DELEGATE_SCRIPT`；`prepare-app.mjs` 打包 `bin/render_rs` + `build:render-rs` + release-desktop.yml 每平台构建 | 完成 | ccd4f5f3 |
+| C4 | 发布版打包 native bridge：release-desktop.yml 三平台 maturin build `rendering_bridge` wheel → `pip install --target` 装进 bundled python site-packages，组装期 import check 含 `rendering_bridge`；`prepare-app.mjs` `bundledRenderingBridgePresent`（兼容顶层 `.so/.pyd` 与 `rendering_bridge/` 包目录）写 `renderingBridgeBundled` manifest + validator 门禁；`rendering-parity.yml` 增 `bridge-bundle-smoke` 三 OS wheel 构建/加载冒烟 | 完成 | 58db7ba9 |
 
 ## 子系统对照（已接线 / 休眠 / 未移植）
 
@@ -58,7 +59,7 @@
 - fitz/PyMuPDF 仍被约百个模块引用。
 - 仅在 `build_clean_background_pdf` stage 内部，PDF 读写由 mupdf-rs 替换 fitz。
 - native `.so` 已构建并装入 `.venv`（Python 3.14），开发环境 `NATIVE=True`。
-- 桌面发布版**不走 native**：`desktop/scripts/prepare-app.mjs` 只拷贝 `backend/scripts` Python 源码 + `rust_api` 二进制，无 maturin 构建步骤；`release-desktop.yml` 同样无 maturin/`rendering_bridge` 引用。`import rendering_bridge` 在发布包内必然 ImportError，所有 `_native.py` shim 回落纯 Python（`NATIVE=False`）。maturin 仅出现在 `backend/rendering_bridge/pyproject.toml` 与 parity CI（`maturin develop` 装进测试 venv）。发布版接入 native 需在 `prepare-app.mjs` 增加构建 + 拷贝 `.so` 步骤。
+- 桌面发布版**已接 native（C4）**：`release-desktop.yml` 三平台 maturin build `rendering_bridge` wheel → `pip install --target` 装进 bundled python site-packages，组装期 import check 含 `rendering_bridge`；`prepare-app.mjs` 的 `bundledRenderingBridgePresent`（兼容顶层 `.so/.pyd` 与 `rendering_bridge/` 包目录两种 wheel 布局）写 `renderingBridgeBundled` manifest 字段，`.github/scripts/validate_desktop_bundle.py` 门禁要求为 true；`rendering-parity.yml` 增 `bridge-bundle-smoke`（ubuntu/windows/macos 矩阵：wheel 构建 + 隔离安装 + import）在 tag 发布前拦截 win/mac 构建或加载回归。发布包内 `_native.py` shims 走 `NATIVE=True`（含 save 全 native `subset_and_clean`）。maturin 仍是构建期依赖，不进桌面运行时。
 
 ## 分歧台账（reader 原语 vs fitz）
 
@@ -71,4 +72,4 @@
 
 ## 结论
 
-移植覆盖度高、每阶段带 corpus + 差分门禁（现已接 CI），但生产接入度仍偏低：真正跑 Rust 的热点是"背景涂改/红批"stage、最终保存（子集化+字节压缩，全 native）、pdf_structure_profile 采样、Typst 源码生成。B2 已把整本 overlay 默认路径拉成零 fitz（CI 门禁断言）；颜色适配 batch 已 native，仅参考实现与纯几何 `fitz.Rect` 残留；保存字节压缩已补上 mupdf 侧 `subset_fonts`（C shim 隔离 context + 异常转 `mupdf_error_t**`），不再需要 fitz 子集化，失败才回退纯 fitz。整体替代程度按代码量算中等，按运行时算偏低；Python 库的整体依赖尚未实质下降。
+移植覆盖度高、每阶段带 corpus + 差分门禁（现已接 CI），但生产接入度仍偏低：真正跑 Rust 的热点是"背景涂改/红批"stage、最终保存（子集化+字节压缩，全 native）、pdf_structure_profile 采样、Typst 源码生成。B2 已把整本 overlay 默认路径拉成零 fitz（CI 门禁断言）；颜色适配 batch 已 native，仅参考实现与纯几何 `fitz.Rect` 残留；保存字节压缩已补上 mupdf 侧 `subset_fonts`（C shim 隔离 context + 异常转 `mupdf_error_t**`），不再需要 fitz 子集化，失败才回退纯 fitz。桌面发布版已随 C4 打包 native bridge（三平台 wheel → bundled python，validator + 三 OS 冒烟门禁），`NATIVE=True` 不再仅限开发环境。整体替代程度按代码量算中等，按运行时算偏低；Python 库的整体依赖尚未实质下降。
