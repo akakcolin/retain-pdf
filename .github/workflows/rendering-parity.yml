@@ -146,6 +146,7 @@ jobs:
             smoke_render_mode_bridge \
             smoke_classify_render_page_bridge \
             smoke_drawings_bridge \
+            smoke_emit_render_blocks_bridge \
             smoke_first_line_indent_bridge \
             smoke_image_rects_bridge \
             smoke_page_specs_bridge \

@@ -267,7 +267,7 @@ fn line_from_json(value: &serde_json::Value) -> Line {
     Line { bbox, spans }
 }
 
-fn formula_map(value: Option<&serde_json::Value>) -> Vec<FormulaEntry> {
+pub fn formula_map(value: Option<&serde_json::Value>) -> Vec<FormulaEntry> {
     value
         .and_then(|v| v.as_array())
         .map(|arr| {

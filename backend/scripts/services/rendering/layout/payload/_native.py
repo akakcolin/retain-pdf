@@ -21,6 +21,7 @@ from services.rendering.layout.payload.first_line_indent import detect_first_lin
 try:
     from rendering_bridge import build_block_payloads as _native_build_block_payloads
     from rendering_bridge import detect_first_line_indents as _native_detect_first_line_indents
+    from rendering_bridge import emit_render_blocks as _native_emit_render_blocks
 
     NATIVE = True
 except ImportError:  # pragma: no cover - native build not present
@@ -69,6 +70,94 @@ def _build_block_payloads_python(
         page_width=page_width,
         page_height=page_height,
     )
+
+
+def _render_line_box_from_dict(d: dict):
+    from services.rendering.layout.model.models import RenderLineBox
+
+    return RenderLineBox(text=d.get("text", ""), bbox=list(d.get("bbox") or []))
+
+
+def _render_toc_entry_from_dict(d: dict):
+    from services.rendering.layout.model.models import RenderTocEntry
+
+    return RenderTocEntry(
+        title=d.get("title", ""),
+        page_label=d.get("page_label", ""),
+        bbox=list(d.get("bbox") or []),
+        number=d.get("number", ""),
+        level=d.get("level", 1),
+    )
+
+
+def _render_block_from_dict(d: dict):
+    """Reconstruct a `RenderBlock` dataclass from the native `RenderBlock` DTO
+    dict (the inverse of `_render_block_to_dict`): tuples come back as tuples,
+    None-able lists round-trip through []/None like the Python emit would."""
+    from services.rendering.layout.model.models import RenderBlock
+
+    preserved = [_render_line_box_from_dict(lb) for lb in (d.get("preserved_line_boxes") or [])]
+    toc = [_render_toc_entry_from_dict(te) for te in (d.get("toc_entries") or [])]
+    return RenderBlock(
+        block_id=d.get("block_id", ""),
+        bbox=list(d.get("bbox") or []),
+        cover_bbox=list(d.get("cover_bbox") or []),
+        inner_bbox=list(d.get("inner_bbox") or []),
+        markdown_text=d.get("markdown_text", ""),
+        plain_text=d.get("plain_text", ""),
+        render_kind=d.get("render_kind", ""),
+        font_size_pt=float(d.get("font_size_pt") or 0.0),
+        leading_em=float(d.get("leading_em") or 0.0),
+        font_weight=d.get("font_weight", "regular"),
+        fit_to_box=bool(d.get("fit_to_box")),
+        fit_single_line=bool(d.get("fit_single_line")),
+        fit_min_font_size_pt=float(d.get("fit_min_font_size_pt") or 0.0),
+        fit_max_font_size_pt=float(d.get("fit_max_font_size_pt") or 0.0),
+        fit_min_leading_em=float(d.get("fit_min_leading_em") or 0.0),
+        fit_max_height_pt=float(d.get("fit_max_height_pt") or 0.0),
+        fit_target_width_pt=float(d.get("fit_target_width_pt") or 0.0),
+        fit_target_height_pt=float(d.get("fit_target_height_pt") or 0.0),
+        fit_shift_up_pt=float(d.get("fit_shift_up_pt") or 0.0),
+        first_line_indent_pt=float(d.get("first_line_indent_pt") or 0.0),
+        justify_text=bool(d.get("justify_text")),
+        text_color=tuple(float(c) for c in (d.get("text_color") or [0, 0, 0])),
+        cover_fill=tuple(float(c) for c in (d.get("cover_fill") or [1, 1, 1])),
+        use_cover_fill=bool(d.get("use_cover_fill")),
+        math_map=list(d.get("math_map") or []),
+        skip_reason=d.get("skip_reason", ""),
+        source_item_id=d.get("source_item_id", ""),
+        preserve_line_breaks=bool(d.get("preserve_line_breaks")),
+        preserved_line_boxes=preserved or None,
+        toc_entries=toc or None,
+    )
+
+
+def emit_render_blocks(block_payloads: list[dict]):
+    """The C3-N2 emit boundary `emit.emit_render_blocks`, routed to the native
+    Rust port when built; otherwise the pure-Python reference. `title_fit`
+    dataclasses serialize as dicts for the boundary, and the native `RenderBlock`
+    DTO dicts reconstruct into `RenderBlock` dataclasses so downstream
+    attribute access is unchanged."""
+    if not _routing.routed("layout_payload", "emit_render_blocks", NATIVE):
+        return _emit_render_blocks_python(block_payloads)
+    from dataclasses import asdict
+
+    serialized: list[dict] = []
+    for payload in block_payloads:
+        entry = dict(payload)
+        title_fit = entry.get("title_fit")
+        if title_fit is not None:
+            entry["title_fit"] = asdict(title_fit)
+        serialized.append(entry)
+    raw = json.loads(_native_emit_render_blocks(json.dumps(serialized)))
+    _routing.record_native_hit("layout_payload", "emit_render_blocks")
+    return [_render_block_from_dict(d) for d in raw]
+
+
+def _emit_render_blocks_python(block_payloads: list[dict]):
+    from services.rendering.layout.payload.emit import emit_render_blocks
+
+    return emit_render_blocks(block_payloads)
 
 
 def detect_first_line_indents(

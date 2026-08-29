@@ -1,7 +1,10 @@
-// Port of services/rendering/layout/payload/line_structure.py — only
-// `fit_preserved_line_block_metrics`. The structured-line detection / splitting
-// helpers feed `seed_render_fields`, which runs in Python before the native
-// call, and are not ported here.
+// Port of services/rendering/layout/payload/line_structure.py — the subset the
+// emit boundary consumes: `fit_preserved_line_block_metrics` (seed path) and
+// `preserved_line_boxes_for_item` (emit path). The structured-line detection /
+// splitting helpers feed `seed_render_fields`, which runs in Python before the
+// native call, and are not ported here.
+
+use serde_json::{json, Value};
 
 use crate::util::py_round;
 
@@ -66,9 +69,57 @@ pub fn fit_preserved_line_block_metrics(
     }
 }
 
+/// `preserved_line_boxes_for_item`: zip translated text lines with the source
+/// `lines` bboxes into `RenderLineBox` DTOs for preserve-line-break blocks.
+/// Any shape mismatch aborts the whole list (matches the Python early-returns).
+pub fn preserved_line_boxes_for_item(item: &Value, translated_text: &str) -> Vec<Value> {
+    let preserve = item
+        .get("_render_preserve_line_breaks")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if !preserve {
+        return vec![];
+    }
+    let text_lines: Vec<&str> = translated_text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect();
+    let raw_lines = item.get("lines").and_then(|v| v.as_array());
+    let Some(raw_lines) = raw_lines else {
+        return vec![];
+    };
+    if text_lines.is_empty() || raw_lines.len() < text_lines.len() {
+        return vec![];
+    }
+    let mut boxes: Vec<Value> = Vec::new();
+    for (text, raw_line) in text_lines.iter().zip(raw_lines.iter()) {
+        let bbox_value = raw_line.get("bbox");
+        let Some(bbox) = bbox_value.and_then(|v| v.as_array()) else {
+            return vec![];
+        };
+        if bbox.len() != 4 {
+            return vec![];
+        }
+        let mut line_bbox: Vec<f64> = Vec::with_capacity(4);
+        for value in bbox {
+            match value.as_f64() {
+                Some(v) => line_bbox.push(v),
+                None => return vec![],
+            }
+        }
+        if line_bbox[2] <= line_bbox[0] || line_bbox[3] <= line_bbox[1] {
+            return vec![];
+        }
+        boxes.push(json!({"text": text, "bbox": line_bbox}));
+    }
+    boxes
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn single_line_returns_unchanged() {
@@ -81,5 +132,43 @@ mod tests {
         let (font, leading) = fit_preserved_line_block_metrics(&[0.0, 0.0, 100.0, 24.0], "a\nb\nc", 10.6, 0.4);
         assert_eq!(leading, 0.12);
         assert_eq!(font, 7.2);
+    }
+
+    #[test]
+    fn preserved_boxes_zip_text_and_raw_lines() {
+        let item = json!({
+            "_render_preserve_line_breaks": true,
+            "lines": [
+                {"bbox": [0.0, 0.0, 100.0, 20.0]},
+                {"bbox": [0.0, 20.0, 100.0, 40.0]},
+            ],
+        });
+        let boxes = preserved_line_boxes_for_item(&item, "one\ntwo");
+        assert_eq!(
+            boxes,
+            vec![
+                json!({"text": "one", "bbox": [0.0, 0.0, 100.0, 20.0]}),
+                json!({"text": "two", "bbox": [0.0, 20.0, 100.0, 40.0]}),
+            ]
+        );
+    }
+
+    #[test]
+    fn preserved_boxes_require_flag_and_shape() {
+        assert_eq!(preserved_line_boxes_for_item(&json!({}), "x"), Vec::<Value>::new());
+        let item = json!({"_render_preserve_line_breaks": true, "lines": []});
+        assert_eq!(preserved_line_boxes_for_item(&item, "x"), Vec::<Value>::new());
+        let item = json!({
+            "_render_preserve_line_breaks": true,
+            "lines": [{"bbox": [0.0, 0.0, 100.0, 20.0]}],
+        });
+        // Two translated lines but only one source line -> abort whole list.
+        assert_eq!(preserved_line_boxes_for_item(&item, "a\nb"), Vec::<Value>::new());
+        // Degenerate bbox aborts the list.
+        let item = json!({
+            "_render_preserve_line_breaks": true,
+            "lines": [{"bbox": [0.0, 0.0, 0.0, 20.0]}],
+        });
+        assert_eq!(preserved_line_boxes_for_item(&item, "a"), Vec::<Value>::new());
     }
 }

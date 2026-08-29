@@ -7,7 +7,6 @@ from services.rendering.layout.payload.annotation_font_policy import unify_annot
 from services.rendering.layout.payload.body_pipeline import apply_body_payload_pipeline
 from services.rendering.layout.payload.body_font_policy import resolve_book_body_font_target
 from services.rendering.layout.payload.collision import mark_adjacent_collision_risk
-from services.rendering.layout.payload.emit import emit_render_blocks
 from services.rendering.layout.model.models import RenderBlock
 from services.rendering.layout.payload.render_item import seed_render_fields
 from services.rendering.layout.typography_memory.learning import observe_payload_typography
@@ -38,7 +37,7 @@ def build_render_blocks(
     recover_underfilled_annotation_density(ordered_payloads)
     mark_adjacent_collision_risk(ordered_payloads)
     observe_payload_typography(ordered_payloads)
-    return emit_render_blocks(block_payloads)
+    return _payload_native.emit_render_blocks(block_payloads)
 
 
 def build_render_block_payloads(

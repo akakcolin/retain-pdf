@@ -7,6 +7,7 @@ pub mod fit_decision;
 pub mod font_fit;
 pub mod font_roles;
 pub mod font_size_fit;
+pub mod inline_content;
 pub mod item;
 pub mod layout;
 pub mod leading_fit;

@@ -11,6 +11,10 @@
 //!     is prebuilt `RenderBlock` DTOs.
 //!   * `compile_typst_source(...) -> str` — orchestrate the `typst` CLI
 //!     (port of `output/typst/compiler.py`).
+//!   * `emit_render_blocks(block_payloads_json) -> str` — the C3-N2 emit
+//!     boundary (port of `payload/emit.py`); `block_payloads_json` is the
+//!     `build_block_payloads` output (+ body-pipeline keys), the result is the
+//!     `RenderBlock` DTO array.
 //!   * Phase 5 write-path entries operating on PDF bytes in -> bytes out:
 //!     `strip_bbox_text_rects`, `strip_hidden_text`, `sanitize_invalid_xobjects`,
 //!     `compress_images`, `extract_pages`, `overlay_page`. The transformations
@@ -1365,6 +1369,14 @@ fn build_block_payloads(
     serde_json::to_string(&out).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
 }
 
+#[pyfunction]
+fn emit_render_blocks(block_payloads_json: &str) -> PyResult<String> {
+    let block_payloads: Vec<serde_json::Value> = serde_json::from_str(block_payloads_json)
+        .map_err(|e| PyValueError::new_err(format!("block_payloads_json: {e}")))?;
+    let blocks = rendering_core::payload::emit::emit_render_blocks(&block_payloads);
+    serde_json::to_string(&blocks).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
+}
+
 #[pymodule]
 fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(emit_typst_source, m)?)?;
@@ -1404,5 +1416,6 @@ fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(build_render_document_analysis, m)?)?;
     m.add_function(wrap_pyfunction!(classify_render_page, m)?)?;
     m.add_function(wrap_pyfunction!(build_block_payloads, m)?)?;
+    m.add_function(wrap_pyfunction!(emit_render_blocks, m)?)?;
     Ok(())
 }
