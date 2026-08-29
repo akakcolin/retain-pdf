@@ -185,6 +185,20 @@ jobs:
           cd backend/scripts
           python -m pytest devtools/tests/rendering/ -q
 
+      # D5 tool self-gate: the committed baseline + representative /metrics
+      # sample (target-state) must parse and compare clean. Live /metrics 对照
+      # runs operationally via `d5_baseline.py check --base-url <api>`.
+      - name: D5 metric baseline check
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          export PYTHONPATH="$GITHUB_WORKSPACE/backend/scripts"
+          cd backend/scripts
+          python devtools/d5_baseline.py check \
+            --baseline devtools/d5_baseline.json \
+            --metrics-file devtools/tests/rendering/fixtures/d5_metrics_sample.txt \
+            --desktop-manifest "$GITHUB_WORKSPACE/desktop/app/backend/bundle-manifest.json"
+
   # Replicates the release wheel mechanism (release-desktop.yml): maturin build
   # --release -> pip install --target -> import, on every OS the desktop ships.
   # The bridge has only ever been CI-built on Linux; this catches Windows/macOS

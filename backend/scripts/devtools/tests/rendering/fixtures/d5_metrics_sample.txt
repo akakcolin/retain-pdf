@@ -1,0 +1,30 @@
+# D5 target-state /metrics sample for tool validation (not a live snapshot).
+# Values mirror real runs (render_elapsed mean 1.035s from a 15-page overlay
+# job) shaped to the D5 target: python renderer absent, per-subsystem native
+# hit ratio >= 0.9.
+retainpdf_jobs_total{status="succeeded"} 4
+retainpdf_render_jobs_total{renderer="render_rs",status="succeeded"} 4
+retainpdf_render_jobs_total{renderer="python",status="succeeded"} 0
+retainpdf_render_jobs_total{renderer="python",status="failed"} 0
+retainpdf_render_elapsed_seconds_count 3
+retainpdf_render_elapsed_seconds_sum 3.105
+retainpdf_native_routing_hits{subsystem="source"} 42
+retainpdf_native_routing_hits{subsystem="background"} 8
+retainpdf_native_routing_hits{subsystem="typst"} 12
+retainpdf_native_routing_hits{subsystem="layout"} 19
+retainpdf_native_routing_hits{subsystem="layout_payload"} 2
+retainpdf_native_routing_hits{subsystem="visual_profile"} 5
+retainpdf_native_routing_hits{subsystem="pdf_structure_profile"} 3
+retainpdf_native_routing_hits{subsystem="analysis"} 2
+retainpdf_native_routing_hits{subsystem="source_cleanup_planning"} 7
+retainpdf_native_routing_fallbacks{subsystem="source",reason="in_memory_page"} 2
+retainpdf_native_routing_fallbacks{subsystem="layout",reason="in_memory_page"} 1
+retainpdf_native_hit_ratio{subsystem="source"} 0.955
+retainpdf_native_hit_ratio{subsystem="background"} 1.000
+retainpdf_native_hit_ratio{subsystem="typst"} 1.000
+retainpdf_native_hit_ratio{subsystem="layout"} 0.950
+retainpdf_native_hit_ratio{subsystem="layout_payload"} 1.000
+retainpdf_native_hit_ratio{subsystem="visual_profile"} 1.000
+retainpdf_native_hit_ratio{subsystem="pdf_structure_profile"} 1.000
+retainpdf_native_hit_ratio{subsystem="analysis"} 1.000
+retainpdf_native_hit_ratio{subsystem="source_cleanup_planning"} 1.000
