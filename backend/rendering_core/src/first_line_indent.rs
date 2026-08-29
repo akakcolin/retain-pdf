@@ -1,10 +1,21 @@
 //! Port of the pure pixel-analysis half of
 //! `services/rendering/layout/payload/first_line_indent.py`: given a rendered
-//! grayscale pixmap of a text block, detect the first line's indent in points.
-//!
-//! Rendering the clip (fitz get_pixmap) lives in `rendering_reader::render`;
-//! the candidate gate (`is_first_line_indent_candidate`) stays in Python where
-//! the corpus generator applies it, so this module is purely `samples -> f64`.
+//! grayscale pixmap of a text block, detect the first line's indent in points,
+//! plus the candidate gate `is_first_line_indent_candidate` (rendering the clip
+//! lives in `rendering_reader::render`).
+
+use crate::font_roles::is_body_text_candidate;
+use crate::item::Item;
+use crate::semantics::{
+    is_caption_like_block, is_footnote_like_block, is_title_like_block, layout_role,
+    semantic_role,
+};
+use crate::typography::line_metrics::{bbox_height, bbox_width};
+
+/// `MIN_BLOCK_WIDTH_PT` — min block width before indent candidates are considered.
+pub const MIN_BLOCK_WIDTH_PT: f64 = 80.0;
+/// `MIN_BLOCK_HEIGHT_PT` — min block height before indent candidates are considered.
+pub const MIN_BLOCK_HEIGHT_PT: f64 = 20.0;
 
 /// `INK_THRESHOLD` — min absolute pixel-to-background delta considered ink.
 pub const INK_THRESHOLD: i64 = 26;
@@ -142,6 +153,36 @@ fn py_round(value: f64) -> f64 {
         floored + 1.0
     };
     rounded / 100.0
+}
+
+/// `_is_body_paragraph`: not caption/footnote/title-like, and either a
+/// paragraph/list_item layout role or a body-text candidate, with a
+/// body-compatible semantic role.
+fn is_body_paragraph(item: &Item, page_text_width_med: f64) -> bool {
+    if is_caption_like_block(item) || is_footnote_like_block(item) || is_title_like_block(item) {
+        return false;
+    }
+    let item_layout_role = layout_role(item);
+    let item_semantic_role = semantic_role(item);
+    if item_layout_role != "paragraph"
+        && item_layout_role != "list_item"
+        && !is_body_text_candidate(item, page_text_width_med)
+    {
+        return false;
+    }
+    matches!(item_semantic_role.as_str(), "" | "body" | "abstract" | "unknown")
+}
+
+/// `is_first_line_indent_candidate`: a body paragraph whose block is wide and
+/// tall enough, with a 4-number bbox.
+pub fn is_first_line_indent_candidate(item: &Item, page_text_width_med: f64) -> bool {
+    if !is_body_paragraph(item, page_text_width_med) {
+        return false;
+    }
+    if bbox_width(item) < MIN_BLOCK_WIDTH_PT || bbox_height(item) < MIN_BLOCK_HEIGHT_PT {
+        return false;
+    }
+    item.bbox.is_some()
 }
 
 /// Detect the first line's indent (pt) from a grayscale pixmap of a text block.
@@ -286,5 +327,59 @@ mod tests {
         assert_eq!(py_round(0.125), 0.12);
         assert_eq!(py_round(0.135), 0.14);
         assert_eq!(py_round(9.0), 9.0);
+    }
+
+    use crate::item::{Item, Line, Span};
+
+    fn paragraph_item() -> Item {
+        Item {
+            block_type: Some("text".into()),
+            layout_role: Some("paragraph".into()),
+            semantic_role: Some("body".into()),
+            source_text: "text".into(),
+            bbox: Some([40.0, 100.0, 400.0, 160.0]),
+            lines: vec![Line { bbox: None, spans: vec![Span { span_type: "text".into(), content: "x".into() }] }],
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn body_paragraph_is_candidate() {
+        assert!(is_first_line_indent_candidate(&paragraph_item(), 300.0));
+    }
+
+    #[test]
+    fn list_item_is_candidate() {
+        let mut item = paragraph_item();
+        item.layout_role = Some("list_item".into());
+        assert!(is_first_line_indent_candidate(&item, 300.0));
+    }
+
+    #[test]
+    fn caption_not_candidate() {
+        let mut item = paragraph_item();
+        item.layout_role = Some("caption".into());
+        assert!(!is_first_line_indent_candidate(&item, 300.0));
+    }
+
+    #[test]
+    fn narrow_block_not_candidate() {
+        let mut item = paragraph_item();
+        item.bbox = Some([40.0, 100.0, 100.0, 160.0]);
+        assert!(!is_first_line_indent_candidate(&item, 300.0));
+    }
+
+    #[test]
+    fn non_body_semantic_not_candidate() {
+        let mut item = paragraph_item();
+        item.semantic_role = Some("header".into());
+        assert!(!is_first_line_indent_candidate(&item, 300.0));
+    }
+
+    #[test]
+    fn missing_bbox_not_candidate() {
+        let mut item = paragraph_item();
+        item.bbox = None;
+        assert!(!is_first_line_indent_candidate(&item, 300.0));
     }
 }

@@ -30,8 +30,30 @@ pub struct PageSeedMetrics {
     pub page_body_width_pt: Option<f64>,
 }
 
-fn is_annotation_like(item: &Item) -> bool {
+pub(crate) fn is_annotation_like(item: &Item) -> bool {
     is_caption_like_block(item) || is_footnote_like_block(item)
+}
+
+/// `metrics.block_metrics` — per-item `(font_size_pt, leading_em)` with the
+/// body-candidate flag cloned in. The flag is computed from the input item (the
+/// pre-flag state), then `estimate_font_size_pt` / `estimate_leading_em` read the
+/// cloned flag — matching Python's
+/// `item["_is_body_text_candidate"] = is_body_text_candidate(item, ...)`.
+pub fn block_metrics(
+    item: &Item,
+    page_font_size: f64,
+    page_line_pitch: f64,
+    page_line_height: f64,
+    density_baseline: f64,
+    page_text_width_med: f64,
+) -> (f64, f64) {
+    let is_body = is_body_text_candidate(item, page_text_width_med);
+    let mut item_with_flag = item.clone();
+    item_with_flag.is_body_text_candidate = is_body;
+    let font_size_pt =
+        estimate_font_size_pt(&item_with_flag, page_font_size, page_line_pitch, page_line_height, density_baseline);
+    let leading_em = estimate_leading_em(&item_with_flag, page_line_pitch, font_size_pt);
+    (font_size_pt, leading_em)
 }
 
 /// `collect_page_seed_metrics`: page font baseline, per-item base metrics with
@@ -146,5 +168,15 @@ mod tests {
         let items = vec![caption];
         let metrics = collect_page_seed_metrics(&items, Some(595.0));
         assert_eq!(metrics.page_text_width_med, 0.0);
+    }
+
+    #[test]
+    fn block_metrics_flags_body_candidate_on_clone() {
+        let (font_size_pt, leading_em) = block_metrics(&text_item(20.0, 300.0), 12.0, 14.0, 14.0, 1.0, 280.0);
+        assert!(font_size_pt > 0.0);
+        assert!(leading_em > 0.0);
+        // The input item is untouched: no `_is_body_text_candidate` on the source.
+        let item = text_item(20.0, 300.0);
+        assert!(!item.is_body_text_candidate);
     }
 }

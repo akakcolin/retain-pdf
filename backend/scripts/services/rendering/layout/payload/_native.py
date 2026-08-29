@@ -24,6 +24,7 @@ try:
     from rendering_bridge import detect_first_line_indents as _native_detect_first_line_indents
     from rendering_bridge import emit_render_blocks as _native_emit_render_blocks
     from rendering_bridge import mark_adjacent_collision_risk as _native_mark_adjacent_collision_risk
+    from rendering_bridge import prepare_render_payloads_by_page as _native_prepare_render_payloads_by_page
     from rendering_bridge import resolve_book_body_font_target as _native_resolve_book_body_font_target
     from rendering_bridge import seed_render_fields as _native_seed_render_fields
 
@@ -392,3 +393,66 @@ def _detect_first_line_indents_python(
         return result
     finally:
         source_doc.close()
+
+
+def prepare_render_payloads_by_page(
+    translated_pages: dict[int, list[dict]],
+    *,
+    source_pdf_path: Path | None = None,
+    first_line_indent_lookup: dict[str, float] | None = None,
+    effective_inner_bbox_lookup: dict[str, list[float]] | None = None,
+) -> dict[int, list[dict]]:
+    """The C3-N7 prepare boundary `prepare.prepare_render_payloads_by_page`,
+    routed to the native Rust port when built; otherwise the pure-Python
+    reference. The first-line-indent lookup is resolved on the Python side (the
+    Rust assembler is a leaf crate and cannot open the source PDF): the
+    caller-provided `first_line_indent_lookup` passes through, else candidates
+    are built from `source_pdf_path` via `prepare._build_page_metrics` +
+    `_resolve_first_line_indent_lookup`, and the resolved lookup is handed to
+    the native assembler."""
+    if not _routing.routed("layout_payload", "prepare_render_payloads_by_page", NATIVE):
+        return _prepare_render_payloads_by_page_python(
+            translated_pages=translated_pages,
+            source_pdf_path=source_pdf_path,
+            first_line_indent_lookup=first_line_indent_lookup,
+            effective_inner_bbox_lookup=effective_inner_bbox_lookup,
+        )
+    from services.rendering.layout.payload.prepare import _build_page_metrics
+    from services.rendering.layout.payload.prepare import _resolve_first_line_indent_lookup
+
+    page_metrics = _build_page_metrics(translated_pages)
+    indent_lookup = _resolve_first_line_indent_lookup(
+        translated_pages,
+        page_metrics,
+        source_pdf_path=source_pdf_path,
+        first_line_indent_lookup=first_line_indent_lookup,
+    )
+    raw = json.loads(
+        _native_prepare_render_payloads_by_page(
+            json.dumps(translated_pages),
+            None if indent_lookup is None else json.dumps(indent_lookup),
+            None if effective_inner_bbox_lookup is None else json.dumps(effective_inner_bbox_lookup),
+        )
+    )
+    result: dict[int, list[dict]] = {}
+    for page_idx_str, items in raw.items():
+        result[int(page_idx_str)] = items
+    _routing.record_native_hit("layout_payload", "prepare_render_payloads_by_page")
+    return result
+
+
+def _prepare_render_payloads_by_page_python(
+    translated_pages: dict[int, list[dict]],
+    *,
+    source_pdf_path: Path | None = None,
+    first_line_indent_lookup: dict[str, float] | None = None,
+    effective_inner_bbox_lookup: dict[str, list[float]] | None = None,
+) -> dict[int, list[dict]]:
+    from services.rendering.layout.payload.prepare import _prepare_render_payloads_by_page_python
+
+    return _prepare_render_payloads_by_page_python(
+        translated_pages,
+        source_pdf_path=source_pdf_path,
+        first_line_indent_lookup=first_line_indent_lookup,
+        effective_inner_bbox_lookup=effective_inner_bbox_lookup,
+    )

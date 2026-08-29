@@ -153,6 +153,7 @@ jobs:
             smoke_image_rects_bridge \
             smoke_page_specs_bridge \
             smoke_pdf_structure_profile_bridge \
+            smoke_prepare_render_payloads_bridge \
             smoke_prewarm_page_sizes_bridge \
             smoke_save_optimized_bridge \
             smoke_show_pdf_page_bridge \

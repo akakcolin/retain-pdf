@@ -67,6 +67,80 @@ def _continuation_adjusted_capacities(items: list[dict], capacities: list[float]
     return adjusted
 
 
+def _build_page_metrics(
+    translated_pages: dict[int, list[dict]],
+) -> dict[int, tuple[float, float, float, float, float]]:
+    """Per-page `(page_font_size, page_line_pitch, page_line_height,
+    density_baseline, page_text_width_med)`. Reads only raw item fields, so the
+    values are identical before and after `seed_render_fields`."""
+    page_metrics: dict[int, tuple[float, float, float, float, float]] = {}
+    for page_idx, items in translated_pages.items():
+        page_font_size, page_line_pitch, page_line_height, density_baseline = page_baseline_font_size(items)
+        text_widths = [
+            bbox_width(item)
+            for item in items
+            if block_kind(item) == "text" and not _is_annotation_like(item)
+        ]
+        page_text_width_med = median(text_widths) if text_widths else 0.0
+        page_metrics[page_idx] = (
+            page_font_size,
+            page_line_pitch,
+            page_line_height,
+            density_baseline,
+            page_text_width_med,
+        )
+    return page_metrics
+
+
+def _resolve_first_line_indent_lookup(
+    translated_pages: dict[int, list[dict]],
+    page_metrics: dict[int, tuple[float, float, float, float, float]],
+    *,
+    source_pdf_path: Path | None = None,
+    first_line_indent_lookup: dict[str, float] | None = None,
+) -> dict[str, float] | None:
+    """Resolve the item-id -> indent lookup: pass through a caller-provided one,
+    else derive candidates from `source_pdf_path` via the routed
+    `detect_first_line_indents`. Returns `None` when the attach should be skipped
+    (no source and no lookup)."""
+    if source_pdf_path is None and not first_line_indent_lookup:
+        return None
+    if first_line_indent_lookup is not None:
+        return first_line_indent_lookup
+    from services.rendering.layout.payload import _native
+
+    by_page: dict[int, tuple[float, list[tuple[dict, float]]]] = {}
+    for page_idx, items in translated_pages.items():
+        if page_idx not in page_metrics:
+            continue
+        (
+            page_font_size,
+            page_line_pitch,
+            page_line_height,
+            density_baseline,
+            page_text_width_med,
+        ) = page_metrics[page_idx]
+        candidates: list[tuple[dict, float]] = []
+        for item in items:
+            font_size_pt, _leading_em = block_metrics(
+                item,
+                page_font_size,
+                page_line_pitch,
+                page_line_height,
+                density_baseline,
+                page_text_width_med,
+            )
+            if is_first_line_indent_candidate(item, page_text_width_med=page_text_width_med):
+                candidates.append((item, font_size_pt))
+        if candidates:
+            by_page[page_idx] = (page_text_width_med, candidates)
+    return (
+        _native.detect_first_line_indents(source_pdf_path=source_pdf_path, by_page=by_page)
+        if by_page
+        else {}
+    )
+
+
 def _attach_first_line_indents(
     prepared: dict[int, list[dict]],
     page_metrics: dict[int, tuple[float, float, float, float, float]],
@@ -74,52 +148,25 @@ def _attach_first_line_indents(
     source_pdf_path: Path | None = None,
     first_line_indent_lookup: dict[str, float] | None = None,
 ) -> None:
-    if source_pdf_path is None and not first_line_indent_lookup:
+    lookup = _resolve_first_line_indent_lookup(
+        prepared,
+        page_metrics,
+        source_pdf_path=source_pdf_path,
+        first_line_indent_lookup=first_line_indent_lookup,
+    )
+    if lookup is None:
         return
-    if first_line_indent_lookup is None:
-        from services.rendering.layout.payload import _native
-
-        by_page: dict[int, tuple[float, list[tuple[dict, float]]]] = {}
-        for page_idx, items in prepared.items():
-            if page_idx not in page_metrics:
-                continue
-            (
-                page_font_size,
-                page_line_pitch,
-                page_line_height,
-                density_baseline,
-                page_text_width_med,
-            ) = page_metrics[page_idx]
-            candidates: list[tuple[dict, float]] = []
-            for item in items:
-                font_size_pt, _leading_em = block_metrics(
-                    item,
-                    page_font_size,
-                    page_line_pitch,
-                    page_line_height,
-                    density_baseline,
-                    page_text_width_med,
-                )
-                if is_first_line_indent_candidate(item, page_text_width_med=page_text_width_med):
-                    candidates.append((item, font_size_pt))
-            if candidates:
-                by_page[page_idx] = (page_text_width_med, candidates)
-        first_line_indent_lookup = (
-            _native.detect_first_line_indents(source_pdf_path=source_pdf_path, by_page=by_page)
-            if by_page
-            else {}
-        )
     for page_idx, items in prepared.items():
         if page_idx not in page_metrics:
             continue
         for item in items:
             item_id = str(item.get("item_id", "") or "")
-            indent_pt = float(first_line_indent_lookup.get(item_id, 0.0) or 0.0)
+            indent_pt = float(lookup.get(item_id, 0.0) or 0.0)
             if indent_pt > 0:
                 item["_render_first_line_indent_pt"] = indent_pt
 
 
-def prepare_render_payloads_by_page(
+def _prepare_render_payloads_by_page_python(
     translated_pages: dict[int, list[dict]],
     *,
     source_pdf_path: Path | None = None,
@@ -130,20 +177,10 @@ def prepare_render_payloads_by_page(
     if not prepared:
         return prepared
 
-    page_metrics: dict[int, tuple[float, float, float, float, float]] = {}
+    page_metrics = _build_page_metrics(prepared)
     flat_items: list[dict] = []
     for page_idx in sorted(prepared):
         items = prepared[page_idx]
-        page_font_size, page_line_pitch, page_line_height, density_baseline = page_baseline_font_size(items)
-        text_widths = [bbox_width(item) for item in items if block_kind(item) == "text" and not _is_annotation_like(item)]
-        page_text_width_med = median(text_widths) if text_widths else 0.0
-        page_metrics[page_idx] = (
-            page_font_size,
-            page_line_pitch,
-            page_line_height,
-            density_baseline,
-            page_text_width_med,
-        )
         for item in items:
             seed_render_fields(item)
             item_id = str(item.get("item_id", "") or "")
@@ -236,3 +273,20 @@ def prepare_render_payloads_by_page(
     if suspicious_total:
         print(f"render skip suspicious OCR-glued blocks total={suspicious_total}", flush=True)
     return prepared
+
+
+def prepare_render_payloads_by_page(
+    translated_pages: dict[int, list[dict]],
+    *,
+    source_pdf_path: Path | None = None,
+    first_line_indent_lookup: dict[str, float] | None = None,
+    effective_inner_bbox_lookup: dict[str, list[float]] | None = None,
+) -> dict[int, list[dict]]:
+    from services.rendering.layout.payload import _native
+
+    return _native.prepare_render_payloads_by_page(
+        translated_pages=translated_pages,
+        source_pdf_path=source_pdf_path,
+        first_line_indent_lookup=first_line_indent_lookup,
+        effective_inner_bbox_lookup=effective_inner_bbox_lookup,
+    )

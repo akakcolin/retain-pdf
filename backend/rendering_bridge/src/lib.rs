@@ -29,6 +29,11 @@
 //!   * `seed_render_fields(translated_items_json) -> str` — the C3-N5 block-seed
 //!     boundary (port of `payload/render_item.seed_render_fields`); seeds each
 //!     translated item in place and returns the updated array.
+//!   * `prepare_render_payloads_by_page(translated_pages_json,
+//!     first_line_indent_lookup_json, effective_inner_bbox_lookup_json) -> str` —
+//!     the C3-N7 boundary (port of `payload/prepare.prepare_render_payloads_by_page`);
+//!     deep-copies the translated pages, seeds/splits/drops, returns the prepared
+//!     page map.
 //!   * Phase 5 write-path entries operating on PDF bytes in -> bytes out:
 //!     `strip_bbox_text_rects`, `strip_hidden_text`, `sanitize_invalid_xobjects`,
 //!     `compress_images`, `extract_pages`, `overlay_page`. The transformations
@@ -1461,6 +1466,48 @@ fn seed_render_fields(translated_items_json: &str) -> PyResult<String> {
         .map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
 }
 
+/// `prepare_render_payloads_by_page(translated_pages_json,
+/// first_line_indent_lookup_json, effective_inner_bbox_lookup_json) -> str` —
+/// the C3-N7 boundary (port of `payload/prepare.prepare_render_payloads_by_page`).
+/// `translated_pages_json` is a `{page_idx: [item, ...]}` object; the two
+/// lookups are optional precomputed `{item_id: value}` maps (the Python shim
+/// resolves `source_pdf_path` into the first-line-indent lookup before calling).
+/// Deep-copies the input and returns the prepared page map, leaving the caller's
+/// dicts untouched.
+#[pyfunction]
+fn prepare_render_payloads_by_page(
+    translated_pages_json: &str,
+    first_line_indent_lookup_json: Option<&str>,
+    effective_inner_bbox_lookup_json: Option<&str>,
+) -> PyResult<String> {
+    let translated_pages: BTreeMap<i64, Vec<serde_json::Value>> =
+        serde_json::from_str(translated_pages_json)
+            .map_err(|e| PyValueError::new_err(format!("translated_pages_json: {e}")))?;
+    let first_line_indent_lookup: Option<BTreeMap<String, f64>> =
+        match first_line_indent_lookup_json {
+            Some(s) => Some(
+                serde_json::from_str(s)
+                    .map_err(|e| PyValueError::new_err(format!("first_line_indent_lookup_json: {e}")))?,
+            ),
+            None => None,
+        };
+    let effective_inner_bbox_lookup: Option<BTreeMap<String, Vec<f64>>> =
+        match effective_inner_bbox_lookup_json {
+            Some(s) => Some(
+                serde_json::from_str(s).map_err(|e| {
+                    PyValueError::new_err(format!("effective_inner_bbox_lookup_json: {e}"))
+                })?,
+            ),
+            None => None,
+        };
+    let prepared = rendering_core::payload::prepare::prepare_render_payloads_by_page(
+        &translated_pages,
+        first_line_indent_lookup.as_ref(),
+        effective_inner_bbox_lookup.as_ref(),
+    );
+    serde_json::to_string(&prepared).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
+}
+
 #[pymodule]
 fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(emit_typst_source, m)?)?;
@@ -1505,5 +1552,6 @@ fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(resolve_book_body_font_target, m)?)?;
     m.add_function(wrap_pyfunction!(mark_adjacent_collision_risk, m)?)?;
     m.add_function(wrap_pyfunction!(seed_render_fields, m)?)?;
+    m.add_function(wrap_pyfunction!(prepare_render_payloads_by_page, m)?)?;
     Ok(())
 }

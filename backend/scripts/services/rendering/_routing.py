@@ -99,6 +99,7 @@ ALLOWLIST: dict[tuple[str, str], str] = {
     ("layout_payload", "emit_render_blocks"): "parity_reference",
     ("layout_payload", "apply_body_pipeline"): "parity_reference",
     ("layout_payload", "mark_adjacent_collision_risk"): "parity_reference",
+    ("layout_payload", "prepare_render_payloads_by_page"): "parity_reference",
     ("layout_payload", "seed_render_fields"): "parity_reference",
     ("layout_payload", "resolve_book_body_font_target"): "parity_reference",
     ("visual_profile", "build_document_visual_profile"): "parity_reference",

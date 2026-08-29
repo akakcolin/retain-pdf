@@ -27,6 +27,7 @@ pub mod line_structure;
 pub mod payload_dict;
 pub mod render_item;
 pub mod render_text;
+pub mod suspicious_ocr;
 pub mod title_binary_fit;
 pub mod typography_decision;
 pub mod typography_memory;

@@ -10,6 +10,7 @@ use crate::layout::render_text::{should_render_source_block, should_skip_display
 use crate::payload::text_common::same_meaningful_render_text;
 use crate::typography::geometry::inner_bbox;
 use serde_json::Value;
+use std::collections::{BTreeMap, HashSet};
 
 const FORMULA_MAP_CHAIN: [&str; 4] = [
     "render_formula_map",
@@ -45,7 +46,7 @@ pub fn fit_inner_bbox(item: &Item) -> Vec<f64> {
 }
 
 /// `render_unit_kind`: `str(item.get("translation_unit_kind", "") or "").strip().lower()`.
-fn render_unit_kind(item: &Value) -> String {
+pub(crate) fn render_unit_kind(item: &Value) -> String {
     item.get("translation_unit_kind")
         .and_then(|v| v.as_str())
         .unwrap_or("")
@@ -57,7 +58,7 @@ fn render_unit_kind(item: &Value) -> String {
 /// `str(item.get("continuation_group") or item.get("continuation_group_id") or "")`.
 /// `continuation_group` may be a bool in the dict; Python stringifies the truthy
 /// value, so `true` becomes `"True"`.
-fn render_continuation_group_id(item: &Value) -> String {
+pub(crate) fn render_continuation_group_id(item: &Value) -> String {
     match item.get("continuation_group") {
         Some(Value::Bool(true)) => return "True".to_string(),
         Some(Value::String(s)) if !s.is_empty() => return s.clone(),
@@ -70,19 +71,19 @@ fn render_continuation_group_id(item: &Value) -> String {
 }
 
 /// `_render_should_use_unit_translation`.
-fn render_should_use_unit_translation(item: &Value) -> bool {
+pub(crate) fn render_should_use_unit_translation(item: &Value) -> bool {
     render_unit_kind(item) == "group" || !render_continuation_group_id(item).is_empty()
 }
 
 /// `_member_translation_text`: `protected_translated_text or translated_text`.
-fn member_translation_text(item: &Value) -> String {
+pub(crate) fn member_translation_text(item: &Value) -> String {
     first_non_empty(item, &["protected_translated_text", "translated_text"])
         .trim()
         .to_string()
 }
 
 /// `render_protected_translation_text` — the unit/group text chain, stripped.
-fn render_protected_translation_text(item: &Value) -> String {
+pub(crate) fn render_protected_translation_text(item: &Value) -> String {
     let text = if !render_should_use_unit_translation(item) {
         first_non_empty(
             item,
@@ -116,7 +117,7 @@ fn render_protected_translation_text(item: &Value) -> String {
 /// `render_protected_source_text` — the group/non-group source chain, stripped.
 /// Unlike the model's `_render_source_text` this does NOT read
 /// `render_source_text` (the seed writes that key afterwards).
-fn render_protected_source_text(item: &Value) -> String {
+pub(crate) fn render_protected_source_text(item: &Value) -> String {
     let text = if render_unit_kind(item) != "group" {
         first_non_empty(
             item,
@@ -156,7 +157,7 @@ fn first_non_empty(item: &Value, keys: &[&str]) -> String {
 }
 
 /// `clear_render_fields`: reset the render text/formula-map seeds (skip branch).
-fn clear_render_fields(item: &mut Value) {
+pub(crate) fn clear_render_fields(item: &mut Value) {
     item["render_protected_text"] = Value::String(String::new());
     item["render_formula_map"] = Value::Array(Vec::new());
 }
@@ -174,6 +175,90 @@ fn get_render_formula_map_value(item: &Value) -> Value {
         }
     }
     Value::Array(Vec::new())
+}
+
+/// `render_translation_unit_id`: `str(item.get("translation_unit_id", "") or "")`.
+pub(crate) fn render_translation_unit_id(item: &Value) -> String {
+    match item.get("translation_unit_id") {
+        Some(Value::String(s)) => s.clone(),
+        Some(Value::Bool(b)) => {
+            if *b {
+                "True".to_string()
+            } else {
+                "False".to_string()
+            }
+        }
+        Some(Value::Number(n)) => n.to_string(),
+        _ => String::new(),
+    }
+}
+
+/// `group_render_unit_items`: group by `render_continuation_group_id(item) or
+/// render_translation_unit_id(item)` when `_render_should_use_unit_translation`.
+/// Continuation units carrying member text are dropped (Python's
+/// `continuation_units_with_member_text` set). Returns unit-id -> item indices
+/// in first-seen order so callers can mutate the flat items in place.
+pub(crate) fn group_render_unit_items(items: &[Value]) -> BTreeMap<String, Vec<usize>> {
+    let mut continuation_units_with_member_text: HashSet<String> = HashSet::new();
+    for item in items {
+        let unit_id = render_continuation_group_id(item);
+        if !unit_id.is_empty() && !member_translation_text(item).is_empty() {
+            continuation_units_with_member_text.insert(unit_id);
+        }
+    }
+    let mut units: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+    for (index, item) in items.iter().enumerate() {
+        let continuation_id = render_continuation_group_id(item);
+        if continuation_units_with_member_text.contains(&continuation_id) {
+            continue;
+        }
+        let unit_id = if continuation_id.is_empty() {
+            render_translation_unit_id(item)
+        } else {
+            continuation_id
+        };
+        if render_should_use_unit_translation(item) && !unit_id.is_empty() {
+            units.entry(unit_id).or_default().push(index);
+        }
+    }
+    units
+}
+
+/// `item_has_group_render_text`: `bool(render_protected_translation_text(item))`.
+pub(crate) fn item_has_group_render_text(item: &Value) -> bool {
+    !render_protected_translation_text(item).is_empty()
+}
+
+/// `group_unit_formula_map`: `get_render_formula_map(items[0])` or `[]`.
+pub(crate) fn group_unit_formula_map(items: &[&Value]) -> Value {
+    match items.first() {
+        Some(first) => get_render_formula_map_value(first),
+        None => Value::Array(Vec::new()),
+    }
+}
+
+/// `group_unit_protected_text`: the longest member text, first wins on ties
+/// (Python `max(..., key=len, default="")` keeps the first maximum).
+pub(crate) fn group_unit_protected_text(items: &[&Value]) -> String {
+    group_longest(items, render_protected_translation_text)
+}
+
+/// `group_unit_source_text`: the longest member source text, first wins on ties.
+pub(crate) fn group_unit_source_text(items: &[&Value]) -> String {
+    group_longest(items, render_protected_source_text)
+}
+
+fn group_longest(items: &[&Value], text_of: impl Fn(&Value) -> String) -> String {
+    let mut best: Option<(String, usize)> = None;
+    for item in items {
+        let text = text_of(item);
+        let len = text.chars().count();
+        match &best {
+            Some((_, best_len)) if *best_len >= len => {}
+            _ => best = Some((text, len)),
+        }
+    }
+    best.map(|(text, _)| text).unwrap_or_default()
 }
 
 /// `seed_render_fields`: compute the render-text / source-text / formula-map
@@ -431,5 +516,76 @@ mod tests {
         assert_eq!(item["_render_preserve_line_breaks"], json!(true));
         assert_eq!(item["_render_line_structure"], json!("structured_lines"));
         assert_eq!(item["render_protected_text"], json!("1. 甲内容\n2. 乙内容"));
+    }
+
+    #[test]
+    fn translation_unit_id_stringifies() {
+        assert_eq!(render_translation_unit_id(&json!({"translation_unit_id": "u1"})), "u1");
+        assert_eq!(render_translation_unit_id(&json!({"translation_unit_id": 5})), "5");
+        assert_eq!(render_translation_unit_id(&json!({})), "");
+        assert_eq!(render_translation_unit_id(&json!({"translation_unit_id": null})), "");
+    }
+
+    #[test]
+    fn group_units_by_continuation_then_unit_id() {
+        let items = vec![
+            json!({"translation_unit_kind": "group", "translation_unit_id": "g1", "group_protected_translated_text": "一"}),
+            json!({"translation_unit_kind": "group", "translation_unit_id": "g1", "group_protected_translated_text": "二"}),
+            json!({"translation_unit_kind": "group", "translation_unit_id": "g2", "group_protected_translated_text": "三"}),
+            json!({"translation_unit_id": "g2", "should_translate": true}), // not a unit-translation item
+            json!({"continuation_group": "cg", "translation_unit_kind": "group", "translation_unit_id": "g3", "group_protected_translated_text": "四"}),
+        ];
+        let units = group_render_unit_items(&items);
+        assert_eq!(units.keys().collect::<Vec<_>>(), vec!["cg", "g1", "g2"]);
+        assert_eq!(units["g1"], vec![0, 1]);
+        assert_eq!(units["g2"], vec![2]);
+        // The continuation "cg" unit's own id groups under "cg" (not g3).
+        assert_eq!(units["cg"], vec![4]);
+    }
+
+    #[test]
+    fn group_skips_continuation_units_with_member_text() {
+        let items = vec![
+            json!({"continuation_group": "cg", "protected_translated_text": "成员"}),
+            json!({"continuation_group": "cg", "translation_unit_kind": "group", "group_protected_translated_text": "组"}),
+        ];
+        // The first member carries member text, so the whole "cg" unit is skipped.
+        assert!(group_render_unit_items(&items).is_empty());
+    }
+
+    #[test]
+    fn group_unit_text_and_formula_map() {
+        let first = json!({"translation_unit_kind": "group", "protected_translated_text": "short", "protected_source_text": "s", "render_formula_map": [{"placeholder": "F1", "formula_text": "x"}]});
+        let second = json!({"translation_unit_kind": "group", "protected_translated_text": "longer text", "protected_source_text": "longer source", "formula_map": [{"placeholder": "F2", "formula_text": "y"}]});
+        let refs: Vec<&Value> = vec![&first, &second];
+        assert_eq!(group_unit_protected_text(&refs), "longer text");
+        assert_eq!(group_unit_source_text(&refs), "longer source");
+        // First item's render_formula_map wins; empty group -> [].
+        assert_eq!(group_unit_formula_map(&refs), json!([{"placeholder": "F1", "formula_text": "x"}]));
+        assert_eq!(group_unit_formula_map(&[]), json!([]));
+    }
+
+    #[test]
+    fn group_longest_uses_char_count_and_first_wins_on_ties() {
+        // CJK "甲乙" is 2 chars / 6 bytes; "abcdef" is 6 chars / 6 bytes. Python
+        // `len` is char count, so "abcdef" wins over "甲乙" even though the byte
+        // lengths are equal.
+        let cjk = json!({"translation_unit_kind": "group", "protected_translated_text": "甲乙"});
+        let ascii = json!({"translation_unit_kind": "group", "protected_translated_text": "abcdef"});
+        let refs: Vec<&Value> = vec![&cjk, &ascii];
+        assert_eq!(group_unit_protected_text(&refs), "abcdef");
+        // Ties keep the first item.
+        let a = json!({"translation_unit_kind": "group", "protected_translated_text": "abc"});
+        let b = json!({"translation_unit_kind": "group", "protected_translated_text": "def"});
+        let refs: Vec<&Value> = vec![&a, &b];
+        assert_eq!(group_unit_protected_text(&refs), "abc");
+        assert_eq!(group_unit_source_text(&[]), "");
+    }
+
+    #[test]
+    fn group_has_render_text_true_only_for_nonempty() {
+        assert!(item_has_group_render_text(&json!({"protected_translated_text": "x"})));
+        assert!(!item_has_group_render_text(&json!({"protected_translated_text": "  "})));
+        assert!(!item_has_group_render_text(&json!({})));
     }
 }

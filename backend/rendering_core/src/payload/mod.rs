@@ -15,6 +15,7 @@ pub mod formula_cost;
 pub mod formula_safety;
 pub mod geometry_adjustments;
 pub mod policy_compat;
+pub mod prepare;
 pub mod shared;
 pub mod text_common;
 pub mod toc_document;

@@ -42,6 +42,24 @@ pub fn inner_bbox4(payload: &Value) -> Option<[f64; 4]> {
     Some([list[0], list[1], list[2], list[3]])
 }
 
+/// Python `str(v)` for the scalar payload-dict values, matching
+/// `str(item.get(k, "") or "")`: strings pass through, numbers and bools
+/// stringify, null/absent become `""`.
+pub(crate) fn py_str(value: &Value) -> String {
+    match value {
+        Value::String(s) => s.clone(),
+        Value::Bool(b) => {
+            if *b {
+                "True".to_string()
+            } else {
+                "False".to_string()
+            }
+        }
+        Value::Number(n) => n.to_string(),
+        _ => String::new(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
