@@ -34,9 +34,41 @@ pub struct HiddenTextStripResult {
 /// Drop all-invisible text objects from every page's content stream. Returns
 /// the outcome; the caller still decides the final file-level save.
 pub fn strip_hidden_text(doc: &mut PdfDocument) -> Result<HiddenTextStripResult, Error> {
-    let mut result = HiddenTextStripResult::default();
+    strip_hidden_text_on_pages(doc, None)
+}
+
+/// Drop all-invisible text objects from only the given pages (production's
+/// candidate-page set from the fitz pre-scan). Indices outside the document
+/// range, duplicates, and an empty list are ignored (the outcome is unchanged
+/// for them). This is the routed production variant; the whole-document
+/// `strip_hidden_text` stays as the write-differential reference.
+pub fn strip_hidden_text_pages(
+    doc: &mut PdfDocument,
+    page_indices: &[i32],
+) -> Result<HiddenTextStripResult, Error> {
+    strip_hidden_text_on_pages(doc, Some(page_indices))
+}
+
+fn strip_hidden_text_on_pages(
+    doc: &mut PdfDocument,
+    page_indices: Option<&[i32]>,
+) -> Result<HiddenTextStripResult, Error> {
     let count = doc.page_count()?;
-    for page_idx in 0..count {
+    let selected: Vec<i32> = match page_indices {
+        None => (0..count).collect(),
+        Some(indices) => {
+            let mut pages: Vec<i32> = indices
+                .iter()
+                .copied()
+                .filter(|&i| i >= 0 && i < count)
+                .collect();
+            pages.sort_unstable();
+            pages.dedup();
+            pages
+        }
+    };
+    let mut result = HiddenTextStripResult::default();
+    for page_idx in selected {
         let page = doc.load_pdf_page(page_idx)?;
         let stream = page_contents_bytes(&page)?;
         if stream.is_empty() {

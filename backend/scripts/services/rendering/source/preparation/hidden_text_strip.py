@@ -141,6 +141,9 @@ def build_hidden_text_stripped_pdf_copy(
     start_page: int = 0,
     end_page: int = -1,
 ) -> HiddenTextStripResult:
+    """Fitz pre-scan (candidate pages) then delegate the per-page strip to the
+    native bridge shim; the pre-scan stays Python because
+    `page_is_pseudo_editable_scan` is a hard-boundary fitz primitive."""
     candidate_pages = _collect_hidden_text_scan_pages(
         source_pdf_path,
         start_page=start_page,
@@ -148,7 +151,21 @@ def build_hidden_text_stripped_pdf_copy(
     )
     if not candidate_pages:
         return HiddenTextStripResult(changed=False)
+    from services.rendering.source import _native
 
+    return _native.build_hidden_text_stripped_pdf_copy(
+        candidate_pages,
+        source_pdf_path=source_pdf_path,
+        output_pdf_path=output_pdf_path,
+    )
+
+
+def _build_hidden_text_stripped_pdf_copy_python(
+    candidate_pages: set[int],
+    *,
+    source_pdf_path: Path,
+    output_pdf_path: Path,
+) -> HiddenTextStripResult:
     output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
     pages_changed = 0
     text_objects_removed = 0

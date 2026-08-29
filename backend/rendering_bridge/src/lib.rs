@@ -248,6 +248,20 @@ fn strip_hidden_text(pdf_bytes: &[u8]) -> PyResult<(Vec<u8>, String)> {
     Ok((bytes, meta_json(&result)?))
 }
 
+/// Remove hidden text from only the given page indices (production's
+/// candidate-page set from the fitz pre-scan). `page_indices_json` is a JSON
+/// array of page indices; out-of-range / duplicate entries are ignored. Returns
+/// bytes plus the `HiddenTextStripResult` metadata.
+#[pyfunction]
+fn strip_hidden_text_pages(pdf_bytes: &[u8], page_indices_json: &str) -> PyResult<(Vec<u8>, String)> {
+    let indices: Vec<i32> = serde_json::from_str(page_indices_json)
+        .map_err(|e| PyRuntimeError::new_err(format!("page_indices json: {e}")))?;
+    let (bytes, result) = with_pdf_edit(pdf_bytes, |pdf| {
+        rendering_writer::hidden_text::strip_hidden_text_pages(pdf, &indices)
+    })?;
+    Ok((bytes, meta_json(&result)?))
+}
+
 /// Replace invalid image XObjects with the recorded fill (port of
 /// `sanitize.py::sanitize_invalid_xobjects`). Returns bytes plus the
 /// `SanitizeResult` metadata.
@@ -1538,6 +1552,7 @@ fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compile_typst_source, m)?)?;
     m.add_function(wrap_pyfunction!(strip_bbox_text_rects, m)?)?;
     m.add_function(wrap_pyfunction!(strip_hidden_text, m)?)?;
+    m.add_function(wrap_pyfunction!(strip_hidden_text_pages, m)?)?;
     m.add_function(wrap_pyfunction!(sanitize_invalid_xobjects, m)?)?;
     m.add_function(wrap_pyfunction!(compress_images, m)?)?;
     m.add_function(wrap_pyfunction!(extract_pages, m)?)?;

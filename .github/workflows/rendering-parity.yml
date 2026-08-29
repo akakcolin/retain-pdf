@@ -150,6 +150,7 @@ jobs:
             smoke_drawings_bridge \
             smoke_emit_render_blocks_bridge \
             smoke_first_line_indent_bridge \
+            smoke_hidden_text_strip_bridge \
             smoke_image_rects_bridge \
             smoke_page_specs_bridge \
             smoke_pdf_structure_profile_bridge \

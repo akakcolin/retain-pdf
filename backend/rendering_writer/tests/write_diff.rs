@@ -20,6 +20,7 @@ use mupdf::Document;
 use rendering_core::source_cleanup::hit_test::RectTuple;
 use rendering_writer::cleanup_writer::strip_bbox_text_rects_from_pdf;
 use rendering_writer::hidden_text::strip_hidden_text;
+use rendering_writer::hidden_text::strip_hidden_text_pages;
 use rendering_writer::image_compress::compress_images;
 use rendering_writer::overlay::overlay_page;
 use rendering_writer::page_subset::extract_pages;
@@ -548,4 +549,57 @@ fn tempfile_dir(name: &str) -> std::path::PathBuf {
     ));
     fs::create_dir_all(&base).expect("create temp dir");
     base
+}
+
+/// Candidate-page filtering: `strip_hidden_text_pages` restricted to the
+/// candidate set must match the whole-document strip on the hidden_text corpus,
+/// and an empty / out-of-range / duplicated index list must be a no-op.
+#[test]
+fn hidden_text_pages_filtering_matches_whole_doc() {
+    let corpus = corpus();
+    let case = corpus
+        .prep_cases
+        .iter()
+        .find_map(|c| match c {
+            PrepCase::Hidden(c) => Some(c),
+            _ => None,
+        })
+        .expect("hidden_text corpus case present");
+    let dir = tempfile_dir(&format!("hidden-pages-{}", case.name));
+    let in_path = write_input(&dir, "in.pdf", &decode(&case.input_pdf_b64));
+
+    let run = |indices: &[i32]| -> rendering_writer::hidden_text::HiddenTextStripResult {
+        let mut pdf = mupdf::pdf::PdfDocument::open(in_path.as_path())
+            .unwrap_or_else(|e| panic!("{} open: {e}", case.name));
+        strip_hidden_text_pages(&mut pdf, indices)
+            .unwrap_or_else(|e| panic!("{} strip_pages({indices:?}): {e}", case.name))
+    };
+    let run_full = || -> rendering_writer::hidden_text::HiddenTextStripResult {
+        let mut pdf = mupdf::pdf::PdfDocument::open(in_path.as_path())
+            .unwrap_or_else(|e| panic!("{} open: {e}", case.name));
+        strip_hidden_text(&mut pdf).unwrap_or_else(|e| panic!("{} strip: {e}", case.name))
+    };
+
+    let full = run_full();
+    assert_eq!(
+        full.pages_changed, case.expected.pages_changed,
+        "whole-doc pages_changed"
+    );
+    assert_eq!(
+        full.text_objects_removed, case.expected.text_objects_removed,
+        "whole-doc text_objects_removed"
+    );
+
+    let filtered = run(&[0]);
+    assert_eq!(filtered, full, "candidate-filtered [0] must equal whole-doc");
+
+    let dupes_out_of_range = run(&[0, 0, 1, 999, -1]);
+    assert_eq!(
+        dupes_out_of_range, full,
+        "duplicates/out-of-range indices must be ignored"
+    );
+
+    let empty = run(&[]);
+    assert_eq!(empty.changed, false, "empty index list must be a no-op");
+    assert_eq!(empty.pages_changed, 0, "empty index list: no pages changed");
 }

@@ -13,8 +13,8 @@ expose a production result contract (`sanitize_invalid_xobjects`,
 result dataclasses / return values without re-deriving them.
 
 Routed here: `build_invalid_xobject_sanitized_pdf_copy`,
-`compress_pdf_images_only_impl`, `extract_pages_with_pikepdf`, the
-prewarm page-count / page-width lookup
+`build_hidden_text_stripped_pdf_copy`, `compress_pdf_images_only_impl`,
+`extract_pages_with_pikepdf`, the prewarm page-count / page-width lookup
 `prewarm_payload._read_source_page_sizes_and_count_python`, and
 `document.pdf_ops.save_optimized_pdf` (mupdf `pdf_subset_fonts` + garbage
 collection + stream compression in one native pass). The other write-path
@@ -28,9 +28,12 @@ a recompression the Python reference would apply. The per-image commit gate
 (strictly smaller) and the file-level `replace_if_smaller` gate still hold, so
 native never grows a file and never re-encodes an image Python would keep;
 differential coverage stays on resize-dominated images where both commit.
-  * `strip_hidden_text` — the Rust port rewrites every page while production
-    pre-scans candidate pages (`page_is_pseudo_editable_scan`) within an
-    optional `start_page`/`end_page` range, so routing would change behavior.
+  * `build_hidden_text_stripped_pdf_copy` is routed as a candidate-page
+    filtered strip (C3-N9): production keeps the fitz pre-scan
+    (`page_is_pseudo_editable_scan`, a hard-boundary fitz primitive) and the
+    bridge strips exactly those pages, so the `start_page`/`end_page` range
+    behavior is unchanged. The whole-document `strip_hidden_text` bridge export
+    stays as the write-differential reference.
   * `strip_bbox_text_rects` — production's rich skip/candidate metadata has no
     bridge equivalent yet.
   * overlay family — bridge `overlay_page` is per-page (one open/save cycle per
@@ -90,6 +93,10 @@ from services.rendering import _routing
 from services.rendering.document.pikepdf_pages import _extract_pages_with_pikepdf_python
 from services.rendering.source.compression.image_pipeline import _compress_pdf_images_only_impl_python
 from services.rendering.source.rects import Rect
+from services.rendering.source.preparation.hidden_text_strip import (
+    HiddenTextStripResult,
+    _build_hidden_text_stripped_pdf_copy_python,
+)
 from services.rendering.source.preparation.xobject_sanitize import (
     XObjectSanitizeResult,
     _build_invalid_xobject_sanitized_pdf_copy_python,
@@ -107,6 +114,7 @@ try:
     from rendering_bridge import read_page_text_blocks as _native_read_page_text_blocks
     from rendering_bridge import read_page_text_spans as _native_read_page_text_spans
     from rendering_bridge import sanitize_invalid_xobjects as _native_sanitize_invalid_xobjects
+    from rendering_bridge import strip_hidden_text_pages as _native_strip_hidden_text_pages
     from rendering_bridge import subset_and_save_optimized_pdf as _native_subset_and_save_optimized_pdf
 
     NATIVE = True
@@ -147,6 +155,48 @@ def sanitize_pdf_copy(
         invalid_image_xobjects=meta["invalid_image_xobjects"],
         pages_changed=meta["pages_changed"],
         elapsed_seconds=elapsed,
+    )
+
+
+def build_hidden_text_stripped_pdf_copy(
+    candidate_pages: set[int],
+    *,
+    source_pdf_path: Path,
+    output_pdf_path: Path,
+) -> HiddenTextStripResult:
+    """`hidden_text_strip.build_hidden_text_stripped_pdf_copy`'s per-page strip,
+    routed to the native bridge when built. Production keeps the fitz candidate
+    pre-scan and passes the candidate page set here; the bridge strips exactly
+    those pages, so the `start_page`/`end_page` range behavior is unchanged."""
+    if not _routing.routed("source", "build_hidden_text_stripped_pdf_copy", NATIVE):
+        return _build_hidden_text_stripped_pdf_copy_python(
+            candidate_pages=candidate_pages,
+            source_pdf_path=source_pdf_path,
+            output_pdf_path=output_pdf_path,
+        )
+    started = time.perf_counter()
+    out_bytes, meta_json = _native_strip_hidden_text_pages(
+        source_pdf_path.read_bytes(),
+        json.dumps(sorted(candidate_pages)),
+    )
+    meta = json.loads(meta_json)
+    if not meta["changed"]:
+        output_pdf_path.unlink(missing_ok=True)
+        return HiddenTextStripResult(changed=False)
+    output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    output_pdf_path.write_bytes(out_bytes)
+    elapsed = time.perf_counter() - started
+    _routing.record_native_hit("source", "build_hidden_text_stripped_pdf_copy")
+    print(
+        f"hidden text strip: pages={meta['pages_changed']} text_objects={meta['text_objects_removed']} "
+        f"elapsed={elapsed:.2f}s output={output_pdf_path}",
+        flush=True,
+    )
+    return HiddenTextStripResult(
+        changed=True,
+        output_pdf_path=output_pdf_path,
+        pages_changed=meta["pages_changed"],
+        text_objects_removed=meta["text_objects_removed"],
     )
 
 

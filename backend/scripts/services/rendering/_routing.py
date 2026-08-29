@@ -83,6 +83,7 @@ ALLOWLIST: dict[tuple[str, str], str] = {
     ("source", "collect_page_non_math_span_heights"): "parity_reference",
     ("source", "copy_toc"): "parity_reference",
     ("source", "copy_toc_for_page_map"): "parity_reference",
+    ("source", "build_hidden_text_stripped_pdf_copy"): "parity_reference",
     ("source", "collect_page_drawing_rects"): "hard_boundary",
     ("background", "build_clean_background_pdf"): "parity_reference",
     ("background", "sample_page_color_fills"): "parity_reference",
