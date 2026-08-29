@@ -158,6 +158,7 @@ jobs:
             smoke_write_bridge \
             smoke_end_to_end_parity \
             smoke_end_to_end_pixel_parity \
+            smoke_zero_fitz \
             orchestrator_parity
           do
             python "../rendering_writer/differential/$b.py"
