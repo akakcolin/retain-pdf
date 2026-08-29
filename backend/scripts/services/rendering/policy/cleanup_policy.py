@@ -115,6 +115,18 @@ def _build_typst_fill_page_policy(translated_items: list[dict]) -> RenderPagePol
 
 
 def apply_render_page_policy_fields(translated_items: list[dict]) -> list[dict]:
+    from services.rendering.policy import _native
+
+    return _native.apply_render_page_policy_fields(translated_items)
+
+
+def apply_render_pages_policy_fields(translated_pages: dict[int, list[dict]]) -> dict[int, list[dict]]:
+    from services.rendering.policy import _native
+
+    return _native.apply_render_pages_policy_fields(translated_pages)
+
+
+def _apply_render_page_policy_fields_python(translated_items: list[dict]) -> list[dict]:
     policy = build_render_page_policy(translated_items)
     if not policy.item_policies:
         return translated_items
@@ -129,9 +141,11 @@ def apply_render_page_policy_fields(translated_items: list[dict]) -> list[dict]:
     return patched
 
 
-def apply_render_pages_policy_fields(translated_pages: dict[int, list[dict]]) -> dict[int, list[dict]]:
+def _apply_render_pages_policy_fields_python(
+    translated_pages: dict[int, list[dict]],
+) -> dict[int, list[dict]]:
     return {
-        page_idx: apply_render_page_policy_fields(items)
+        page_idx: _apply_render_page_policy_fields_python(items)
         for page_idx, items in translated_pages.items()
     }
 

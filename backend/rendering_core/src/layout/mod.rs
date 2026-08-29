@@ -25,6 +25,7 @@ pub mod fit_metrics;
 pub mod fit_vertical;
 pub mod line_structure;
 pub mod payload_dict;
+pub mod policy_fields;
 pub mod render_item;
 pub mod render_text;
 pub mod suspicious_ocr;

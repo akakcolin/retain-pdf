@@ -1508,6 +1508,29 @@ fn prepare_render_payloads_by_page(
     serde_json::to_string(&prepared).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
 }
 
+/// `apply_render_pages_policy_fields(translated_pages_json,
+/// use_typst_fill_cleanup, use_default_text_overlay_cover_fill) -> str` — the
+/// C3-N8 boundary (port of `policy/cleanup_policy.apply_render_pages_policy_fields`).
+/// Patches `_render_policy` onto the translated items per page and returns the
+/// patched page map. The two config flags are runtime settings the Python shim
+/// resolves from the layout config at call time.
+#[pyfunction]
+fn apply_render_pages_policy_fields(
+    translated_pages_json: &str,
+    use_typst_fill_cleanup: bool,
+    use_default_text_overlay_cover_fill: bool,
+) -> PyResult<String> {
+    let translated_pages: BTreeMap<i64, Vec<serde_json::Value>> =
+        serde_json::from_str(translated_pages_json)
+            .map_err(|e| PyValueError::new_err(format!("translated_pages_json: {e}")))?;
+    let prepared = rendering_core::layout::policy_fields::apply_render_pages_policy_fields(
+        &translated_pages,
+        use_typst_fill_cleanup,
+        use_default_text_overlay_cover_fill,
+    );
+    serde_json::to_string(&prepared).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
+}
+
 #[pymodule]
 fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(emit_typst_source, m)?)?;
@@ -1553,5 +1576,6 @@ fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(mark_adjacent_collision_risk, m)?)?;
     m.add_function(wrap_pyfunction!(seed_render_fields, m)?)?;
     m.add_function(wrap_pyfunction!(prepare_render_payloads_by_page, m)?)?;
+    m.add_function(wrap_pyfunction!(apply_render_pages_policy_fields, m)?)?;
     Ok(())
 }
