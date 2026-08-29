@@ -12,6 +12,8 @@ from services.rendering.source.background.fill import draw_white_covers
 from services.rendering.source.text_redaction import remove_text_under_rects_with_pymupdf_redaction
 from services.rendering.source.vector_profile import page_drawing_count
 from services.rendering.source.vector_profile import page_is_vector_heavy_count
+from services.rendering.source.rects import Rect
+from services.rendering.source.rects import coerce
 from services.rendering.source.rects import merge_rects
 from services.rendering.source.background.source_overlay import apply_source_page_overlay
 from services.rendering.document.pikepdf_overlay import overlay_pdf_pages_with_pikepdf
@@ -285,12 +287,12 @@ def overlay_pages_from_single_pdf(
                     continue
 
                 cleanup_items = (redaction_pages or {}).get(page_idx) or translated_pages[page_idx]
-                cleanup_rects = []
+                cleanup_rects: list[Rect] = []
                 for item in cleanup_items:
                     bbox = item.get("bbox", [])
                     if len(bbox) != 4:
                         continue
-                    rect = fitz.Rect(bbox)
+                    rect = coerce(bbox)
                     if not rect.is_empty:
                         cleanup_rects.append(rect)
                 merged_rects = merge_rects(cleanup_rects)

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import fitz
-
 from services.rendering.source.cleanup.text_extract import rect_center
 from services.rendering.source.cleanup.text_extract import rect_contains_point
+from services.rendering.source.rects import Rect
 
 
 def squared_distance(a: tuple[float, float], b: tuple[float, float]) -> float:
@@ -13,34 +12,34 @@ def squared_distance(a: tuple[float, float], b: tuple[float, float]) -> float:
 
 
 def owned_word_entries(
-    rect: fitz.Rect,
-    entries: list[tuple[fitz.Rect, str]],
+    rect: Rect,
+    entries: list[tuple[Rect, str]],
     *,
-    competing_rects: list[fitz.Rect] | None = None,
-) -> list[tuple[fitz.Rect, str]]:
+    competing_rects: list[Rect] | None = None,
+) -> list[tuple[Rect, str]]:
     return owned_text_entries(rect, entries, competing_rects=competing_rects)
 
 
 def owned_text_block_entries(
-    rect: fitz.Rect,
-    entries: list[tuple[fitz.Rect, str]],
+    rect: Rect,
+    entries: list[tuple[Rect, str]],
     *,
-    competing_rects: list[fitz.Rect] | None = None,
-) -> list[tuple[fitz.Rect, str]]:
+    competing_rects: list[Rect] | None = None,
+) -> list[tuple[Rect, str]]:
     return owned_text_entries(rect, entries, competing_rects=competing_rects)
 
 
 def owned_text_entries(
-    rect: fitz.Rect,
-    entries: list[tuple[fitz.Rect, str]],
+    rect: Rect,
+    entries: list[tuple[Rect, str]],
     *,
-    competing_rects: list[fitz.Rect] | None = None,
-) -> list[tuple[fitz.Rect, str]]:
+    competing_rects: list[Rect] | None = None,
+) -> list[tuple[Rect, str]]:
     if not entries:
         return []
 
     competing = [candidate for candidate in (competing_rects or []) if not candidate.is_empty]
-    owned: list[tuple[fitz.Rect, str]] = []
+    owned: list[tuple[Rect, str]] = []
     for entry_rect, text in entries:
         center = rect_center(entry_rect)
         if not rect_contains_point(rect, center[0], center[1]):

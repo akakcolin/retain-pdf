@@ -12,6 +12,7 @@ from services.rendering.source.cleanup.text_rects import item_bbox_redaction_rec
 from services.rendering.source.cleanup.text_rects import word_entries_to_redaction_rects
 from services.rendering.source.cleanup.text_safe_direct import safe_direct_redaction_rect
 from services.rendering.source.items import normalize_words
+from services.rendering.source.rects import Rect
 from services.rendering.source.rects import rect_key
 
 
@@ -30,9 +31,9 @@ def item_removable_text_rects(
     item: dict,
     rect: fitz.Rect,
     page_words: list[tuple] | None = None,
-    special_math_rects: list[fitz.Rect] | None = None,
-    competing_rects: list[fitz.Rect] | None = None,
-) -> list[fitz.Rect]:
+    special_math_rects: list[Rect] | None = None,
+    competing_rects: list[Rect] | None = None,
+) -> list[Rect]:
     matched = safe_direct_redaction_rect(page, item, rect, competing_rects=competing_rects)
     if matched is not None:
         return filter_rects_away_from_special_math([matched], special_math_rects)
@@ -76,14 +77,14 @@ def _matched_text_block_rects(
     rect: fitz.Rect,
     source_words: list[str],
     *,
-    competing_rects: list[fitz.Rect] | None = None,
-) -> list[fitz.Rect]:
+    competing_rects: list[Rect] | None = None,
+) -> list[Rect]:
     block_entries = extract_page_text_blocks(page)
     if not block_entries:
         return []
 
     block_entries = owned_text_block_entries(rect, block_entries, competing_rects=competing_rects)
-    matched_block_rects: list[fitz.Rect] = []
+    matched_block_rects: list[Rect] = []
     seen_blocks: set[tuple[int, int, int, int]] = set()
     for block_rect, block_text in block_entries:
         block_words = normalize_words(block_text)

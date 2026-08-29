@@ -25,6 +25,8 @@ from pathlib import Path
 from services.rendering import _routing
 import services.rendering.source.background.stage as _stage
 from services.rendering.policy import protect_formula_regions_in_redaction_items
+from services.rendering.source.rects import Rect
+from services.rendering.source.rects import coerce
 from services.rendering.source.background.redaction_items import (
     redaction_items_from_layout_blocks,
 )
@@ -369,7 +371,7 @@ def _extract_page_span_dicts_python(
                             bbox = span.get("bbox")
                             if not isinstance(bbox, (list, tuple)) or len(bbox) < 4:
                                 continue
-                            rect = fitz.Rect(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
+                            rect = Rect(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
                             if rect.is_empty or rect.is_infinite:
                                 continue
                             color = span.get("color")
@@ -403,7 +405,7 @@ def _sample_title_visual_colors_python(
             page = source_doc[page_idx]
             page_out: dict[str, list[float]] = {}
             for i, visual in enumerate(visuals):
-                rect = fitz.Rect(visual["rect"])
+                rect = coerce(visual["rect"])
                 fill = tuple(float(component) for component in visual["fill"])
                 color = title_text_color_from_visual_components(page, rect, fill)
                 if color is not None:

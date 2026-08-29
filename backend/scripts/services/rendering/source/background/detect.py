@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import fitz
 
+from services.rendering.source.rects import Rect
+from services.rendering.source.rects import coerce
 from services.rendering.source.rects import rect_area
 
 
@@ -64,8 +66,8 @@ def _page_has_large_background_image_python(
 
 
 def _has_large_background_image_from_rects(
-    raw_rects: list[fitz.Rect],
-    page_rect: fitz.Rect,
+    raw_rects: list[Rect],
+    page_rect: Rect,
     *,
     coverage_ratio_threshold: float = 0.75,
 ) -> bool:
@@ -84,7 +86,7 @@ def _has_large_background_image_from_rects(
     return _tiled_images_covered(rects, page_rect)
 
 
-def _intersect_image_rects(raw_rects: list[fitz.Rect], page_rect: fitz.Rect) -> list[fitz.Rect]:
+def _intersect_image_rects(raw_rects: list[Rect], page_rect: Rect) -> list[Rect]:
     """Clip raw placement rects to the page rect and drop empty intersections
     (== `_image_rects(page)` given the raw rect list)."""
     return [rect & page_rect for rect in raw_rects if not (rect & page_rect).is_empty]
@@ -183,8 +185,8 @@ def page_has_tiled_background_images(
 
 
 def _tiled_images_covered(
-    rects: list[fitz.Rect],
-    page_rect: fitz.Rect,
+    rects: list[Rect],
+    page_rect: Rect,
     *,
     coverage_ratio_threshold: float = TILED_BACKGROUND_IMAGE_COVERAGE_RATIO,
     min_image_count: int = TILED_BACKGROUND_IMAGE_MIN_COUNT,
@@ -211,11 +213,11 @@ def _tiled_images_covered(
     return covered_area / page_area >= coverage_ratio_threshold
 
 
-def _image_rects(page: fitz.Page) -> list[fitz.Rect]:
-    rects: list[fitz.Rect] = []
+def _image_rects(page: fitz.Page) -> list[Rect]:
+    rects: list[Rect] = []
     for info in _page_image_infos(page):
         try:
-            rect = fitz.Rect(info.get("bbox"))
+            rect = Rect(*info.get("bbox"))
         except Exception:
             continue
         inter = rect & page.rect
@@ -224,17 +226,17 @@ def _image_rects(page: fitz.Page) -> list[fitz.Rect]:
     return rects
 
 
-def _merge_vertical_image_bands(rects: list[fitz.Rect], *, y_tolerance: float = 1.0) -> list[fitz.Rect]:
-    merged: list[fitz.Rect] = []
+def _merge_vertical_image_bands(rects: list[Rect], *, y_tolerance: float = 1.0) -> list[Rect]:
+    merged: list[Rect] = []
     for rect in sorted(rects, key=lambda r: (round(r.y0, 3), round(r.x0, 3))):
         if not merged:
-            merged.append(fitz.Rect(rect))
+            merged.append(coerce(rect))
             continue
         previous = merged[-1]
         if rect.y0 <= previous.y1 + y_tolerance:
-            previous.include_rect(rect)
+            merged[-1] = previous.include_rect(rect)
         else:
-            merged.append(fitz.Rect(rect))
+            merged.append(coerce(rect))
     return merged
 
 

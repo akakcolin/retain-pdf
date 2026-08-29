@@ -13,14 +13,15 @@ from services.rendering.source.cleanup.math_intrusion import page_has_intrusive_
 from services.rendering.source.cleanup.math_spans import collect_page_math_protection_rects
 from services.rendering.source.cleanup.math_spans import collect_page_non_math_span_heights
 from services.rendering.source.cleanup.text_matching import item_removable_text_rects
+from services.rendering.source.rects import Rect
 from services.rendering.source.rects import merge_rects
 from services.rendering.source.text_redaction import remove_text_under_rects_with_pymupdf_redaction
 
-CollectMathRects = Callable[[fitz.Page], list[fitz.Rect]]
+CollectMathRects = Callable[[fitz.Page], list[Rect]]
 CollectSpanHeights = Callable[[fitz.Page], list[float]]
 DrawCovers = Callable[[fitz.Page, list[fitz.Rect]], None]
-ItemRemovableRects = Callable[..., list[fitz.Rect]]
-MathProtectionPredicate = Callable[[list[tuple[fitz.Rect, dict, str]], list[fitz.Rect], list[float]], bool]
+ItemRemovableRects = Callable[..., list[Rect]]
+MathProtectionPredicate = Callable[[list[tuple[fitz.Rect, dict, str]], list[Rect], list[float]], bool]
 RemoveText = Callable[[fitz.Page, list[fitz.Rect]], None]
 
 
@@ -62,7 +63,7 @@ def apply_auto_redaction(
         diagnostics["auto_text_cleanup_math_protected"] = True
 
     cover_items: list[tuple[fitz.Rect, dict, str]] = []
-    removable_rects: list[fitz.Rect] = []
+    removable_rects: list[Rect] = []
     skipped_risky_items = 0
     for rect, item, translated_text in valid_items:
         if not item_is_safe_for_auto_text_cleanup(item):

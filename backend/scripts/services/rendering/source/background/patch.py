@@ -11,6 +11,8 @@ from services.rendering.source.background.config import BACKGROUND_PATCH_LIGHT_B
 from services.rendering.source.background.config import BACKGROUND_PATCH_TEXT_CONTAMINATION_DARK_RATIO
 from services.rendering.source.background.config import BACKGROUND_PATCH_TEXT_CONTAMINATION_DARK_VALUE
 from services.rendering.source.background.sampling import quantile
+from services.rendering.source.rects import Rect
+from services.rendering.source.rects import coerce
 
 
 STRICT_VERTICAL_MERGE_GAP_PT = 2.0
@@ -37,7 +39,7 @@ def looks_like_text_contaminated_light_patch(pixels: list[tuple[int, int, int]])
     return dark_ratio >= BACKGROUND_PATCH_TEXT_CONTAMINATION_DARK_RATIO
 
 
-def map_rect_to_image(image_rect: fitz.Rect, image_size: tuple[int, int], rect: fitz.Rect) -> tuple[int, int, int, int] | None:
+def map_rect_to_image(image_rect: Rect, image_size: tuple[int, int], rect: Rect) -> tuple[int, int, int, int] | None:
     width, height = image_size
     if width <= 0 or height <= 0:
         return None
@@ -55,29 +57,29 @@ def map_rect_to_image(image_rect: fitz.Rect, image_size: tuple[int, int], rect: 
     return x0, y0, x1, y1
 
 
-def width_overlap_ratio(a: fitz.Rect, b: fitz.Rect) -> float:
+def width_overlap_ratio(a: Rect, b: Rect) -> float:
     overlap = max(0.0, min(a.x1, b.x1) - max(a.x0, b.x0))
     min_width = max(1e-6, min(a.width, b.width))
     return overlap / min_width
 
 
-def merge_close_vertical_rects(rects: list[fitz.Rect]) -> list[fitz.Rect]:
+def merge_close_vertical_rects(rects: list[Rect]) -> list[Rect]:
     if not rects:
         return []
     ordered = sorted(rects, key=lambda rect: (rect.y0, rect.x0))
-    merged: list[fitz.Rect] = [fitz.Rect(ordered[0])]
+    merged: list[Rect] = [coerce(ordered[0])]
     for rect in ordered[1:]:
         current = merged[-1]
         gap = rect.y0 - current.y1
         if 0.0 <= gap <= STRICT_VERTICAL_MERGE_GAP_PT and width_overlap_ratio(current, rect) >= STRICT_VERTICAL_MERGE_MIN_WIDTH_OVERLAP_RATIO:
-            merged[-1] = fitz.Rect(
+            merged[-1] = Rect(
                 min(current.x0, rect.x0),
                 min(current.y0, rect.y0),
                 max(current.x1, rect.x1),
                 max(current.y1, rect.y1),
             )
             continue
-        merged.append(fitz.Rect(rect))
+        merged.append(coerce(rect))
     return merged
 
 
@@ -153,8 +155,8 @@ def sample_background_color(image: Image.Image, box: tuple[int, int, int, int]) 
 
 def rewrite_background_image(
     image: Image.Image,
-    image_rect: fitz.Rect,
-    rects: list[fitz.Rect],
+    image_rect: Rect,
+    rects: list[Rect],
     *,
     prefer_solid_fill: bool = False,
 ) -> Image.Image:
@@ -187,8 +189,8 @@ def rebuilt_image_bytes(image: Image.Image, payload: dict | None) -> bytes:
 
 def rewrite_raw_stream_image(
     image: Image.Image,
-    image_rect: fitz.Rect,
-    rects: list[fitz.Rect],
+    image_rect: Rect,
+    rects: list[Rect],
     *,
     fill,
 ) -> Image.Image:

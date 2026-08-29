@@ -11,10 +11,11 @@ from services.rendering.source.cleanup.config import ITEM_REDACTION_PAD_X
 from services.rendering.source.cleanup.config import ITEM_REDACTION_PAD_Y
 from services.rendering.source.cleanup.config import WORD_REDACTION_PAD_X
 from services.rendering.source.cleanup.config import WORD_REDACTION_PAD_Y
+from services.rendering.source.rects import Rect
 
 
-def expand_word_rect(rect: fitz.Rect) -> fitz.Rect:
-    return fitz.Rect(
+def expand_word_rect(rect: Rect) -> Rect:
+    return Rect(
         rect.x0 - WORD_REDACTION_PAD_X,
         rect.y0 - WORD_REDACTION_PAD_Y,
         rect.x1 + WORD_REDACTION_PAD_X,
@@ -22,8 +23,8 @@ def expand_word_rect(rect: fitz.Rect) -> fitz.Rect:
     )
 
 
-def expand_formula_rect(rect: fitz.Rect) -> fitz.Rect:
-    return fitz.Rect(
+def expand_formula_rect(rect: Rect) -> Rect:
+    return Rect(
         rect.x0 - FORMULA_REDACTION_PAD_X,
         rect.y0 - FORMULA_REDACTION_PAD_Y,
         rect.x1 + FORMULA_REDACTION_PAD_X,
@@ -31,8 +32,8 @@ def expand_formula_rect(rect: fitz.Rect) -> fitz.Rect:
     )
 
 
-def expand_item_rect(rect: fitz.Rect) -> fitz.Rect:
-    return fitz.Rect(
+def expand_item_rect(rect: Rect) -> Rect:
+    return Rect(
         rect.x0 - ITEM_REDACTION_PAD_X,
         rect.y0 - ITEM_REDACTION_PAD_Y,
         rect.x1 + ITEM_REDACTION_PAD_X,
@@ -40,8 +41,8 @@ def expand_item_rect(rect: fitz.Rect) -> fitz.Rect:
     )
 
 
-def expand_image_page_item_rect(rect: fitz.Rect) -> fitz.Rect:
-    return fitz.Rect(
+def expand_image_page_item_rect(rect: Rect) -> Rect:
+    return Rect(
         rect.x0 - IMAGE_ITEM_REDACTION_PAD_X,
         rect.y0 - IMAGE_ITEM_REDACTION_PAD_TOP_Y,
         rect.x1 + IMAGE_ITEM_REDACTION_PAD_X,

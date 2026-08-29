@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import fitz
 
+from services.rendering.source.rects import coerce
 from services.rendering.source_cleanup.pdf.hit_test import RectIndex
 from services.rendering.source_cleanup.pdf.hit_test import RectTuple
 from services.rendering.source_cleanup.pdf.pdf_math import PdfMatrix
@@ -75,7 +76,7 @@ def decide_path_paint_rewrite(
 ) -> PathPaintRewriteDecision:
     if op not in TEXT_LIKE_PATH_PAINT_OPERATORS or path_rect is None:
         return PathPaintRewriteDecision(remove=False, rect=path_rect)
-    if not rect_is_text_like_fill_path(fitz.Rect(path_rect)):
+    if not rect_is_text_like_fill_path(coerce(path_rect)):
         return PathPaintRewriteDecision(remove=False, rect=path_rect)
     remove = strip_index.intersects(path_rect) and not protected_index.intersects(path_rect)
     return PathPaintRewriteDecision(remove=remove, rect=path_rect)

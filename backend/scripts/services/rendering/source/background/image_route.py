@@ -14,6 +14,7 @@ from services.rendering.source.background.patch import rebuilt_image_bytes
 from services.rendering.source.background.patch import rewrite_background_image
 from services.rendering.source.background.patch import rewrite_raw_stream_image
 from services.rendering.source.items import iter_valid_translated_items
+from services.rendering.source.rects import Rect
 
 
 def replace_background_image_page(
@@ -28,12 +29,12 @@ def replace_background_image_page(
 
     xref, image_rect = primary
     doc = page.parent
-    rects: list[fitz.Rect] = []
+    rects: list[Rect] = []
     for _rect, item, _translated_text in iter_valid_translated_items(translated_items):
         bbox = item.get("bbox", [])
         if len(bbox) != 4:
             continue
-        rects.append(fitz.Rect(bbox))
+        rects.append(Rect(*bbox))
     rects = merge_close_vertical_rects(rects)
     if not rects:
         return False

@@ -89,6 +89,7 @@ import fitz
 from services.rendering import _routing
 from services.rendering.document.pikepdf_pages import _extract_pages_with_pikepdf_python
 from services.rendering.source.compression.image_pipeline import _compress_pdf_images_only_impl_python
+from services.rendering.source.rects import Rect
 from services.rendering.source.preparation.xobject_sanitize import (
     XObjectSanitizeResult,
     _build_invalid_xobject_sanitized_pdf_copy_python,
@@ -289,7 +290,7 @@ def collect_vector_text_rects(*, page: fitz.Page, target_rects: list[fitz.Rect])
     return _collect_vector_text_rects_python(page, target_rects)
 
 
-def collect_page_drawing_rects(*, page: fitz.Page) -> list[fitz.Rect]:
+def collect_page_drawing_rects(*, page: fitz.Page) -> list[Rect]:
     """`vector_profile.collect_page_drawing_rects`, relayed to the pure-Python
     reference (see module docstring: native rects diverge from fitz on stroked
     zigzag paths, so routing here would change redaction output).
@@ -354,7 +355,7 @@ def page_has_large_background_image(*, page: fitz.Page, coverage_ratio_threshold
             )
             _routing.record_native_hit("source", "page_has_large_background_image")
             return _has_large_background_image_from_rects(
-                [fitz.Rect(rect) for rect in raw],
+                [Rect(*rect) for rect in raw],
                 page.rect,
                 coverage_ratio_threshold=coverage_ratio_threshold,
             )
@@ -371,17 +372,17 @@ def page_has_large_background_image(*, page: fitz.Page, coverage_ratio_threshold
     )
 
 
-def _deserialize_text_entries(raw: str) -> list[tuple[fitz.Rect, str]]:
+def _deserialize_text_entries(raw: str) -> list[tuple[Rect, str]]:
     """`[[x0,y0,x1,y1,text], ...]` (native text-spans / text-blocks output) →
     `(Rect, text)` pairs."""
-    return [(fitz.Rect(item[:4]), str(item[4])) for item in json.loads(raw)]
+    return [(Rect(*item[:4]), str(item[4])) for item in json.loads(raw)]
 
 
-def _deserialize_rects(raw: str) -> list[fitz.Rect]:
-    return [fitz.Rect(item) for item in json.loads(raw)]
+def _deserialize_rects(raw: str) -> list[Rect]:
+    return [Rect(*item) for item in json.loads(raw)]
 
 
-def extract_page_text_spans(*, page: fitz.Page) -> list[tuple[fitz.Rect, str]]:
+def extract_page_text_spans(*, page: fitz.Page) -> list[tuple[Rect, str]]:
     """`cleanup.text_extract.extract_page_text_spans`, routed to the native
     bridge when built on a file-backed page; otherwise the pure-Python
     reference.
@@ -405,7 +406,7 @@ def extract_page_text_spans(*, page: fitz.Page) -> list[tuple[fitz.Rect, str]]:
     return _extract_page_text_spans_python(page)
 
 
-def extract_page_text_blocks(*, page: fitz.Page) -> list[tuple[fitz.Rect, str]]:
+def extract_page_text_blocks(*, page: fitz.Page) -> list[tuple[Rect, str]]:
     """`cleanup.text_extract.extract_page_text_blocks`, routed to the native
     bridge when built on a file-backed page; otherwise the pure-Python
     reference."""
@@ -426,7 +427,7 @@ def extract_page_text_blocks(*, page: fitz.Page) -> list[tuple[fitz.Rect, str]]:
     return _extract_page_text_blocks_python(page)
 
 
-def collect_page_math_protection_rects(*, page: fitz.Page) -> list[fitz.Rect]:
+def collect_page_math_protection_rects(*, page: fitz.Page) -> list[Rect]:
     """`cleanup.math_spans.collect_page_math_protection_rects`, routed to the
     native bridge when built on a file-backed page; otherwise the pure-Python
     reference."""

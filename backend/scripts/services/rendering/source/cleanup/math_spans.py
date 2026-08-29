@@ -3,10 +3,11 @@ from __future__ import annotations
 import fitz
 
 from services.rendering.source.cleanup.math_fonts import is_special_math_font
+from services.rendering.source.rects import Rect
 from services.rendering.source.rects import rect_key
 
 
-def collect_page_math_protection_rects(page: fitz.Page) -> list[fitz.Rect]:
+def collect_page_math_protection_rects(page: fitz.Page) -> list[Rect]:
     """Math-font span rects (deduped by `rect_key`), routed through the native
     bridge when built on a file-backed page; otherwise the pure-Python reference
     `_collect_page_math_protection_rects_python`.
@@ -18,13 +19,13 @@ def collect_page_math_protection_rects(page: fitz.Page) -> list[fitz.Rect]:
     return _native.collect_page_math_protection_rects(page=page)
 
 
-def _collect_page_math_protection_rects_python(page: fitz.Page) -> list[fitz.Rect]:
+def _collect_page_math_protection_rects_python(page: fitz.Page) -> list[Rect]:
     try:
         text_dict = page.get_text("dict")
     except Exception:
         return []
 
-    rects: list[fitz.Rect] = []
+    rects: list[Rect] = []
     seen: set[tuple[int, int, int, int]] = set()
     for block in text_dict.get("blocks", []) or []:
         for line in block.get("lines", []) or []:
@@ -34,7 +35,7 @@ def _collect_page_math_protection_rects_python(page: fitz.Page) -> list[fitz.Rec
                 bbox = span.get("bbox", [])
                 if len(bbox) != 4:
                     continue
-                rect = fitz.Rect(bbox)
+                rect = Rect(*bbox)
                 if rect.is_empty:
                     continue
                 key = rect_key(rect)
@@ -71,7 +72,7 @@ def _collect_page_non_math_span_heights_python(page: fitz.Page) -> list[float]:
                 bbox = span.get("bbox", [])
                 if len(bbox) != 4:
                     continue
-                rect = fitz.Rect(bbox)
+                rect = Rect(*bbox)
                 if rect.is_empty:
                     continue
                 height = max(0.0, rect.y1 - rect.y0)

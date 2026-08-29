@@ -3,6 +3,7 @@ from __future__ import annotations
 import fitz
 
 from services.rendering.source import _native
+from services.rendering.source.rects import coerce
 from services.rendering.source_cleanup.planning.spatial_index import RectOverlapIndex
 
 
@@ -25,7 +26,7 @@ def _looks_like_black_filled_glyph(drawing: dict) -> bool:
     rect = drawing.get("rect")
     if not rect:
         return False
-    draw_rect = fitz.Rect(rect)
+    draw_rect = coerce(rect)
     if draw_rect.is_empty or draw_rect.height > MAX_GLYPH_HEIGHT_PT:
         return False
     if len(drawing.get("items", []) or []) < MIN_GLYPH_ITEM_COUNT:
@@ -46,7 +47,7 @@ def _looks_like_large_black_text_cluster(drawing: dict) -> bool:
     rect = drawing.get("rect")
     if not rect:
         return False
-    draw_rect = fitz.Rect(rect)
+    draw_rect = coerce(rect)
     if draw_rect.is_empty:
         return False
     if len(drawing.get("items", []) or []) < MIN_LARGE_TEXT_CLUSTER_ITEM_COUNT:

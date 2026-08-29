@@ -6,11 +6,12 @@ import fitz
 
 from services.rendering.source.cleanup.item_rects import cover_rects_from_valid_items
 from services.rendering.source.cleanup.item_rects import text_removal_rects_from_valid_items
+from services.rendering.source.rects import Rect
 
 
 DrawCovers = Callable[[fitz.Page, list[fitz.Rect]], None]
 RemoveText = Callable[[fitz.Page, list[fitz.Rect]], None]
-ResolveFill = Callable[[fitz.Page, fitz.Rect, tuple[float, float, float] | None], object]
+ResolveFill = Callable[[fitz.Page, Rect, tuple[float, float, float] | None], object]
 
 
 def apply_page_cover_text_cleanup(
@@ -37,7 +38,7 @@ def apply_page_cover_text_cleanup(
 
 def apply_redaction_annotations(
     page: fitz.Page,
-    redactions: list[tuple[fitz.Rect, tuple[float, float, float] | None]],
+    redactions: list[tuple[Rect, tuple[float, float, float] | None]],
     diagnostics: dict[str, object],
     *,
     resolve_fill: ResolveFill,

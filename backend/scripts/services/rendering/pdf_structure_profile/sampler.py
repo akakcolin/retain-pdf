@@ -10,6 +10,7 @@ from services.rendering.pdf_structure_profile.contracts import PdfStructureDocum
 from services.rendering.pdf_structure_profile.contracts import PdfStructureItemHit
 from services.rendering.pdf_structure_profile.contracts import PdfStructurePageProfile
 from services.rendering.pdf_structure_profile.contracts import bbox_from_rect
+from services.rendering.source.rects import Rect
 from services.rendering.source.rects import rect_area
 from services.rendering.source_cleanup.planning.coordinate_resolver import BBOX_COORDINATE_CANDIDATES
 from services.rendering.source_cleanup.planning.coordinate_resolver import TextRectIndex
@@ -142,7 +143,7 @@ def _form_xobject_objects(page: fitz.Page) -> list[PdfObjectBox]:
 
 
 def _item_hits(page: fitz.Page, items: list[dict], text_objects: list[PdfObjectBox]) -> list[PdfStructureItemHit]:
-    text_rects = tuple(fitz.Rect(obj.bbox) for obj in text_objects)
+    text_rects = tuple(Rect(*obj.bbox) for obj in text_objects)
     if not text_rects:
         return []
     candidate = choose_page_coordinate_candidate(
@@ -197,17 +198,17 @@ def _object_box(
     )
 
 
-def _rect_from_bbox(value: object) -> fitz.Rect | None:
+def _rect_from_bbox(value: object) -> Rect | None:
     if not isinstance(value, (list, tuple)) or len(value) < 4:
         return None
     try:
-        rect = fitz.Rect(float(value[0]), float(value[1]), float(value[2]), float(value[3]))
+        rect = Rect(float(value[0]), float(value[1]), float(value[2]), float(value[3]))
     except Exception:
         return None
     return None if rect.is_empty else rect
 
 
-def _xobject_rect(entry: object) -> fitz.Rect | None:
+def _xobject_rect(entry: object) -> Rect | None:
     if isinstance(entry, dict):
         return _rect_from_bbox(entry.get("bbox") or entry.get("rect"))
     if isinstance(entry, (list, tuple)):
@@ -226,7 +227,7 @@ def _xobject_name(entry: object) -> str:
     return ""
 
 
-def _overlap_ratio(left: fitz.Rect, right: fitz.Rect) -> float:
+def _overlap_ratio(left: Rect, right: Rect) -> float:
     left_area = rect_area(left)
     right_area = rect_area(right)
     if left_area <= 0.0 or right_area <= 0.0:

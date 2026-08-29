@@ -14,6 +14,7 @@ from services.rendering.source.cleanup.standard_policy import should_force_visua
 from services.rendering.source.cleanup.standard_policy import should_use_fast_page_cover_for_removable_counts
 from services.rendering.source.cleanup.standard_thresholds import ITEM_REMOVABLE_RECTS_FAST_COVER_THRESHOLD
 from services.rendering.source.cleanup.text_matching import item_removable_text_rects
+from services.rendering.source.rects import Rect
 from services.rendering.source.rects import merge_rects
 from services.rendering.source.text_redaction import remove_text_under_rects_with_pymupdf_redaction
 from services.rendering.source.vector_profile import collect_page_drawing_rects
@@ -44,7 +45,7 @@ def apply_standard_redaction(
             remove_text=remove_text_under_rects_with_pymupdf_redaction,
         )
 
-    redactions: list[tuple[fitz.Rect, tuple[float, float, float] | None]] = []
+    redactions: list[tuple[Rect, tuple[float, float, float] | None]] = []
     cover_rects: list[fitz.Rect] = []
     removable_counts: list[int] = []
     for rect, item, _translated_text in valid_items:
