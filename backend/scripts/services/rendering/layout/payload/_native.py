@@ -25,6 +25,7 @@ try:
     from rendering_bridge import emit_render_blocks as _native_emit_render_blocks
     from rendering_bridge import mark_adjacent_collision_risk as _native_mark_adjacent_collision_risk
     from rendering_bridge import resolve_book_body_font_target as _native_resolve_book_body_font_target
+    from rendering_bridge import seed_render_fields as _native_seed_render_fields
 
     NATIVE = True
 except ImportError:  # pragma: no cover - native build not present
@@ -73,6 +74,28 @@ def _build_block_payloads_python(
         page_width=page_width,
         page_height=page_height,
     )
+
+
+def seed_render_fields(translated_items: list[dict]) -> None:
+    """The C3-N5 seed boundary `blocks.build_render_blocks` runs
+    (`render_item.seed_render_fields` per translated item) before building block
+    payloads, routed to the native Rust port when built; otherwise the pure-Python
+    reference. The native path writes the updated dicts back onto the shared item
+    references, so callers see the seeded render_* fields in place."""
+    if not _routing.routed("layout_payload", "seed_render_fields", NATIVE):
+        return _seed_render_fields_python(translated_items)
+    raw = json.loads(_native_seed_render_fields(json.dumps(translated_items)))
+    for item, updated in zip(translated_items, raw):
+        item.clear()
+        item.update(updated)
+    _routing.record_native_hit("layout_payload", "seed_render_fields")
+
+
+def _seed_render_fields_python(translated_items: list[dict]) -> None:
+    from services.rendering.layout.payload.render_item import seed_render_fields
+
+    for item in translated_items:
+        seed_render_fields(item)
 
 
 def _render_line_box_from_dict(d: dict):

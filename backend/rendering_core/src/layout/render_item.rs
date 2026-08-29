@@ -1,10 +1,22 @@
-// Port of services/rendering/layout/payload/render_item.py (pure subset the seed
-// boundary consumes) plus `fit_inner_bbox` from payload/fit_common.py. The
-// group/seed-render-field helpers are run by Python's `seed_render_fields`
-// before the native call and are not ported here.
+// Port of services/rendering/layout/payload/render_item.py — the full
+// `seed_render_fields` boundary (Value-level, byte-exact dict parity) plus
+// `fit_inner_bbox` from payload/fit_common.py. The group-render-unit helpers
+// (`group_render_unit_items`, `group_unit_*`) are consumed by Python's group
+// seeding before the native call and are not ported here.
 
 use crate::item::Item;
+use crate::layout::line_structure::maybe_preserve_structured_line_breaks;
+use crate::layout::render_text::{should_render_source_block, should_skip_display_math_render};
+use crate::payload::text_common::same_meaningful_render_text;
 use crate::typography::geometry::inner_bbox;
+use serde_json::Value;
+
+const FORMULA_MAP_CHAIN: [&str; 4] = [
+    "render_formula_map",
+    "translation_unit_formula_map",
+    "group_formula_map",
+    "formula_map",
+];
 
 /// `get_render_first_line_indent_pt`:
 /// `max(0.0, float(item.get("_render_first_line_indent_pt") or 0.0))`.
@@ -32,9 +44,171 @@ pub fn fit_inner_bbox(item: &Item) -> Vec<f64> {
     }
 }
 
+/// `render_unit_kind`: `str(item.get("translation_unit_kind", "") or "").strip().lower()`.
+fn render_unit_kind(item: &Value) -> String {
+    item.get("translation_unit_kind")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_lowercase()
+}
+
+/// `render_continuation_group_id`:
+/// `str(item.get("continuation_group") or item.get("continuation_group_id") or "")`.
+/// `continuation_group` may be a bool in the dict; Python stringifies the truthy
+/// value, so `true` becomes `"True"`.
+fn render_continuation_group_id(item: &Value) -> String {
+    match item.get("continuation_group") {
+        Some(Value::Bool(true)) => return "True".to_string(),
+        Some(Value::String(s)) if !s.is_empty() => return s.clone(),
+        _ => {}
+    }
+    item.get("continuation_group_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
+}
+
+/// `_render_should_use_unit_translation`.
+fn render_should_use_unit_translation(item: &Value) -> bool {
+    render_unit_kind(item) == "group" || !render_continuation_group_id(item).is_empty()
+}
+
+/// `_member_translation_text`: `protected_translated_text or translated_text`.
+fn member_translation_text(item: &Value) -> String {
+    first_non_empty(item, &["protected_translated_text", "translated_text"])
+        .trim()
+        .to_string()
+}
+
+/// `render_protected_translation_text` — the unit/group text chain, stripped.
+fn render_protected_translation_text(item: &Value) -> String {
+    let text = if !render_should_use_unit_translation(item) {
+        first_non_empty(
+            item,
+            &[
+                "protected_translated_text",
+                "translated_text",
+                "translation_unit_protected_translated_text",
+                "translation_unit_translated_text",
+            ],
+        )
+    } else if !render_continuation_group_id(item).is_empty()
+        && !member_translation_text(item).is_empty()
+    {
+        member_translation_text(item)
+    } else {
+        first_non_empty(
+            item,
+            &[
+                "translation_unit_protected_translated_text",
+                "group_protected_translated_text",
+                "protected_translated_text",
+                "translation_unit_translated_text",
+                "group_translated_text",
+                "translated_text",
+            ],
+        )
+    };
+    text.trim().to_string()
+}
+
+/// `render_protected_source_text` — the group/non-group source chain, stripped.
+/// Unlike the model's `_render_source_text` this does NOT read
+/// `render_source_text` (the seed writes that key afterwards).
+fn render_protected_source_text(item: &Value) -> String {
+    let text = if render_unit_kind(item) != "group" {
+        first_non_empty(
+            item,
+            &[
+                "protected_source_text",
+                "source_text",
+                "translation_unit_protected_source_text",
+                "translation_unit_source_text",
+            ],
+        )
+    } else {
+        first_non_empty(
+            item,
+            &[
+                "translation_unit_protected_source_text",
+                "group_protected_source_text",
+                "protected_source_text",
+                "translation_unit_source_text",
+                "group_source_text",
+                "source_text",
+            ],
+        )
+    };
+    text.trim().to_string()
+}
+
+/// Python `a or b or c ...` over string keys: the first non-empty string value.
+fn first_non_empty(item: &Value, keys: &[&str]) -> String {
+    for key in keys {
+        if let Some(s) = item.get(*key).and_then(|v| v.as_str()) {
+            if !s.is_empty() {
+                return s.to_string();
+            }
+        }
+    }
+    String::new()
+}
+
+/// `clear_render_fields`: reset the render text/formula-map seeds (skip branch).
+fn clear_render_fields(item: &mut Value) {
+    item["render_protected_text"] = Value::String(String::new());
+    item["render_formula_map"] = Value::Array(Vec::new());
+}
+
+/// `get_render_formula_map`: the first non-empty formula-map array. A present
+/// non-list value mirrors Python's `isinstance(formula_map, list)` guard and
+/// yields an empty result.
+fn get_render_formula_map_value(item: &Value) -> Value {
+    for key in FORMULA_MAP_CHAIN {
+        match item.get(key) {
+            Some(Value::Array(arr)) if !arr.is_empty() => return Value::Array(arr.clone()),
+            Some(Value::Array(_)) => {}
+            Some(_) => return Value::Array(Vec::new()),
+            None => {}
+        }
+    }
+    Value::Array(Vec::new())
+}
+
+/// `seed_render_fields`: compute the render-text / source-text / formula-map
+/// seeds on a raw item dict. Mutates the Value in place, byte-exact with the
+/// Python seed — including the `_render_preserve_line_breaks` /
+/// `_render_line_structure` writes from the line-structure boundary. Reuses the
+/// Item-based render decisions via `Item::from_json_value`.
+pub fn seed_render_fields(item: &mut Value) {
+    if should_skip_display_math_render(&Item::from_json_value(item)) {
+        clear_render_fields(item);
+        item["render_source_text"] = Value::String(render_protected_source_text(item));
+        return;
+    }
+    let source_text = render_protected_source_text(item);
+    let mut render_text = render_protected_translation_text(item);
+    render_text = maybe_preserve_structured_line_breaks(item, &render_text);
+    if render_text.is_empty() && should_render_source_block(&Item::from_json_value(item)) {
+        render_text = source_text.clone();
+    }
+    let protected = if should_render_source_block(&Item::from_json_value(item)) {
+        render_text
+    } else if same_meaningful_render_text(&source_text, &render_text) {
+        String::new()
+    } else {
+        render_text
+    };
+    item["render_protected_text"] = Value::String(protected);
+    item["render_source_text"] = Value::String(source_text);
+    item["render_formula_map"] = get_render_formula_map_value(item);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn first_line_indent_clamps_negative() {
@@ -54,5 +228,135 @@ mod tests {
     fn fit_inner_bbox_falls_back_to_geometry() {
         let item = Item { bbox: Some([10.0, 20.0, 110.0, 120.0]), ..Default::default() };
         assert_eq!(fit_inner_bbox(&item), vec![10.0, 20.0, 110.0, 120.0]);
+    }
+
+    #[test]
+    fn seed_normal_body_paragraph() {
+        let mut item = json!({
+            "source_text": "Hello world",
+            "translated_text": "你好世界",
+            "should_translate": true,
+        });
+        seed_render_fields(&mut item);
+        assert_eq!(item["render_protected_text"], json!("你好世界"));
+        assert_eq!(item["render_source_text"], json!("Hello world"));
+        assert_eq!(item["render_formula_map"], json!([]));
+    }
+
+    #[test]
+    fn seed_same_meaningful_text_empties_protected() {
+        let mut item = json!({
+            "source_text": "Same text",
+            "translated_text": "  Same   text ",
+            "should_translate": true,
+        });
+        seed_render_fields(&mut item);
+        assert_eq!(item["render_protected_text"], json!(""));
+        assert_eq!(item["render_source_text"], json!("Same text"));
+    }
+
+    #[test]
+    fn seed_skip_display_math_clears_fields() {
+        let mut item = json!({
+            "source_text": "x^2",
+            "translated_text": "$x^2$",
+            "should_translate": false,
+            "block_kind": "formula",
+        });
+        seed_render_fields(&mut item);
+        assert_eq!(item["render_protected_text"], json!(""));
+        assert_eq!(item["render_formula_map"], json!([]));
+        assert_eq!(item["render_source_text"], json!("x^2"));
+    }
+
+    #[test]
+    fn seed_formula_block_keeps_translation() {
+        let mut item = json!({
+            "source_text": "x^2",
+            "translated_text": "$x^2$",
+            "should_translate": true,
+            "block_kind": "formula",
+        });
+        seed_render_fields(&mut item);
+        // should_render_source_block -> render_text kept verbatim.
+        assert_eq!(item["render_protected_text"], json!("$x^2$"));
+        assert_eq!(item["render_source_text"], json!("x^2"));
+    }
+
+    #[test]
+    fn seed_empty_translation_falls_back_to_source() {
+        let mut item = json!({
+            "source_text": "x^2",
+            "should_translate": true,
+            "block_kind": "formula",
+        });
+        seed_render_fields(&mut item);
+        assert_eq!(item["render_protected_text"], json!("x^2"));
+        assert_eq!(item["render_source_text"], json!("x^2"));
+    }
+
+    #[test]
+    fn seed_group_unit_text_chain() {
+        let mut item = json!({
+            "translation_unit_kind": "group",
+            "group_protected_translated_text": "组翻译",
+            "protected_source_text": "来源",
+            "should_translate": true,
+        });
+        seed_render_fields(&mut item);
+        assert_eq!(item["render_protected_text"], json!("组翻译"));
+        assert_eq!(item["render_source_text"], json!("来源"));
+    }
+
+    #[test]
+    fn seed_continuation_member_text() {
+        let mut item = json!({
+            "continuation_group": "g1",
+            "protected_translated_text": "成员翻译",
+            "protected_source_text": "来源",
+            "should_translate": true,
+        });
+        seed_render_fields(&mut item);
+        assert_eq!(item["render_protected_text"], json!("成员翻译"));
+    }
+
+    #[test]
+    fn seed_formula_map_chain() {
+        let mut item = json!({
+            "source_text": "a+b",
+            "translated_text": "a+b",
+            "should_translate": true,
+            "translation_unit_formula_map": [{"placeholder": "[[F1]]", "formula_text": "a+b"}],
+            "formula_map": [{"x": 1}],
+        });
+        seed_render_fields(&mut item);
+        assert_eq!(
+            item["render_formula_map"],
+            json!([{"placeholder": "[[F1]]", "formula_text": "a+b"}])
+        );
+        // Present non-list value yields an empty map.
+        let mut item = json!({
+            "source_text": "a+b",
+            "translated_text": "a+b",
+            "should_translate": true,
+            "render_formula_map": {"not": "a list"},
+        });
+        seed_render_fields(&mut item);
+        assert_eq!(item["render_formula_map"], json!([]));
+    }
+
+    #[test]
+    fn seed_propagates_preserve_line_break_flag() {
+        let mut item = json!({
+            "source_text": "1. 甲\n2. 乙",
+            "translated_text": "1. 甲内容 2. 乙内容",
+            "should_translate": true,
+            "text_flow": "preserve_lines",
+            "source_line_texts": ["1. 甲", "2. 乙"],
+        });
+        seed_render_fields(&mut item);
+        assert_eq!(item["_render_preserve_line_breaks"], json!(true));
+        assert_eq!(item["_render_line_structure"], json!("structured_lines"));
+        assert_eq!(item["render_protected_text"], json!("1. 甲内容\n2. 乙内容"));
     }
 }

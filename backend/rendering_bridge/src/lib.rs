@@ -26,6 +26,9 @@
 //!     adjacent-body collision-risk boundary (port of
 //!     `payload/collision.mark_adjacent_collision_risk`); returns the mutated
 //!     payloads.
+//!   * `seed_render_fields(translated_items_json) -> str` — the C3-N5 block-seed
+//!     boundary (port of `payload/render_item.seed_render_fields`); seeds each
+//!     translated item in place and returns the updated array.
 //!   * Phase 5 write-path entries operating on PDF bytes in -> bytes out:
 //!     `strip_bbox_text_rects`, `strip_hidden_text`, `sanitize_invalid_xobjects`,
 //!     `compress_images`, `extract_pages`, `overlay_page`. The transformations
@@ -1442,6 +1445,22 @@ fn mark_adjacent_collision_risk(ordered_payloads_json: &str) -> PyResult<String>
     serde_json::to_string(&ordered_payloads).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
 }
 
+/// `seed_render_fields(translated_items_json) -> str` — the C3-N5 seed boundary
+/// (port of `payload/render_item.seed_render_fields`). Seeds every translated
+/// item dict in place (render_protected_text / render_source_text /
+/// render_formula_map plus the preserve-line-break flags) and returns the
+/// updated array so the Python shim can write the dicts back.
+#[pyfunction]
+fn seed_render_fields(translated_items_json: &str) -> PyResult<String> {
+    let mut translated_items: Vec<serde_json::Value> = serde_json::from_str(translated_items_json)
+        .map_err(|e| PyValueError::new_err(format!("translated_items_json: {e}")))?;
+    for item in translated_items.iter_mut() {
+        rendering_core::layout::render_item::seed_render_fields(item);
+    }
+    serde_json::to_string(&translated_items)
+        .map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
+}
+
 #[pymodule]
 fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(emit_typst_source, m)?)?;
@@ -1485,5 +1504,6 @@ fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(apply_body_pipeline, m)?)?;
     m.add_function(wrap_pyfunction!(resolve_book_body_font_target, m)?)?;
     m.add_function(wrap_pyfunction!(mark_adjacent_collision_risk, m)?)?;
+    m.add_function(wrap_pyfunction!(seed_render_fields, m)?)?;
     Ok(())
 }

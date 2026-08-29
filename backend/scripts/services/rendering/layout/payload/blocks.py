@@ -3,7 +3,6 @@ from __future__ import annotations
 from foundation.config import layout
 from services.rendering.layout.payload import _native as _payload_native
 from services.rendering.layout.model.models import RenderBlock
-from services.rendering.layout.payload.render_item import seed_render_fields
 from services.rendering.layout.typography_memory.learning import observe_payload_typography
 
 
@@ -14,8 +13,7 @@ def build_render_blocks(
     page_height: float | None = None,
     book_body_font_target: float | None = None,
 ) -> list[RenderBlock]:
-    for item in translated_items:
-        seed_render_fields(item)
+    _payload_native.seed_render_fields(translated_items)
     block_payloads, page_text_width_med = _payload_native.build_block_payloads(
         translated_items=translated_items,
         page_width=page_width,

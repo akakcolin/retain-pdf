@@ -21,6 +21,7 @@ pub mod route;
 pub mod semantics;
 pub mod source_cleanup;
 pub mod text;
+pub mod text_flow;
 pub mod title_fit_limits;
 pub mod typography;
 pub mod util;
