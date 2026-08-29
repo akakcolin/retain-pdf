@@ -85,6 +85,17 @@ def test_routed_records_native_not_built(monkeypatch: pytest.MonkeyPatch) -> Non
     assert snapshot["fallbacks_by_reason"] == {"native_not_built": 1}
 
 
+def test_routed_records_forced_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Bridge imported (module_native=True) but the feature flag is explicitly
+    # off -> FORCED_OFF, distinct from NATIVE_NOT_BUILT.
+    monkeypatch.setenv("RETAIN_PDF_NATIVE", "0")
+    assert _routing.routed("source", "save_optimized", module_native=True) is False
+    snapshot = _routing.snapshot()
+    assert snapshot["total_fallbacks"] == 1
+    assert snapshot["fallbacks"]["source"] == {"forced_off": 1}
+    assert snapshot["fallbacks_by_reason"] == {"forced_off": 1}
+
+
 def test_routed_in_memory_page(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("RETAIN_PDF_NATIVE", "1")
     assert _routing.routed("source", "collect_vector_text_rects", module_native=True, path="") is False

@@ -96,4 +96,9 @@ async fn health_aggregates_renderer_and_native_hit_ratio() {
             .abs()
             < 1e-9
     );
+    // Fallback-reason dimension: 5 hits + 5 in_memory_page fallbacks.
+    assert_eq!(
+        body["data"]["native_fallbacks"]["source"]["in_memory_page"],
+        5
+    );
 }

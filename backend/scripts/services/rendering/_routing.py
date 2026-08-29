@@ -177,6 +177,18 @@ def _enforce_mandate(subsystem: str, fn: str, reason: FallbackReason) -> None:
     )
 
 
+def _fallback_reason_for_route(subsystem: str, module_native: bool) -> FallbackReason:
+    """Why the native path is unavailable (routed() already proved ineligible).
+
+    The bridge missing at import is ``NATIVE_NOT_BUILT``; the bridge present but
+    the feature flag force-disabling it is ``FORCED_OFF`` — the operator escape
+    hatch, not an absence.
+    """
+    if not module_native:
+        return FallbackReason.NATIVE_NOT_BUILT
+    return FallbackReason.FORCED_OFF
+
+
 def routed(
     subsystem: str,
     fn: str,
@@ -191,13 +203,15 @@ def routed(
     route file-backed primitives; when a non-None empty path is given the
     ``IN_MEMORY_PAGE`` reason is recorded (never blocked by the mandate).
 
-    Under the D1 mandate a non-allowlisted fn that falls back for
-    ``NATIVE_NOT_BUILT`` raises :class:`NativeMandatoryError` instead of
-    silently running the Python dual.
+    The fallback reason distinguishes the bridge missing (``NATIVE_NOT_BUILT``)
+    from the feature flag explicitly off (``FORCED_OFF``). Under the D1 mandate
+    a non-allowlisted fn that falls back raises :class:`NativeMandatoryError`
+    instead of silently running the Python dual.
     """
     if not native_eligible(subsystem, module_native):
-        _enforce_mandate(subsystem, fn, FallbackReason.NATIVE_NOT_BUILT)
-        record_fallback(subsystem, fn, FallbackReason.NATIVE_NOT_BUILT)
+        reason = _fallback_reason_for_route(subsystem, module_native)
+        _enforce_mandate(subsystem, fn, reason)
+        record_fallback(subsystem, fn, reason)
         return False
     if path is not None and not path:
         record_fallback(subsystem, fn, FallbackReason.IN_MEMORY_PAGE)

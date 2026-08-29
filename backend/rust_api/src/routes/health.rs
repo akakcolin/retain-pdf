@@ -23,6 +23,10 @@ pub struct HealthView {
     pub render_jobs_by_renderer: BTreeMap<String, u64>,
     /// Native routing hit ratio (hits / hits+fallbacks) per subsystem.
     pub native_hit_ratio: BTreeMap<String, f64>,
+    /// Native routing fallbacks by (subsystem, reason) — the reason dimension
+    /// backing the per-subsystem ratio (native_not_built / forced_off /
+    /// in_memory_page / ...).
+    pub native_fallbacks: BTreeMap<String, BTreeMap<String, u64>>,
     pub time: String,
 }
 
@@ -48,6 +52,7 @@ fn build_health_view(deps: HealthRouteDeps<'_>) -> HealthView {
         provider_backends: supported_provider_keys(),
         render_jobs_by_renderer: render_jobs_by_renderer(&snapshot),
         native_hit_ratio: native_hit_ratio(&snapshot),
+        native_fallbacks: native_fallbacks(&snapshot),
         time: now_iso(),
     }
 }
@@ -68,6 +73,14 @@ fn native_hit_ratio(snapshot: &MetricsSnapshot) -> BTreeMap<String, f64> {
     for ((subsystem, _), _) in &snapshot.native_fallbacks_by_subsystem_reason {
         out.entry(subsystem.clone())
             .or_insert_with(|| snapshot.native_hit_ratio(subsystem));
+    }
+    out
+}
+
+fn native_fallbacks(snapshot: &MetricsSnapshot) -> BTreeMap<String, BTreeMap<String, u64>> {
+    let mut out: BTreeMap<String, BTreeMap<String, u64>> = BTreeMap::new();
+    for ((subsystem, reason), count) in &snapshot.native_fallbacks_by_subsystem_reason {
+        *out.entry(subsystem.clone()).or_default().entry(reason.clone()).or_insert(0) += count;
     }
     out
 }
