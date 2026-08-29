@@ -3,9 +3,14 @@
 // services/translation/core/payload/formula_protection.py (the subset the seed
 // boundary consumes: wrap_formula_inline_math / restore_protected_tokens /
 // protected_map_from_formula_map / the PROTECTED_TOKEN_RE gate).
+//
+// `should_render_source_block` intentionally follows the seed's authoritative
+// reference `payload/render_item.py` (final heuristic `latex_command_count >
+// 0`), not `render_text.py`'s `"\\" in source_text` — the seed boundary must be
+// byte-exact with `render_item.py`, and a bare backslash that is not a latex
+// command must not flip the decision.
 
 use crate::item::{FormulaEntry, Item, ProtectedEntry};
-use crate::semantics::block_kind;
 use crate::text::analysis::analyze_text;
 
 pub const MODEL_KEEP_ORIGIN_REASONS: [&str; 1] = ["skip_model_keep_origin"];
@@ -123,6 +128,22 @@ fn normalized_sub_type_raw(item: &Item) -> String {
         .to_lowercase()
 }
 
+/// Present-wins `block_kind` matching `render_text.py`'s inline
+/// `str(item.get("block_kind", item.get("block_type", "")) or "").strip().lower()`:
+/// a present-but-empty `block_kind` yields `""`, unlike `semantics::block_kind`
+/// which falls through to `block_type`. The Python seed reference never falls
+/// through, so the seed boundary must not either.
+fn seed_block_kind(item: &Item) -> String {
+    if let Some(k) = &item.block_kind {
+        return k.trim().to_lowercase();
+    }
+    item.block_type
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_lowercase()
+}
+
 pub fn should_skip_display_math_render(item: &Item) -> bool {
     if item.should_translate.unwrap_or(true) {
         return false;
@@ -131,7 +152,7 @@ pub fn should_skip_display_math_render(item: &Item) -> bool {
     if source_text.is_empty() {
         return false;
     }
-    let block_kind = block_kind(item);
+    let block_kind = seed_block_kind(item);
     let sub_type = normalized_sub_type_raw(item);
     let skip_reason = skip_reason(item);
     if block_kind == "formula" || sub_type == "display_formula" {
@@ -156,13 +177,16 @@ pub fn should_render_source_block(item: &Item) -> bool {
     if source_text.is_empty() {
         return false;
     }
-    let block_kind = block_kind(item);
+    let block_kind = seed_block_kind(item);
     let sub_type = normalized_sub_type_raw(item);
     if block_kind == "formula" || sub_type == "formula" || sub_type == "display_formula" {
         return true;
     }
     let analysis = analyze_text(&source_text);
-    analysis.raw_math_count() > 0 || source_text.contains('\\')
+    // Seed reference is `render_item.py::should_render_source_block`
+    // (`latex_command_count > 0`), NOT `render_text.py`'s `"\\" in source_text`:
+    // a bare backslash that is not a latex command must not flip the decision.
+    analysis.raw_math_count() > 0 || analysis.latex_command_count() > 0
 }
 
 pub fn should_render_source_when_untranslated(item: &Item) -> bool {

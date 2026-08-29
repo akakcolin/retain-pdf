@@ -296,6 +296,79 @@ mod tests {
     }
 
     #[test]
+    fn seed_present_empty_block_kind_does_not_fall_through_to_block_type() {
+        // render_text.py's inline block_kind is present-wins: a present-but-empty
+        // `block_kind` yields "" and is NOT treated as a formula. The native
+        // side must not fall through to block_type="formula" here.
+        let mut item = json!({
+            "source_text": "Hello world",
+            "translated_text": "",
+            "should_translate": true,
+            "block_kind": "",
+            "block_type": "formula",
+        });
+        seed_render_fields(&mut item);
+        assert_eq!(item["render_protected_text"], json!(""));
+        assert_eq!(item["render_source_text"], json!("Hello world"));
+    }
+
+    #[test]
+    fn seed_present_empty_block_kind_keeps_translation() {
+        let mut item = json!({
+            "source_text": "x^2",
+            "translated_text": "$x^2$",
+            "should_translate": false,
+            "block_kind": "",
+            "block_type": "formula",
+        });
+        seed_render_fields(&mut item);
+        // Not a formula to the seed: skip-display-math is False and the
+        // translation is kept, matching the Python reference.
+        assert_eq!(item["render_protected_text"], json!("$x^2$"));
+        assert_eq!(item["render_formula_map"], json!([]));
+    }
+
+    #[test]
+    fn seed_absent_block_kind_falls_back_to_block_type_formula() {
+        let mut item = json!({
+            "source_text": "x^2",
+            "translated_text": "$x^2$",
+            "should_translate": false,
+            "block_type": "formula",
+        });
+        seed_render_fields(&mut item);
+        assert_eq!(item["render_protected_text"], json!(""));
+        assert_eq!(item["render_source_text"], json!("x^2"));
+    }
+
+    #[test]
+    fn seed_bare_backslash_not_latex_command_keeps_empty() {
+        // The seed reference `render_item.py::should_render_source_block` uses
+        // `latex_command_count > 0`, NOT `"\\" in source_text`: `\(x^2\)` has a
+        // backslash but no latex command, so an empty translation must not fall
+        // back to the source.
+        let mut item = json!({
+            "source_text": r"\(x^2\)",
+            "translated_text": "",
+            "should_translate": true,
+        });
+        seed_render_fields(&mut item);
+        assert_eq!(item["render_protected_text"], json!(""));
+        assert_eq!(item["render_source_text"], json!(r"\(x^2\)"));
+    }
+
+    #[test]
+    fn seed_latex_command_falls_back_to_source() {
+        let mut item = json!({
+            "source_text": r"\frac{a}{b}",
+            "translated_text": "",
+            "should_translate": true,
+        });
+        seed_render_fields(&mut item);
+        assert_eq!(item["render_protected_text"], json!(r"\frac{a}{b}"));
+    }
+
+    #[test]
     fn seed_group_unit_text_chain() {
         let mut item = json!({
             "translation_unit_kind": "group",
