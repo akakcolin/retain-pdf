@@ -2,15 +2,11 @@
 """C2/C3 zero-fitz gate: default render modes never touch the fitz doc surface.
 
 终态判据 1 (doc 15): the fitz call-count probe asserts 0 for the default typst /
-typst_visual / overlay books and for auto render-mode sampling. Each case runs
-the REAL production call path with every `_native` shim built, proves the
-counters are live, then asserts the case made zero fitz document calls. To keep
-the gate from passing vacuously, each case also asserts the native bridge it
-depends on was actually hit.
-
-Dual is intentionally excluded: `build_dual_book_pdf` still opens three fitz
-documents itself (`book_renderer.py:582-584`), so its fitz-free takeover is a
-separate remaining item.
+typst_visual / overlay books, for the dual book, and for auto render-mode
+sampling. Each case runs the REAL production call path with every `_native`
+shim built, proves the counters are live, then asserts the case made zero fitz
+document calls. To keep the gate from passing vacuously, each case also asserts
+the native bridge it depends on was actually hit.
 
 Run from backend/scripts:
     /Volumes/data/Projects/retain-pdf/.venv/bin/python \
@@ -41,6 +37,7 @@ from runtime.pipeline.render_mode import is_pseudo_editable_scan_pdf  # noqa: E4
 from runtime.pipeline.render_mode import resolve_effective_render_mode  # noqa: E402
 from services.rendering.output.typst import _native as _typst_native  # noqa: E402
 from services.rendering.output.typst.book_renderer import build_book_typst_pdf  # noqa: E402
+from services.rendering.output.typst.book_renderer import build_dual_book_pdf  # noqa: E402
 
 
 def _install_fitz_counters(calls):
@@ -163,11 +160,47 @@ def _check_overlay_book():
         print(f"fitz=0: overlay book (emit hits={emit_calls['n']})")
 
 
+def _check_dual_book():
+    with tempfile.TemporaryDirectory(prefix="zfit-dual-") as td:
+        root = Path(td)
+        source_pdf = root / "source.pdf"
+        gate._build_source_pdf(source_pdf)
+        emit_calls = {"n": 0}
+        saved_emit = gate._install_counter(
+            _typst_native, "_native_emit_typst_book_overlay_source", emit_calls
+        )
+        dual_calls = {"n": 0}
+        saved_dual = gate._install_counter(
+            _typst_native, "_native_build_dual_doc_pages", dual_calls
+        )
+        calls = {"n": 0}
+        patched = _install_fitz_counters(calls)
+        try:
+            _probe_live(calls)
+            build_dual_book_pdf(
+                source_pdf_path=source_pdf,
+                output_pdf_path=root / "out.pdf",
+                translated_pages=gate._fresh_pages(),
+                temp_root=root,
+            )
+        finally:
+            _restore_fitz_counters(patched)
+            gate._restore(_typst_native, "_native_emit_typst_book_overlay_source", saved_emit)
+            gate._restore(_typst_native, "_native_build_dual_doc_pages", saved_dual)
+        out = root / "out.pdf"
+        assert out.is_file() and out.stat().st_size > 0, "dual book produced no output"
+        assert emit_calls["n"] > 0, "dual overlay never hit the native emitter"
+        assert dual_calls["n"] > 0, "dual merge never hit the native bridge"
+        assert calls["n"] == 0, f"dual book: {calls['n']} fitz calls (终态判据 1 violated)"
+        print(f"fitz=0: dual book (dual hits={dual_calls['n']} emit hits={emit_calls['n']})")
+
+
 def check_zero_fitz() -> None:
     assert _typst_native.NATIVE, "typst native module not built"
     _check_delegate_bundle()
     _check_auto_sampling()
     _check_overlay_book()
+    _check_dual_book()
     print("all zero-fitz gates pass")
 
 

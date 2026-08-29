@@ -186,6 +186,11 @@ RENDERING_LAYER_IMPORT_EXCEPTIONS: dict[Path, tuple[str, ...]] = {
     Path("document/pdf_ops.py"): (
         "services.rendering.source._native",
     ),
+    # The dual-book native path compacts output bytes through the write-path
+    # shim (B2) only; the whole source layer stays off-limits cross-layer.
+    Path("output/typst/book_renderer.py"): (
+        "services.rendering.source._native",
+    ),
 }
 REMOVED_SOURCE_PREPARATION_BBOX_MODULES = (
     "services.rendering.source.preparation.bbox_text_strip_accumulator",

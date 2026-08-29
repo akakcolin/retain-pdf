@@ -14,6 +14,7 @@ from services.rendering.output.pdf_writer import save_fast_pdf
 from services.rendering.output.pdf_writer import save_optimized_pdf
 from services.rendering.output.pdf_writer import strip_page_links
 from services.rendering.source.background.stage import build_clean_background_pdf
+from services.rendering import _routing
 from services.rendering.document.page_map import RenderPageMap
 from services.rendering.document.metadata import copy_toc
 from services.rendering.document.pikepdf_pages import extract_pages_with_pikepdf
@@ -559,6 +560,106 @@ def build_book_typst_pdf(
             doc_to_close.close()
 
 
+def _dual_book_native_eligible() -> bool:
+    """Whether the whole dual-book path can run bytes-level native (zero fitz).
+
+    Every routed primitive must be native: the dual-page merge, the TOC copy,
+    and the final byte compaction. When any is unavailable the caller falls back
+    to the fitz-document flow, whose own `routed()` calls record the reason.
+    """
+    from services.rendering.document import _native as _doc_native
+    from services.rendering.output.typst import _native as _typst_native
+    import services.rendering.source._native as _source_native
+
+    return (
+        _routing.native_eligible("typst", _typst_native.NATIVE)
+        and _routing.native_eligible("source", _doc_native.NATIVE)
+        and _routing.native_eligible("source", _source_native.NATIVE)
+    )
+
+
+def _build_dual_book_pdf_native(
+    source_pdf_path: Path,
+    output_pdf_path: Path,
+    translated_pages: dict[int, list[dict]],
+    *,
+    start_page: int = 0,
+    end_page: int = -1,
+    compile_workers: int | None = None,
+    api_key: str = "",
+    model: str = "",
+    base_url: str = "",
+    font_family: str = fonts.TYPST_DEFAULT_FONT_FAMILY,
+    font_paths: list[Path] | None = None,
+    temp_root: Path | None = None,
+    cover_only: bool = False,
+    redaction_strategy: str | None = None,
+    indent_detection_pdf_path: Path | None = None,
+    first_line_indent_lookup: dict[str, float] | None = None,
+    effective_inner_bbox_lookup: dict[str, list[float]] | None = None,
+    fast_save: bool = False,
+    request_chat_content_fn: TypstRepairRequestFn | None = None,
+) -> None:
+    """Zero-fitz dual book: bytes-level bridge only, no fitz document opened.
+
+    The translated side is produced through the pikepdf overlay route straight
+    to a temp PDF (the same path the overlay book uses); the dual merge, TOC
+    copy, and final compaction all run on raw bytes through the bridge.
+    """
+    from services.rendering.document import _native as _doc_native
+    from services.rendering.output.typst import _native as _typst_native
+    import services.rendering.source._native as _source_native
+
+    output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    source_bytes = source_pdf_path.read_bytes()
+    typst_temp_root = resolve_typst_temp_root(output_pdf_path, temp_root)
+    translated_pdf_path = typst_temp_root / "dual-translated.pdf"
+    overlay_translated_pages_on_doc(
+        None,
+        translated_pages,
+        stem="book-overlay-dual",
+        compile_workers=compile_workers,
+        api_key=api_key,
+        model=model,
+        base_url=base_url,
+        font_family=font_family,
+        font_paths=font_paths,
+        temp_root=typst_temp_root,
+        cover_only=cover_only,
+        redaction_strategy=redaction_strategy,
+        source_pdf_path=indent_detection_pdf_path or source_pdf_path,
+        first_line_indent_lookup=first_line_indent_lookup,
+        effective_inner_bbox_lookup=effective_inner_bbox_lookup,
+        source_base_pdf_path=source_pdf_path,
+        color_sample_pdf_path=indent_detection_pdf_path or source_pdf_path,
+        pikepdf_output_pdf_path=translated_pdf_path,
+        request_chat_content_fn=request_chat_content_fn,
+    )
+    translated_bytes = (
+        translated_pdf_path.read_bytes() if translated_pdf_path.is_file() else source_bytes
+    )
+    dual_bytes = _typst_native._native_build_dual_doc_pages(
+        source_bytes,
+        translated_bytes,
+        int(start_page),
+        int(end_page),
+    )
+    _routing.record_native_hit("typst", "build_dual_doc_pages")
+    copied, count = _doc_native._native_copy_toc(
+        source_bytes,
+        dual_bytes,
+        int(start_page or 0),
+        int(end_page if end_page is not None else -1),
+    )
+    _routing.record_native_hit("source", "copy_toc")
+    if count > 0:
+        dual_bytes = copied
+    if fast_save:
+        output_pdf_path.write_bytes(dual_bytes)
+    else:
+        output_pdf_path.write_bytes(_source_native.save_optimized(dual_bytes))
+
+
 def build_dual_book_pdf(
     source_pdf_path: Path,
     output_pdf_path: Path,
@@ -577,8 +678,38 @@ def build_dual_book_pdf(
     indent_detection_pdf_path: Path | None = None,
     first_line_indent_lookup: dict[str, float] | None = None,
     effective_inner_bbox_lookup: dict[str, list[float]] | None = None,
+    fast_save: bool = False,
     request_chat_content_fn: TypstRepairRequestFn | None = None,
 ) -> None:
+    """Build the dual-view PDF (original | translated side by side).
+
+    Runs the whole path bytes-level native (zero fitz calls) when every routed
+    primitive is native-eligible; otherwise falls back to the fitz-document
+    flow. `fast_save` mirrors `build_book_typst_pdf` (raw save, no compaction).
+    """
+    if _dual_book_native_eligible():
+        _build_dual_book_pdf_native(
+            source_pdf_path=source_pdf_path,
+            output_pdf_path=output_pdf_path,
+            translated_pages=translated_pages,
+            start_page=start_page,
+            end_page=end_page,
+            compile_workers=compile_workers,
+            api_key=api_key,
+            model=model,
+            base_url=base_url,
+            font_family=font_family,
+            font_paths=font_paths,
+            temp_root=temp_root,
+            cover_only=cover_only,
+            redaction_strategy=redaction_strategy,
+            indent_detection_pdf_path=indent_detection_pdf_path,
+            first_line_indent_lookup=first_line_indent_lookup,
+            effective_inner_bbox_lookup=effective_inner_bbox_lookup,
+            fast_save=fast_save,
+            request_chat_content_fn=request_chat_content_fn,
+        )
+        return
     source_doc = fitz.open(source_pdf_path)
     translated_doc = fitz.open(source_pdf_path)
     dual_doc = fitz.open()
@@ -622,7 +753,10 @@ def build_dual_book_pdf(
         if replaced is not dual_doc:
             dual_doc.close()
             dual_doc = replaced
-        save_optimized_pdf(dual_doc, output_pdf_path)
+        if fast_save:
+            save_fast_pdf(dual_doc, output_pdf_path)
+        else:
+            save_optimized_pdf(dual_doc, output_pdf_path)
     finally:
         dual_doc.close()
         translated_doc.close()
