@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import fitz
-
 from services.rendering.source.cleanup.redaction_padding import expand_item_rect
 from services.rendering.source.cleanup.redaction_padding import expand_word_rect
 from services.rendering.source.rects import Rect

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import fitz
-
 from services.rendering.source.rects import coerce
 from services.rendering.source_cleanup.pdf.hit_test import RectIndex
 from services.rendering.source_cleanup.pdf.hit_test import RectTuple

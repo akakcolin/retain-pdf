@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import fitz
-
 from services.rendering.source.cleanup.config import FORMULA_REDACTION_PAD_X
 from services.rendering.source.cleanup.config import FORMULA_REDACTION_PAD_Y
 from services.rendering.source.cleanup.config import IMAGE_ITEM_REDACTION_PAD_BOTTOM_Y

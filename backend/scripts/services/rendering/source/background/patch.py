@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from io import BytesIO
 
-import fitz
 from PIL import Image
 from PIL import ImageDraw
 
