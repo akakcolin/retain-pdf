@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from foundation.config import layout
 from services.rendering.layout.payload import _native as _payload_native
-from services.rendering.layout.payload.collision import mark_adjacent_collision_risk
 from services.rendering.layout.model.models import RenderBlock
 from services.rendering.layout.payload.render_item import seed_render_fields
 from services.rendering.layout.typography_memory.learning import observe_payload_typography
@@ -28,7 +27,7 @@ def build_render_blocks(
         page_text_width_med=page_text_width_med,
         book_body_font_target=book_body_font_target,
     )
-    mark_adjacent_collision_risk(ordered_payloads)
+    _payload_native.mark_adjacent_collision_risk(ordered_payloads)
     observe_payload_typography(ordered_payloads)
     return _payload_native.emit_render_blocks(block_payloads)
 

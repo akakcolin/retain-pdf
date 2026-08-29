@@ -69,6 +69,7 @@ pub fn mark_adjacent_collision_risk(ordered_payloads: &mut Vec<Value>) {
         obj.insert("font_size_pt".to_string(), Value::from(fitted_font));
         obj.insert("leading_em".to_string(), Value::from(fitted_leading));
         obj.insert("prefer_typst_fit".to_string(), Value::Bool(true));
+        obj.insert("adjacent_collision_risk".to_string(), Value::Bool(true));
         remember_adjacent_height_limit(current, context.max_height_pt);
 
         idx += 1;
@@ -148,6 +149,7 @@ mod tests {
         let font: f64 = payloads[0]["font_size_pt"].as_f64().unwrap();
         assert!(font < 11.0);
         assert_eq!(payloads[0]["prefer_typst_fit"], json!(true));
+        assert_eq!(payloads[0]["adjacent_collision_risk"], json!(true));
         assert!(payloads[0]["adjacent_available_height_pt"].as_f64().unwrap() >= 6.0);
     }
 

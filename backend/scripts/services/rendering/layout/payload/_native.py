@@ -23,6 +23,7 @@ try:
     from rendering_bridge import build_block_payloads as _native_build_block_payloads
     from rendering_bridge import detect_first_line_indents as _native_detect_first_line_indents
     from rendering_bridge import emit_render_blocks as _native_emit_render_blocks
+    from rendering_bridge import mark_adjacent_collision_risk as _native_mark_adjacent_collision_risk
     from rendering_bridge import resolve_book_body_font_target as _native_resolve_book_body_font_target
 
     NATIVE = True
@@ -203,6 +204,40 @@ def apply_body_pipeline(ordered_payloads: list[dict], *, page_text_width_med: fl
         if title_fit is not None:
             payload["title_fit"] = title_fit
     _routing.record_native_hit("layout_payload", "apply_body_pipeline")
+
+
+def mark_adjacent_collision_risk(ordered_payloads: list[dict]) -> None:
+    """The C3-N4 collision boundary `blocks.build_render_blocks` runs
+    (`collision.mark_adjacent_collision_risk`) after the body pipeline, routed
+    to the native Rust port when built; otherwise the pure-Python reference. The
+    native path writes the updated dicts back onto the shared payload references
+    and restores `title_fit` dataclasses."""
+    if not _routing.routed("layout_payload", "mark_adjacent_collision_risk", NATIVE):
+        return _mark_adjacent_collision_risk_python(ordered_payloads)
+    from dataclasses import asdict
+
+    serialized: list[dict] = []
+    title_fits: list = []
+    for payload in ordered_payloads:
+        entry = dict(payload)
+        title_fit = entry.get("title_fit")
+        title_fits.append(title_fit)
+        if title_fit is not None:
+            entry["title_fit"] = asdict(title_fit)
+        serialized.append(entry)
+    raw = json.loads(_native_mark_adjacent_collision_risk(json.dumps(serialized)))
+    for payload, updated, title_fit in zip(ordered_payloads, raw, title_fits):
+        payload.clear()
+        payload.update(updated)
+        if title_fit is not None:
+            payload["title_fit"] = title_fit
+    _routing.record_native_hit("layout_payload", "mark_adjacent_collision_risk")
+
+
+def _mark_adjacent_collision_risk_python(ordered_payloads: list[dict]) -> None:
+    from services.rendering.layout.payload.collision import mark_adjacent_collision_risk
+
+    mark_adjacent_collision_risk(ordered_payloads)
 
 
 def _apply_body_pipeline_python(

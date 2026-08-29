@@ -22,6 +22,10 @@
 //!   * `resolve_book_body_font_target(pages_json) -> str` — the whole-book body
 //!     font target (port of
 //!     `payload/body_font_unify_policy.resolve_book_body_font_target`).
+//!   * `mark_adjacent_collision_risk(ordered_payloads_json) -> str` — the C3-N4
+//!     adjacent-body collision-risk boundary (port of
+//!     `payload/collision.mark_adjacent_collision_risk`); returns the mutated
+//!     payloads.
 //!   * Phase 5 write-path entries operating on PDF bytes in -> bytes out:
 //!     `strip_bbox_text_rects`, `strip_hidden_text`, `sanitize_invalid_xobjects`,
 //!     `compress_images`, `extract_pages`, `overlay_page`. The transformations
@@ -1425,6 +1429,19 @@ fn resolve_book_body_font_target(pages_json: &str) -> PyResult<String> {
     serde_json::to_string(&target).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
 }
 
+/// `mark_adjacent_collision_risk(ordered_payloads_json) -> str` — the C3-N4
+/// adjacent-body collision-risk boundary (port of
+/// `payload/collision.mark_adjacent_collision_risk`). Mutates the ordered
+/// payload dicts in place and returns the updated array, so the Python shim can
+/// write the dicts back onto the shared references.
+#[pyfunction]
+fn mark_adjacent_collision_risk(ordered_payloads_json: &str) -> PyResult<String> {
+    let mut ordered_payloads: Vec<serde_json::Value> = serde_json::from_str(ordered_payloads_json)
+        .map_err(|e| PyValueError::new_err(format!("ordered_payloads_json: {e}")))?;
+    rendering_core::layout::collision::mark_adjacent_collision_risk(&mut ordered_payloads);
+    serde_json::to_string(&ordered_payloads).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
+}
+
 #[pymodule]
 fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(emit_typst_source, m)?)?;
@@ -1467,5 +1484,6 @@ fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(emit_render_blocks, m)?)?;
     m.add_function(wrap_pyfunction!(apply_body_pipeline, m)?)?;
     m.add_function(wrap_pyfunction!(resolve_book_body_font_target, m)?)?;
+    m.add_function(wrap_pyfunction!(mark_adjacent_collision_risk, m)?)?;
     Ok(())
 }

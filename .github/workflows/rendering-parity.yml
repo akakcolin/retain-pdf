@@ -142,6 +142,7 @@ jobs:
             smoke_apply_body_pipeline_bridge \
             smoke_bridge \
             smoke_build_block_payloads_bridge \
+            smoke_collision_bridge \
             smoke_color_adapt_bridge \
             smoke_document_analysis_bridge \
             smoke_render_mode_bridge \
