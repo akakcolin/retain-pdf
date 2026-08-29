@@ -19,7 +19,6 @@ from services.rendering.source_cleanup.planning.rect_filter import rect_overlaps
 from services.rendering.source_cleanup.planning.rects import merge_rects
 from services.rendering.source_cleanup.planning.coordinate_resolver import PageBBoxResolver
 from services.rendering.source_cleanup.planning.page_features import PageCleanupFeatures
-from services.rendering.source_cleanup.planning.page_features import build_page_cleanup_features
 from services.rendering.source_cleanup.pdf.constants import BBOX_TEXT_STRIP_CONTENT_STREAM_SIZE_THRESHOLD
 from services.rendering.source_cleanup.types import BBOX_TEXT_STRIP_PAGE_SKIP_NONE
 from services.rendering.source_cleanup.types import BBOX_TEXT_STRIP_PAGE_SKIP_COMPLEX
@@ -42,8 +41,7 @@ def plan_source_cleanup(
 ) -> BBoxTextStripCandidates:
     """Production entry, driven by `PlanningPageContext` per page. When the
     native bridge is absent this behaves identically through the Python
-    reference context builder; `_plan_source_cleanup_python` is the pure-fitz
-    reference for parity checks."""
+    reference context builder."""
     return _plan_source_cleanup_from_contexts(
         source_pdf_path=source_pdf_path,
         translated_pages=translated_pages,
@@ -86,42 +84,6 @@ def _plan_source_cleanup_from_contexts(
             document_analysis=document_analysis,
         )
         accumulator.add_page_plan(page_idx, page_plan)
-    return accumulator.build()
-
-
-def _plan_source_cleanup_python(
-    *,
-    source_pdf_path: Path,
-    translated_pages: dict[int, list[dict]],
-    protected_pages: dict[int, list[dict]],
-    skip_formula_pages: bool,
-    skip_form_xobject_pages: bool,
-    document_analysis: RenderDocumentAnalysis | None,
-) -> BBoxTextStripCandidates:
-    import fitz  # reference (fitz) fallback path only
-
-    accumulator = BBoxTextStripCandidateAccumulator()
-    doc = fitz.open(source_pdf_path)
-    try:
-        for page_idx, items in translated_pages.items():
-            if page_idx < 0 or page_idx >= len(doc):
-                continue
-            page = doc[page_idx]
-            features = build_page_cleanup_features(doc, page)
-            accumulator.add_page_features(page_idx, features)
-            page_plan = plan_source_cleanup_page(
-                doc,
-                page,
-                translated_items=items,
-                protected_items=protected_pages.get(page_idx, []),
-                skip_formula_pages=skip_formula_pages,
-                skip_form_xobject_pages=skip_form_xobject_pages,
-                features=features,
-                document_analysis=document_analysis,
-            )
-            accumulator.add_page_plan(page_idx, page_plan)
-    finally:
-        doc.close()
     return accumulator.build()
 
 
@@ -274,21 +236,6 @@ def _plan_form_xobject_page_ctx(
     )
 
 
-def _plan_form_xobject_page(
-    page: object,
-    *,
-    translated_items: list[dict],
-    strip_items: list[dict],
-    protected_items: list[dict] | None = None,
-) -> BBoxTextStripPagePlan:
-    return _plan_form_xobject_page_ctx(
-        _build_context_from_fitz(None, page),
-        translated_items=translated_items,
-        strip_items=strip_items,
-        protected_items=protected_items,
-    )
-
-
 def iter_protected_item_rects_for_page_ctx(
     ctx: PlanningPageContext,
     protected_items: list[dict],
@@ -324,25 +271,6 @@ def item_ids_with_uncovered_unsafe_vector_overlap(
     return frozenset(item_ids)
 
 
-def _item_ids_with_uncovered_unsafe_vector_overlap_python(
-    *,
-    source_pdf_path: Path,
-    translated_pages: dict[int, list[dict]],
-) -> frozenset[str]:
-    import fitz  # reference (fitz) fallback path only
-
-    item_ids: set[str] = set()
-    doc = fitz.open(source_pdf_path)
-    try:
-        for page_idx, items in translated_pages.items():
-            if page_idx < 0 or page_idx >= len(doc):
-                continue
-            item_ids.update(page_uncovered_unsafe_vector_item_ids(doc[page_idx], items))
-    finally:
-        doc.close()
-    return frozenset(item_ids)
-
-
 def page_uncovered_unsafe_vector_item_ids_ctx(
     ctx: PlanningPageContext,
     translated_items: list[dict],
@@ -354,13 +282,6 @@ def page_uncovered_unsafe_vector_item_ids_ctx(
     return uncovered_unsafe_vector_item_ids(
         iter_strip_item_rect_pairs_for_page_ctx(ctx, strip_items, resolver=resolver, prefiltered=True),
         unsafe_rects=resolver.unsafe_vector_index,
-    )
-
-
-def page_uncovered_unsafe_vector_item_ids(page: object, translated_items: list[dict]) -> frozenset[str]:
-    return page_uncovered_unsafe_vector_item_ids_ctx(
-        _build_context_from_fitz(None, page),
-        translated_items,
     )
 
 

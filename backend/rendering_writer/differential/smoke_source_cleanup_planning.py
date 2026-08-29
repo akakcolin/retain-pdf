@@ -10,24 +10,24 @@ Parts:
 
 1. Native availability: `source_cleanup.planning._native.NATIVE` (maturin build).
 
-2. Three-way context parity: a synthetic PDF covering an unrotated text+vector
-   page, a 90-degree-rotated page, an annotation page, a cropbox-offset page, a
+2. Context parity: a synthetic PDF covering an unrotated text+vector page, a
+   90-degree-rotated page, an annotation page, a cropbox-offset page, a
    form-xobject page, a full-page-image page, a stroke page, and an empty page.
    Per page `_native.build_page_contexts` NATIVE == NATIVE=False == fitz
    reference: page_rect exact, inverse_ctm / bboxlog rects within 1e-4, bboxlog
    kinds exact, content_stream_size exact, has_form_xobjects exact.
 
-3. End-to-end parity: `plan_source_cleanup` NATIVE == NATIVE=False ==
-   `_plan_source_cleanup_python`, comparing strip rects / protected rects
-   (within 1e-4), uncovered ids, skip sets, and page features exactly.
+3. End-to-end parity: `plan_source_cleanup` NATIVE == NATIVE=False, comparing
+   strip rects / protected rects (within 1e-4), uncovered ids, skip sets, and
+   page features exactly.
 
 4. Uncovered-id parity: `item_ids_with_uncovered_unsafe_vector_overlap`
-   NATIVE == NATIVE=False == `_item_ids_with_uncovered_unsafe_vector_overlap_python`.
+   NATIVE == NATIVE=False.
 
 5. Boundaries: out-of-range page 99 absent; the empty page emits no strip rects;
-   the form-xobject page routes through `_plan_form_xobject_page` (strip rects
-   present); the full-page-image page is skipped as visual background; the stroke
-   page's caption item (and p0's caption over the text-like fill path) is
+   the form-xobject page routes through the form-xobject ctx planner (strip
+   rects present); the full-page-image page is skipped as visual background; the
+   stroke page's caption item (and p0's caption over the text-like fill path) is
    reported uncovered while p0's paragraph item is not.
 
 6. Native-hit / fitz-zero: on the golden synthetic PDF the native production
@@ -59,8 +59,6 @@ from services.rendering.source_cleanup.planning.page_context import (  # noqa: E
     _build_page_contexts_python,
 )
 from services.rendering.source_cleanup.planning.planner import (  # noqa: E402
-    _item_ids_with_uncovered_unsafe_vector_overlap_python,
-    _plan_source_cleanup_python,
     item_ids_with_uncovered_unsafe_vector_overlap,
     plan_source_cleanup,
 )
@@ -344,25 +342,16 @@ def main() -> None:
         fitz_ctxs = _build_page_contexts_python(source_pdf_path=src, page_indices=page_indices)
         assert_contexts_close(native_ctxs, reference_ctxs, fitz_ctxs, "contexts")
 
-        # ---- end-to-end 3-way parity ----------------------------------------
+        # ---- end-to-end parity ----------------------------------------------
         native_candidates = plan_source_cleanup(source_pdf_path=src, translated_pages=pages)
         _native.NATIVE = False
         try:
             reference_candidates = plan_source_cleanup(source_pdf_path=src, translated_pages=pages)
         finally:
             _native.NATIVE = was
-        fitz_candidates = _plan_source_cleanup_python(
-            source_pdf_path=src,
-            translated_pages=pages,
-            protected_pages={},
-            skip_formula_pages=False,
-            skip_form_xobject_pages=True,
-            document_analysis=None,
-        )
         assert_candidates_close(native_candidates, reference_candidates, "plan native vs reference")
-        assert_candidates_close(reference_candidates, fitz_candidates, "plan reference vs fitz")
 
-        # ---- uncovered-id 3-way parity --------------------------------------
+        # ---- uncovered-id parity --------------------------------------------
         native_ids = item_ids_with_uncovered_unsafe_vector_overlap(
             source_pdf_path=src,
             translated_pages=pages,
@@ -375,19 +364,15 @@ def main() -> None:
             )
         finally:
             _native.NATIVE = was
-        fitz_ids = _item_ids_with_uncovered_unsafe_vector_overlap_python(
-            source_pdf_path=src,
-            translated_pages=pages,
-        )
-        assert native_ids == reference_ids == fitz_ids, (
-            f"uncovered ids {native_ids} vs {reference_ids} vs {fitz_ids}"
+        assert native_ids == reference_ids, (
+            f"uncovered ids {native_ids} vs {reference_ids}"
         )
 
         # ---- boundaries -----------------------------------------------------
         assert 99 not in native_ctxs, f"out-of-range page 99 must be absent, got {native_ctxs.keys()}"
         assert 99 not in native_candidates.page_rects, "out-of-range page must not strip"
         assert 7 not in native_candidates.page_rects, "empty page must produce no strip rects"
-        assert 4 in native_candidates.page_rects, "form-xobject page must route through _plan_form_xobject_page"
+        assert 4 in native_candidates.page_rects, "form-xobject page must route through the form-xobject ctx planner"
         assert 5 in native_candidates.skipped_visual_background_page_indices, (
             f"full-page-image page must be skipped visual background, got "
             f"{native_candidates.skipped_visual_background_page_indices}"
