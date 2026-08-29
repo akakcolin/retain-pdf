@@ -276,7 +276,7 @@ def title_text_color_from_text_spans(
 ) -> tuple[float, float, float] | None:
     import fitz  # reference (fitz) fallback path only
 
-    rect = fitz.Rect(float(rect.x0), float(rect.y0), float(rect.x1), float(rect.y1))
+    rect = Rect(float(rect.x0), float(rect.y0), float(rect.x1), float(rect.y1))
     if rect.is_empty or rect.is_infinite:
         return None
     clipped = rect & page.rect
@@ -285,7 +285,7 @@ def title_text_color_from_text_spans(
 
     samples: list[SpanColorSample] = []
     try:
-        text = page.get_text("dict", clip=clipped)
+        text = page.get_text("dict", clip=clipped.to_fitz())
     except Exception:
         return None
 
@@ -313,7 +313,7 @@ def title_text_color_from_visual_components(
 ) -> tuple[float, float, float] | None:
     import fitz  # reference (fitz) fallback path only
 
-    rect = fitz.Rect(float(rect.x0), float(rect.y0), float(rect.x1), float(rect.y1))
+    rect = Rect(float(rect.x0), float(rect.y0), float(rect.x1), float(rect.y1))
     if rect.is_empty or rect.is_infinite:
         return None
     clipped = rect & page.rect
@@ -323,7 +323,7 @@ def title_text_color_from_visual_components(
     try:
         pix = page.get_pixmap(
             matrix=fitz.Matrix(TITLE_COLOR_SAMPLE_SCALE, TITLE_COLOR_SAMPLE_SCALE),
-            clip=clipped,
+            clip=clipped.to_fitz(),
             alpha=False,
         )
     except Exception:
@@ -350,10 +350,10 @@ def _sample_item_cover_fill(
     bbox = cover_bbox(item)
     if len(bbox) != 4:
         return DEFAULT_COVER_FILL, None
-    rect = fitz.Rect(bbox)
+    rect = Rect(*bbox)
     if rect.is_empty or rect.is_infinite:
         return DEFAULT_COVER_FILL, None
-    return sample_local_background_fill(page, rect, sampler=sampler), rect
+    return sample_local_background_fill(page, rect.to_fitz(), sampler=sampler), rect
 
 
 def apply_adaptive_overlay_colors(
@@ -396,7 +396,7 @@ def apply_adaptive_overlay_colors(
             fill = DEFAULT_COVER_FILL
             bbox = cover_bbox(next_item)
             if title_like and len(bbox) == 4:
-                rect = fitz.Rect(bbox)
+                rect = Rect(*bbox)
                 if rect.is_empty or rect.is_infinite:
                     rect = None
 
