@@ -31,6 +31,7 @@
 | B-G | 红批写入原语（破 `text_redaction`/`text_layer_only` 回退）：`text_layer_only` 四子路由（image_page/cover_only_count/vector_heavy/standard）executor 全量移植（`routes.rs` 不再 deferred 回退），`fill.rs` prepared cover 采样/绘制原语；`_native_eligible` 对全部策略放行（不再 STRATEGY_NOT_PORTED 回退，仅 instrumented stage 回退）；新增 `smoke_text_layer_only_bridge`（各子路由页 facts 全等）接 CI；`_routing.py` 删死枚举 `STRATEGY_NOT_PORTED` | 完成 | ce348261/044f697a |
 | B-D | `visual_profile`/`color_adapt` 纯几何清理：`color_adapt.py` 的 `title_text_color_from_text_spans`/`title_text_color_from_visual_components`/`_sample_item_cover_fill`/`apply_adaptive_overlay_colors` 4 处 `fitz.Rect(...)` 构造改纯 `Rect`（几何判断），fitz 消费边界显式 `to_fitz()`（clip 与 fill.py sampler 传参）；`visual_profile/foreground.py` 的 `fitz.Rect(rect) & page.rect` 为必需 fitz 消费（get_pixmap clip），调用方均传 fitz.Rect，不属纯几何强转、保持不动；smoke_color_adapt_bridge + 45 相关单测通过 | 完成 | 8a4f198d |
 | B-B | `source_cleanup/planning` 收尾 + 删 reference：删除仅被 smoke 使用的纯 fitz 参考实现——`planner.py` 的 `_plan_source_cleanup_python`/`_item_ids_with_uncovered_unsafe_vector_overlap_python`/`page_uncovered_unsafe_vector_item_ids`/`_plan_form_xobject_page`（生产走 `_plan_source_cleanup_from_contexts` ctx 路径 + `plan_source_cleanup_page_ctx` 的 form-xobject 分支）；`page_features.py` 的 `build_page_cleanup_features`（含 page_probe 引用）；`planning/rects.py` 的 `merge_rects` fitz 分支（纯 `Rect` 类型保持，死代码清除）。保留生产回退 `_build_context_from_fitz`/`_build_page_contexts_python` 与测试用的 fitz wrapper（`plan_source_cleanup_page` 等）；smoke_source_cleanup_planning 改 2-way parity（native vs NATIVE=False），389 渲染单测通过 | 完成 | 836a2e89 |
+| B-C | `source/cleanup` 文本读取补全：`text_intrusion.collect_page_intrusive_display_text_rects` / `margin_text_cleanup._candidate_margin_block_rects` 接 native spans/blocks 原语（`extract_page_text_spans`/`extract_page_text_blocks` → `source/_native.py` 经 `_routing` 路由，file-backed 页走 `read_page_text_spans`/`read_page_text_blocks`）；words-clip（`extract_item_word_entries` 的 `get_text("words", clip)`）留 reference（mupdf-rs 无等价物，硬边界 allowlist）；smoke_text_read_bridge 的 `check_intrusion_and_margin` 断言 native 桥命中 + 零 `page.get_text` + native==回退全等，接 CI | 完成 | 044f697a/b88e5e7d |
 
 ## 子系统对照（已接线 / 休眠 / 未移植）
 
@@ -69,6 +70,7 @@
 ## 分歧台账（reader 原语 vs fitz）
 
 - **text_traces 为空**：mupdf 无 `get_texttrace` 等价物（spans/drawings 无 opacity/type-3 信号）→ native `hidden_text=False`；影响仅限「隐藏文本且 <20 词」页，分类 parity 用 corpus kind 断言兜底。
+- **text_intrusion 空白 span**（B-C）：spans/blocks 原语按非空文本契约丢弃纯空白 span，`collect_page_intrusive_display_text_rects` 因此不再 flag 裸空白 span（原始 `get_text("dict")` reference 会）；影响仅「span 全部为空白」的 display 区域，smoke_text_read_bridge 已断言 native==回退。
 - **image_rects xref tie**：mupdf 无 xref 关联 bbox，`page_snapshot` 取首个资源 xref，image_rects 聚合全部 placement rects（≤0.01pt 覆盖精确关联）。
 - **drawing rect 分歧**：已有 golden 差分记录。
 - **native 页索引推导边界**（B2-Inc5 doc=None 分支）：`layout._native.read_source_page_sizes` 会跳过不可读页，与 fitz `0 <= idx < len(doc)` 仅在「范围内但不可读」页有边角分歧；`overlay_pdf_size_mismatches` native 分支假设 overlay 页数==specs 数（fitz 用 `len(overlay_doc)` 实测），编译按 spec 生成、页数恒等，仅防御性检测有差异。
