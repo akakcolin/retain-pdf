@@ -52,6 +52,9 @@ jobs:
       - name: Reader differential replay
         run: cargo test --manifest-path backend/rendering_reader/Cargo.toml
 
+      - name: Orchestrator bridge-contract gate
+        run: cargo test --manifest-path backend/rendering_orchestrator/Cargo.toml
+
   native-bridge-smoke:
     name: Native bridge smoke parity
     runs-on: ubuntu-latest
@@ -164,6 +167,15 @@ jobs:
           do
             python "../rendering_writer/differential/$b.py"
           done
+
+      - name: Bridge contract corpus freshness
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          export PYTHONPATH="$GITHUB_WORKSPACE/backend/scripts"
+          cd backend/scripts
+          python ../rendering_writer/differential/gen_contract_corpus.py
+          git diff --exit-code -- ../rendering_orchestrator/tests/contract_corpus.json
 
       - name: Run rendering pytest suite + guard contract
         shell: bash
