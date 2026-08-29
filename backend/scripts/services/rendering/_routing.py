@@ -6,6 +6,13 @@ differential smoke tests that monkeypatch ``shim.NATIVE`` at runtime keep
 working. Fallbacks are recorded with a structured reason line plus process-wide
 counters (``snapshot`` / ``flush_to``) consumed by the D5 metrics layer.
 
+D1 (双实现清零): production is native-mandatory. Every routed fn whose Python
+dual is retained must be documented in :data:`ALLOWLIST` with a reason, or
+:func:`routed` raises :class:`NativeMandatoryError` when the native path is
+unavailable (gate ``RETAIN_PDF_NATIVE_MANDATE``, default on). The
+``IN_MEMORY_PAGE`` capability boundary is never blocked, and
+``NATIVE_BRIDGE_ERROR`` recovery never passes through :func:`routed`.
+
 This module is stdlib-only and imports neither the shims nor ``contracts/`` to
 avoid circular imports.
 """
@@ -40,8 +47,63 @@ SUBSYSTEMS = (
     "analysis",
 )
 
+
+class NativeMandatoryError(RuntimeError):
+    """D1 violation: a routed fn fell back to Python without an allowlist entry.
+
+    Add the ``(subsystem, fn)`` to :data:`ALLOWLIST` with a reason, or remove
+    the ``routed()`` call. Raised only when the mandate is enabled (default).
+    """
+
+
+#: Retained Python dual-implementations, keyed by ``(subsystem, fn)``. Reasons:
+#:
+#: - ``parity_reference`` — the Python side is the differential parity harness
+#:   reference (bridges re-run it with ``NATIVE=False`` for byte-exact diffing);
+#:   must survive until the harness migrates.
+#: - ``hard_boundary`` — no Rust equivalent / native diverges (e.g.
+#:   ``collect_page_drawing_rects`` changes redaction output on stroked zigzag
+#:   paths); Python is deliberately the only implementation.
+#:
+#: The D1 gate asserts this list matches the routed call sites in both
+#: directions: no routed fn may be missing, and no entry may be stale.
+ALLOWLIST: dict[tuple[str, str], str] = {
+    ("source", "sanitize_pdf_copy"): "parity_reference",
+    ("source", "compress_images_only"): "parity_reference",
+    ("source", "extract_pages"): "parity_reference",
+    ("source", "save_optimized"): "parity_reference",
+    ("source", "read_page_sizes_and_count"): "parity_reference",
+    ("source", "collect_vector_text_rects"): "parity_reference",
+    ("source", "page_drawing_count"): "parity_reference",
+    ("source", "page_has_large_background_image"): "parity_reference",
+    ("source", "extract_page_text_spans"): "parity_reference",
+    ("source", "extract_page_text_blocks"): "parity_reference",
+    ("source", "collect_page_math_protection_rects"): "parity_reference",
+    ("source", "collect_page_non_math_span_heights"): "parity_reference",
+    ("source", "copy_toc"): "parity_reference",
+    ("source", "copy_toc_for_page_map"): "parity_reference",
+    ("source", "collect_page_drawing_rects"): "hard_boundary",
+    ("background", "build_clean_background_pdf"): "parity_reference",
+    ("background", "sample_page_color_fills"): "parity_reference",
+    ("background", "extract_page_span_dicts"): "parity_reference",
+    ("background", "sample_title_visual_colors"): "parity_reference",
+    ("background", "sample_foreground_colors"): "parity_reference",
+    ("typst", "emit_typst_source"): "parity_reference",
+    ("typst", "emit_typst_book_overlay_source"): "parity_reference",
+    ("typst", "apply_adaptive_overlay_colors_batch"): "parity_reference",
+    ("typst", "show_pdf_page"): "parity_reference",
+    ("typst", "build_dual_doc_pages"): "parity_reference",
+    ("layout", "read_source_page_sizes"): "parity_reference",
+    ("layout_payload", "detect_first_line_indents"): "parity_reference",
+    ("visual_profile", "build_document_visual_profile"): "parity_reference",
+    ("pdf_structure_profile", "build_pdf_structure_profile"): "parity_reference",
+    ("analysis", "build_render_document_analysis"): "parity_reference",
+    ("source_cleanup_planning", "build_page_contexts"): "parity_reference",
+}
+
 _GLOBAL_FLAG_ENV = "RETAIN_PDF_NATIVE"
 _SUBSYSTEM_FLAG_PREFIX = "RETAIN_PDF_NATIVE_"
+_MANDATE_FLAG_ENV = "RETAIN_PDF_NATIVE_MANDATE"
 
 #: (subsystem, value) of already-resolved env-derived flags; the module-native
 #: constant is NEVER cached here (callers pass it in), so smoke-test
@@ -92,6 +154,29 @@ def native_eligible(subsystem: str, module_native: bool) -> bool:
     return bool(module_native) and _env_flag(subsystem)
 
 
+def _mandate_enabled() -> bool:
+    """D1 mandate is on unless ``RETAIN_PDF_NATIVE_MANDATE`` is explicitly off."""
+    return _env_truthy(os.getenv(_MANDATE_FLAG_ENV, ""))
+
+
+def _enforce_mandate(subsystem: str, fn: str, reason: FallbackReason) -> None:
+    """Raise when an undocumented Python fallback would run under the mandate.
+
+    Allowlisted fns and the ``IN_MEMORY_PAGE`` capability boundary always pass;
+    ``NATIVE_BRIDGE_ERROR`` recovery never routes through here (callers record
+    it directly in their ``except`` blocks).
+    """
+    if not _mandate_enabled():
+        return
+    if (subsystem, fn) in ALLOWLIST or reason is FallbackReason.IN_MEMORY_PAGE:
+        return
+    raise NativeMandatoryError(
+        f"native-mandatory fallback for un-allowlisted ({subsystem}, {fn}): "
+        f"reason={reason.value}. Add it to _routing.ALLOWLIST with a reason or "
+        "remove the routed() call."
+    )
+
+
 def routed(
     subsystem: str,
     fn: str,
@@ -104,9 +189,14 @@ def routed(
 
     Pass ``path`` (the file path backing a ``fitz.Page``, "" for in-memory) to
     route file-backed primitives; when a non-None empty path is given the
-    ``IN_MEMORY_PAGE`` reason is recorded.
+    ``IN_MEMORY_PAGE`` reason is recorded (never blocked by the mandate).
+
+    Under the D1 mandate a non-allowlisted fn that falls back for
+    ``NATIVE_NOT_BUILT`` raises :class:`NativeMandatoryError` instead of
+    silently running the Python dual.
     """
     if not native_eligible(subsystem, module_native):
+        _enforce_mandate(subsystem, fn, FallbackReason.NATIVE_NOT_BUILT)
         record_fallback(subsystem, fn, FallbackReason.NATIVE_NOT_BUILT)
         return False
     if path is not None and not path:

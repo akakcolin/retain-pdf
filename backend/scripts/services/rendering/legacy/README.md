@@ -8,9 +8,7 @@
 
 - `pdf_overlay.py`
 - `typst_page_renderer.py`
-- `background_image_route.py`
 - `pdf_compress.py`
-- `render_payloads.py`
 
 ## 不该做什么
 
