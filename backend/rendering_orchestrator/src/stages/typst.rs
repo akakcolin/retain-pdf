@@ -49,7 +49,7 @@ pub fn run_typst(bundle: &RenderBundle, cleaned_bg_path: &Path) -> anyhow::Resul
 /// `compiler.py` CompileContext: `TYPST_BIN` (else which/snap default via
 /// `resolve_typst_bin`), the backend fonts dir when it exists, and
 /// `RETAIN_PDF_TYPST_FONT_DIRS`.
-fn compile_context() -> CompileContext {
+pub(crate) fn compile_context() -> CompileContext {
     CompileContext {
         typ_bin: resolve_typst_bin(env::var("TYPST_BIN").ok().as_deref(), None),
         timeout_seconds: DEFAULT_COMPILE_TIMEOUT_SECONDS,

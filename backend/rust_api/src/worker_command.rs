@@ -286,10 +286,11 @@ mod tests {
     }
 
     #[test]
-    fn render_only_command_uses_render_stage_script_and_artifacts() {
+    fn render_command_routes_overlay_to_render_rs_and_writes_stage_spec() {
         let config = test_config();
-        // overlay stays on the python flow (render_rs rejects it), so this
-        // keeps asserting the python entrypoint + stage spec artifacts.
+        // C3 production takeover: overlay routes to the native render_rs
+        // orchestrator; the render stage spec is still written (it is the
+        // input to render_rs).
         let mut request = build_request(WorkflowKind::Render);
         request.render.render_mode = "overlay".to_string();
         let job_paths = build_paths(config.as_ref());
@@ -301,11 +302,15 @@ mod tests {
             Path::new("/tmp/translated"),
         );
 
-        assert!(contains(
+        assert_eq!(
+            cmd.first().map(String::as_str),
+            Some(config.render_rs_bin.to_string_lossy().as_ref())
+        );
+        assert_eq!(cmd.get(1).map(String::as_str), Some("--spec"));
+        assert!(!contains(
             &cmd,
             &config.run_render_only_script.to_string_lossy().to_string()
         ));
-        assert!(contains(&cmd, "--spec"));
         assert!(!contains(&cmd, "--mode"));
         assert!(!contains(&cmd, "--batch-size"));
         assert!(!contains(&cmd, "--classify-batch-size"));
@@ -395,25 +400,26 @@ mod tests {
     #[test]
     fn console_entrypoint_mode_uses_installed_worker_commands() {
         let config = test_config_with_entrypoint_mode(PythonWorkerEntrypointMode::Console);
-        let mut request = build_request(WorkflowKind::Render);
-        request.render.render_mode = "overlay".to_string();
+        let mut request = build_request(WorkflowKind::Translate);
+        request.job_id = "job-command-test".to_string();
         let job_paths = build_paths(config.as_ref());
-        let cmd = render_command(
+        let cmd = translate_command(
             config.as_ref(),
             &request,
             &job_paths,
+            Path::new("/tmp/document.v1.json"),
             Path::new("/tmp/source.pdf"),
-            Path::new("/tmp/translated"),
+            Some(Path::new("/tmp/layout.json")),
         );
 
         assert_eq!(
             cmd.first().map(String::as_str),
-            Some("retainpdf-run-render-only")
+            Some("retainpdf-run-translate-only")
         );
         assert!(!contains(&cmd, "python"));
         assert!(!contains(
             &cmd,
-            &config.run_render_only_script.to_string_lossy().to_string()
+            &config.run_translate_only_script.to_string_lossy().to_string()
         ));
         assert!(contains(&cmd, "--spec"));
     }

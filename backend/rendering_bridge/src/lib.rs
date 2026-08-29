@@ -311,7 +311,9 @@ fn show_pdf_page(
 
 /// Build the dual-book doc: each page = source page (left) + translated page
 /// (right), mirroring `book_support.build_dual_doc_pages`. Returns the new doc
-/// bytes.
+/// bytes. The page composition lives in
+/// `rendering_writer::overlay::build_dual_doc_pages`, shared with the render
+/// orchestrator.
 #[pyfunction]
 fn build_dual_doc_pages(
     source_pdf_bytes: &[u8],
@@ -330,59 +332,8 @@ fn build_dual_doc_pages(
         .map_err(|e| PyRuntimeError::new_err(format!("open src: {e}")))?;
     let translated = PdfDocument::open(trl_path.as_path())
         .map_err(|e| PyRuntimeError::new_err(format!("open trl: {e}")))?;
-    let mut dual = PdfDocument::new();
-    let last_page = source
-        .page_count()
-        .map_err(|e| PyRuntimeError::new_err(format!("source page_count: {e}")))?
-        - 1;
-    let start = start_page.max(0);
-    let end = if end_page < 0 {
-        last_page
-    } else {
-        end_page.min(last_page)
-    };
-    for page_idx in start..=end {
-        let src_page = source.load_pdf_page(page_idx).map_err(|e| {
-            PyRuntimeError::new_err(format!("load src page {page_idx}: {e}"))
-        })?;
-        let trl_page = translated.load_pdf_page(page_idx).map_err(|e| {
-            PyRuntimeError::new_err(format!("load trl page {page_idx}: {e}"))
-        })?;
-        let src_bounds = src_page.bounds().map_err(|e| {
-            PyRuntimeError::new_err(format!("src page {page_idx} bounds: {e}"))
-        })?;
-        let trl_bounds = trl_page.bounds().map_err(|e| {
-            PyRuntimeError::new_err(format!("trl page {page_idx} bounds: {e}"))
-        })?;
-        let src_w = src_bounds.width();
-        let src_h = src_bounds.height();
-        let trl_w = trl_bounds.width();
-        let trl_h = trl_bounds.height();
-        let page_w = src_w + trl_w;
-        let page_h = src_h.max(trl_h);
-        dual.new_page(mupdf::Size::new(page_w, page_h))
-            .map_err(|e| PyRuntimeError::new_err(format!("new dual page: {e}")))?;
-        let page_no = dual
-            .page_count()
-            .map_err(|e| PyRuntimeError::new_err(format!("dual page_count: {e}")))?
-            - 1;
-        rendering_writer::overlay::show_pdf_page(
-            &mut dual,
-            page_no,
-            &source,
-            page_idx,
-            [0.0, 0.0, src_w as f64, src_h as f64],
-        )
-        .map_err(|e| PyRuntimeError::new_err(format!("dual left page {page_idx}: {e}")))?;
-        rendering_writer::overlay::show_pdf_page(
-            &mut dual,
-            page_no,
-            &translated,
-            page_idx,
-            [src_w as f64, 0.0, (src_w + trl_w) as f64, trl_h as f64],
-        )
-        .map_err(|e| PyRuntimeError::new_err(format!("dual right page {page_idx}: {e}")))?;
-    }
+    let dual = rendering_writer::overlay::build_dual_doc_pages(&source, &translated, start_page, end_page)
+        .map_err(|e| PyRuntimeError::new_err(format!("build dual doc: {e}")))?;
     save_to_bytes(&dual, &dir)
 }
 

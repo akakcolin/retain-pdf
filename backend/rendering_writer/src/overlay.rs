@@ -187,6 +187,55 @@ pub fn show_pdf_page(
     Ok(())
 }
 
+/// Build the dual-book doc: each page = source page (left) + translated page
+/// (right), mirroring `book_support.build_dual_doc_pages`. Reused by both the
+/// pyo3 bridge (`rendering_bridge::build_dual_doc_pages`) and the render
+/// orchestrator's dual stage.
+pub fn build_dual_doc_pages(
+    source: &PdfDocument,
+    translated: &PdfDocument,
+    start_page: i32,
+    end_page: i32,
+) -> Result<PdfDocument, Error> {
+    let mut dual = PdfDocument::new();
+    let last_page = source.page_count()? - 1;
+    let start = start_page.max(0);
+    let end = if end_page < 0 {
+        last_page
+    } else {
+        end_page.min(last_page)
+    };
+    for page_idx in start..=end {
+        let src_page = source.load_pdf_page(page_idx)?;
+        let trl_page = translated.load_pdf_page(page_idx)?;
+        let src_bounds = src_page.bounds()?;
+        let trl_bounds = trl_page.bounds()?;
+        let src_w = src_bounds.width();
+        let src_h = src_bounds.height();
+        let trl_w = trl_bounds.width();
+        let trl_h = trl_bounds.height();
+        let page_w = src_w + trl_w;
+        let page_h = src_h.max(trl_h);
+        dual.new_page(mupdf::Size::new(page_w, page_h))?;
+        let page_no = dual.page_count()? - 1;
+        show_pdf_page(
+            &mut dual,
+            page_no,
+            source,
+            page_idx,
+            [0.0, 0.0, src_w as f64, src_h as f64],
+        )?;
+        show_pdf_page(
+            &mut dual,
+            page_no,
+            translated,
+            page_idx,
+            [src_w as f64, 0.0, (src_w + trl_w) as f64, trl_h as f64],
+        )?;
+    }
+    Ok(dual)
+}
+
 /// Convert overlay page `overlay_page_idx` of `overlay` into a Form XObject
 /// created in `source`, mirroring pikepdf `Page.as_form_xobject()` +
 /// `add_resource(..., Name.XObject)`.
@@ -514,4 +563,51 @@ fn rect_array5(doc: &PdfDocument, rect: &[f64; 4]) -> Result<PdfObject, Error> {
         fmt_num5(rect[2]),
         fmt_num5(rect[3]),
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mupdf::Size;
+
+    fn blank_pdf(page_sizes: &[(f32, f32)]) -> PdfDocument {
+        let mut doc = PdfDocument::new();
+        for (w, h) in page_sizes {
+            doc.new_page(Size::new(*w, *h)).expect("new page");
+        }
+        doc
+    }
+
+    #[test]
+    fn dual_compose_sums_widths_keeps_page_count() {
+        let source = blank_pdf(&[(200.0, 300.0), (200.0, 300.0)]);
+        let translated = blank_pdf(&[(200.0, 300.0), (200.0, 300.0)]);
+        let dual = build_dual_doc_pages(&source, &translated, 0, -1).expect("compose");
+        assert_eq!(dual.page_count().expect("count"), 2);
+        for idx in 0..2 {
+            let b = dual.load_pdf_page(idx).expect("load").bounds().expect("bounds");
+            assert!((b.width() - 400.0).abs() < 0.01, "page {idx} width");
+            assert!((b.height() - 300.0).abs() < 0.01, "page {idx} height");
+        }
+    }
+
+    #[test]
+    fn dual_compose_honors_page_range() {
+        let source = blank_pdf(&[(200.0, 300.0); 3]);
+        let translated = blank_pdf(&[(200.0, 300.0); 3]);
+        let dual = build_dual_doc_pages(&source, &translated, 1, 1).expect("compose");
+        assert_eq!(dual.page_count().expect("count"), 1);
+        let b = dual.load_pdf_page(0).expect("load").bounds().expect("bounds");
+        assert!((b.width() - 400.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn dual_compose_uses_max_height() {
+        let source = blank_pdf(&[(200.0, 300.0)]);
+        let translated = blank_pdf(&[(200.0, 400.0)]);
+        let dual = build_dual_doc_pages(&source, &translated, 0, -1).expect("compose");
+        let b = dual.load_pdf_page(0).expect("load").bounds().expect("bounds");
+        assert!((b.height() - 400.0).abs() < 0.01, "max height");
+        assert!((b.width() - 400.0).abs() < 0.01, "sum width");
+    }
 }

@@ -90,7 +90,7 @@ def _assert_zero_fitz(label, calls, patched):
 
 
 def _check_delegate_bundle():
-    for mode in ("typst", "typst_visual"):
+    for mode in ("typst", "typst_visual", "overlay", "dual"):
         with tempfile.TemporaryDirectory(prefix="zfit-delegate-") as td:
             root = Path(td)
             source_pdf = root / "source.pdf"

@@ -323,7 +323,7 @@ def check_mode(mode: str) -> None:
 
 
 def check_orchestrator_parity() -> None:
-    for mode in ("typst", "typst_visual"):
+    for mode in ("typst", "typst_visual", "overlay", "dual"):
         check_mode(mode)
     print("all orchestrator parity tests pass")
 

@@ -8,8 +8,11 @@ document analysis + translated-page prepare/color-adapt + page specs + visual
 profile fill map); the background -> typst emit/compile -> save segment runs
 natively in Rust.
 
-Only `typst` / `typst_visual` modes are supported (the native-capable background
-modes). Invoked by `rendering_orchestrator::delegate` as:
+Supports `typst` / `typst_visual` / `overlay` / `dual` / `auto` (auto resolves
+via the pipeline render-mode rules). For overlay/dual the bundle carries
+`overlay_page_specs` (per-page geometry + RenderBlock DTO dicts, sizes from the
+original source) plus `start_page`/`end_page`. Invoked by
+`rendering_orchestrator::delegate` as:
 
     python3 run_render_delegate.py --spec <stage-spec.json> --bundle-out <path>
 
@@ -28,15 +31,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from foundation.config import layout  # noqa: E402
 from foundation.shared.stage_specs import RenderStageSpec  # noqa: E402
+from runtime.pipeline.render_mode import resolve_effective_render_mode  # noqa: E402
 from runtime.pipeline.translation_loader import load_translated_pages  # noqa: E402
 from runtime.pipeline.translation_loader import select_translated_pages  # noqa: E402
 from services.rendering import _routing  # noqa: E402
 from services.rendering.document.page_map import RenderPageMap  # noqa: E402
+from services.rendering.layout._native import read_source_page_sizes  # noqa: E402
 from services.rendering.layout.page_specs import build_render_page_specs  # noqa: E402
 from services.rendering.output.typst import _native as _typst_native  # noqa: E402
 from services.rendering.output.typst.book_renderer import _apply_background_page_color_adapt  # noqa: E402
 from services.rendering.output.typst.book_support import prepare_background_work_dir  # noqa: E402
 from services.rendering.output.typst.book_support import prepare_translated_pages_for_render  # noqa: E402
+from services.rendering.output.typst.overlay_color import apply_overlay_page_colors  # noqa: E402
 from services.rendering.source.background._native import visual_profile_fill_map  # noqa: E402
 from services.rendering.source.render_source import build_render_source_pdf  # noqa: E402
 from services.rendering.source_cleanup.protected_blocks import protected_pages_from_document_path  # noqa: E402
@@ -57,8 +63,10 @@ def parse_args() -> argparse.Namespace:
 
 def build_bundle(spec: RenderStageSpec) -> dict:
     mode = spec.params.render_mode.strip() or "typst"
-    if mode not in {"typst", "typst_visual"}:
-        raise RuntimeError(f"run_render_delegate supports typst/typst_visual only, got {mode!r}")
+    if mode not in {"typst", "typst_visual", "overlay", "dual", "auto"}:
+        raise RuntimeError(
+            f"run_render_delegate supports typst/typst_visual/overlay/dual/auto only, got {mode!r}"
+        )
 
     layout.apply_layout_tuning(
         body_font_size_factor=spec.params.body_font_size_factor,
@@ -96,6 +104,18 @@ def build_bundle(spec: RenderStageSpec) -> dict:
         start_page=start_page,
         end_page=stop_page,
     )
+    if mode == "auto":
+        mode = resolve_effective_render_mode(
+            render_mode="auto",
+            source_pdf_path=spec.inputs.source_pdf,
+            start_page=start_page,
+            end_page=stop_page,
+            translated_pages_map=selected_pages,
+            document_analysis=document_analysis,
+        )
+    if mode not in {"typst", "typst_visual", "overlay", "dual"}:
+        raise RuntimeError(f"run_render_delegate cannot render resolved mode {mode!r}")
+
     protected_pages = protected_pages_from_document_path(
         spec.inputs.translations_dir.parent / "ocr" / "normalized" / "document.v1.json"
     )
@@ -106,7 +126,7 @@ def build_bundle(spec: RenderStageSpec) -> dict:
         pdf_compress_dpi=spec.params.pdf_compress_dpi,
         translated_pages=selected_pages,
         protected_pages=protected_pages,
-        strip_hidden_text=True,
+        strip_hidden_text=mode != "overlay",
         start_page=start_page,
         end_page=stop_page,
         artifact_mode=False,
@@ -123,12 +143,21 @@ def build_bundle(spec: RenderStageSpec) -> dict:
         first_line_indent_lookup=None,
         effective_inner_bbox_lookup=None,
     )
-    prepared_pages = _apply_background_page_color_adapt(
-        sample_pdf_path=indent_pdf_path,
-        translated_pages=prepared_pages,
-        precomputed_colors_by_item_id=None,
-        visual_profile_path=None,
-    )
+    if mode in {"overlay", "dual"}:
+        prepared_pages = apply_overlay_page_colors(
+            None,
+            sorted(selected_pages),
+            prepared_pages,
+            precomputed_colors_by_item_id=None,
+            source_pdf_path=indent_pdf_path,
+        )
+    else:
+        prepared_pages = _apply_background_page_color_adapt(
+            sample_pdf_path=indent_pdf_path,
+            translated_pages=prepared_pages,
+            precomputed_colors_by_item_id=None,
+            visual_profile_path=None,
+        )
     page_specs = build_render_page_specs(
         source_pdf_path=render_source_pdf.path,
         translated_pages=prepared_pages,
@@ -138,6 +167,31 @@ def build_bundle(spec: RenderStageSpec) -> dict:
     visual_profile_runtime = load_visual_profile_runtime(None)
     fill_map = visual_profile_fill_map(visual_profile_runtime)
     work_dir = prepare_background_work_dir(output_pdf_path, None)
+
+    overlay_page_specs = None
+    if mode in {"overlay", "dual"}:
+        ordered_indices = sorted(page_idx for page_idx in prepared_pages if page_idx >= 0)
+        source_sizes = read_source_page_sizes(
+            source_pdf_path=spec.inputs.source_pdf,
+            page_indices=ordered_indices,
+        )
+        overlay_page_specs = [
+            {
+                "page_index": page_idx,
+                "page_width_pt": source_sizes[page_idx][0],
+                "page_height_pt": source_sizes[page_idx][1],
+                "blocks": [
+                    _typst_native._render_block_to_dict(block)
+                    for block in _typst_native._as_render_blocks(
+                        source_sizes[page_idx][0],
+                        source_sizes[page_idx][1],
+                        prepared_pages[page_idx],
+                    )
+                ],
+            }
+            for page_idx in ordered_indices
+            if page_idx in source_sizes
+        ]
 
     return {
         "schema_version": RENDER_BUNDLE_SCHEMA_VERSION,
@@ -152,6 +206,9 @@ def build_bundle(spec: RenderStageSpec) -> dict:
         "page_map": {"source_page_indices": page_map.source_page_indices},
         "translated_pages": prepared_pages,
         "page_specs": [_typst_native._page_spec_to_dict(spec) for spec in page_specs],
+        "start_page": start_page,
+        "end_page": stop_page,
+        "overlay_page_specs": overlay_page_specs,
     }
 
 

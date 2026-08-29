@@ -52,6 +52,7 @@ rust_api（服务壳，编排作业）
 - **C2 端到端差分**：Rust 编排输出 vs Python 编排输出整本对比（`stage_diff.rs` 已覆盖 background 单 stage，扩展到全流程）。
 - **C3 渐进迁移**：orchestrator 按 stage 逐段接管，Python 保留 AI 翻译/外部 provider 桥。
 - 验收：rust_api 跑通渲染不再 spawn `python3`（AI 服务除外）。
+- 状态（2026-08-29）：C1·Ext 已把 overlay/dual 编排移入 `render_rs`（delegate 产出 `overlay_page_specs`，`stages/overlay.rs`/`stages/dual.rs` 全 native），C3·Ext 已把 typst/typst_visual/overlay/dual/auto 全部默认路由到 `render_rs`；`orchestrator_parity` 四模式全等、`smoke_zero_fitz` delegate 四模式零 fitz。
 
 ### 阶段 D：架构收敛与治理
 架构意图：一次性验证升级为常驻防线，防止回潮。

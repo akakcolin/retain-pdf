@@ -23,18 +23,25 @@ pub struct RenderOutcome {
 pub fn run(spec_path: &Path) -> Result<RenderOutcome> {
     let started = Instant::now();
     let spec = RenderStageSpec::load(spec_path)?;
-    let mode = spec.params.render_mode_str();
-    if !matches!(mode.as_str(), "typst" | "typst_visual") {
-        anyhow::bail!(
-            "render mode {mode:?} not supported by render_rs (C1 supports typst/typst_visual only)"
-        );
-    }
-
     let bundle_out = spec.job.job_root.join("render-bundle.json");
     let bundle = delegate::run_delegate(spec_path, &bundle_out)?;
-    let cleaned_bg = stages::background::run_background(&bundle)?;
-    let compiled_pdf = stages::typst::run_typst(&bundle, &cleaned_bg)?;
-    stages::save::run_save(&bundle, &compiled_pdf)?;
+    // The delegate resolves `auto` and validates the mode; dispatch on the
+    // resolved mode it wrote into the bundle.
+    let mode = bundle.mode.clone();
+    match mode.as_str() {
+        "overlay" => {
+            stages::overlay::run_overlay(&bundle)?;
+        }
+        "dual" => {
+            stages::dual::run_dual(&bundle)?;
+        }
+        "typst" | "typst_visual" => {
+            let cleaned_bg = stages::background::run_background(&bundle)?;
+            let compiled_pdf = stages::typst::run_typst(&bundle, &cleaned_bg)?;
+            stages::save::run_save(&bundle, &compiled_pdf)?;
+        }
+        other => anyhow::bail!("render mode {other:?} not supported by render_rs (C1 supports typst/typst_visual/overlay/dual)"),
+    }
 
     let elapsed_seconds = started.elapsed().as_secs_f64();
     let summary_path = summary::write_pipeline_summary(

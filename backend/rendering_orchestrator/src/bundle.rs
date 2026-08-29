@@ -15,6 +15,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
+use rendering_output::dto::RenderBlock;
 use rendering_writer::background::redaction::RedactionItem;
 use serde::Deserialize;
 
@@ -37,6 +38,23 @@ pub struct RenderBundle {
     pub page_map: PageMap,
     pub translated_pages: BTreeMap<i32, Vec<RedactionItem>>,
     pub page_specs: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub start_page: i32,
+    #[serde(default)]
+    pub end_page: i32,
+    /// Overlay/dual bundle view: per-page geometry + RenderBlock DTO dicts
+    /// (serialized by `output/typst/_native.py::_render_block_to_dict`), sizes
+    /// from the original source. `None` for typst/typst_visual bundles.
+    #[serde(default)]
+    pub overlay_page_specs: Option<Vec<OverlayPageSpec>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OverlayPageSpec {
+    pub page_index: i32,
+    pub page_width_pt: f64,
+    pub page_height_pt: f64,
+    pub blocks: Vec<RenderBlock>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -68,11 +68,11 @@ pub(super) fn render_only_command(
     cmd.finish()
 }
 
-/// C3 production takeover: typst/typst_visual renders run through the native
-/// `render_rs` orchestrator by default. `RETAINPDF_RENDER_ORCHESTRATOR_RS=1`
+/// C3 production takeover: typst/typst_visual/overlay/dual/auto renders run
+/// through the native `render_rs` orchestrator by default (the delegate
+/// resolves `auto` and rejects anything else). `RETAINPDF_RENDER_ORCHESTRATOR_RS=1`
 /// (legacy C1 test gate) forces native for any mode; `RETAINPDF_RENDER_ORCHESTRATOR_OFF=1`
-/// forces the python flow. render_rs rejects auto/overlay/dual, so those stay
-/// on `python3 run_render_only.py`.
+/// forces the python flow.
 const RENDER_ORCHESTRATOR_FORCE_ON_ENV: &str = "RETAINPDF_RENDER_ORCHESTRATOR_RS";
 const RENDER_ORCHESTRATOR_FORCE_OFF_ENV: &str = "RETAINPDF_RENDER_ORCHESTRATOR_OFF";
 
@@ -83,7 +83,7 @@ fn should_route_render_rs(render_mode: &str, force_on: bool, force_off: bool) ->
     if force_on {
         return true;
     }
-    matches!(render_mode, "typst" | "typst_visual")
+    matches!(render_mode, "typst" | "typst_visual" | "overlay" | "dual" | "auto")
 }
 
 fn render_rs_command(config: &WorkerCommandRuntimeConfig<'_>, spec_path: &Path) -> Vec<String> {
@@ -139,16 +139,14 @@ mod tests {
     }
 
     #[test]
-    fn should_route_render_rs_defaults_to_native_for_typst_modes() {
-        assert!(should_route_render_rs("typst", false, false));
-        assert!(should_route_render_rs("typst_visual", false, false));
+    fn should_route_render_rs_defaults_to_native_for_render_rs_modes() {
+        for mode in ["typst", "typst_visual", "overlay", "dual", "auto"] {
+            assert!(should_route_render_rs(mode, false, false), "mode {mode}");
+        }
     }
 
     #[test]
-    fn should_route_render_rs_keeps_other_modes_on_python() {
-        assert!(!should_route_render_rs("auto", false, false));
-        assert!(!should_route_render_rs("overlay", false, false));
-        assert!(!should_route_render_rs("dual", false, false));
+    fn should_route_render_rs_keeps_unknown_modes_on_python() {
         assert!(!should_route_render_rs("bogus", false, false));
     }
 
