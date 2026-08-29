@@ -138,6 +138,9 @@ pub struct Item {
     pub dense_small_box: bool,
     /// `_heavy_dense_small_box` (fit_item flag set by the seed factory).
     pub heavy_dense_small_box: bool,
+    /// `_short_body_inherited_font_floor_pt` (font floor inherited from a wider
+    /// same-column body block; 0 when not set).
+    pub short_body_inherited_font_floor_pt: f64,
 }
 
 impl Item {
@@ -235,6 +238,7 @@ impl Item {
             cover_with_inner_bbox: bool_key(value, "_cover_with_inner_bbox").unwrap_or(false),
             dense_small_box: bool_key(value, "_dense_small_box").unwrap_or(false),
             heavy_dense_small_box: bool_key(value, "_heavy_dense_small_box").unwrap_or(false),
+            short_body_inherited_font_floor_pt: f64_key(value, "_short_body_inherited_font_floor_pt"),
         }
     }
 }

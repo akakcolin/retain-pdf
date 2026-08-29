@@ -97,6 +97,8 @@ ALLOWLIST: dict[tuple[str, str], str] = {
     ("layout_payload", "detect_first_line_indents"): "parity_reference",
     ("layout_payload", "build_block_payloads"): "parity_reference",
     ("layout_payload", "emit_render_blocks"): "parity_reference",
+    ("layout_payload", "apply_body_pipeline"): "parity_reference",
+    ("layout_payload", "resolve_book_body_font_target"): "parity_reference",
     ("visual_profile", "build_document_visual_profile"): "parity_reference",
     ("pdf_structure_profile", "build_pdf_structure_profile"): "parity_reference",
     ("analysis", "build_render_document_analysis"): "parity_reference",

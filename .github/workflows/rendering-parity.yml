@@ -139,6 +139,7 @@ jobs:
           export PYTHONPATH="$GITHUB_WORKSPACE/backend/scripts"
           cd backend/scripts
           for b in \
+            smoke_apply_body_pipeline_bridge \
             smoke_bridge \
             smoke_build_block_payloads_bridge \
             smoke_color_adapt_bridge \

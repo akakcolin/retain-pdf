@@ -2,6 +2,10 @@
 // constants. `fit_inner_bbox` lives in `crate::layout::render_item` (shared with
 // the seed boundary) and is not re-declared here.
 
+/// `VERTICAL_COLLISION_GAP_PT`: reserved gap between vertically adjacent blocks
+/// when computing the adjacent-collision fit budget.
+pub const VERTICAL_COLLISION_GAP_PT: f64 = 0.9;
+
 /// `TYPST_BINARY_*` fit-trigger ratios consumed by `fit_typst_context` and
 /// `fit_typst_bounds`.
 pub const TYPST_BINARY_OVERFLOW_TRIGGER: f64 = 1.08;

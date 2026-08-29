@@ -15,6 +15,13 @@
 //!     boundary (port of `payload/emit.py`); `block_payloads_json` is the
 //!     `build_block_payloads` output (+ body-pipeline keys), the result is the
 //!     `RenderBlock` DTO array.
+//!   * `apply_body_pipeline(ordered_payloads_json, page_text_width_med,
+//!     book_body_font_target, font_unify_mode) -> str` — the C3-N3 body-pipeline
+//!     boundary (port of `payload/body_pipeline.apply_body_payload_pipeline`
+//!     plus the post-pipeline annotation stages); returns the mutated payloads.
+//!   * `resolve_book_body_font_target(pages_json) -> str` — the whole-book body
+//!     font target (port of
+//!     `payload/body_font_unify_policy.resolve_book_body_font_target`).
 //!   * Phase 5 write-path entries operating on PDF bytes in -> bytes out:
 //!     `strip_bbox_text_rects`, `strip_hidden_text`, `sanitize_invalid_xobjects`,
 //!     `compress_images`, `extract_pages`, `overlay_page`. The transformations
@@ -1377,6 +1384,47 @@ fn emit_render_blocks(block_payloads_json: &str) -> PyResult<String> {
     serde_json::to_string(&blocks).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
 }
 
+/// `apply_body_pipeline(ordered_payloads_json, page_text_width_med,
+/// book_body_font_target, font_unify_mode) -> str` — the C3-N3 body-pipeline
+/// boundary (ports `payload/body_pipeline.apply_body_payload_pipeline` plus the
+/// post-pipeline annotation stages `annotation_font_policy.unify_annotation_fonts`
+/// when `font_unify_mode != "off"` and `recover_underfilled_annotation_density`).
+/// Mutates the ordered payload dicts in place and returns the updated array, so
+/// the Python shim can write the dicts back onto the shared references.
+#[pyfunction]
+fn apply_body_pipeline(
+    ordered_payloads_json: &str,
+    page_text_width_med: f64,
+    book_body_font_target: Option<f64>,
+    font_unify_mode: &str,
+) -> PyResult<String> {
+    let mut ordered_payloads: Vec<serde_json::Value> = serde_json::from_str(ordered_payloads_json)
+        .map_err(|e| PyValueError::new_err(format!("ordered_payloads_json: {e}")))?;
+    rendering_core::payload::body_pipeline::apply_body_payload_pipeline(
+        &mut ordered_payloads,
+        page_text_width_med,
+        book_body_font_target,
+        font_unify_mode,
+    );
+    if font_unify_mode != "off" {
+        rendering_core::payload::body_policy_facade::unify_annotation_fonts(&mut ordered_payloads);
+    }
+    rendering_core::payload::body_policy_facade::recover_underfilled_annotation_density(&mut ordered_payloads);
+    serde_json::to_string(&ordered_payloads).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
+}
+
+/// `resolve_book_body_font_target(pages_json) -> str` — the whole-book body font
+/// target (port of `payload/body_font_unify_policy.resolve_book_body_font_target`).
+/// `pages_json` is an array of `[block_payloads, page_text_width_med]` tuples;
+/// returns `null` or the low stable body font.
+#[pyfunction]
+fn resolve_book_body_font_target(pages_json: &str) -> PyResult<String> {
+    let pages: Vec<(Vec<serde_json::Value>, f64)> = serde_json::from_str(pages_json)
+        .map_err(|e| PyValueError::new_err(format!("pages_json: {e}")))?;
+    let target = rendering_core::layout::body_font_unify_policy::resolve_book_body_font_target(&pages);
+    serde_json::to_string(&target).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
+}
+
 #[pymodule]
 fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(emit_typst_source, m)?)?;
@@ -1417,5 +1465,7 @@ fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(classify_render_page, m)?)?;
     m.add_function(wrap_pyfunction!(build_block_payloads, m)?)?;
     m.add_function(wrap_pyfunction!(emit_render_blocks, m)?)?;
+    m.add_function(wrap_pyfunction!(apply_body_pipeline, m)?)?;
+    m.add_function(wrap_pyfunction!(resolve_book_body_font_target, m)?)?;
     Ok(())
 }

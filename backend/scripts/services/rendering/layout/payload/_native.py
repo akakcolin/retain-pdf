@@ -19,9 +19,11 @@ from services.rendering import _routing
 from services.rendering.layout.payload.first_line_indent import detect_first_line_indent_pt_with_displaylist
 
 try:
+    from rendering_bridge import apply_body_pipeline as _native_apply_body_pipeline
     from rendering_bridge import build_block_payloads as _native_build_block_payloads
     from rendering_bridge import detect_first_line_indents as _native_detect_first_line_indents
     from rendering_bridge import emit_render_blocks as _native_emit_render_blocks
+    from rendering_bridge import resolve_book_body_font_target as _native_resolve_book_body_font_target
 
     NATIVE = True
 except ImportError:  # pragma: no cover - native build not present
@@ -158,6 +160,96 @@ def _emit_render_blocks_python(block_payloads: list[dict]):
     from services.rendering.layout.payload.emit import emit_render_blocks
 
     return emit_render_blocks(block_payloads)
+
+
+def apply_body_pipeline(ordered_payloads: list[dict], *, page_text_width_med: float, book_body_font_target: float | None = None):
+    """The C3-N3 body-pipeline boundary `blocks.build_render_blocks` runs
+    (`body_pipeline.apply_body_payload_pipeline` plus the post-pipeline
+    annotation stages), routed to the native Rust port when built; otherwise the
+    pure-Python reference. The native path writes the updated dicts back onto
+    the shared payload references (so the original `block_payloads` order sees
+    the changes) and restores `title_fit` dataclasses."""
+    if not _routing.routed("layout_payload", "apply_body_pipeline", NATIVE):
+        return _apply_body_pipeline_python(
+            ordered_payloads,
+            page_text_width_med=page_text_width_med,
+            book_body_font_target=book_body_font_target,
+        )
+    from dataclasses import asdict
+
+    from foundation.config import layout
+    from services.rendering.layout.title_binary_fit import TitleFitDecision
+
+    serialized: list[dict] = []
+    title_fits: list = []
+    for payload in ordered_payloads:
+        entry = dict(payload)
+        title_fit = entry.get("title_fit")
+        title_fits.append(title_fit)
+        if title_fit is not None:
+            entry["title_fit"] = asdict(title_fit)
+        serialized.append(entry)
+    raw = json.loads(
+        _native_apply_body_pipeline(
+            json.dumps(serialized),
+            float(page_text_width_med),
+            book_body_font_target,
+            layout.FONT_UNIFY_MODE,
+        )
+    )
+    for payload, updated, title_fit in zip(ordered_payloads, raw, title_fits):
+        payload.clear()
+        payload.update(updated)
+        if title_fit is not None:
+            payload["title_fit"] = title_fit
+    _routing.record_native_hit("layout_payload", "apply_body_pipeline")
+
+
+def _apply_body_pipeline_python(
+    ordered_payloads: list[dict],
+    *,
+    page_text_width_med: float,
+    book_body_font_target: float | None = None,
+) -> None:
+    from foundation.config import layout
+    from services.rendering.layout.payload.annotation_font_policy import recover_underfilled_annotation_density
+    from services.rendering.layout.payload.annotation_font_policy import unify_annotation_fonts
+    from services.rendering.layout.payload.body_pipeline import apply_body_payload_pipeline
+
+    apply_body_payload_pipeline(
+        ordered_payloads,
+        page_text_width_med=page_text_width_med,
+        book_body_font_target=book_body_font_target,
+    )
+    if layout.FONT_UNIFY_MODE != "off":
+        unify_annotation_fonts(ordered_payloads)
+    recover_underfilled_annotation_density(ordered_payloads)
+
+
+def _strip_title_fit(blocks: list[dict]) -> list[dict]:
+    return [{k: v for k, v in block.items() if k != "title_fit"} for block in blocks]
+
+
+def resolve_book_body_font_target_from_payloads(
+    page_payloads: list[tuple[list[dict], float]],
+) -> float | None:
+    """The whole-book body font target
+    `blocks.resolve_book_body_font_target_from_payloads`, routed to the native
+    Rust port when built; otherwise the pure-Python reference. Returns the low
+    stable body font or None. `title_fit` dataclasses are stripped for the JSON
+    boundary (the port only reads font/width/height fields)."""
+    if not _routing.routed("layout_payload", "resolve_book_body_font_target", NATIVE):
+        return _resolve_book_body_font_target_python(page_payloads)
+    serialized = [[_strip_title_fit(blocks), float(width)] for blocks, width in page_payloads]
+    raw = json.loads(_native_resolve_book_body_font_target(json.dumps(serialized)))
+    _routing.record_native_hit("layout_payload", "resolve_book_body_font_target")
+    return None if raw is None else float(raw)
+
+
+def _resolve_book_body_font_target_python(page_payloads: list[tuple[list[dict], float]]) -> float | None:
+    from services.rendering.layout.payload.body_font_unify_policy import resolve_book_body_font_target
+
+    return resolve_book_body_font_target(page_payloads)
 
 
 def detect_first_line_indents(

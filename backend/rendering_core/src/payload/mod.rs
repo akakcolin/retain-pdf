@@ -2,6 +2,8 @@
 pub mod block_seed;
 pub mod block_seed_metrics;
 pub mod block_seed_payload_factory;
+pub mod body_pipeline;
+pub mod body_policy_facade;
 pub mod capacity;
 pub mod continuation_split;
 pub mod emit;
