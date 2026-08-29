@@ -19,11 +19,56 @@ from services.rendering import _routing
 from services.rendering.layout.payload.first_line_indent import detect_first_line_indent_pt_with_displaylist
 
 try:
+    from rendering_bridge import build_block_payloads as _native_build_block_payloads
     from rendering_bridge import detect_first_line_indents as _native_detect_first_line_indents
 
     NATIVE = True
 except ImportError:  # pragma: no cover - native build not present
     NATIVE = False
+
+
+def build_block_payloads(
+    *,
+    translated_items: list[dict],
+    page_width: float | None = None,
+    page_height: float | None = None,
+) -> tuple[list[dict], float]:
+    """The C3-N2 seed boundary `block_seed.build_block_payloads`, routed to the
+    native Rust port when built; otherwise the pure-Python reference. Native
+    emits `title_fit` as a JSON object; reconstruct the `TitleFitDecision`
+    dataclass so downstream body-pipeline consumers keep attribute access."""
+    if not _routing.routed("layout_payload", "build_block_payloads", NATIVE):
+        return _build_block_payloads_python(
+            translated_items=translated_items,
+            page_width=page_width,
+            page_height=page_height,
+        )
+    payload = json.dumps(translated_items)
+    raw = json.loads(_native_build_block_payloads(payload, page_width, page_height))
+    block_payloads = raw["block_payloads"]
+    from services.rendering.layout.title_binary_fit import TitleFitDecision
+
+    for block in block_payloads:
+        title_fit = block.get("title_fit")
+        if title_fit is not None:
+            block["title_fit"] = TitleFitDecision(**title_fit)
+    _routing.record_native_hit("layout_payload", "build_block_payloads")
+    return block_payloads, float(raw["page_text_width_med"])
+
+
+def _build_block_payloads_python(
+    *,
+    translated_items: list[dict],
+    page_width: float | None = None,
+    page_height: float | None = None,
+) -> tuple[list[dict], float]:
+    from services.rendering.layout.payload.block_seed import build_block_payloads
+
+    return build_block_payloads(
+        translated_items,
+        page_width=page_width,
+        page_height=page_height,
+    )
 
 
 def detect_first_line_indents(

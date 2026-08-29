@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from foundation.config import layout
+from services.rendering.layout.payload import _native as _payload_native
 from services.rendering.layout.payload.annotation_font_policy import recover_underfilled_annotation_density
 from services.rendering.layout.payload.annotation_font_policy import unify_annotation_fonts
-from services.rendering.layout.payload.block_seed import build_block_payloads
 from services.rendering.layout.payload.body_pipeline import apply_body_payload_pipeline
 from services.rendering.layout.payload.body_font_policy import resolve_book_body_font_target
 from services.rendering.layout.payload.collision import mark_adjacent_collision_risk
@@ -22,8 +22,8 @@ def build_render_blocks(
 ) -> list[RenderBlock]:
     for item in translated_items:
         seed_render_fields(item)
-    block_payloads, page_text_width_med = build_block_payloads(
-        translated_items,
+    block_payloads, page_text_width_med = _payload_native.build_block_payloads(
+        translated_items=translated_items,
         page_width=page_width,
         page_height=page_height,
     )
@@ -48,7 +48,7 @@ def build_render_block_payloads(
     page_height: float | None = None,
 ) -> tuple[list[dict], float]:
     del page_height
-    return build_block_payloads(translated_items, page_width=page_width)
+    return _payload_native.build_block_payloads(translated_items=translated_items, page_width=page_width)
 
 
 def resolve_book_body_font_target_from_payloads(page_payloads: list[tuple[list[dict], float]]) -> float | None:

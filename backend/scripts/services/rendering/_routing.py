@@ -95,6 +95,7 @@ ALLOWLIST: dict[tuple[str, str], str] = {
     ("typst", "build_dual_doc_pages"): "parity_reference",
     ("layout", "read_source_page_sizes"): "parity_reference",
     ("layout_payload", "detect_first_line_indents"): "parity_reference",
+    ("layout_payload", "build_block_payloads"): "parity_reference",
     ("visual_profile", "build_document_visual_profile"): "parity_reference",
     ("pdf_structure_profile", "build_pdf_structure_profile"): "parity_reference",
     ("analysis", "build_render_document_analysis"): "parity_reference",

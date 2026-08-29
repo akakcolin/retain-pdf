@@ -1341,6 +1341,30 @@ fn classify_render_page(pdf_bytes: &[u8], page_index: i64, background_threshold:
     serde_json::to_string(&out).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
 }
 
+/// `build_block_payloads(translated_items_json, page_width, page_height) ->
+/// str` — the C3-N2 seed boundary (port of
+/// `payload/block_seed.build_block_payloads`). `translated_items_json` is a JSON
+/// array of the translated-item dicts (post `seed_render_fields`); returns
+/// `{"block_payloads": [...], "page_text_width_med": float}`.
+#[pyfunction(name = "build_block_payloads")]
+fn build_block_payloads(
+    translated_items_json: &str,
+    page_width: Option<f64>,
+    page_height: Option<f64>,
+) -> PyResult<String> {
+    let raw_items: Vec<serde_json::Value> = serde_json::from_str(translated_items_json)
+        .map_err(|e| PyValueError::new_err(format!("translated_items_json: {e}")))?;
+    let items: Vec<rendering_core::item::Item> =
+        raw_items.iter().map(rendering_core::item::Item::from_json_value).collect();
+    let (block_payloads, page_text_width_med) =
+        rendering_core::payload::block_seed::build_block_payloads(&items, &raw_items, page_width, page_height);
+    let out = serde_json::json!({
+        "block_payloads": block_payloads,
+        "page_text_width_med": page_text_width_med,
+    });
+    serde_json::to_string(&out).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
+}
+
 #[pymodule]
 fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(emit_typst_source, m)?)?;
@@ -1379,5 +1403,6 @@ fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sample_foreground_colors, m)?)?;
     m.add_function(wrap_pyfunction!(build_render_document_analysis, m)?)?;
     m.add_function(wrap_pyfunction!(classify_render_page, m)?)?;
+    m.add_function(wrap_pyfunction!(build_block_payloads, m)?)?;
     Ok(())
 }

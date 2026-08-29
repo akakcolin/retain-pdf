@@ -249,6 +249,53 @@ fn match_end(kind: TextTokenKind, text: &str, index: usize) -> usize {
     }
 }
 
+/// True if `text` contains any of the three protected-token patterns
+/// (`PROTECTED_TOKEN_RE`): `<[futnvc]\d+-[0-9a-z]{3}/>`, `[[FORMULA_\d+]]`, or
+/// `@@F\d+@@`. Hand-rolled (no regex crate) and intentionally narrower than
+/// `match_formula_placeholder` — the render path gates only on these exact
+/// patterns.
+pub fn has_protected_token(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if b == b'<' {
+            if i + 7 <= bytes.len() && matches!(bytes[i + 1], b'f' | b'u' | b't' | b'n' | b'v' | b'c') {
+                let mut j = i + 2;
+                while j < bytes.len() && bytes[j].is_ascii_digit() {
+                    j += 1;
+                }
+                if j > i + 2 && j + 5 <= bytes.len() && bytes[j] == b'-' {
+                    let suffix_ok = bytes[j + 1..j + 4]
+                        .iter()
+                        .all(|&c| c.is_ascii_lowercase() || c.is_ascii_digit());
+                    if suffix_ok && text[j + 4..].starts_with("/>") {
+                        return true;
+                    }
+                }
+            }
+        } else if b == b'[' && text[i..].starts_with("[[FORMULA_") {
+            let mut j = i + 10;
+            while j < bytes.len() && bytes[j].is_ascii_digit() {
+                j += 1;
+            }
+            if j > i + 10 && text[j..].starts_with("]]") {
+                return true;
+            }
+        } else if b == b'@' && text[i..].starts_with("@@F") {
+            let mut j = i + 3;
+            while j < bytes.len() && bytes[j].is_ascii_digit() {
+                j += 1;
+            }
+            if j > i + 3 && text[j..].starts_with("@@") {
+                return true;
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
 pub fn iter_text_tokens(text: &str) -> Vec<TextToken> {
     let source = text;
     let mut tokens = Vec::new();
@@ -430,5 +477,21 @@ mod tests {
     fn strip_formula_replaces_with_space() {
         let stripped = strip_formula_tokens("a __FORMULA_1__ b", " ");
         assert_eq!(stripped, "a   b");
+    }
+
+    #[test]
+    fn protected_token_detection() {
+        assert!(has_protected_token("a <f1-abc/> b"));
+        assert!(has_protected_token("a <u3-9zz/> b"));
+        assert!(has_protected_token("[[FORMULA_12]]"));
+        assert!(has_protected_token("x @@F7@@ y"));
+        assert!(!has_protected_token("plain text"));
+        assert!(!has_protected_token("<f1-abc>"));
+        assert!(!has_protected_token("<f-a/>"));
+        assert!(!has_protected_token("[[FORMULA_x]]"));
+        assert!(!has_protected_token("@@Fx@@"));
+        // Broad tokenizer placeholder forms must NOT trip the render gate.
+        assert!(!has_protected_token("__FORMULA_1__"));
+        assert!(!has_protected_token("<FORMULA_1>"));
     }
 }
