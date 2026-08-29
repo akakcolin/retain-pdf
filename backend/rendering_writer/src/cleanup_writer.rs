@@ -39,7 +39,7 @@ pub struct StripStreamResult {
 }
 
 /// Result of stripping rects from a whole PDF.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct StripPdfResult {
     pub pages_changed: usize,
     pub text_show_ops_removed: usize,

@@ -161,6 +161,7 @@ jobs:
             smoke_show_pdf_page_bridge \
             smoke_seed_render_fields_bridge \
             smoke_copy_toc_bridge \
+            smoke_source_cleanup_executor_bridge \
             smoke_source_cleanup_planning \
             smoke_source_top_level_bridge \
             smoke_text_layer_only_bridge \

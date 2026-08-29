@@ -385,6 +385,10 @@ FITZ_IMPORT_ALLOWLIST: dict[Path, tuple[str, str]] = {
         "hard_boundary",
         "pikepdf document rewrite (Python-only) with fitz.Rect",
     ),
+    Path("services/rendering/source_cleanup/pdf/_native.py"): (
+        "fallback_reference",
+        "native shim for strip_bbox_text_rects_from_pdf_copy; fitz.Rect serialization",
+    ),
     # ---- non_default_write: fitz writes PDFs only on non-default/non-production paths
     Path("services/rendering/source/dev_overlay/builders.py"): (
         "non_default_write",

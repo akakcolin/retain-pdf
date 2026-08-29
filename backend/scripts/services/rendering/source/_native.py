@@ -34,8 +34,10 @@ differential coverage stays on resize-dominated images where both commit.
     bridge strips exactly those pages, so the `start_page`/`end_page` range
     behavior is unchanged. The whole-document `strip_hidden_text` bridge export
     stays as the write-differential reference.
-  * `strip_bbox_text_rects` — production's rich skip/candidate metadata has no
-    bridge equivalent yet.
+  * `strip_bbox_text_rects` — wired (C3-N10): the source_cleanup shim routes
+    `strip_bbox_text_rects_from_pdf_copy` to the bridge, carrying the
+    planning-level skip/candidate metadata through unchanged and gating to the
+    Python reference for `skip_form_xobject_pages=True` / deadline budgets.
   * overlay family — bridge `overlay_page` is per-page (one open/save cycle per
     call), so a multi-page overlay would regress to N saves vs production's
     single save; the book/diagnostic call sites are also not covered.

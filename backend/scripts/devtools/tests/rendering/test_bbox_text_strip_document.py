@@ -1127,7 +1127,11 @@ def test_bbox_text_strip_single_worker_preserves_form_recursion(monkeypatch: pyt
             seen_recurse_forms.append(recurse_forms)
             return b"", 0, 0
 
-        with mock.patch.object(source_cleanup_document, "strip_bbox_text_from_page", side_effect=fake_strip_page):
+        # Force the Python reference: production now routes to the native
+        # bridge, which never calls the Python `strip_bbox_text_from_page`.
+        with mock.patch.object(
+            source_cleanup_document, "strip_bbox_text_from_page", side_effect=fake_strip_page
+        ), mock.patch.object(source_cleanup_document._native, "NATIVE", False):
             strip_bbox_text_rects_from_pdf_copy(
                 source_pdf_path=source_pdf,
                 output_pdf_path=output_pdf,

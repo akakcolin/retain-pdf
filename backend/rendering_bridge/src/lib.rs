@@ -214,28 +214,31 @@ fn meta_json<T: serde::Serialize>(value: &T) -> PyResult<String> {
 }
 
 /// Strip text show ops inside the given per-page rects (port of
-/// `strip_bbox_text_rects_from_pdf_copy`). Returns bytes only (the Python
-/// side's rich skip/candidate metadata has no bridge equivalent yet).
+/// `strip_bbox_text_rects_from_pdf_copy`). `page_rects_json` /
+/// `page_protected_rects_json` are `{"<page_idx>": [[x0, y0, x1, y1], ...]}`
+/// maps (PDF user-space rects, string keys). Returns the saved PDF bytes plus
+/// the `StripPdfResult` metadata (the Python shim rebuilds the production
+/// result contract: pages_changed / text_show_ops_removed / forms_changed /
+/// changed_page_indices).
 #[pyfunction]
 fn strip_bbox_text_rects(
     pdf_bytes: &[u8],
     page_rects_json: &str,
     page_protected_rects_json: Option<&str>,
     recurse_forms: Option<bool>,
-) -> PyResult<Vec<u8>> {
+) -> PyResult<(Vec<u8>, String)> {
     let page_rects = parse_rect_map(page_rects_json, "page_rects")?;
     let protected = match page_protected_rects_json {
         Some(s) => parse_rect_map(s, "page_protected_rects")?,
         None => HashMap::new(),
     };
     let recurse = recurse_forms.unwrap_or(true);
-    let (bytes, ()) = with_pdf_edit(pdf_bytes, |pdf| {
+    let (bytes, result) = with_pdf_edit(pdf_bytes, |pdf| {
         rendering_writer::cleanup_writer::strip_bbox_text_rects_from_pdf(
             pdf, &page_rects, &protected, recurse,
         )
-        .map(|_| ())
     })?;
-    Ok(bytes)
+    Ok((bytes, meta_json(&result)?))
 }
 
 /// Remove hidden text (all-zero / zero-size / all-white color) show ops (port

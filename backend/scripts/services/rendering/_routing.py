@@ -43,6 +43,7 @@ SUBSYSTEMS = (
     "layout_payload",
     "policy",
     "visual_profile",
+    "source_cleanup",
     "source_cleanup_planning",
     "pdf_structure_profile",
     "analysis",
@@ -113,6 +114,7 @@ ALLOWLIST: dict[tuple[str, str], str] = {
     ("source_cleanup_planning", "build_page_contexts"): "parity_reference",
     ("source_cleanup_planning", "plan_source_cleanup"): "parity_reference",
     ("source_cleanup_planning", "item_ids_with_uncovered_unsafe_vector_overlap"): "parity_reference",
+    ("source_cleanup", "strip_bbox_text_rects_from_pdf_copy"): "parity_reference",
 }
 
 _GLOBAL_FLAG_ENV = "RETAIN_PDF_NATIVE"

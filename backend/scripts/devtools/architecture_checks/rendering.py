@@ -535,6 +535,7 @@ def check_rendering_internal_boundaries(errors: list[str]) -> None:
         RENDERING_ROOT / "source_cleanup" / "executor.py",
         RENDERING_ROOT / "source_cleanup" / "pdf" / "__init__.py",
         RENDERING_ROOT / "source_cleanup" / "pdf" / "document.py",
+        RENDERING_ROOT / "source_cleanup" / "pdf" / "_native.py",
     }
     for path in scan_py_files(RENDERING_ROOT / "source_cleanup"):
         if path in source_cleanup_rect_entrypoint_allowed:

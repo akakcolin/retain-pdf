@@ -11,6 +11,7 @@ import fitz
 import pikepdf
 from pikepdf import Name
 
+from services.rendering.source_cleanup.pdf import _native
 from services.rendering.source_cleanup.pdf.stream_engine import strip_bbox_text_from_page
 from services.rendering.source_cleanup.types import BBoxTextStripResult
 
@@ -29,6 +30,89 @@ class _ApplyTimings:
 
 
 def strip_bbox_text_rects_from_pdf_copy(
+    *,
+    source_pdf_path: Path,
+    output_pdf_path: Path,
+    page_rects: dict[int, list[fitz.Rect]],
+    page_protected_rects: dict[int, list[fitz.Rect]] | None = None,
+    recurse_forms: bool | None = None,
+    skip_form_xobject_pages: bool = False,
+    skipped_complex: int = 0,
+    skipped_no_text_overlap: int = 0,
+    skipped_visual_background: int = 0,
+    skipped_complex_page_indices: frozenset[int] = frozenset(),
+    skipped_no_text_overlap_page_indices: frozenset[int] = frozenset(),
+    skipped_visual_background_page_indices: frozenset[int] = frozenset(),
+    pre_skipped_form_xobject_page_indices: frozenset[int] = frozenset(),
+    pre_strip_no_effect_page_indices: frozenset[int] = frozenset(),
+    candidate_elapsed: float = 0.0,
+    candidate_source: str = "unknown",
+    max_elapsed_seconds: float | None = None,
+) -> BBoxTextStripResult:
+    """Dispatch to the native bridge when eligible, else the Python reference."""
+    page_protected_rects = page_protected_rects or {}
+    if not page_rects:
+        return _strip_bbox_text_rects_from_pdf_copy_python(
+            source_pdf_path=source_pdf_path,
+            output_pdf_path=output_pdf_path,
+            page_rects=page_rects,
+            page_protected_rects=page_protected_rects,
+            recurse_forms=recurse_forms,
+            skip_form_xobject_pages=skip_form_xobject_pages,
+            skipped_complex=skipped_complex,
+            skipped_no_text_overlap=skipped_no_text_overlap,
+            skipped_visual_background=skipped_visual_background,
+            skipped_complex_page_indices=skipped_complex_page_indices,
+            skipped_no_text_overlap_page_indices=skipped_no_text_overlap_page_indices,
+            skipped_visual_background_page_indices=skipped_visual_background_page_indices,
+            pre_skipped_form_xobject_page_indices=pre_skipped_form_xobject_page_indices,
+            pre_strip_no_effect_page_indices=pre_strip_no_effect_page_indices,
+            candidate_elapsed=candidate_elapsed,
+            candidate_source=candidate_source,
+            max_elapsed_seconds=max_elapsed_seconds,
+        )
+    effective_recurse_forms = True if recurse_forms is None else recurse_forms
+    native_result = _native.strip_bbox_text_rects_from_pdf_copy(
+        source_pdf_path=source_pdf_path,
+        output_pdf_path=output_pdf_path,
+        page_rects=page_rects,
+        page_protected_rects=page_protected_rects,
+        recurse_forms=effective_recurse_forms,
+        skip_form_xobject_pages=skip_form_xobject_pages,
+        max_elapsed_seconds=max_elapsed_seconds,
+        pre_skipped_form_xobject_page_indices=pre_skipped_form_xobject_page_indices,
+        pre_strip_no_effect_page_indices=pre_strip_no_effect_page_indices,
+        skipped_complex=skipped_complex,
+        skipped_no_text_overlap=skipped_no_text_overlap,
+        skipped_visual_background=skipped_visual_background,
+        skipped_complex_page_indices=skipped_complex_page_indices,
+        skipped_no_text_overlap_page_indices=skipped_no_text_overlap_page_indices,
+        skipped_visual_background_page_indices=skipped_visual_background_page_indices,
+    )
+    if native_result is not None:
+        return native_result
+    return _strip_bbox_text_rects_from_pdf_copy_python(
+        source_pdf_path=source_pdf_path,
+        output_pdf_path=output_pdf_path,
+        page_rects=page_rects,
+        page_protected_rects=page_protected_rects,
+        recurse_forms=effective_recurse_forms,
+        skip_form_xobject_pages=skip_form_xobject_pages,
+        skipped_complex=skipped_complex,
+        skipped_no_text_overlap=skipped_no_text_overlap,
+        skipped_visual_background=skipped_visual_background,
+        skipped_complex_page_indices=skipped_complex_page_indices,
+        skipped_no_text_overlap_page_indices=skipped_no_text_overlap_page_indices,
+        skipped_visual_background_page_indices=skipped_visual_background_page_indices,
+        pre_skipped_form_xobject_page_indices=pre_skipped_form_xobject_page_indices,
+        pre_strip_no_effect_page_indices=pre_strip_no_effect_page_indices,
+        candidate_elapsed=candidate_elapsed,
+        candidate_source=candidate_source,
+        max_elapsed_seconds=max_elapsed_seconds,
+    )
+
+
+def _strip_bbox_text_rects_from_pdf_copy_python(
     *,
     source_pdf_path: Path,
     output_pdf_path: Path,
