@@ -22,7 +22,6 @@ class FallbackReason(str, enum.Enum):
     NATIVE_NOT_BUILT = "native_not_built"
     NATIVE_BRIDGE_ERROR = "native_bridge_error"
     IN_MEMORY_PAGE = "in_memory_page"
-    STRATEGY_NOT_PORTED = "strategy_not_ported"
     STAGE_INSTRUMENTED = "stage_instrumented"
     DELIBERATELY_NOT_ROUTED = "deliberately_not_routed"
     FORCED_OFF = "forced_off"
