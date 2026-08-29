@@ -98,6 +98,7 @@ ALLOWLIST: dict[tuple[str, str], str] = {
     ("visual_profile", "build_document_visual_profile"): "parity_reference",
     ("pdf_structure_profile", "build_pdf_structure_profile"): "parity_reference",
     ("analysis", "build_render_document_analysis"): "parity_reference",
+    ("analysis", "classify_render_page"): "parity_reference",
     ("source_cleanup_planning", "build_page_contexts"): "parity_reference",
 }
 

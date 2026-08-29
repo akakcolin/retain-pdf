@@ -1179,6 +1179,45 @@ fn build_render_document_analysis(pdf_bytes: &[u8], config_json: &str) -> PyResu
     serde_json::to_string(&out).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
 }
 
+/// Classify a single page by index (B-A): `page_snapshot` ->
+/// `rendering_core::classifier::classify_render_page`. Thin wrapper reusing the
+/// whole-document analysis reader primitives; no new reader surface. The
+/// `text_traces` fields follow the documented empty-trace divergence (mupdf has
+/// no `get_texttrace`), so `visible/hidden_text_traces` may differ from fitz on
+/// hidden-text pages while `kind`/route stay parity. Returns the manifest:
+/// `{"kind", "large_background_image", "visible_text_traces",
+/// "hidden_text_traces", "drawing_count", "background_coverage_ratio",
+/// "route": {redaction, background, compose, layout, reason}}`. A page whose
+/// snapshot cannot be read raises so the shim falls back to the reference.
+#[pyfunction]
+fn classify_render_page(pdf_bytes: &[u8], page_index: i64, background_threshold: f64) -> PyResult<String> {
+    let dir = temp_dir()?;
+    let in_path = dir.join("in.pdf");
+    std::fs::write(&in_path, pdf_bytes).map_err(|e| PyRuntimeError::new_err(format!("write: {e}")))?;
+    let doc = Document::open(in_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open: {e}")))?;
+    let snapshot = doc
+        .page_snapshot(page_index)
+        .map_err(|e| PyRuntimeError::new_err(format!("page_snapshot p{page_index}: {e}")))?;
+    let c = rendering_core::classifier::classify_render_page(&snapshot, background_threshold);
+    let out = serde_json::json!({
+        "kind": c.kind.as_str(),
+        "large_background_image": c.large_background_image,
+        "visible_text_traces": c.visible_text_traces,
+        "hidden_text_traces": c.hidden_text_traces,
+        "drawing_count": c.drawing_count,
+        "background_coverage_ratio": c.background_coverage_ratio,
+        "route": {
+            "redaction": c.route.redaction,
+            "background": c.route.background,
+            "compose": c.route.compose,
+            "layout": c.route.layout,
+            "reason": c.route.reason,
+        },
+    });
+    serde_json::to_string(&out).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
+}
+
 #[pymodule]
 fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(emit_typst_source, m)?)?;
@@ -1214,5 +1253,6 @@ fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sample_title_visual_colors, m)?)?;
     m.add_function(wrap_pyfunction!(sample_foreground_colors, m)?)?;
     m.add_function(wrap_pyfunction!(build_render_document_analysis, m)?)?;
+    m.add_function(wrap_pyfunction!(classify_render_page, m)?)?;
     Ok(())
 }
