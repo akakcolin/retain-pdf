@@ -429,10 +429,13 @@ def build_single_page_typst_pdf(
     )
     source_doc = fitz.open(source_pdf_path)
     temp_doc = fitz.open(temp_source_path)
-    copy_toc(source_doc, temp_doc, start_page=page_idx, end_page=page_idx)
+    replaced = copy_toc(source_doc, temp_doc, start_page=page_idx, end_page=page_idx)
+    if replaced is not temp_doc:
+        temp_doc.close()
+        temp_doc = replaced
     page = temp_doc[0]
     strip_page_links(page)
-    overlay_translated_items_on_page(
+    replacement = overlay_translated_items_on_page(
         page,
         prepared_items,
         stem=f"page-{page_idx + 1}",
@@ -446,6 +449,9 @@ def build_single_page_typst_pdf(
         redaction_strategy=redaction_strategy,
         request_chat_content_fn=request_chat_content_fn,
     )
+    if replacement is not temp_doc:
+        temp_doc.close()
+        temp_doc = replacement
     save_optimized_pdf(temp_doc, output_pdf_path)
     temp_doc.close()
     source_doc.close()
@@ -576,6 +582,7 @@ def build_dual_book_pdf(
     source_doc = fitz.open(source_pdf_path)
     translated_doc = fitz.open(source_pdf_path)
     dual_doc = fitz.open()
+    translated_doc_slot: dict[str, object] = {}
     try:
         typst_temp_root = resolve_typst_temp_root(output_pdf_path, temp_root)
         overlay_translated_pages_on_doc(
@@ -595,15 +602,26 @@ def build_dual_book_pdf(
             first_line_indent_lookup=first_line_indent_lookup,
             effective_inner_bbox_lookup=effective_inner_bbox_lookup,
             request_chat_content_fn=request_chat_content_fn,
+            doc_slot=translated_doc_slot,
         )
-        build_dual_doc_pages(
+        replaced_translated = translated_doc_slot.get("doc")
+        if replaced_translated is not None and replaced_translated is not translated_doc:
+            translated_doc.close()
+            translated_doc = replaced_translated
+        replacement = build_dual_doc_pages(
             source_doc,
             translated_doc,
             dual_doc,
             start_page=start_page,
             end_page=end_page,
         )
-        copy_toc(source_doc, dual_doc, start_page=start_page, end_page=end_page)
+        if replacement is not dual_doc:
+            dual_doc.close()
+            dual_doc = replacement
+        replaced = copy_toc(source_doc, dual_doc, start_page=start_page, end_page=end_page)
+        if replaced is not dual_doc:
+            dual_doc.close()
+            dual_doc = replaced
         save_optimized_pdf(dual_doc, output_pdf_path)
     finally:
         dual_doc.close()

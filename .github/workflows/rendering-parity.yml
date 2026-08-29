@@ -147,6 +147,8 @@ jobs:
             smoke_pdf_structure_profile_bridge \
             smoke_prewarm_page_sizes_bridge \
             smoke_save_optimized_bridge \
+            smoke_show_pdf_page_bridge \
+            smoke_copy_toc_bridge \
             smoke_source_cleanup_planning \
             smoke_source_top_level_bridge \
             smoke_text_layer_only_bridge \

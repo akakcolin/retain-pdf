@@ -128,7 +128,7 @@ def compile_background_pdf_resilient(
         )
 
 
-def build_dual_doc_pages(
+def _build_dual_doc_pages_python(
     source_doc: fitz.Document,
     translated_doc: fitz.Document,
     dual_doc: fitz.Document,
@@ -164,6 +164,25 @@ def build_dual_doc_pages(
         )
 
 
+def build_dual_doc_pages(
+    source_doc: fitz.Document,
+    translated_doc: fitz.Document,
+    dual_doc: fitz.Document,
+    *,
+    start_page: int = 0,
+    end_page: int = -1,
+) -> fitz.Document:
+    from services.rendering.output.typst._native import build_dual_doc_pages as _native_build_dual_doc_pages
+
+    return _native_build_dual_doc_pages(
+        source_doc,
+        translated_doc,
+        dual_doc,
+        start_page=start_page,
+        end_page=end_page,
+    )
+
+
 def save_background_pdf_to_output(
     background_pdf: Path,
     output_pdf_path: Path,
@@ -177,9 +196,12 @@ def save_background_pdf_to_output(
     try:
         if source_doc is not None:
             if page_map is not None:
-                copy_toc_for_page_map(source_doc, background_doc, page_map=page_map)
+                replaced = copy_toc_for_page_map(source_doc, background_doc, page_map=page_map)
             else:
-                copy_toc(source_doc, background_doc)
+                replaced = copy_toc(source_doc, background_doc)
+            if replaced is not background_doc:
+                background_doc.close()
+                background_doc = replaced
         if fast_save:
             save_fast_pdf(background_doc, output_pdf_path)
         else:

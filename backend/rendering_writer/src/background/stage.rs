@@ -103,7 +103,7 @@ pub fn build_clean_background_pdf(
     precleaned_page_indices: &HashSet<i32>,
     render_clip: &dyn Fn(i32, &RectTuple) -> Option<RgbPixmap>,
 ) -> Result<StageOutcome, Error> {
-    let toc_entries = copy_toc(source_doc, edit_pdf)?;
+    let toc_entries = copy_toc(source_doc, edit_pdf, 0, -1)?;
     let target_page_count = edit_pdf.page_count()?;
 
     let mut diagnostics: Vec<Option<RedactionDiagnostics>> = Vec::new();

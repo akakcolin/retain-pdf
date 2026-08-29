@@ -140,6 +140,7 @@ def overlay_pages_via_page_fallback(
         diagnostics["pikepdf_overlay_pages"] = pike_result.pages_merged
         diagnostics["pikepdf_overlay_elapsed_seconds"] = pike_result.elapsed_seconds
         return diagnostics
+    caller_doc = doc
     if doc is None:
         if source_pdf_path is None:
             raise ValueError("overlay_pages_via_page_fallback requires a doc or a source_pdf_path")
@@ -180,8 +181,16 @@ def overlay_pages_via_page_fallback(
             apply_redaction_diagnostics(diagnostics, page_diag, redaction)
         overlay_doc = fitz.open(overlay_paths[page_idx])
         try:
+            from services.rendering.output.typst._native import show_pdf_page_on_doc
+
             merge_started = time.perf_counter()
-            page.show_pdf_page(page.rect, overlay_doc, 0, overlay=True)
+            prev_doc = doc
+            doc = show_pdf_page_on_doc(doc, overlay_doc, page_idx, 0, page.rect)
+            if doc is not prev_doc:
+                if doc_slot is not None:
+                    doc_slot["doc"] = doc
+                if prev_doc is not caller_doc:
+                    prev_doc.close()
             merge_elapsed = time.perf_counter() - merge_started
             apply_merge_elapsed(diagnostics, page_diag, merge_elapsed)
         finally:

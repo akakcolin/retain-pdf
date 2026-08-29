@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 import os
 from pathlib import Path
+from typing import Callable
 
 import fitz
 
@@ -22,6 +23,22 @@ from services.rendering.visual_profile import load_visual_profile_runtime
 
 
 PAGE_SIZE_MISMATCH_TOLERANCE_PT = 0.5
+
+
+def _composite_in_place(
+    target_doc: fitz.Document,
+    source_doc: fitz.Document,
+    target_page_idx: int,
+    source_page_idx: int,
+    rect: fitz.Rect,
+) -> fitz.Document:
+    """Pure-fitz reference compositor: mutates `target_doc` in place and returns it.
+
+    `overlay_pages_from_single_pdf`'s default when no native compositor is
+    injected; the `output/typst` layer passes `_native.show_pdf_page_on_doc`
+    instead (returns a fresh doc on native hit, same doc on fallback)."""
+    target_doc[target_page_idx].show_pdf_page(fitz.Rect(*rect), source_doc, source_page_idx, overlay=True)
+    return target_doc
 
 
 def _overlay_visual_cover_enabled() -> bool:
@@ -107,6 +124,8 @@ def overlay_pages_from_single_pdf(
     source_base_pdf_path: Path | None = None,
     pikepdf_output_pdf_path: Path | None = None,
     visual_profile_path: Path | None = None,
+    doc_slot: dict[str, object] | None = None,
+    compositor: Callable[..., fitz.Document] | None = None,
 ) -> dict[str, object]:
     overlay_doc = fitz.open(overlay_pdf_path)
     diagnostics = new_overlay_merge_diagnostics()
@@ -183,6 +202,9 @@ def overlay_pages_from_single_pdf(
             diagnostics["pikepdf_overlay_pages"] = pike_result.pages_merged
             diagnostics["pikepdf_overlay_elapsed_seconds"] = pike_result.elapsed_seconds
             return diagnostics
+        caller_doc = doc
+        active_compositor = compositor if compositor is not None else _composite_in_place
+
         for overlay_page_idx, page_idx in enumerate(ordered_page_indices):
             print(
                 f"overlay merge page {overlay_page_idx + 1}/{total_pages} -> source page {page_idx + 1}",
@@ -242,17 +264,24 @@ def overlay_pages_from_single_pdf(
                     ) + drawing_count
                     diagnostics["pages"].append(page_diag)
                     merge_started = time.perf_counter()
-                    page.show_pdf_page(page.rect, overlay_doc, overlay_page_idx, overlay=True)
+                    prev_doc = doc
+                    doc = active_compositor(doc, overlay_doc, page_idx, overlay_page_idx, page.rect)
+                    if doc is not prev_doc:
+                        if doc_slot is not None:
+                            doc_slot["doc"] = doc
+                        if prev_doc is not caller_doc:
+                            prev_doc.close()
+                    else:
+                        diagnostics["legacy_pymupdf_overlay_pages"] = int(
+                            diagnostics.get("legacy_pymupdf_overlay_pages", 0) or 0
+                        ) + 1
+                        reasons = diagnostics.setdefault("legacy_pdf_write_reasons", {})
+                        if isinstance(reasons, dict):
+                            reasons["pymupdf_show_pdf_page_overlay"] = int(
+                                reasons.get("pymupdf_show_pdf_page_overlay", 0) or 0
+                            ) + 1
                     merge_elapsed = time.perf_counter() - merge_started
                     apply_merge_elapsed(diagnostics, page_diag, merge_elapsed)
-                    diagnostics["legacy_pymupdf_overlay_pages"] = int(
-                        diagnostics.get("legacy_pymupdf_overlay_pages", 0) or 0
-                    ) + 1
-                    reasons = diagnostics.setdefault("legacy_pdf_write_reasons", {})
-                    if isinstance(reasons, dict):
-                        reasons["pymupdf_show_pdf_page_overlay"] = int(
-                            reasons.get("pymupdf_show_pdf_page_overlay", 0) or 0
-                        ) + 1
                     continue
 
                 cleanup_items = (redaction_pages or {}).get(page_idx) or translated_pages[page_idx]
@@ -367,17 +396,24 @@ def overlay_pages_from_single_pdf(
                 diagnostics["overlay_page_size_mismatch_pages"] = int(
                     diagnostics.get("overlay_page_size_mismatch_pages", 0) or 0
                 ) + 1
-            page.show_pdf_page(page.rect, overlay_doc, overlay_page_idx, overlay=True)
+            prev_doc = doc
+            doc = active_compositor(doc, overlay_doc, page_idx, overlay_page_idx, page.rect)
+            if doc is not prev_doc:
+                if doc_slot is not None:
+                    doc_slot["doc"] = doc
+                if prev_doc is not caller_doc:
+                    prev_doc.close()
+            else:
+                diagnostics["legacy_pymupdf_overlay_pages"] = int(
+                    diagnostics.get("legacy_pymupdf_overlay_pages", 0) or 0
+                ) + 1
+                reasons = diagnostics.setdefault("legacy_pdf_write_reasons", {})
+                if isinstance(reasons, dict):
+                    reasons["pymupdf_show_pdf_page_overlay"] = int(
+                        reasons.get("pymupdf_show_pdf_page_overlay", 0) or 0
+                    ) + 1
             merge_elapsed = time.perf_counter() - merge_started
             apply_merge_elapsed(diagnostics, page_diag, merge_elapsed)
-            diagnostics["legacy_pymupdf_overlay_pages"] = int(
-                diagnostics.get("legacy_pymupdf_overlay_pages", 0) or 0
-            ) + 1
-            reasons = diagnostics.setdefault("legacy_pdf_write_reasons", {})
-            if isinstance(reasons, dict):
-                reasons["pymupdf_show_pdf_page_overlay"] = int(
-                    reasons.get("pymupdf_show_pdf_page_overlay", 0) or 0
-                ) + 1
             diagnostics["pages"].append(page_diag)
     finally:
         overlay_doc.close()

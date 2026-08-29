@@ -21,10 +21,10 @@
 //! then other", so every matrix product below is ordered accordingly.
 
 use mupdf::pdf::{PdfDocument, PdfObject, PdfPage};
-use mupdf::{Buffer, Error};
+use mupdf::{Buffer, Error, Matrix, Rect};
 
 use rendering_core::source_cleanup::pdf_math::{
-    mul_matrix, transform_rect, PdfMatrix, IDENTITY_MATRIX,
+    invert_matrix, mul_matrix, transform_rect, PdfMatrix, IDENTITY_MATRIX,
 };
 
 use crate::contents::{page_contents_bytes, replace_page_contents, resolve};
@@ -91,6 +91,99 @@ pub fn overlay_page(
     new.extend_from_slice(b"Q\n");
     new.extend_from_slice(cs.as_bytes());
     replace_page_contents(&source_page, source, &new)?;
+    Ok(())
+}
+
+/// Place `source_page_idx` of `source` onto `target_page_idx` of `target` at
+/// `rect` (fitz display coordinates), mirroring PyMuPDF
+/// `target_page.show_pdf_page(rect, source, source_page_idx, overlay=True)`.
+///
+/// Uses MuPDF's two-form mechanism (pixel-verified against fitz 1.26.5): a
+/// "fullpage" Form XObject carrying the source content + grafted resources,
+/// wrapped by a second Form XObject whose `/Matrix` is `calc_matrix`. The
+/// wrapper `/Matrix` must be written with fitz's "%.5f-strip" number format,
+/// otherwise anti-aliased edges shift by one pixel.
+pub fn show_pdf_page(
+    target: &mut PdfDocument,
+    target_page_idx: i32,
+    source: &PdfDocument,
+    source_page_idx: i32,
+    rect: [f64; 4],
+) -> Result<(), Error> {
+    let target_page = target.load_pdf_page(target_page_idx)?;
+    let source_page = source.load_pdf_page(source_page_idx)?;
+
+    // Geometry in PDF user space (undo each page's fitz transform). Mirrors
+    // PyMuPDF `Page.transformation_matrix`: for rotated pages PyMuPDF overrides
+    // the ctm with a flip-only matrix `Matrix(1,0,0,-1,0,cropbox.height)`.
+    let src_ctm = page_transformation_matrix(&source_page)?;
+    let src_bounds = rect_to_f64(source_page.bounds()?);
+    let src_rect = transform_rect(
+        &invert_matrix(&src_ctm).unwrap_or(IDENTITY_MATRIX),
+        &src_bounds,
+    );
+    let tgt_ctm = page_transformation_matrix(&target_page)?;
+    let tar_rect = transform_rect(&invert_matrix(&tgt_ctm).unwrap_or(IDENTITY_MATRIX), &rect);
+    let cm = calc_matrix(&src_rect, &tar_rect);
+
+    // fullpage form: raw source content, BBox = MediaBox, identity matrix,
+    // grafted source resources.
+    let content = page_contents_bytes(&source_page)?;
+    let media = match source_page.media_box() {
+        Ok(mb) if !mb.is_empty() => rect_to_f64(mb),
+        _ => crop_box(&source_page)?.unwrap_or([0.0, 0.0, 612.0, 792.0]),
+    };
+    let mut full = target.add_stream(&Buffer::from_bytes(&content)?, None, false)?;
+    full.dict_put("Type", target.new_name("XObject")?)?;
+    full.dict_put("Subtype", target.new_name("Form")?)?;
+    full.dict_put("BBox", rect_array5(target, &media)?)?;
+    full.dict_put("Matrix", matrix_array5(target, &IDENTITY_MATRIX)?)?;
+    let resources = match source_page.object().get_dict("Resources")? {
+        Some(r) => r,
+        None => source_page.resources()?,
+    };
+    full.dict_put("Resources", target.graft_object(&resources)?)?;
+
+    // wrapper form: ` /fullpage Do ` clipped to src_rect, mapped by calc_matrix.
+    let mut wrapper = target.add_stream(&Buffer::from_bytes(b"/fullpage Do")?, None, false)?;
+    wrapper.dict_put("Type", target.new_name("XObject")?)?;
+    wrapper.dict_put("Subtype", target.new_name("Form")?)?;
+    wrapper.dict_put("BBox", rect_array5(target, &src_rect)?)?;
+    wrapper.dict_put("Matrix", matrix_array5(target, &cm)?)?;
+    let mut inner = target.new_dict()?;
+    inner.dict_put("fullpage", full)?;
+    let mut wrapper_res = target.new_dict()?;
+    wrapper_res.dict_put("XObject", inner)?;
+    wrapper.dict_put("Resources", wrapper_res)?;
+
+    // Register the wrapper in the page /Resources/XObject.
+    let name = next_free_form_name(&target_page)?;
+    let mut resources = resolve(&target_page.resources()?)?;
+    let xobjects = match resources.get_dict("XObject")? {
+        Some(x) => resolve(&x)?,
+        None => {
+            let x = target.add_object(&target.new_dict()?)?;
+            resources.dict_put("XObject", x.clone())?;
+            x
+        }
+    };
+    if !xobjects.is_dict()? {
+        return Err(Error::InvalidArgument(
+            "page /Resources/XObject is not a dict".into(),
+        ));
+    }
+    let mut xobjects = xobjects;
+    xobjects.dict_put(name.as_str(), wrapper)?;
+
+    // Wrap existing content, then append the placement (overlay semantics).
+    let old = page_contents_bytes(&target_page)?;
+    let mut new = Vec::with_capacity(old.len() + name.len() + 16);
+    new.extend_from_slice(b"q\n");
+    new.extend_from_slice(&old);
+    new.extend_from_slice(b"\nQ\n q /");
+    new.extend_from_slice(name.as_bytes());
+    new.extend_from_slice(b" Do Q ");
+    replace_page_contents(&target_page, target, &new)?;
     Ok(())
 }
 
@@ -298,6 +391,18 @@ fn get_trim_box(page: &PdfPage) -> Result<Option<[f64; 4]>, Error> {
     Ok(None)
 }
 
+/// PyMuPDF `Page.transformation_matrix`: the page ctm, but for rotated pages
+/// (rotation not a multiple of 360) overridden with `Matrix(1,0,0,-1,0,cropbox
+/// .height)` in PDF coords. Mirrors PyMuPDF's `%pythonappend` on the property.
+fn page_transformation_matrix(page: &PdfPage) -> Result<PdfMatrix, Error> {
+    let rotation = page.rotation()?;
+    if rotation % 360 == 0 {
+        return Ok(matrix_to_pdf(&page.ctm()?));
+    }
+    let crop = crop_box(page)?.unwrap_or([0.0, 0.0, 612.0, 792.0]);
+    Ok(PdfMatrix([1.0, 0.0, 0.0, -1.0, 0.0, crop[3] - crop[1]]))
+}
+
 /// Production `_page_crop_rect`: cropbox, else mediabox.
 fn crop_box(page: &PdfPage) -> Result<Option<[f64; 4]>, Error> {
     for key in ["CropBox", "MediaBox"] {
@@ -342,4 +447,71 @@ fn page_float(page: &PdfPage, key: &str, default: f64) -> Result<f64, Error> {
         Some(obj) if obj.is_number()? => Ok(obj.as_float()? as f64),
         _ => Ok(default),
     }
+}
+
+fn matrix_to_pdf(m: &Matrix) -> PdfMatrix {
+    PdfMatrix([m.a as f64, m.b as f64, m.c as f64, m.d as f64, m.e as f64, m.f as f64])
+}
+
+fn rect_to_f64(r: Rect) -> [f64; 4] {
+    [r.x0 as f64, r.y0 as f64, r.x1 as f64, r.y1 as f64]
+}
+
+/// PyMuPDF `show_pdf_page.calc_matrix(keep=True, rotate=0)`, in f64.
+///
+/// `pdf_math::mul_matrix` composes "left applied first", the inverse of fitz's
+/// `fz_concat`, so each composition step is written right-to-left relative to
+/// the PyMuPDF reference (verified: `mul_qpdf(X, m) == probe_mul(m, X)`).
+fn calc_matrix(src: &[f64; 4], tar: &[f64; 4]) -> PdfMatrix {
+    let smp = ((src[0] + src[2]) / 2.0, (src[1] + src[3]) / 2.0);
+    let tmp = ((tar[0] + tar[2]) / 2.0, (tar[1] + tar[3]) / 2.0);
+    let mut m = PdfMatrix([1.0, 0.0, 0.0, 1.0, -smp.0, -smp.1]);
+    let sr1 = transform_rect(&m, src);
+    let fw = (tar[2] - tar[0]) / (sr1[2] - sr1[0]);
+    let fh = (tar[3] - tar[1]) / (sr1[3] - sr1[1]);
+    let f = fw.min(fh);
+    m = mul_matrix(&PdfMatrix([f, 0.0, 0.0, f, 0.0, 0.0]), &m);
+    m = mul_matrix(&PdfMatrix([1.0, 0.0, 0.0, 1.0, tmp.0, tmp.1]), &m);
+    m
+}
+
+/// fitz number writer for form matrices: "%.5f" with trailing zeros stripped.
+/// Pixel parity with PyMuPDF's output depends on this exact format.
+fn fmt_num5(x: f64) -> String {
+    let mut s = format!("{x:.5}");
+    if s.contains('.') {
+        while s.ends_with('0') {
+            s.pop();
+        }
+        if s.ends_with('.') {
+            s.pop();
+        }
+    }
+    if s.is_empty() {
+        "0".into()
+    } else {
+        s
+    }
+}
+
+fn matrix_array5(doc: &PdfDocument, m: &PdfMatrix) -> Result<PdfObject, Error> {
+    doc.new_object_from_str(&format!(
+        "[{} {} {} {} {} {}]",
+        fmt_num5(m.0[0]),
+        fmt_num5(m.0[1]),
+        fmt_num5(m.0[2]),
+        fmt_num5(m.0[3]),
+        fmt_num5(m.0[4]),
+        fmt_num5(m.0[5]),
+    ))
+}
+
+fn rect_array5(doc: &PdfDocument, rect: &[f64; 4]) -> Result<PdfObject, Error> {
+    doc.new_object_from_str(&format!(
+        "[{} {} {} {}]",
+        fmt_num5(rect[0]),
+        fmt_num5(rect[1]),
+        fmt_num5(rect[2]),
+        fmt_num5(rect[3]),
+    ))
 }

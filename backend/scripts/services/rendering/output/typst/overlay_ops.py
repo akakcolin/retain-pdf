@@ -53,7 +53,7 @@ def overlay_translated_items_on_page(
     redaction_strategy: str | None = None,
     request_chat_content_fn: TypstRepairRequestFn | None = None,
     visual_profile_path: Path | None = None,
-) -> None:
+) -> fitz.Document:
     if apply_source_overlay:
         apply_source_page_overlay(
             page,
@@ -79,7 +79,15 @@ def overlay_translated_items_on_page(
     )
     overlay_doc = fitz.open(overlay_pdf)
     try:
-        page.show_pdf_page(page.rect, overlay_doc, 0, overlay=True)
+        from services.rendering.output.typst._native import show_pdf_page_on_doc
+
+        return show_pdf_page_on_doc(
+            page.parent,
+            overlay_doc,
+            page.number,
+            0,
+            page.rect,
+        )
     finally:
         overlay_doc.close()
 

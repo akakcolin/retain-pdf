@@ -1,5 +1,5 @@
-//! `metadata.py::copy_toc` — flatten the source outline tree, remap/filter
-//! pages (start_page=0, end_page=None), normalize levels, and re-write the
+//! `metadata.py::copy_toc` / `copy_toc_for_page_map` — flatten the source
+//! outline tree, remap/filter pages, normalize levels, and re-write the
 //! outlines via `PdfDocument::set_outlines`.
 //!
 //! fitz `get_toc()` returns 1-based page numbers and a flat depth-first list;
@@ -7,7 +7,11 @@
 //! The flatten+remap reproduces the same filtered entries, then the flat list
 //! is re-nested by level for `set_outlines`. Destination kind is documented
 //! as `/Fit` (fitz writes `/XYZ null null null`); the outline count/titles are
-//! what the corpus asserts.
+//! what the corpus asserts. `copy_toc` supports the `start_page`/`end_page`
+//! range variant (`end_page < 0` = unbounded); `copy_toc_for_page_map` maps
+//! source page indices through a `RenderPageMap` (target page = output slot + 1).
+
+use std::collections::HashMap;
 
 use mupdf::pdf::PdfDocument;
 use mupdf::document::Location;
@@ -103,14 +107,30 @@ fn build_outline_tree(entries: &[TocEntry]) -> Vec<Outline> {
     roots.iter().map(|&r| convert(&nodes, r)).collect()
 }
 
-/// `copy_toc(source_doc, target_doc)` with `start_page=0`, `end_page=None`.
-pub fn copy_toc(source: &Document, target: &mut PdfDocument) -> Result<usize, Error> {
+/// `copy_toc(source_doc, target_doc)` with a `start_page`/`end_page` range.
+/// `end_page < 0` is unbounded (Python `end_page=None`); the default call is
+/// `copy_toc(source, target, 0, -1)`.
+pub fn copy_toc(
+    source: &Document,
+    target: &mut PdfDocument,
+    start_page: i32,
+    end_page: i32,
+) -> Result<usize, Error> {
     let outlines = source.outlines()?;
     if outlines.is_empty() {
         return Ok(0);
     }
     let last_source_page = source.page_count()? - 1;
     let target_page_count = target.page_count()?;
+    let first = start_page.max(0);
+    let last = if end_page < 0 {
+        last_source_page
+    } else {
+        end_page.min(last_source_page)
+    };
+    if first > last {
+        return Ok(0);
+    }
 
     let mut flat: Vec<TocEntry> = Vec::new();
     for root in &outlines {
@@ -120,17 +140,71 @@ pub fn copy_toc(source: &Document, target: &mut PdfDocument) -> Result<usize, Er
     let mut remapped: Vec<TocEntry> = Vec::new();
     for entry in flat {
         let source_page = entry.page as i32;
-        if !(0 <= source_page && source_page <= last_source_page) {
+        if !(first <= source_page && source_page <= last) {
             continue;
         }
-        let target_page = source_page + 1;
+        let target_page = source_page - first + 1;
         if !(1 <= target_page && target_page <= target_page_count) {
             continue;
         }
         remapped.push(TocEntry {
             level: entry.level,
             title: entry.title,
-            page: source_page as u32,
+            page: (source_page - first) as u32,
+        });
+    }
+
+    let remapped = normalize_toc_levels(remapped);
+    if remapped.is_empty() {
+        return Ok(0);
+    }
+    let tree = build_outline_tree(&remapped);
+    target.set_outlines(&tree)?;
+    Ok(remapped.len())
+}
+
+/// `copy_toc_for_page_map(source_doc, target_doc, page_map)` — target page =
+/// output slot + 1 over `source_page_indices` (fitz `set_toc` 1-based).
+pub fn copy_toc_for_page_map(
+    source: &Document,
+    target: &mut PdfDocument,
+    source_page_indices: &[u32],
+) -> Result<usize, Error> {
+    let outlines = source.outlines()?;
+    if outlines.is_empty() {
+        return Ok(0);
+    }
+    let source_page_count = source.page_count()?;
+    let mut target_pages_by_source: HashMap<u32, u32> = HashMap::new();
+    for (output_idx, source_idx) in source_page_indices.iter().enumerate() {
+        let source_page = *source_idx as i32;
+        if 0 <= source_page && source_page < source_page_count {
+            target_pages_by_source.insert(*source_idx, (output_idx as u32) + 1);
+        }
+    }
+    if target_pages_by_source.is_empty() {
+        return Ok(0);
+    }
+    let target_page_count = target.page_count()?;
+
+    let mut flat: Vec<TocEntry> = Vec::new();
+    for root in &outlines {
+        flatten_outline(root, 1, &mut flat);
+    }
+
+    let mut remapped: Vec<TocEntry> = Vec::new();
+    for entry in flat {
+        let target_page = match target_pages_by_source.get(&entry.page) {
+            Some(&t) => t,
+            None => continue,
+        };
+        if !(1 <= target_page && (target_page as i32) <= target_page_count) {
+            continue;
+        }
+        remapped.push(TocEntry {
+            level: entry.level,
+            title: entry.title,
+            page: target_page - 1,
         });
     }
 

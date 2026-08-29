@@ -15,6 +15,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import fitz
+
 from foundation.config import fonts
 from services.rendering import _routing
 from services.rendering.layout.model.models import RenderBlock
@@ -22,9 +24,11 @@ from services.rendering.output.typst.emitter import build_typst_source_from_page
 from services.rendering.output.typst.source_builder import build_typst_book_overlay_source
 
 try:
+    from rendering_bridge import build_dual_doc_pages as _native_build_dual_doc_pages
     from rendering_bridge import clean_background as _native_clean_background
     from rendering_bridge import emit_typst_source as _native_emit_typst_source
     from rendering_bridge import emit_typst_book_overlay_source as _native_emit_typst_book_overlay_source
+    from rendering_bridge import show_pdf_page as _native_show_pdf_page
 
     NATIVE = True
 except ImportError:  # pragma: no cover - native build not present
@@ -433,3 +437,64 @@ def apply_adaptive_overlay_colors_batch(
             precomputed_colors_by_item_id=precomputed_colors_by_item_id,
         )
     return results
+
+
+def show_pdf_page_on_doc(
+    target_doc: fitz.Document,
+    source_doc: fitz.Document,
+    target_page_idx: int,
+    source_page_idx: int,
+    rect,
+) -> fitz.Document:
+    """`page.show_pdf_page(rect, source_doc, source_page_idx, overlay=True)` on
+    `target_doc[target_page_idx]`, routed to the native bridge (which returns a
+    fresh document) when built; otherwise the in-place fitz reference returns the
+    same `target_doc`."""
+    if _routing.routed("typst", "show_pdf_page", NATIVE):
+        result = _native_show_pdf_page(
+            target_doc.tobytes(),
+            source_doc.tobytes(),
+            int(target_page_idx),
+            int(source_page_idx),
+            tuple(float(v) for v in rect),
+        )
+        _routing.record_native_hit("typst", "show_pdf_page")
+        return fitz.open(stream=result, filetype="pdf")
+    target_doc[target_page_idx].show_pdf_page(
+        fitz.Rect(*rect), source_doc, source_page_idx, overlay=True
+    )
+    return target_doc
+
+
+def build_dual_doc_pages(
+    source_doc: fitz.Document,
+    translated_doc: fitz.Document,
+    dual_doc: fitz.Document,
+    *,
+    start_page: int = 0,
+    end_page: int = -1,
+) -> fitz.Document:
+    """`book_support.build_dual_doc_pages`, routed to the native bridge (returns
+    a fresh document) when built; otherwise the pure-Python reference mutates
+    `dual_doc` and returns it."""
+    if _routing.routed("typst", "build_dual_doc_pages", NATIVE):
+        result = _native_build_dual_doc_pages(
+            source_doc.tobytes(),
+            translated_doc.tobytes(),
+            int(start_page),
+            int(end_page),
+        )
+        _routing.record_native_hit("typst", "build_dual_doc_pages")
+        return fitz.open(stream=result, filetype="pdf")
+    from services.rendering.output.typst.book_support import (
+        _build_dual_doc_pages_python,
+    )
+
+    _build_dual_doc_pages_python(
+        source_doc,
+        translated_doc,
+        dual_doc,
+        start_page=start_page,
+        end_page=end_page,
+    )
+    return dual_doc

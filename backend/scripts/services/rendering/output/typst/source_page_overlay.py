@@ -81,6 +81,8 @@ def overlay_pages_from_single_pdf(
             )
             for page_idx in ordered_page_indices
         }
+    from services.rendering.output.typst._native import show_pdf_page_on_doc
+
     return _overlay_pages_from_single_pdf(
         doc,
         ordered_page_indices,
@@ -96,6 +98,8 @@ def overlay_pages_from_single_pdf(
         source_base_pdf_path=source_base_pdf_path,
         pikepdf_output_pdf_path=pikepdf_output_pdf_path,
         visual_profile_path=visual_profile_path,
+        doc_slot=doc_slot,
+        compositor=show_pdf_page_on_doc,
     )
 
 

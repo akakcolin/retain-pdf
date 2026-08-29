@@ -37,7 +37,10 @@ def _build_clean_background_pdf_python(
     output_doc = fitz.open(working_pdf_path)
     specs_by_page = {spec.page_index: spec for spec in page_specs or []}
     try:
-        copy_toc(source_doc, output_doc)
+        replaced = copy_toc(source_doc, output_doc)
+        if replaced is not output_doc:
+            output_doc.close()
+            output_doc = replaced
         ordered_page_indices = sorted(translated_pages)
         total_pages = len(ordered_page_indices)
         for completed, page_index in enumerate(ordered_page_indices, start=1):

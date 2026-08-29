@@ -276,6 +276,116 @@ fn overlay_page(
     save_to_bytes(&source, &dir)
 }
 
+/// Place page `source_page` of `source_pdf_bytes` onto page `target_page` of
+/// `target_pdf_bytes` at `rect` (fitz display coords), returning the new target
+/// bytes (port of PyMuPDF `Page.show_pdf_page(rect, src, pno, overlay=True)`).
+#[pyfunction]
+fn show_pdf_page(
+    target_pdf_bytes: &[u8],
+    source_pdf_bytes: &[u8],
+    target_page: i32,
+    source_page: i32,
+    rect: (f64, f64, f64, f64),
+) -> PyResult<Vec<u8>> {
+    let dir = temp_dir()?;
+    let target_path = dir.join("target.pdf");
+    let source_path = dir.join("source.pdf");
+    std::fs::write(&target_path, target_pdf_bytes)
+        .map_err(|e| PyRuntimeError::new_err(format!("write target: {e}")))?;
+    std::fs::write(&source_path, source_pdf_bytes)
+        .map_err(|e| PyRuntimeError::new_err(format!("write source: {e}")))?;
+    let mut target = PdfDocument::open(target_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open target: {e}")))?;
+    let source = PdfDocument::open(source_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open source: {e}")))?;
+    rendering_writer::overlay::show_pdf_page(
+        &mut target,
+        target_page,
+        &source,
+        source_page,
+        [rect.0, rect.1, rect.2, rect.3],
+    )
+    .map_err(|e| PyRuntimeError::new_err(format!("show_pdf_page: {e}")))?;
+    save_to_bytes(&target, &dir)
+}
+
+/// Build the dual-book doc: each page = source page (left) + translated page
+/// (right), mirroring `book_support.build_dual_doc_pages`. Returns the new doc
+/// bytes.
+#[pyfunction]
+fn build_dual_doc_pages(
+    source_pdf_bytes: &[u8],
+    translated_pdf_bytes: &[u8],
+    start_page: i32,
+    end_page: i32,
+) -> PyResult<Vec<u8>> {
+    let dir = temp_dir()?;
+    let src_path = dir.join("dual-src.pdf");
+    let trl_path = dir.join("dual-trl.pdf");
+    std::fs::write(&src_path, source_pdf_bytes)
+        .map_err(|e| PyRuntimeError::new_err(format!("write src: {e}")))?;
+    std::fs::write(&trl_path, translated_pdf_bytes)
+        .map_err(|e| PyRuntimeError::new_err(format!("write trl: {e}")))?;
+    let source = PdfDocument::open(src_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open src: {e}")))?;
+    let translated = PdfDocument::open(trl_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open trl: {e}")))?;
+    let mut dual = PdfDocument::new();
+    let last_page = source
+        .page_count()
+        .map_err(|e| PyRuntimeError::new_err(format!("source page_count: {e}")))?
+        - 1;
+    let start = start_page.max(0);
+    let end = if end_page < 0 {
+        last_page
+    } else {
+        end_page.min(last_page)
+    };
+    for page_idx in start..=end {
+        let src_page = source.load_pdf_page(page_idx).map_err(|e| {
+            PyRuntimeError::new_err(format!("load src page {page_idx}: {e}"))
+        })?;
+        let trl_page = translated.load_pdf_page(page_idx).map_err(|e| {
+            PyRuntimeError::new_err(format!("load trl page {page_idx}: {e}"))
+        })?;
+        let src_bounds = src_page.bounds().map_err(|e| {
+            PyRuntimeError::new_err(format!("src page {page_idx} bounds: {e}"))
+        })?;
+        let trl_bounds = trl_page.bounds().map_err(|e| {
+            PyRuntimeError::new_err(format!("trl page {page_idx} bounds: {e}"))
+        })?;
+        let src_w = src_bounds.width();
+        let src_h = src_bounds.height();
+        let trl_w = trl_bounds.width();
+        let trl_h = trl_bounds.height();
+        let page_w = src_w + trl_w;
+        let page_h = src_h.max(trl_h);
+        dual.new_page(mupdf::Size::new(page_w, page_h))
+            .map_err(|e| PyRuntimeError::new_err(format!("new dual page: {e}")))?;
+        let page_no = dual
+            .page_count()
+            .map_err(|e| PyRuntimeError::new_err(format!("dual page_count: {e}")))?
+            - 1;
+        rendering_writer::overlay::show_pdf_page(
+            &mut dual,
+            page_no,
+            &source,
+            page_idx,
+            [0.0, 0.0, src_w as f64, src_h as f64],
+        )
+        .map_err(|e| PyRuntimeError::new_err(format!("dual left page {page_idx}: {e}")))?;
+        rendering_writer::overlay::show_pdf_page(
+            &mut dual,
+            page_no,
+            &translated,
+            page_idx,
+            [src_w as f64, 0.0, (src_w + trl_w) as f64, trl_h as f64],
+        )
+        .map_err(|e| PyRuntimeError::new_err(format!("dual right page {page_idx}: {e}")))?;
+    }
+    save_to_bytes(&dual, &dir)
+}
+
 /// Sample a background fill per rect from the pristine page and draw opaque
 /// covers (port of `background/fill.py::draw_white_covers`). `config_json`:
 /// `{"page_index": 0, "rects": [[x0, y0, x1, y1], ...], "scale": 2.0}`.
@@ -422,6 +532,68 @@ fn build_clean_background_pdf(
 #[pyfunction]
 fn subset_and_save_optimized_pdf(pdf_bytes: &[u8]) -> PyResult<Vec<u8>> {
     subset_and_clean(pdf_bytes).map_err(PyRuntimeError::new_err)
+}
+
+/// `metadata.py::copy_toc` — copy the source outline (remapped to the target
+/// page range) into the target document. Returns the target bytes plus the
+/// number of outline entries written (0 = unchanged, so the shim can skip a
+/// doc swap). `end_page < 0` is unbounded (Python `end_page=None`).
+#[pyfunction]
+fn copy_toc(
+    source_bytes: &[u8],
+    target_bytes: &[u8],
+    start_page: i32,
+    end_page: i32,
+) -> PyResult<(Vec<u8>, usize)> {
+    let dir = temp_dir()?;
+    let src_path = dir.join("toc-src.pdf");
+    let tgt_path = dir.join("toc-tgt.pdf");
+    std::fs::write(&src_path, source_bytes)
+        .map_err(|e| PyRuntimeError::new_err(format!("write source: {e}")))?;
+    std::fs::write(&tgt_path, target_bytes)
+        .map_err(|e| PyRuntimeError::new_err(format!("write target: {e}")))?;
+    let source = Document::open(src_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open source: {e}")))?;
+    let mut target = PdfDocument::open(tgt_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open target: {e}")))?;
+    let count = rendering_writer::background::toc::copy_toc(
+        &source,
+        &mut target,
+        start_page,
+        end_page,
+    )
+    .map_err(|e| PyRuntimeError::new_err(format!("copy_toc: {e}")))?;
+    let bytes = save_to_bytes(&target, &dir)?;
+    Ok((bytes, count))
+}
+
+/// `metadata.py::copy_toc_for_page_map` — copy the source outline with pages
+/// remapped through `source_page_indices` (target page = output slot + 1).
+#[pyfunction]
+fn copy_toc_for_page_map(
+    source_bytes: &[u8],
+    target_bytes: &[u8],
+    source_page_indices: Vec<u32>,
+) -> PyResult<(Vec<u8>, usize)> {
+    let dir = temp_dir()?;
+    let src_path = dir.join("tocpm-src.pdf");
+    let tgt_path = dir.join("tocpm-tgt.pdf");
+    std::fs::write(&src_path, source_bytes)
+        .map_err(|e| PyRuntimeError::new_err(format!("write source: {e}")))?;
+    std::fs::write(&tgt_path, target_bytes)
+        .map_err(|e| PyRuntimeError::new_err(format!("write target: {e}")))?;
+    let source = Document::open(src_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open source: {e}")))?;
+    let mut target = PdfDocument::open(tgt_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open target: {e}")))?;
+    let count = rendering_writer::background::toc::copy_toc_for_page_map(
+        &source,
+        &mut target,
+        &source_page_indices,
+    )
+    .map_err(|e| PyRuntimeError::new_err(format!("copy_toc_for_page_map: {e}")))?;
+    let bytes = save_to_bytes(&target, &dir)?;
+    Ok((bytes, count))
 }
 
 // --- reader entry -----------------------------------------------------------
@@ -1067,9 +1239,13 @@ fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compress_images, m)?)?;
     m.add_function(wrap_pyfunction!(extract_pages, m)?)?;
     m.add_function(wrap_pyfunction!(overlay_page, m)?)?;
+    m.add_function(wrap_pyfunction!(show_pdf_page, m)?)?;
+    m.add_function(wrap_pyfunction!(build_dual_doc_pages, m)?)?;
     m.add_function(wrap_pyfunction!(clean_background, m)?)?;
     m.add_function(wrap_pyfunction!(build_clean_background_pdf, m)?)?;
     m.add_function(wrap_pyfunction!(subset_and_save_optimized_pdf, m)?)?;
+    m.add_function(wrap_pyfunction!(copy_toc, m)?)?;
+    m.add_function(wrap_pyfunction!(copy_toc_for_page_map, m)?)?;
     m.add_function(wrap_pyfunction!(read_page_sizes, m)?)?;
     m.add_function(wrap_pyfunction!(read_page_geometry, m)?)?;
     m.add_function(wrap_pyfunction!(read_page_drawing_count, m)?)?;

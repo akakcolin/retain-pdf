@@ -41,7 +41,10 @@ def build_single_page_dev_pdf(
     )
     source_doc = fitz.open(source_pdf_path)
     temp_doc = fitz.open(temp_source_path)
-    copy_toc(source_doc, temp_doc, start_page=page_idx, end_page=page_idx)
+    replaced = copy_toc(source_doc, temp_doc, start_page=page_idx, end_page=page_idx)
+    if replaced is not temp_doc:
+        temp_doc.close()
+        temp_doc = replaced
     page = temp_doc[0]
     strip_page_links(page)
     apply_translated_items_to_page(page, translated_items, font_path)
