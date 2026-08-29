@@ -4,18 +4,14 @@ from pathlib import Path
 from typing import Callable
 
 from services.rendering.layout.payload.prepare import prepare_render_payloads_by_page
+from services.rendering.layout.payload import _native as _payload_native
 from services.rendering.layout.payload.blocks import build_render_block_payloads
 from services.rendering.layout.payload.blocks import resolve_book_body_font_target_from_payloads
-from services.rendering.layout.payload.body_pipeline import apply_body_payload_pipeline
-from services.rendering.layout.payload.annotation_font_policy import unify_annotation_fonts
-from services.rendering.layout.payload.collision import mark_adjacent_collision_risk
-from services.rendering.layout.payload.emit import emit_render_blocks
 from services.rendering.layout.model.models import RenderLayoutBlock
 from services.rendering.layout.model.models import RenderPageSpec
 from services.rendering.layout.title_fit import apply_title_fit_budget_to_render_blocks
 from services.rendering.policy import apply_render_pages_policy_fields
 from services.rendering.layout.typography_memory.learning import observe_payload_typography
-from foundation.config import layout
 
 RenderPageSpecProgressCallback = Callable[[int, int, int], None]
 PageSizeLookup = dict[int, tuple[float, float]]
@@ -66,18 +62,16 @@ def _layout_page_spec(
     background_pdf_path: Path | None,
 ) -> RenderPageSpec:
     ordered_payloads = sorted(block_payloads, key=lambda payload: (payload["inner_bbox"][1], payload["inner_bbox"][0]))
-    apply_body_payload_pipeline(
+    _payload_native.apply_body_pipeline(
         ordered_payloads,
         page_text_width_med=page_text_width_med,
         book_body_font_target=book_body_font_target,
     )
-    if layout.FONT_UNIFY_MODE != "off":
-        unify_annotation_fonts(ordered_payloads)
-    mark_adjacent_collision_risk(ordered_payloads)
+    _payload_native.mark_adjacent_collision_risk(ordered_payloads)
     observe_payload_typography(ordered_payloads)
     blocks = [
         _layout_block_from_render_block(block, page_index=page_index)
-        for block in emit_render_blocks(block_payloads)
+        for block in _payload_native.emit_render_blocks(block_payloads)
     ]
     apply_title_fit_budget_to_render_blocks(
         blocks,

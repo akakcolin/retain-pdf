@@ -16,10 +16,18 @@ Three parts:
    list as the same call with `page_size_lookup` computed by the reference.
    `RETAIN_RENDER_TYPOGRAPHY_MEMORY=0` keeps the two runs independent.
 
+4. Layout-pipeline parity (C3-N6): `build_render_page_specs`'s payload chain
+   (`build_block_payloads` / `apply_body_pipeline` / `mark_adjacent_collision_risk`
+   / `emit_render_blocks`) is routed through the native shims. Running the build
+   with the payload shims native yields byte-exact `RenderPageSpec` lists versus
+   `NATIVE=False` (the pure-Python reference), registers native hits for every
+   routed stage, and records no `layout_payload` fallbacks.
+
 Run from backend/scripts:
     /Volumes/data/Projects/retain-pdf/.venv/bin/python ../rendering_writer/differential/smoke_page_specs_bridge.py
 """
 
+import copy
 import os
 import sys
 import tempfile
@@ -111,6 +119,41 @@ def main() -> None:
             assert abs(via_shim.page_width_pt - via_lookup.page_width_pt) < 0.01
             assert abs(via_shim.page_height_pt - via_lookup.page_height_pt) < 0.01
             assert via_shim.blocks == via_lookup.blocks
+
+        # 4. Layout-pipeline parity: native vs NATIVE=False must be byte-exact,
+        # with a native hit for every routed stage and no layout_payload fallback.
+        from services.rendering import _routing
+        from services.rendering.layout.payload import _native as _payload_native
+
+        _routing.reset()
+        specs_native = build_render_page_specs(
+            source_pdf_path=src,
+            translated_pages=copy.deepcopy(translated_pages),
+        )
+        snap = _routing.snapshot()
+        assert snap["hits"].get("layout_payload", 0) >= 12, (
+            f"page_specs pipeline hit {snap['hits'].get('layout_payload', 0)} native"
+            " stages, expected >= 12 (build_block_payloads/apply_body_pipeline/"
+            "mark_adjacent_collision_risk/emit_render_blocks per page + resolve)"
+        )
+        assert "layout_payload" not in snap["fallbacks"], (
+            f"page_specs pipeline recorded layout_payload fallbacks {snap['fallbacks'].get('layout_payload')}"
+        )
+
+        was = _payload_native.NATIVE
+        _payload_native.NATIVE = False
+        try:
+            specs_ref = build_render_page_specs(
+                source_pdf_path=src,
+                translated_pages=copy.deepcopy(translated_pages),
+            )
+        finally:
+            _payload_native.NATIVE = was
+        assert len(specs_native) == len(specs_ref) == 3
+        for via_native, via_ref in zip(specs_native, specs_ref):
+            assert via_native == via_ref, (
+                f"page_specs layout pipeline diverged native vs reference on page {via_native.page_index}"
+            )
 
     print("all smoke tests pass")
 
