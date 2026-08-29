@@ -40,15 +40,19 @@ def plan_source_cleanup(
     pdf_structure_profile=None,
 ) -> BBoxTextStripCandidates:
     """Production entry, driven by `PlanningPageContext` per page. When the
-    native bridge is absent this behaves identically through the Python
-    reference context builder."""
-    return _plan_source_cleanup_from_contexts(
+    native bridge is present the whole candidates assembly runs in Rust
+    (`_native.plan_source_cleanup`); otherwise it behaves identically through
+    the Python reference context builder."""
+    from services.rendering.source_cleanup.planning import _native
+
+    return _native.plan_source_cleanup(
         source_pdf_path=source_pdf_path,
         translated_pages=translated_pages,
-        protected_pages=protected_pages or {},
+        protected_pages=protected_pages,
         skip_formula_pages=skip_formula_pages,
         skip_form_xobject_pages=skip_form_xobject_pages,
         document_analysis=document_analysis,
+        pdf_structure_profile=pdf_structure_profile,
     )
 
 
@@ -255,6 +259,21 @@ def iter_protected_item_rects_for_page(page: object, protected_items: list[dict]
 
 
 def item_ids_with_uncovered_unsafe_vector_overlap(
+    *,
+    source_pdf_path: Path,
+    translated_pages: dict[int, list[dict]],
+) -> frozenset[str]:
+    """Routed to `_native` when the bridge is present; the pure-Python
+    reference is `_item_ids_with_uncovered_unsafe_vector_overlap_python`."""
+    from services.rendering.source_cleanup.planning import _native
+
+    return _native.item_ids_with_uncovered_unsafe_vector_overlap(
+        source_pdf_path=source_pdf_path,
+        translated_pages=translated_pages,
+    )
+
+
+def _item_ids_with_uncovered_unsafe_vector_overlap_python(
     *,
     source_pdf_path: Path,
     translated_pages: dict[int, list[dict]],

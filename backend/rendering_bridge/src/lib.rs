@@ -34,8 +34,16 @@ use mupdf::pdf::PdfDocument;
 use mupdf::Document;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
+use rendering_core::rect::Matrix as CoreMatrix;
 use rendering_core::rect::Rect as CoreRect;
+use rendering_core::source_cleanup::constants::BBOX_TEXT_STRIP_CONTENT_STREAM_SIZE_THRESHOLD;
 use rendering_core::source_cleanup::hit_test::RectTuple;
+use rendering_core::source_cleanup::planning::planner::allows_pikepdf_from_json;
+use rendering_core::source_cleanup::planning::planner::item_ids_with_uncovered_unsafe_vector_overlap;
+use rendering_core::source_cleanup::planning::planner::pages_from_json;
+use rendering_core::source_cleanup::planning::planner::plan_source_cleanup;
+use rendering_core::source_cleanup::planning::PlanningPageContext;
+use rendering_core::source_cleanup::planning::PageContexts;
 use rendering_reader::PdfDocument as _;
 use rendering_writer::background::color_adapt::{
     build_text_page_for_extraction, extract_span_dicts_from_text_page, foreground_color_from_pixmap,
@@ -844,6 +852,121 @@ fn read_page_cleanup_contexts(
     serde_json::to_string(&out).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
 }
 
+/// Build the `PlanningPageContext`s the planner consumes from a loaded document,
+/// mirroring `page_context._build_page_contexts_python`: bboxlog entries with
+/// empty rects are dropped (the fitz consumers never see them), the inverse ctm
+/// is the pure `inverse_affine` of the raw page ctm, and pages whose rect or ctm
+/// cannot be read are omitted.
+fn build_planning_contexts(doc: &Document, indices: &[i64]) -> PageContexts {
+    let mut contexts: PageContexts = BTreeMap::new();
+    for &idx in indices {
+        let Ok(page_rect) = doc.page_rect(idx) else {
+            continue;
+        };
+        let Some(ctm) = doc.page_ctm(idx) else {
+            continue;
+        };
+        let inverse_ctm = CoreMatrix::new(ctm[0], ctm[1], ctm[2], ctm[3], ctm[4], ctm[5]).inverse();
+        let bboxlog_entries: Vec<(String, CoreRect)> = doc
+            .page_bboxlog(idx)
+            .iter()
+            .filter(|entry| !entry.rect.is_empty())
+            .map(|entry| (entry.kind.clone(), entry.rect))
+            .collect();
+        contexts.insert(
+            idx,
+            PlanningPageContext {
+                page_index: idx,
+                page_rect,
+                bboxlog_entries,
+                content_stream_size: doc.page_content_stream_size(
+                    idx,
+                    BBOX_TEXT_STRIP_CONTENT_STREAM_SIZE_THRESHOLD as u64,
+                ),
+                has_form_xobjects: doc.page_has_form_xobjects(idx),
+                inverse_ctm,
+            },
+        );
+    }
+    contexts
+}
+
+/// Run the ported `plan_source_cleanup` candidates assembly entirely in Rust.
+/// `translated_pages_json` / `protected_pages_json` are
+/// `{"<page_idx>": [item, ...]}`; `options_json` is
+/// `{"skip_formula_pages": bool, "skip_form_xobject_pages": bool,
+/// "allows_pikepdf_strip": {"<page_idx>": bool}}`. Returns the serialized
+/// `BBoxTextStripCandidates` (mirrors `planning/accumulator.py::build`).
+#[pyfunction]
+fn plan_source_cleanup_native(
+    pdf_bytes: &[u8],
+    translated_pages_json: &str,
+    protected_pages_json: &str,
+    options_json: &str,
+) -> PyResult<String> {
+    let translated_value: serde_json::Value = serde_json::from_str(translated_pages_json)
+        .map_err(|e| PyValueError::new_err(format!("translated_pages_json: {e}")))?;
+    let protected_value: serde_json::Value = serde_json::from_str(protected_pages_json)
+        .map_err(|e| PyValueError::new_err(format!("protected_pages_json: {e}")))?;
+    let options: serde_json::Value = serde_json::from_str(options_json)
+        .map_err(|e| PyValueError::new_err(format!("options_json: {e}")))?;
+    let translated_pages = pages_from_json(&translated_value);
+    let protected_pages = pages_from_json(&protected_value);
+    let skip_formula_pages = options
+        .get("skip_formula_pages")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    let skip_form_xobject_pages = options
+        .get("skip_form_xobject_pages")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(true);
+    let allows_pikepdf_strip = options
+        .get("allows_pikepdf_strip")
+        .and_then(allows_pikepdf_from_json);
+
+    let dir = temp_dir()?;
+    let in_path = dir.join("in.pdf");
+    std::fs::write(&in_path, pdf_bytes).map_err(|e| PyRuntimeError::new_err(format!("write: {e}")))?;
+    let doc = Document::open(in_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open: {e}")))?;
+    let indices: Vec<i64> = translated_pages.keys().copied().collect();
+    let contexts = build_planning_contexts(&doc, &indices);
+    let candidates = plan_source_cleanup(
+        &contexts,
+        &translated_pages,
+        &protected_pages,
+        skip_formula_pages,
+        skip_form_xobject_pages,
+        allows_pikepdf_strip.as_ref(),
+    );
+    serde_json::to_string(&candidates).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
+}
+
+/// Run the ported `item_ids_with_uncovered_unsafe_vector_overlap` entirely in
+/// Rust. `translated_pages_json` is `{"<page_idx>": [item, ...]}`; returns a
+/// JSON array of uncovered item ids.
+#[pyfunction]
+fn uncovered_unsafe_vector_item_ids_native(
+    pdf_bytes: &[u8],
+    translated_pages_json: &str,
+) -> PyResult<String> {
+    let translated_value: serde_json::Value = serde_json::from_str(translated_pages_json)
+        .map_err(|e| PyValueError::new_err(format!("translated_pages_json: {e}")))?;
+    let translated_pages = pages_from_json(&translated_value);
+
+    let dir = temp_dir()?;
+    let in_path = dir.join("in.pdf");
+    std::fs::write(&in_path, pdf_bytes).map_err(|e| PyRuntimeError::new_err(format!("write: {e}")))?;
+    let doc = Document::open(in_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open: {e}")))?;
+    let indices: Vec<i64> = translated_pages.keys().copied().collect();
+    let contexts = build_planning_contexts(&doc, &indices);
+    let mut item_ids = item_ids_with_uncovered_unsafe_vector_overlap(&contexts, &translated_pages);
+    let mut sorted: Vec<String> = item_ids.drain().collect();
+    sorted.sort_unstable();
+    serde_json::to_string(&sorted).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
+}
+
 /// Detect per-candidate first-line indent from each page's display list.
 /// `page_indices_json`: `[page_idx, ...]`; `candidates_json`:
 /// `{"<page_idx>": [[x0, y0, x1, y1, font_size_pt], ...]}`. Returns
@@ -1247,6 +1370,8 @@ fn rendering_bridge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(read_page_form_xobjects, m)?)?;
     m.add_function(wrap_pyfunction!(collect_vector_text_rects, m)?)?;
     m.add_function(wrap_pyfunction!(read_page_cleanup_contexts, m)?)?;
+    m.add_function(wrap_pyfunction!(plan_source_cleanup_native, m)?)?;
+    m.add_function(wrap_pyfunction!(uncovered_unsafe_vector_item_ids_native, m)?)?;
     m.add_function(wrap_pyfunction!(detect_first_line_indents, m)?)?;
     m.add_function(wrap_pyfunction!(sample_page_color_fills, m)?)?;
     m.add_function(wrap_pyfunction!(extract_page_span_dicts, m)?)?;

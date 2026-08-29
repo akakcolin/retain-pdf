@@ -100,6 +100,8 @@ ALLOWLIST: dict[tuple[str, str], str] = {
     ("analysis", "build_render_document_analysis"): "parity_reference",
     ("analysis", "classify_render_page"): "parity_reference",
     ("source_cleanup_planning", "build_page_contexts"): "parity_reference",
+    ("source_cleanup_planning", "plan_source_cleanup"): "parity_reference",
+    ("source_cleanup_planning", "item_ids_with_uncovered_unsafe_vector_overlap"): "parity_reference",
 }
 
 _GLOBAL_FLAG_ENV = "RETAIN_PDF_NATIVE"

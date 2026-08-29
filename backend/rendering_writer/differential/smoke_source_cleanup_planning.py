@@ -69,6 +69,8 @@ RECT_TOL = 1e-4
 
 _NATIVE_BRIDGES = (
     "_native_read_page_cleanup_contexts",
+    "_native_plan_source_cleanup",
+    "_native_uncovered_unsafe_vector_item_ids",
 )
 
 _FITZ_SURFACES = (

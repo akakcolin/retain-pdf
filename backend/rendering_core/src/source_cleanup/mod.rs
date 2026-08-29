@@ -9,6 +9,7 @@ pub mod content_stream;
 pub mod hit_test;
 pub mod path_removal;
 pub mod pdf_math;
+pub mod planning;
 pub mod stream_state;
 pub mod text_ops;
 pub mod text_removal;
