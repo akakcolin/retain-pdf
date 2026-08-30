@@ -154,9 +154,10 @@ mod tests {
     fn should_route_normalize_native_defaults_to_mineru_and_off_falls_back() {
         assert!(should_route_normalize_native("mineru", false));
         assert!(should_route_normalize_native("mineru_content_list_v2", false));
-        assert!(!should_route_normalize_native("paddle", false));
+        assert!(should_route_normalize_native("paddle", false));
         assert!(!should_route_normalize_native("mineru", true));
         assert!(!should_route_normalize_native("mineru_content_list_v2", true));
+        assert!(!should_route_normalize_native("paddle", true));
     }
 
     #[test]
@@ -266,12 +267,12 @@ pub(super) fn normalize_ocr_command(
     python_normalize_ocr_command(config, spec_path)
 }
 
-/// C5-N2a/C5-N2b routing decision: the mineru and mineru_content_list_v2 provider
-/// normalize workers run natively by default; other providers (paddle) stay on
-/// the python worker until their adapters land. `RETAINPDF_RENDER_ORCHESTRATOR_OFF=1`
+/// C5-N2a/C5-N2b/C5-N2c routing decision: the mineru, mineru_content_list_v2 and
+/// paddle provider normalize workers run natively by default; other providers stay
+/// on the python worker until their adapters land. `RETAINPDF_RENDER_ORCHESTRATOR_OFF=1`
 /// forces the python flow.
 fn should_route_normalize_native(provider: &str, force_off: bool) -> bool {
-    !force_off && matches!(provider, "mineru" | "mineru_content_list_v2")
+    !force_off && matches!(provider, "mineru" | "mineru_content_list_v2" | "paddle")
 }
 
 fn native_normalize_ocr_command(

@@ -5,9 +5,9 @@
 //! source PDF, rebuild paddle-style line geometry, and persist the compact
 //! document + pretty report with the production stdout labels.
 //!
-//! C5-N2a/C5-N2b support the `mineru` and `mineru_content_list_v2` provider
-//! adapters; the generic_flat_ocr / paddle adapters are separate batches and
-//! stay on the python subprocess until then.
+//! C5-N2a/C5-N2b/C5-N2c support the `mineru`, `mineru_content_list_v2` and
+//! `paddle` provider adapters; the generic_flat_ocr adapter is a separate batch
+//! and stays on the python subprocess until then.
 
 pub mod adapter_content_list_v2;
 pub mod adapter_mineru;
@@ -15,6 +15,7 @@ pub mod common;
 pub mod contract;
 pub mod defaults;
 pub mod formula_protection;
+pub mod paddle;
 pub mod paddle_rebuild;
 pub mod reporting;
 pub mod rescale;
@@ -32,6 +33,7 @@ use self::adapter_content_list_v2::{
 };
 use self::adapter_mineru::{build_mineru_document, PROVIDER_MINERU};
 use self::contract::enrich_document_contract_v1;
+use self::paddle::{build_paddle_document, looks_like_paddle_layout, PROVIDER_PADDLE};
 use self::defaults::apply_document_defaults_with_report;
 use self::paddle_rebuild::post_rescale_rebuild_paddle_text_geometry;
 use self::reporting::build_normalization_summary;
@@ -141,6 +143,11 @@ fn detect_provider_with_report(payload: &Value) -> Value {
     if mineru {
         return json!({ "matched": true, "provider": PROVIDER_MINERU, "attempts": attempts });
     }
+    let paddle = looks_like_paddle_layout(payload);
+    attempts.push(json!({ "provider": PROVIDER_PADDLE, "matched": paddle }));
+    if paddle {
+        return json!({ "matched": true, "provider": PROVIDER_PADDLE, "attempts": attempts });
+    }
     json!({ "matched": false, "provider": "", "attempts": attempts })
 }
 
@@ -157,6 +164,8 @@ fn adapt_document_with_report(
         build_mineru_document(payload, document_id, source_json, provider_version)
     } else if provider == PROVIDER_MINERU_CONTENT_LIST_V2 {
         build_content_list_v2_document(payload, document_id, source_json, provider_version)
+    } else if provider == PROVIDER_PADDLE {
+        build_paddle_document(payload, document_id, source_json, provider_version)
     } else {
         anyhow::bail!("unsupported native OCR provider adapter: {provider}");
     };

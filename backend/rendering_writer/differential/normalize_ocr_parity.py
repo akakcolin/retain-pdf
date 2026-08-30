@@ -292,6 +292,117 @@ def _build_content_list_v2_payload() -> list:
     ]
 
 
+def _paddle_block(label: str, content: str, bbox: list, **extra) -> dict:
+    return {"block_label": label, "block_content": content, "block_bbox": bbox, **extra}
+
+
+def _build_paddle_layout_payload() -> dict:
+    long_body = (
+        "The dynamics of layout parsing require rich spatial context; we formalize "
+        "the coupling between text blocks and their geometry and show how the "
+        "reading order can be recovered across the page."
+    )
+    second_body = (
+        "Our experimental study compares three downstream parsers across a corpus "
+        "of mixed academic pages and reports a consistent accuracy improvement."
+    )
+    page_two_left = (
+        "The methods section applies the recovered reading order to a fresh corpus "
+        "of biomedical preprints and measures the paragraph reconstruction score."
+    )
+    page_two_right = (
+        "Baseline methods that ignore geometry lose up to twelve percent of the "
+        "available signal on dense two-column pages."
+    )
+    return {
+        "layoutParsingResults": [
+            {
+                "inputImage": "raw/page_0.png",
+                "markdown": {
+                    "text": "Understanding Paddle Layout\n" + long_body + "\n![Figure 1](fig_1.png)\n" + second_body,
+                    "images": {"fig_1.png": "rendered/fig_1.png"},
+                },
+                "outputImages": {"1": "out_0.png"},
+                "prunedResult": {
+                    "page_count": 2,
+                    "model_settings": {"enable_body_repair": True, "det_model": "PP-DocLayout"},
+                    "layout_det_res": {
+                        "boxes": [
+                            {
+                                "label": "title",
+                                "cls_id": 1,
+                                "score": 0.98,
+                                "order": 0,
+                                "coordinate": [60, 60, 535, 100],
+                                "polygon_points": [60, 60, 535, 60, 535, 100, 60, 100],
+                            },
+                            {
+                                "label": "text",
+                                "cls_id": 2,
+                                "score": 0.9,
+                                "order": 1,
+                                "coordinate": [60, 220, 535, 260],
+                                "polygon_points": [60, 220, 535, 220, 535, 260, 60, 260],
+                            },
+                            {
+                                "label": "footer",
+                                "cls_id": 3,
+                                "score": 0.95,
+                                "order": 2,
+                                "coordinate": [60, 810, 535, 830],
+                                "polygon_points": [60, 810, 535, 810, 535, 830, 60, 830],
+                            },
+                        ]
+                    },
+                    "parsing_res_list": [
+                        _paddle_block("doc_title", "Understanding Paddle Layout", [60, 60, 535, 100], block_id="b0", block_order=0),
+                        _paddle_block("abstract", "We study layout parsing of complex documents with structured output.", [60, 120, 535, 160], block_id="b1"),
+                        _paddle_block("paragraph_title", "Introduction", [60, 180, 535, 210], block_id="b2", block_order=1),
+                        _paddle_block("text", long_body, [60, 220, 535, 260], group_id="para", block_order=2, block_id="b3"),
+                        _paddle_block("text", second_body, [60, 270, 535, 310], group_id="para", block_order=3, block_id="b4"),
+                        _paddle_block("paragraph_title", "Methods", [60, 330, 535, 360], block_id="b5", block_order=4),
+                        _paddle_block("content", "1. Introduction\n2. Methods\n3. Results\n4. Conclusion", [60, 380, 535, 420], block_id="b6"),
+                        _paddle_block("figure_title", "Figure 1: Layout parsing overview", [60, 440, 535, 470], block_id="b7"),
+                        _paddle_block("image", '<img src="fig_1.png" />', [60, 480, 300, 600], block_id="b8"),
+                        _paddle_block("table", "| col1 | col2 |\n|------|------|\n| a    | b    |", [320, 480, 535, 600], block_id="b9"),
+                        _paddle_block("footer", "Journal of Layout Parsing, 2026", [60, 810, 535, 830], block_id="b10"),
+                        _paddle_block("number", "1", [285, 800, 310, 820], block_id="b11"),
+                    ],
+                },
+            },
+            {
+                "inputImage": "raw/page_1.png",
+                "markdown": {"text": page_two_left + "\n" + page_two_right, "images": {}},
+                "outputImages": {},
+                "prunedResult": {
+                    "page_count": 2,
+                    "model_settings": {"enable_body_repair": True, "det_model": "PP-DocLayout"},
+                    "layout_det_res": {"boxes": []},
+                    "parsing_res_list": [
+                        _paddle_block("paragraph_title", "Results", [60, 60, 535, 90], block_id="c0", block_order=5),
+                        _paddle_block("text", page_two_left, [60, 110, 300, 150], group_id="para", block_order=6, block_id="c1"),
+                        _paddle_block("text", page_two_right, [320, 110, 535, 150], block_id="c2"),
+                        _paddle_block("text", "More text in the left column below the first body paragraph.", [60, 170, 300, 210], block_id="c3"),
+                        _paddle_block("text", "And additional text in the right column to balance the layout.", [320, 170, 535, 210], block_id="c4"),
+                        _paddle_block("formula_number", "(1)", [60, 230, 535, 260], block_id="c5"),
+                        _paddle_block("display_formula", r"E = mc^2 + \frac{1}{2} mv^2", [60, 260, 535, 300], block_id="c6"),
+                        _paddle_block("reference_content", "[1] Smith, J. A study of layout parsing. J. Doc. 2026.", [60, 320, 535, 360], block_id="c7"),
+                        _paddle_block("footer", "Journal of Layout Parsing, 2026", [60, 810, 535, 830], block_id="c8"),
+                        _paddle_block("number", "2", [285, 800, 310, 820], block_id="c9"),
+                    ],
+                },
+            },
+        ],
+        "dataInfo": {
+            "pages": [
+                {"width": 595.0, "height": 842.0},
+                {"width": 595.0, "height": 842.0},
+            ]
+        },
+        "preprocessedImages": ["preprocessed/page_0.png", "preprocessed/page_1.png"],
+    }
+
+
 def _build_source_pdf(path: Path) -> None:
     doc = fitz.open()
     for _ in range(2):
@@ -441,6 +552,7 @@ def _check_provider_parity(payload_builder, provider: str) -> None:
 def check_normalize_ocr_parity() -> None:
     _check_provider_parity(_build_layout_payload, "mineru")
     _check_provider_parity(_build_content_list_v2_payload, "mineru_content_list_v2")
+    _check_provider_parity(_build_paddle_layout_payload, "paddle")
 
 
 if __name__ == "__main__":
