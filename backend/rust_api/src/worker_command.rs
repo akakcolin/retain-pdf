@@ -376,15 +376,18 @@ mod tests {
             Path::new("/tmp/provider-raw"),
         );
 
-        assert!(contains(
+        // All registered providers route to the native `render_rs --normalize-ocr`.
+        assert_eq!(cmd[0], config.render_rs_bin.to_string_lossy());
+        assert!(contains(&cmd, "--normalize-ocr"));
+        assert!(contains(&cmd, "--spec"));
+        assert!(!contains(&cmd, "--provider"));
+        assert!(!contains(
             &cmd,
             &config
                 .run_normalize_ocr_script
                 .to_string_lossy()
                 .to_string()
         ));
-        assert!(contains(&cmd, "--spec"));
-        assert!(!contains(&cmd, "--provider"));
         let spec_path = arg_value(&cmd, "--spec").expect("spec path");
         assert!(spec_path.ends_with("/specs/normalize.spec.json"));
         let spec_json =

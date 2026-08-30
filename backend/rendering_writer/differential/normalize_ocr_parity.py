@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""C5-N2a native-vs-python parity gate for the normalize_ocr worker (mineru).
+"""C5-N2a..C5-N2d native-vs-python parity gate for the normalize_ocr worker
+(mineru / mineru_content_list_v2 / paddle / generic_flat_ocr).
 
 Runs the identical `normalize.stage.v1` job twice — once via
 `render_rs --normalize-ocr --spec` (native, no interpreter) and once via
 `python3 entrypoints/run_normalize_ocr.py --spec` (production reference) on the
-same raw MinerU layout payload + source PDF — then asserts the two
+same raw provider layout payload + source PDF — then asserts the two
 `document.v1.json` artifacts are semantically identical (per-page width/height,
 per-block type/sub_type/text/bbox/lines/segments, contract enrichment, and the
 post-rescale paddle-style line rebuild), plus the normalization report's
@@ -403,6 +404,61 @@ def _build_paddle_layout_payload() -> dict:
     }
 
 
+def _build_generic_flat_ocr_payload() -> dict:
+    long_body = (
+        "The dynamics of complex adaptive systems emerge from the nonlinear "
+        "interactions among many constituent agents, each responding to local "
+        "cues while collectively producing global structure."
+    )
+    page_two_body = (
+        "Our experimental study compares three downstream parsers across a corpus "
+        "of mixed academic pages and reports a consistent accuracy improvement."
+    )
+    return {
+        "provider": "generic_flat_ocr",
+        "pages": [
+            {
+                "width": 595.0,
+                "height": 842.0,
+                "unit": "pt",
+                "blocks": [
+                    {"type": "text", "sub_type": "title", "bbox": [60, 60, 535, 100], "text": "Understanding Complex Systems"},
+                    {"type": "text", "sub_type": "body", "bbox": [60, 110, 535, 130], "text": "J. Author"},
+                    {"type": "text", "sub_type": "abstract", "bbox": [60, 140, 535, 180], "text": "We study how local agent behavior produces global structure."},
+                    {"type": "text", "sub_type": "heading", "bbox": [60, 190, 535, 220], "text": "Introduction"},
+                    {
+                        "type": "text",
+                        "sub_type": "body",
+                        "bbox": [60, 230, 535, 280],
+                        "text": long_body,
+                        "lines": [{"bbox": [60, 230, 535, 250], "spans": [{"type": "text", "raw_type": "text", "text": long_body[:40], "bbox": [60, 230, 300, 250], "score": 0.9}]}],
+                        "segments": [{"type": "text", "raw_type": "text", "text": long_body, "bbox": [60, 230, 535, 250]}],
+                        "tags": ["body"],
+                        "derived": {"role": "body", "by": "fixture", "confidence": 0.9},
+                        "continuation_hint": {"source": "provider", "group_id": "g1", "role": "head", "scope": "cross_page", "reading_order": 4, "confidence": 0.8},
+                        "metadata": {"source_line": 5},
+                    },
+                    {"type": "image", "sub_type": "", "bbox": [60, 300, 300, 420], "text": ""},
+                    {"type": "text", "sub_type": "reference_entry", "bbox": [60, 620, 535, 660], "text": "[1] Smith, J. A study of complex systems. J. Doc. 2026."},
+                    {"type": "text", "sub_type": "footnote", "bbox": [60, 700, 535, 720], "text": "Footnote text."},
+                    {"type": "text", "sub_type": "footer", "bbox": [60, 810, 535, 830], "text": "Journal of Complex Systems, 2026"},
+                ],
+            },
+            {
+                "width": 595.0,
+                "height": 842.0,
+                "unit": "pt",
+                "blocks": [
+                    {"type": "text", "sub_type": "header", "bbox": [60, 40, 535, 60], "text": "Adaptive Systems"},
+                    {"type": "text", "sub_type": "heading", "bbox": [60, 60, 535, 90], "text": "Methods"},
+                    {"type": "text", "sub_type": "body", "bbox": [60, 100, 535, 160], "text": page_two_body},
+                    {"type": "text", "sub_type": "page_number", "bbox": [285, 800, 310, 820], "text": "2"},
+                ],
+            },
+        ],
+    }
+
+
 def _build_source_pdf(path: Path) -> None:
     doc = fitz.open()
     for _ in range(2):
@@ -553,6 +609,7 @@ def check_normalize_ocr_parity() -> None:
     _check_provider_parity(_build_layout_payload, "mineru")
     _check_provider_parity(_build_content_list_v2_payload, "mineru_content_list_v2")
     _check_provider_parity(_build_paddle_layout_payload, "paddle")
+    _check_provider_parity(_build_generic_flat_ocr_payload, "generic_flat_ocr")
 
 
 if __name__ == "__main__":

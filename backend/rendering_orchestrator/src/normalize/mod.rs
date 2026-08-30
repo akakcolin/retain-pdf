@@ -5,9 +5,8 @@
 //! source PDF, rebuild paddle-style line geometry, and persist the compact
 //! document + pretty report with the production stdout labels.
 //!
-//! C5-N2a/C5-N2b/C5-N2c support the `mineru`, `mineru_content_list_v2` and
-//! `paddle` provider adapters; the generic_flat_ocr adapter is a separate batch
-//! and stays on the python subprocess until then.
+//! C5-N2a/C5-N2b/C5-N2c/C5-N2d support the `mineru`, `mineru_content_list_v2`,
+//! `paddle` and `generic_flat_ocr` provider adapters natively.
 
 pub mod adapter_content_list_v2;
 pub mod adapter_mineru;
@@ -15,6 +14,7 @@ pub mod common;
 pub mod contract;
 pub mod defaults;
 pub mod formula_protection;
+pub mod generic_flat_ocr;
 pub mod paddle;
 pub mod paddle_rebuild;
 pub mod reporting;
@@ -33,6 +33,9 @@ use self::adapter_content_list_v2::{
 };
 use self::adapter_mineru::{build_mineru_document, PROVIDER_MINERU};
 use self::contract::enrich_document_contract_v1;
+use self::generic_flat_ocr::{
+    build_generic_flat_ocr_document, looks_like_generic_flat_ocr, PROVIDER_GENERIC_FLAT_OCR,
+};
 use self::paddle::{build_paddle_document, looks_like_paddle_layout, PROVIDER_PADDLE};
 use self::defaults::apply_document_defaults_with_report;
 use self::paddle_rebuild::post_rescale_rebuild_paddle_text_geometry;
@@ -81,13 +84,6 @@ fn save_json_pretty(path: &Path, payload: &Value) -> Result<()> {
     std::fs::write(path, text).with_context(|| format!("write json: {}", path.display()))
 }
 
-/// `looks_like_generic_flat_ocr` — payload.provider == "generic_flat_ocr" + pages list.
-fn looks_like_generic_flat_ocr(payload: &Value) -> bool {
-    payload.is_object()
-        && payload.get("provider").and_then(Value::as_str) == Some("generic_flat_ocr")
-        && payload.get("pages").map_or(false, Value::is_array)
-}
-
 /// `looks_like_mineru_content_list_v2` — a list-of-lists-of-blocks payload.
 fn looks_like_mineru_content_list_v2(payload: &Value) -> bool {
     let Some(pages) = payload.as_array() else {
@@ -129,9 +125,9 @@ fn looks_like_mineru_layout(payload: &Value) -> bool {
 fn detect_provider_with_report(payload: &Value) -> Value {
     let mut attempts: Vec<Value> = Vec::new();
     let gf = looks_like_generic_flat_ocr(payload);
-    attempts.push(json!({ "provider": "generic_flat_ocr", "matched": gf }));
+    attempts.push(json!({ "provider": PROVIDER_GENERIC_FLAT_OCR, "matched": gf }));
     if gf {
-        return json!({ "matched": true, "provider": "generic_flat_ocr", "attempts": attempts });
+        return json!({ "matched": true, "provider": PROVIDER_GENERIC_FLAT_OCR, "attempts": attempts });
     }
     let mcl2 = looks_like_mineru_content_list_v2(payload);
     attempts.push(json!({ "provider": "mineru_content_list_v2", "matched": mcl2 }));
@@ -166,6 +162,8 @@ fn adapt_document_with_report(
         build_content_list_v2_document(payload, document_id, source_json, provider_version)
     } else if provider == PROVIDER_PADDLE {
         build_paddle_document(payload, document_id, source_json, provider_version)
+    } else if provider == PROVIDER_GENERIC_FLAT_OCR {
+        build_generic_flat_ocr_document(payload, document_id, source_json, provider_version)
     } else {
         anyhow::bail!("unsupported native OCR provider adapter: {provider}");
     };

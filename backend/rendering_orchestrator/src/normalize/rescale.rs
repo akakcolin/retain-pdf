@@ -118,23 +118,26 @@ pub fn rescale_document_geometry_to_pdf(document: &mut Value, source_pdf_path: &
                 }
             }
             if let Some(metadata) = block.get_mut("metadata").and_then(Value::as_object_mut) {
-                // Python inserts these unconditionally (scaled from `[]` when absent).
-                let raw_polygon = metadata
-                    .get("raw_polygon")
-                    .cloned()
-                    .unwrap_or_else(|| Value::Array(vec![]));
-                metadata.insert(
-                    "raw_polygon".to_string(),
-                    scale_point_list(&raw_polygon, scale_x, scale_y),
-                );
-                let layout_det_polygon = metadata
-                    .get("layout_det_polygon")
-                    .cloned()
-                    .unwrap_or_else(|| Value::Array(vec![]));
-                metadata.insert(
-                    "layout_det_polygon".to_string(),
-                    scale_point_list(&layout_det_polygon, scale_x, scale_y),
-                );
+                // Python `if metadata:` is truthy-gated — an empty dict (defaulted
+                // onto blocks that lack one) skips the polygon insert entirely.
+                if !metadata.is_empty() {
+                    let raw_polygon = metadata
+                        .get("raw_polygon")
+                        .cloned()
+                        .unwrap_or_else(|| Value::Array(vec![]));
+                    metadata.insert(
+                        "raw_polygon".to_string(),
+                        scale_point_list(&raw_polygon, scale_x, scale_y),
+                    );
+                    let layout_det_polygon = metadata
+                        .get("layout_det_polygon")
+                        .cloned()
+                        .unwrap_or_else(|| Value::Array(vec![]));
+                    metadata.insert(
+                        "layout_det_polygon".to_string(),
+                        scale_point_list(&layout_det_polygon, scale_x, scale_y),
+                    );
+                }
             }
         }
     }
