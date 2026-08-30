@@ -119,6 +119,7 @@ writer 原语语义等价性（B-F/B-G）：现有 `overlay_page` 是 pikepdf �
 |---|---|---|
 | C5-N1 | `run_extract_text_layer.py`（skip-OCR 文本层提取）→ `render_rs --extract-text-layer --spec` | reader `page_rect`/`page_text_blocks` → `generic_flat_ocr`；`extract_text_layer_command` 默认路由 native，`RETAINPDF_RENDER_ORCHESTRATOR_OFF=1` 回退；`[render_rs,--extract-text-layer,...]` 落 `WorkerContract::Unknown`（同 python 路径，无新契约臂）；差分 `extract_text_layer_parity.py`（完成，2aba4919） |
 | C5-N2a | `run_normalize_ocr.py`（mineru 默认 provider）→ `render_rs --normalize-ocr --spec` | `normalize/` 11 模块移植 `normalize_pipeline.py::main`（adapter_mineru → defaults → contract → validate → rescale → paddle_rebuild → refresh → save）；`normalize_ocr_command` 增 provider 参数，mineru 默认路由 native、`RETAINPDF_RENDER_ORCHESTRATOR_OFF=1` 回退，mineru_content_list_v2/paddle 留 python（C5-N2b/c）；差分 `normalize_ocr_parity.py`（完成，091f1cff） |
+| C5-N2b | `run_normalize_ocr.py` 的 mineru_content_list_v2 provider → `render_rs --normalize-ocr --spec` 双 provider | `normalize/adapter_content_list_v2.rs` 移植 `mineru_content_list_v2_adapter.py` + `provider_adapters/common` 共享 builder（block/page/document/normalize），text_flow 复用 `rendering_core::text_flow`（C3-N5）；`should_route_normalize_native` 扩 `matches!(mineru\|mineru_content_list_v2)`，paddle 留 python（C5-N2c）；`normalize_ocr_parity.py` 重构 provider 参数化，同一 harness 双 provider 全绿（完成，9c4dcb46） |
 | C5-N2.. | 其余非 AI worker（normalize 其余 provider / 外部 provider 桥除外）按依赖序逐个接管 | 每个 batch 对齐：spec serde 镜像 + 子命令 dispatch + rust_api 默认路由 + 差分 smoke + CI |
 
 ### 终态判据（阶段 C 续）
