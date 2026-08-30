@@ -12,6 +12,7 @@
 //! full render with the flag set early would feed placeholder keys into the
 //! stages and is NOT supported.
 
+pub mod analysis;
 pub mod assemble;
 
 use std::path::PathBuf;
@@ -38,16 +39,16 @@ pub fn native_enabled() -> bool {
     }
 }
 
-/// Mirrors `build_bundle`'s 15-key assembly. N11a: mode/font/output/work_dir/
-/// start/end/page_map/fill_map/overlay-specs are real; source_pdf,
-/// precleaned_page_indices, translated_pages and page_specs are placeholders
-/// until N11c/N11d/N11f respectively.
+/// Mirrors `build_bundle`'s 15-key assembly. N11b: mode (auto resolved via
+/// whole-document analysis)/font/output/work_dir/start/end/page_map/fill_map/
+/// overlay-specs are real; source_pdf, precleaned_page_indices, translated_pages
+/// and page_specs are placeholders until N11c/N11d/N11f respectively.
 pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
-    let mode = spec.params.render_mode_str();
-    if !matches!(mode.as_str(), "typst" | "typst_visual") {
+    let mut mode = spec.params.render_mode_str();
+    if !matches!(mode.as_str(), "typst" | "typst_visual" | "auto") {
         bail!(
-            "native build_bundle supports typst/typst_visual only, got {mode:?} \
-             (overlay/dual land in N11e, auto resolution in N11b)"
+            "native build_bundle supports typst/typst_visual/auto only, got {mode:?} \
+             (overlay/dual land in N11e)"
         );
     }
 
@@ -69,6 +70,30 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
     } else {
         spec.params.end_page() as i32
     };
+
+    // N11b: whole-document analysis (page_snapshot -> profile -> analysis), then
+    // auto-mode resolution. The analysis also drives render-source prep from N11c.
+    let document_analysis =
+        analysis::build_render_document_analysis(&spec.inputs.source_pdf, &selected_pages)?;
+    if mode == "auto" {
+        mode = analysis::resolve_effective_render_mode(&mode, !selected_pages.is_empty(), Some(&document_analysis));
+        if !matches!(mode.as_str(), "typst" | "typst_visual") {
+            bail!(
+                "auto resolution produced {mode:?}, which native build_bundle does not \
+                 support yet (overlay/dual land in N11e)"
+            );
+        }
+    }
+
+    // N11c consumes protected pages for render-source prep (load eagerly so a
+    // wrong-schema normalized document errors here exactly like the delegate).
+    let _protected_pages = crate::protected_pages::protected_pages_from_document_path(
+        spec.inputs
+            .translations_dir
+            .parent()
+            .map(|parent| parent.join("ocr").join("normalized").join("document.v1.json"))
+            .as_deref(),
+    )?;
 
     let work_dir = background_work_dir(&output_pdf);
     prepare_work_dir(&work_dir)?;
