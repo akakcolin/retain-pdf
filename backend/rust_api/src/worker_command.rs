@@ -362,7 +362,7 @@ mod tests {
         let config = test_config();
         let mut request = build_request(WorkflowKind::Ocr);
         request.job_id = "job-command-test".to_string();
-        request.ocr.provider = "mineru".to_string();
+        request.ocr.provider = "paddle".to_string();
         request.ocr.model_version = "v1".to_string();
         let job_paths = build_paths(config.as_ref());
         let cmd = normalize_command(
@@ -393,8 +393,39 @@ mod tests {
         assert_eq!(payload["schema_version"], "normalize.stage.v1");
         assert_eq!(payload["stage"], "normalize");
         assert_eq!(payload["job"]["job_id"], "job-command-test");
-        assert_eq!(payload["inputs"]["provider"], "mineru");
+        assert_eq!(payload["inputs"]["provider"], "paddle");
         assert_eq!(payload["inputs"]["source_json"], "/tmp/layout.json");
+    }
+
+    #[test]
+    fn normalize_mineru_command_routes_to_native_render_rs() {
+        let config = test_config();
+        let mut request = build_request(WorkflowKind::Ocr);
+        request.job_id = "job-command-test".to_string();
+        request.ocr.provider = "mineru".to_string();
+        request.ocr.model_version = "v1".to_string();
+        let job_paths = build_paths(config.as_ref());
+        let cmd = normalize_command(
+            config.as_ref(),
+            &request,
+            &job_paths,
+            Path::new("/tmp/layout.json"),
+            Path::new("/tmp/source.pdf"),
+            Path::new("/tmp/provider-result.json"),
+            Path::new("/tmp/provider.zip"),
+            Path::new("/tmp/provider-raw"),
+        );
+
+        assert_eq!(cmd[0], config.render_rs_bin.to_string_lossy());
+        assert!(contains(&cmd, "--normalize-ocr"));
+        assert!(contains(&cmd, "--spec"));
+        assert!(!contains(
+            &cmd,
+            &config
+                .run_normalize_ocr_script
+                .to_string_lossy()
+                .to_string()
+        ));
     }
 
     #[test]

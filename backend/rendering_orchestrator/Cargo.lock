@@ -1124,7 +1124,9 @@ name = "rendering_orchestrator"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "blake2",
  "mupdf",
+ "regex",
  "rendering_core",
  "rendering_output",
  "rendering_reader",

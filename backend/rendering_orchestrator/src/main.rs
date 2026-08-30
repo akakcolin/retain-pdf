@@ -2,16 +2,19 @@
 //! render flow mirroring `render_only.py` (prints the `output pdf`/`source
 //! pdf`/`translations dir` labels, non-zero exit on error); `--extract-text-layer`
 //! runs the skip-OCR text-layer extraction mirroring `run_extract_text_layer.py`;
-//! `--dump-bundle` is a hidden C3-N11 differential hook.
+//! `--normalize-ocr` runs the OCR payload normalization mirroring
+//! `run_normalize_ocr.py` (C5-N2, mineru provider); `--dump-bundle` is a hidden
+//! C3-N11 differential hook.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use rendering_orchestrator::run;
 
-fn parse_args() -> Result<(PathBuf, bool, Option<PathBuf>), String> {
+fn parse_args() -> Result<(PathBuf, bool, bool, Option<PathBuf>), String> {
     let mut spec: Option<PathBuf> = None;
     let mut extract_text_layer = false;
+    let mut normalize_ocr = false;
     let mut dump_bundle: Option<PathBuf> = None;
     let mut iter = std::env::args().skip(1);
     while let Some(arg) = iter.next() {
@@ -23,6 +26,10 @@ fn parse_args() -> Result<(PathBuf, bool, Option<PathBuf>), String> {
             "--extract-text-layer" => {
                 extract_text_layer = true;
             }
+            // C5-N2: native normalize_ocr worker (mineru provider).
+            "--normalize-ocr" => {
+                normalize_ocr = true;
+            }
             // Hidden C3-N11 differential hook: build the native bundle and exit
             // without running the stages (the orchestrator_bundle_parity smoke
             // and the corpus producer consume this).
@@ -32,7 +39,7 @@ fn parse_args() -> Result<(PathBuf, bool, Option<PathBuf>), String> {
             }
             "--help" | "-h" => {
                 println!(
-                    "usage: render_rs --spec <stage-spec.json> [--dump-bundle <path>] [--extract-text-layer]"
+                    "usage: render_rs --spec <stage-spec.json> [--dump-bundle <path>] [--extract-text-layer] [--normalize-ocr]"
                 );
                 std::process::exit(0);
             }
@@ -40,7 +47,7 @@ fn parse_args() -> Result<(PathBuf, bool, Option<PathBuf>), String> {
         }
     }
     let spec = spec.ok_or_else(|| "--spec <path> is required".to_string())?;
-    Ok((spec, extract_text_layer, dump_bundle))
+    Ok((spec, extract_text_layer, normalize_ocr, dump_bundle))
 }
 
 fn dump_bundle_only(spec_path: &Path, dump_path: &Path) -> anyhow::Result<()> {
@@ -60,7 +67,18 @@ fn main() -> ExitCode {
             eprintln!("render_rs: {message}");
             ExitCode::from(2)
         }
-        Ok((spec_path, extract_text_layer, dump_bundle)) => {
+        Ok((spec_path, extract_text_layer, normalize_ocr, dump_bundle)) => {
+            if normalize_ocr {
+                return match rendering_orchestrator::normalize::normalize_ocr(
+                    Path::new(&spec_path),
+                ) {
+                    Ok(_) => ExitCode::SUCCESS,
+                    Err(error) => {
+                        eprintln!("render_rs: {error:#}");
+                        ExitCode::FAILURE
+                    }
+                };
+            }
             if extract_text_layer {
                 return match rendering_orchestrator::extract_text_layer::extract_text_layer(
                     Path::new(&spec_path),

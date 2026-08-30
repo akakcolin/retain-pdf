@@ -151,6 +151,26 @@ mod tests {
     }
 
     #[test]
+    fn should_route_normalize_native_defaults_to_mineru_and_off_falls_back() {
+        assert!(should_route_normalize_native("mineru", false));
+        assert!(!should_route_normalize_native("paddle", false));
+        assert!(!should_route_normalize_native("mineru_content_list_v2", false));
+        assert!(!should_route_normalize_native("mineru", true));
+    }
+
+    #[test]
+    fn native_normalize_ocr_command_shape() {
+        let cmd = native_normalize_ocr_command(
+            &test_command_config(Path::new("/opt/bin/render_rs")),
+            Path::new("/tmp/normalize.spec.json"),
+        );
+        assert_eq!(cmd[0], "/opt/bin/render_rs");
+        assert_eq!(cmd[1], "--normalize-ocr");
+        assert_eq!(cmd[2], "--spec");
+        assert_eq!(cmd[3], "/tmp/normalize.spec.json");
+    }
+
+    #[test]
     fn script_mode_puts_script_at_index_1_for_worker_contract() {
         // WorkerContract::from_command reads the .py script path at argv
         // index 1, so Script mode must be `[python, script, --spec, ...]`
@@ -234,6 +254,38 @@ fn python_extract_text_layer_command(
 }
 
 pub(super) fn normalize_ocr_command(
+    config: &WorkerCommandRuntimeConfig<'_>,
+    spec_path: &Path,
+    provider: &str,
+) -> Vec<String> {
+    let force_off = std::env::var(RENDER_ORCHESTRATOR_FORCE_OFF_ENV).as_deref() == Ok("1");
+    if should_route_normalize_native(provider, force_off) {
+        return native_normalize_ocr_command(config, spec_path);
+    }
+    python_normalize_ocr_command(config, spec_path)
+}
+
+/// C5-N2a routing decision: the mineru-provider normalize worker runs natively
+/// by default; other providers (mineru_content_list_v2, paddle) stay on the
+/// python worker until their adapters land. `RETAINPDF_RENDER_ORCHESTRATOR_OFF=1`
+/// forces the python flow.
+fn should_route_normalize_native(provider: &str, force_off: bool) -> bool {
+    !force_off && provider == "mineru"
+}
+
+fn native_normalize_ocr_command(
+    config: &WorkerCommandRuntimeConfig<'_>,
+    spec_path: &Path,
+) -> Vec<String> {
+    vec![
+        config.render_rs_bin.to_string_lossy().into_owned(),
+        "--normalize-ocr".to_string(),
+        "--spec".to_string(),
+        spec_path.to_string_lossy().into_owned(),
+    ]
+}
+
+fn python_normalize_ocr_command(
     config: &WorkerCommandRuntimeConfig<'_>,
     spec_path: &Path,
 ) -> Vec<String> {

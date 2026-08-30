@@ -5,7 +5,9 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
+blake2 = "0.10"
 mupdf = { version = "0.8", default-features = false, features = ["base14-fonts"] }
+regex = "1"
 rendering_core = { path = "../rendering_core" }
 rendering_output = { path = "../rendering_output" }
 rendering_reader = { path = "../rendering_reader" }
