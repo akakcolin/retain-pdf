@@ -133,6 +133,24 @@ mod tests {
     }
 
     #[test]
+    fn should_route_extract_native_defaults_to_native_and_off_falls_back() {
+        assert!(should_route_extract_native(false));
+        assert!(!should_route_extract_native(true));
+    }
+
+    #[test]
+    fn python_extract_text_layer_command_shape() {
+        let cmd = python_extract_text_layer_command(
+            &test_command_config(Path::new("/opt/bin/render_rs")),
+            Path::new("/tmp/extract.spec.json"),
+        );
+        assert_eq!(cmd[0], "python");
+        assert_eq!(cmd[1], "/tmp/scripts");
+        assert_eq!(cmd[2], "--spec");
+        assert_eq!(cmd[3], "/tmp/extract.spec.json");
+    }
+
+    #[test]
     fn script_mode_puts_script_at_index_1_for_worker_contract() {
         // WorkerContract::from_command reads the .py script path at argv
         // index 1, so Script mode must be `[python, script, --spec, ...]`
@@ -175,22 +193,16 @@ pub(super) fn extract_text_layer_command(
     spec_path: &Path,
 ) -> Vec<String> {
     let force_off = std::env::var(RENDER_ORCHESTRATOR_FORCE_OFF_ENV).as_deref() == Ok("1");
-    if !force_off {
-        // C5-N1 native takeover: the skip-OCR text-layer extraction runs
-        // in-process via `render_rs --extract-text-layer --spec`; only
-        // RETAINPDF_RENDER_ORCHESTRATOR_OFF=1 falls back to the python worker.
+    if should_route_extract_native(force_off) {
         return native_extract_text_layer_command(config, spec_path);
     }
-    let mut cmd = CommandBuilder::new(
-        config.python_bin,
-        config.python_entrypoint_mode,
-        &PythonEntrypoint::new(
-            config.run_extract_text_layer_script,
-            "retainpdf-run-extract-text-layer",
-        ),
-    );
-    cmd.path_arg("--spec", spec_path);
-    cmd.finish()
+    python_extract_text_layer_command(config, spec_path)
+}
+
+/// C5-N1 routing decision: the skip-OCR text-layer extraction runs natively by
+/// default; `RETAINPDF_RENDER_ORCHESTRATOR_OFF=1` falls back to the python worker.
+fn should_route_extract_native(force_off: bool) -> bool {
+    !force_off
 }
 
 fn native_extract_text_layer_command(
@@ -203,6 +215,22 @@ fn native_extract_text_layer_command(
         "--spec".to_string(),
         spec_path.to_string_lossy().into_owned(),
     ]
+}
+
+fn python_extract_text_layer_command(
+    config: &WorkerCommandRuntimeConfig<'_>,
+    spec_path: &Path,
+) -> Vec<String> {
+    let mut cmd = CommandBuilder::new(
+        config.python_bin,
+        config.python_entrypoint_mode,
+        &PythonEntrypoint::new(
+            config.run_extract_text_layer_script,
+            "retainpdf-run-extract-text-layer",
+        ),
+    );
+    cmd.path_arg("--spec", spec_path);
+    cmd.finish()
 }
 
 pub(super) fn normalize_ocr_command(
