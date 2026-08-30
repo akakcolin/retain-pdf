@@ -80,7 +80,7 @@
 | `pdf_structure_profile/`（sampler） | `rendering_reader`（read_page_cleanup_contexts/form_xobjects/geometry/text_spans 原语 + `_native.py` 装配） | **已接线**：生产走 native，回退 Python |
 | `analysis/document`（builder） | `rendering_bridge::build_render_document_analysis`（reader 原语装配） | **已接线**：生产走 `analysis/_native.py`，回退 Python |
 | fitz 读取层 | `rendering_reader`（mupdf-rs） | **部分**：pdf_structure_profile / analysis 生产使用 reader 原语；其余仍用 fitz |
-| `visual_profile`、`workflow`、`document` | — | **未移植** |
+| `visual_profile`、`workflow`、`document` | `rendering_bridge`/`render_rs` | **已接线**：`visual_profile`（`build_document_visual_profile` 经 `visual_profile/_native.py` 路由 native，sampler 留 `parity_reference`）；`document`（TOC `copy_toc`/`copy_toc_for_page_map` 经 `document/_native.py`，save 经 `source/_native.py::save_optimized` 全 native）；`workflow`（`render_only.py` 编排由 `render_rs` 镜像，C3-N11f 后五模式默认 native，Python 留 delegate parity reference；`direct_overlay.py` 属 `non_default_write`） |
 | `policy/`（policy-fields 边界） | `rendering_core::layout::policy_fields` | **已接线（C3-N8）**：`apply_render_pages_policy_fields`/`apply_render_page_policy_fields` 生产走 bridge；其余 policy 逻辑（geometry/models/compat/cover-fallback）仍 Python |
 
 ## 生产接线现状
