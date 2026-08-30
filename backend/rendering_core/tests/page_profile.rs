@@ -7,7 +7,6 @@ use rendering_core::page::{ImageInfo, PageSnapshot, TextTrace};
 use rendering_core::profile::RenderPageKind;
 use rendering_core::profile_build::build_render_page_profile;
 use rendering_core::rect::Rect;
-use rendering_core::registry::PageProfileRegistry;
 use std::collections::HashMap;
 
 fn editable_text_snapshot() -> PageSnapshot {
@@ -54,30 +53,6 @@ fn build_render_page_profile_collects_base_dimensions() {
     assert_eq!(profile.ocr_blocks.block_count, 1);
     assert_eq!(profile.ocr_blocks.valid_bbox_count, 1);
     assert_eq!(profile.kind, RenderPageKind::ScanImage);
-}
-
-#[test]
-fn page_profile_registry_allows_additive_collectors() {
-    let page = editable_text_snapshot();
-    let registry = PageProfileRegistry::<HashMap<String, i64>, HashMap<String, i64>>::new()
-        .register("probe", |page, ctx| {
-            let mut value = HashMap::new();
-            value.insert("page".to_string(), page.number);
-            value.insert("value".to_string(), ctx["value"]);
-            value
-        });
-
-    let mut context = HashMap::new();
-    context.insert("value".to_string(), 42);
-    let collected = registry.collect(&page, &context);
-
-    let mut expected = HashMap::new();
-    expected.insert("page".to_string(), 0);
-    expected.insert("value".to_string(), 42);
-    assert_eq!(collected, vec![("probe".to_string(), expected)]);
-
-    let empty = PageProfileRegistry::<(), ()>::new();
-    assert!(empty.collect(&page, &()).is_empty());
 }
 
 #[test]

@@ -1,9 +1,7 @@
-pub mod chinese_body_fit;
 pub mod classifier;
 pub mod config;
 pub mod document_builder;
 pub mod first_line_indent;
-pub mod fit_decision;
 pub mod font_fit;
 pub mod font_roles;
 pub mod font_size_fit;
@@ -16,7 +14,6 @@ pub mod payload;
 pub mod profile;
 pub mod profile_build;
 pub mod rect;
-pub mod registry;
 pub mod route;
 pub mod semantics;
 pub mod source_cleanup;

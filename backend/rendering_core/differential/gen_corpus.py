@@ -24,14 +24,6 @@ sys.path.insert(0, _SCRIPTS_DIR)
 sys.path.insert(0, os.getcwd())
 
 # --- services imports -------------------------------------------------------
-from services.rendering.layout.chinese_body_fit import (  # noqa: E402
-    estimate_chinese_body_height_pt,
-    estimate_chinese_body_lines,
-    formula_unit_ratio,
-    solve_chinese_body_font_size_pt,
-    tokenize_chinese_body_text,
-)
-from services.rendering.layout.fit_decision.planner import plan_chinese_body_fit  # noqa: E402
 from services.rendering.layout.payload.capacity import (  # noqa: E402
     box_capacity_units,
     estimated_render_height_pt,
@@ -360,32 +352,6 @@ def gen_token(rng):
 
 
 # --- serializers -------------------------------------------------------------
-def result_to_dict(r):
-    return {
-        "font_size_pt": r.font_size_pt,
-        "estimated_height_pt": r.estimated_height_pt,
-        "line_count": r.line_count,
-        "overflow_ratio": r.overflow_ratio,
-        "formula_ratio": r.formula_ratio,
-        "confidence": r.confidence,
-        "max_safe_shrink_pt": r.max_safe_shrink_pt,
-    }
-
-
-def decision_to_dict(d):
-    return {
-        "font_size_pt": d.font_size_pt,
-        "mode": d.mode,
-        "confidence": d.confidence,
-        "reason_codes": list(d.reason_codes),
-        "estimated_height_pt": d.estimated_height_pt,
-        "overflow_ratio": d.overflow_ratio,
-        "formula_ratio": d.formula_ratio,
-        "growth_pt": d.growth_pt,
-        "shrink_pt": d.shrink_pt,
-    }
-
-
 def stats_to_dict(a):
     s = a.stats
     return {
@@ -611,109 +577,6 @@ def gen_ocr_items(rng):
 
 
 # --- handlers -----------------------------------------------------------------
-def h_chinese_formula_unit_ratio(rng, n):
-    out = []
-    for _ in range(n):
-        text, formula_map = gen_text_and_formula_map(rng)
-        out.append({"input": {"text": text, "formula_map": formula_map}, "expected": formula_unit_ratio(text, formula_map)})
-    return out
-
-
-def h_chinese_tokenize(rng, n):
-    out = []
-    for _ in range(n):
-        text, formula_map = gen_text_and_formula_map(rng)
-        tokens = tokenize_chinese_body_text(text, formula_map)
-        out.append({
-            "input": {"text": text, "formula_map": formula_map},
-            "expected": [{"text": t.text, "units": t.units, "formula": t.formula} for t in tokens],
-        })
-    return out
-
-
-def h_chinese_estimate_lines(rng, n):
-    out = []
-    for _ in range(n):
-        text, formula_map = gen_text_and_formula_map(rng)
-        width = gen_scalar_width(rng)
-        font = gen_scalar_font(rng)
-        out.append({
-            "input": {"bbox_width_pt": width, "text": text, "formula_map": formula_map, "font_size_pt": font},
-            "expected": list(estimate_chinese_body_lines(width, text, formula_map, font)),
-        })
-    return out
-
-
-def h_chinese_estimate_height(rng, n):
-    out = []
-    for _ in range(n):
-        text, formula_map = gen_text_and_formula_map(rng)
-        width = gen_scalar_width(rng)
-        font = gen_scalar_font(rng)
-        leading = gen_scalar_leading(rng)
-        out.append({
-            "input": {"bbox_width_pt": width, "text": text, "formula_map": formula_map, "font_size_pt": font, "leading_em": leading},
-            "expected": result_to_dict(estimate_chinese_body_height_pt(width, text, formula_map, font, leading)),
-        })
-    return out
-
-
-def h_chinese_solve(rng, n):
-    out = []
-    for _ in range(n):
-        text, formula_map = gen_text_and_formula_map(rng)
-        width = gen_scalar_width(rng)
-        height = gen_scalar_height(rng)
-        leading = gen_scalar_leading(rng)
-        low = round(rng.uniform(7.0, 9.0), 2)
-        high = round(rng.uniform(low, 14.0), 2)
-        out.append({
-            "input": {
-                "bbox_width_pt": width,
-                "bbox_height_pt": height,
-                "text": text,
-                "formula_map": formula_map,
-                "leading_em": leading,
-                "min_font_size_pt": low,
-                "max_font_size_pt": high,
-            },
-            "expected": result_to_dict(
-                solve_chinese_body_font_size_pt(
-                    width, height, text, formula_map, leading_em=leading, min_font_size_pt=low, max_font_size_pt=high
-                )
-            ),
-        })
-    return out
-
-
-def h_fit_decision(rng, n):
-    out = []
-    for _ in range(n):
-        text, formula_map = gen_text_and_formula_map(rng)
-        w = gen_scalar_width(rng)
-        h = gen_scalar_height(rng)
-        fs = gen_scalar_font(rng)
-        le = gen_scalar_leading(rng)
-        growth = rng.choice([None, round(rng.uniform(7.8, 13.0), 2)])
-        decision = plan_chinese_body_fit(
-            bbox_width_pt=w, bbox_height_pt=h, text=text, formula_map=formula_map,
-            font_size_pt=fs, leading_em=le, max_growth_font_size_pt=growth,
-        )
-        out.append({
-            "input": {
-                "bbox_width_pt": w,
-                "bbox_height_pt": h,
-                "text": text,
-                "formula_map": formula_map,
-                "font_size_pt": fs,
-                "leading_em": le,
-                "max_growth_font_size_pt": growth,
-            },
-            "expected": decision_to_dict(decision),
-        })
-    return out
-
-
 def h_capacity_formula_discount(rng, n):
     out = []
     for _ in range(n):
@@ -1320,12 +1183,6 @@ SCALAR_DEFAULT = 40
 ITEM_DEFAULT = 25
 
 REGISTRY = {
-    "chinese_body_fit.formula_unit_ratio": (h_chinese_formula_unit_ratio, SCALAR_DEFAULT),
-    "chinese_body_fit.tokenize_chinese_body_text": (h_chinese_tokenize, SCALAR_DEFAULT),
-    "chinese_body_fit.estimate_chinese_body_lines": (h_chinese_estimate_lines, SCALAR_DEFAULT),
-    "chinese_body_fit.estimate_chinese_body_height_pt": (h_chinese_estimate_height, SCALAR_DEFAULT),
-    "chinese_body_fit.solve_chinese_body_font_size_pt": (h_chinese_solve, SCALAR_DEFAULT),
-    "fit_decision.plan_chinese_body_fit": (h_fit_decision, SCALAR_DEFAULT),
     "payload.capacity.formula_estimate_discount": (h_capacity_formula_discount, SCALAR_DEFAULT),
     "payload.capacity.box_capacity_units": (h_capacity_box_units, SCALAR_DEFAULT),
     "payload.capacity.text_demand_units": (h_capacity_text_demand, SCALAR_DEFAULT),

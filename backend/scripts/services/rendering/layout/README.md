@@ -8,8 +8,6 @@
 
 - `page_specs.py`
 - `font_fit.py`
-- `chinese_body_fit.py`
-- `fit_decision/`
 - `title_fit.py`
 - `payload/`
 - `typography/`

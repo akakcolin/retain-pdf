@@ -72,10 +72,6 @@ FITZ_IMPORT_ALLOWLIST: dict[Path, tuple[str, str]] = {
         "fallback_reference",
         "fitz.Rect area helper reference",
     ),
-    Path("services/rendering/analysis/profile/registry.py"): (
-        "fallback_reference",
-        "PageProfileRegistry(fitz.Page) collector registry reference",
-    ),
     Path("services/rendering/analysis/profile/text_layer.py"): (
         "fallback_reference",
         "get_text('words') + trace-count reference",

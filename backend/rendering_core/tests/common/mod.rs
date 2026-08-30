@@ -471,32 +471,6 @@ pub fn assert_close_i64(actual: i64, expected: i64) {
     assert_eq!(actual, expected, "int mismatch");
 }
 
-/// A result field accessor that deserializes `expected` into a named struct
-/// for chinese_body_fit / fit_decision result dicts.
-#[derive(Deserialize)]
-pub struct ChineseBodyFitExpected {
-    pub font_size_pt: f64,
-    pub estimated_height_pt: f64,
-    pub line_count: i64,
-    pub overflow_ratio: f64,
-    pub formula_ratio: f64,
-    pub confidence: f64,
-    pub max_safe_shrink_pt: f64,
-}
-
-#[derive(Deserialize)]
-pub struct FitDecisionExpected {
-    pub font_size_pt: f64,
-    pub mode: String,
-    pub confidence: f64,
-    pub reason_codes: Vec<String>,
-    pub estimated_height_pt: f64,
-    pub overflow_ratio: f64,
-    pub formula_ratio: f64,
-    pub growth_pt: f64,
-    pub shrink_pt: f64,
-}
-
 #[derive(Deserialize)]
 pub struct AnalyzeStatsExpected {
     pub word_count: i64,
