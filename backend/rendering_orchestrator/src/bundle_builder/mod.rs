@@ -14,6 +14,7 @@
 
 pub mod analysis;
 pub mod assemble;
+pub mod render_source;
 
 use std::path::PathBuf;
 
@@ -39,10 +40,10 @@ pub fn native_enabled() -> bool {
     }
 }
 
-/// Mirrors `build_bundle`'s 15-key assembly. N11b: mode (auto resolved via
+/// Mirrors `build_bundle`'s 15-key assembly. N11c: mode (auto resolved via
 /// whole-document analysis)/font/output/work_dir/start/end/page_map/fill_map/
-/// overlay-specs are real; source_pdf, precleaned_page_indices, translated_pages
-/// and page_specs are placeholders until N11c/N11d/N11f respectively.
+/// source_pdf/precleaned_page_indices are real; translated_pages and page_specs
+/// are placeholders until N11d/N11f respectively.
 pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
     let mut mode = spec.params.render_mode_str();
     if !matches!(mode.as_str(), "typst" | "typst_visual" | "auto") {
@@ -85,9 +86,9 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
         }
     }
 
-    // N11c consumes protected pages for render-source prep (load eagerly so a
-    // wrong-schema normalized document errors here exactly like the delegate).
-    let _protected_pages = crate::protected_pages::protected_pages_from_document_path(
+    // N11c: protected pages (for render-source prep) load eagerly so a
+    // wrong-schema normalized document errors here exactly like the delegate.
+    let protected_pages = crate::protected_pages::protected_pages_from_document_path(
         spec.inputs
             .translations_dir
             .parent()
@@ -95,18 +96,38 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
             .as_deref(),
     )?;
 
+    // N11c: render-source prep chain (sanitize -> hidden strip -> bbox strip ->
+    // compress), producing the real `source_pdf` + `precleaned_page_indices`.
+    let cleanup_strategy = spec
+        .params
+        .source_cleanup_strategy
+        .as_deref()
+        .map(render_source::normalize_source_cleanup_strategy)
+        .unwrap_or_else(|| "typst_fill".to_string());
+    let render_source_pdf = render_source::build_render_source_pdf(
+        &spec.inputs.source_pdf,
+        &output_pdf,
+        spec.params.pdf_compress_dpi(),
+        &selected_pages,
+        &protected_pages,
+        mode != "overlay",
+        &cleanup_strategy,
+        &document_analysis,
+    )?;
+
     let work_dir = background_work_dir(&output_pdf);
     prepare_work_dir(&work_dir)?;
 
     Ok(assemble::assemble(AssembleInputs {
         mode,
-        source_pdf: spec.inputs.source_pdf.clone(),
+        source_pdf: render_source_pdf.path,
         output_pdf,
         work_dir,
         font_family: font_family(spec),
         start_page: start_page as i32,
         end_page,
         page_map_indices: selected_pages.keys().copied().collect(),
+        precleaned_page_indices: render_source_pdf.source_text_precleaned_page_indices,
         translated_pages: json!({}),
         page_specs: json!([]),
     }))

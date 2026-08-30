@@ -57,16 +57,13 @@ use mupdf::pdf::PdfDocument;
 use mupdf::Document;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
-use rendering_core::rect::Matrix as CoreMatrix;
 use rendering_core::rect::Rect as CoreRect;
-use rendering_core::source_cleanup::constants::BBOX_TEXT_STRIP_CONTENT_STREAM_SIZE_THRESHOLD;
 use rendering_core::source_cleanup::hit_test::RectTuple;
 use rendering_core::source_cleanup::planning::planner::allows_pikepdf_from_json;
 use rendering_core::source_cleanup::planning::planner::item_ids_with_uncovered_unsafe_vector_overlap;
 use rendering_core::source_cleanup::planning::planner::pages_from_json;
 use rendering_core::source_cleanup::planning::planner::plan_source_cleanup;
-use rendering_core::source_cleanup::planning::PlanningPageContext;
-use rendering_core::source_cleanup::planning::PageContexts;
+use rendering_reader::cleanup_context::build_planning_contexts;
 use rendering_reader::PdfDocument as _;
 use rendering_writer::background::color_adapt::{
     build_text_page_for_extraction, extract_span_dicts_from_text_page, foreground_color_from_pixmap,
@@ -890,45 +887,6 @@ fn read_page_cleanup_contexts(
         );
     }
     serde_json::to_string(&out).map_err(|e| PyRuntimeError::new_err(format!("serialize: {e}")))
-}
-
-/// Build the `PlanningPageContext`s the planner consumes from a loaded document,
-/// mirroring `page_context._build_page_contexts_python`: bboxlog entries with
-/// empty rects are dropped (the fitz consumers never see them), the inverse ctm
-/// is the pure `inverse_affine` of the raw page ctm, and pages whose rect or ctm
-/// cannot be read are omitted.
-fn build_planning_contexts(doc: &Document, indices: &[i64]) -> PageContexts {
-    let mut contexts: PageContexts = BTreeMap::new();
-    for &idx in indices {
-        let Ok(page_rect) = doc.page_rect(idx) else {
-            continue;
-        };
-        let Some(ctm) = doc.page_ctm(idx) else {
-            continue;
-        };
-        let inverse_ctm = CoreMatrix::new(ctm[0], ctm[1], ctm[2], ctm[3], ctm[4], ctm[5]).inverse();
-        let bboxlog_entries: Vec<(String, CoreRect)> = doc
-            .page_bboxlog(idx)
-            .iter()
-            .filter(|entry| !entry.rect.is_empty())
-            .map(|entry| (entry.kind.clone(), entry.rect))
-            .collect();
-        contexts.insert(
-            idx,
-            PlanningPageContext {
-                page_index: idx,
-                page_rect,
-                bboxlog_entries,
-                content_stream_size: doc.page_content_stream_size(
-                    idx,
-                    BBOX_TEXT_STRIP_CONTENT_STREAM_SIZE_THRESHOLD as u64,
-                ),
-                has_form_xobjects: doc.page_has_form_xobjects(idx),
-                inverse_ctm,
-            },
-        );
-    }
-    contexts
 }
 
 /// Run the ported `plan_source_cleanup` candidates assembly entirely in Rust.

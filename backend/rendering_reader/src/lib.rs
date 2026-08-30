@@ -4,6 +4,7 @@
 //! the achievable snapshot fields against Python-computed values from fitz.
 
 pub mod bboxlog;
+pub mod cleanup_context;
 pub mod error;
 pub mod image_placements;
 pub mod indent;

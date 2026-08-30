@@ -41,17 +41,20 @@ import orchestrator_parity as op  # noqa: E402
 _PY_BIN = os.environ.get("RETAIN_PDF_PYTHON_BIN") or sys.executable
 _DELEGATE_ENTRY = os.path.join(_SCRIPTS_DIR, "entrypoints", "run_render_delegate.py")
 
-#: N11a+: keys the native producer already computes exactly (per mode). Grows
+#: N11a+ keys the native producer already computes exactly (per mode). Grows
 #: as N11b..N11f land the remaining keys. The auto fixture resolves to
 #: typst_visual (non-editable text fixture), so it asserts the same keys.
+#: N11c adds source_pdf + precleaned_page_indices (render-source prep).
 _ASSERTED_KEYS = {
     "typst": [
         "schema_version",
         "mode",
+        "source_pdf",
         "font_family",
         "output_pdf",
         "work_dir",
         "redaction_strategy",
+        "precleaned_page_indices",
         "visual_profile_fill_map",
         "page_map",
         "start_page",
@@ -61,10 +64,12 @@ _ASSERTED_KEYS = {
     "typst_visual": [
         "schema_version",
         "mode",
+        "source_pdf",
         "font_family",
         "output_pdf",
         "work_dir",
         "redaction_strategy",
+        "precleaned_page_indices",
         "visual_profile_fill_map",
         "page_map",
         "start_page",
@@ -74,10 +79,12 @@ _ASSERTED_KEYS = {
     "auto": [
         "schema_version",
         "mode",
+        "source_pdf",
         "font_family",
         "output_pdf",
         "work_dir",
         "redaction_strategy",
+        "precleaned_page_indices",
         "visual_profile_fill_map",
         "page_map",
         "start_page",

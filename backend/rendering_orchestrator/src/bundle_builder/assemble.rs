@@ -18,6 +18,7 @@ pub struct AssembleInputs {
     pub start_page: i32,
     pub end_page: i32,
     pub page_map_indices: Vec<i32>,
+    pub precleaned_page_indices: Vec<i32>,
     pub translated_pages: Value,
     pub page_specs: Value,
 }
@@ -38,7 +39,10 @@ pub fn assemble(inputs: AssembleInputs) -> Value {
             Value::Null
         },
     );
-    map.insert("precleaned_page_indices".to_string(), json!([]));
+    map.insert(
+        "precleaned_page_indices".to_string(),
+        json!(inputs.precleaned_page_indices),
+    );
     map.insert("visual_profile_fill_map".to_string(), json!({}));
     map.insert(
         "page_map".to_string(),
@@ -67,6 +71,7 @@ mod tests {
             start_page: 0,
             end_page: 1,
             page_map_indices: vec![0, 1],
+            precleaned_page_indices: vec![0],
             translated_pages: json!({}),
             page_specs: json!([]),
         });
