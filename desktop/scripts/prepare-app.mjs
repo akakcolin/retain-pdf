@@ -151,6 +151,13 @@ function dirSize(root, rel) {
   if (!fs.existsSync(target)) {
     return 0;
   }
+  const targetStat = fs.statSync(target);
+  if (targetStat.isFile()) {
+    return targetStat.size;
+  }
+  if (!targetStat.isDirectory()) {
+    return 0;
+  }
   let total = 0;
   const stack = [target];
   while (stack.length) {
