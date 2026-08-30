@@ -7,8 +7,9 @@ use std::process::ExitCode;
 
 use rendering_orchestrator::run;
 
-fn parse_args() -> Result<PathBuf, String> {
+fn parse_args() -> Result<(PathBuf, Option<PathBuf>), String> {
     let mut spec: Option<PathBuf> = None;
+    let mut dump_bundle: Option<PathBuf> = None;
     let mut iter = std::env::args().skip(1);
     while let Some(arg) = iter.next() {
         match arg.as_str() {
@@ -16,14 +17,33 @@ fn parse_args() -> Result<PathBuf, String> {
                 let value = iter.next().ok_or("--spec requires a value")?;
                 spec = Some(PathBuf::from(value));
             }
+            // Hidden C3-N11 differential hook: build the native bundle and exit
+            // without running the stages (the orchestrator_bundle_parity smoke
+            // and the corpus producer consume this).
+            "--dump-bundle" => {
+                let value = iter.next().ok_or("--dump-bundle requires a value")?;
+                dump_bundle = Some(PathBuf::from(value));
+            }
             "--help" | "-h" => {
-                println!("usage: render_rs --spec <stage-spec.json>");
+                println!("usage: render_rs --spec <stage-spec.json> [--dump-bundle <path>]");
                 std::process::exit(0);
             }
             other => return Err(format!("unknown argument: {other}")),
         }
     }
-    spec.ok_or_else(|| "--spec <path> is required".to_string())
+    let spec = spec.ok_or_else(|| "--spec <path> is required".to_string())?;
+    Ok((spec, dump_bundle))
+}
+
+fn dump_bundle_only(spec_path: &Path, dump_path: &Path) -> anyhow::Result<()> {
+    let spec = rendering_orchestrator::spec::RenderStageSpec::load(spec_path)?;
+    let value = rendering_orchestrator::bundle_builder::build_bundle(&spec)?;
+    if let Some(parent) = dump_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(dump_path, serde_json::to_string_pretty(&value)?)?;
+    println!("native render bundle written: {}", dump_path.display());
+    Ok(())
 }
 
 fn main() -> ExitCode {
@@ -32,21 +52,32 @@ fn main() -> ExitCode {
             eprintln!("render_rs: {message}");
             ExitCode::from(2)
         }
-        Ok(spec_path) => match run(Path::new(&spec_path)) {
-            Ok(outcome) => {
-                println!("output pdf: {}", outcome.output_pdf.display());
-                println!("source pdf: {}", outcome.source_pdf.display());
-                println!("translations dir: {}", outcome.translations_dir.display());
-                println!("summary: {}", outcome.summary_path.display());
-                println!("render mode: {}", outcome.mode);
-                println!("pages processed: {}", outcome.page_count);
-                println!("total time: {:.2}s", outcome.elapsed_seconds);
-                ExitCode::SUCCESS
+        Ok((spec_path, dump_bundle)) => {
+            if let Some(dump_path) = dump_bundle {
+                return match dump_bundle_only(Path::new(&spec_path), &dump_path) {
+                    Ok(()) => ExitCode::SUCCESS,
+                    Err(error) => {
+                        eprintln!("render_rs: {error:#}");
+                        ExitCode::FAILURE
+                    }
+                };
             }
-            Err(error) => {
-                eprintln!("render_rs: {error:#}");
-                ExitCode::FAILURE
+            match run(Path::new(&spec_path)) {
+                Ok(outcome) => {
+                    println!("output pdf: {}", outcome.output_pdf.display());
+                    println!("source pdf: {}", outcome.source_pdf.display());
+                    println!("translations dir: {}", outcome.translations_dir.display());
+                    println!("summary: {}", outcome.summary_path.display());
+                    println!("render mode: {}", outcome.mode);
+                    println!("pages processed: {}", outcome.page_count);
+                    println!("total time: {:.2}s", outcome.elapsed_seconds);
+                    ExitCode::SUCCESS
+                }
+                Err(error) => {
+                    eprintln!("render_rs: {error:#}");
+                    ExitCode::FAILURE
+                }
             }
-        },
+        }
     }
 }

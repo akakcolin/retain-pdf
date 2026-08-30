@@ -5,10 +5,13 @@
 //! mode is rejected (C3 progressively takes over the remaining modes).
 
 pub mod bundle;
+pub mod bundle_builder;
 pub mod delegate;
+pub mod protected_pages;
 pub mod run;
 pub mod spec;
 pub mod stages;
 pub mod summary;
+pub mod translations;
 
 pub use run::{run, RenderOutcome};

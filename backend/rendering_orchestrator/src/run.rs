@@ -5,6 +5,8 @@ use std::time::Instant;
 
 use anyhow::Result;
 
+use crate::bundle::RenderBundle;
+use crate::bundle_builder;
 use crate::delegate;
 use crate::spec::RenderStageSpec;
 use crate::stages;
@@ -24,7 +26,15 @@ pub fn run(spec_path: &Path) -> Result<RenderOutcome> {
     let started = Instant::now();
     let spec = RenderStageSpec::load(spec_path)?;
     let bundle_out = spec.job.job_root.join("render-bundle.json");
-    let bundle = delegate::run_delegate(spec_path, &bundle_out)?;
+    // C3-N11: build the bundle natively when the flag is set; the delegate is
+    // the parity reference and remains the default until N11f flips it.
+    let bundle: RenderBundle = if bundle_builder::native_enabled() {
+        let value = bundle_builder::build_bundle(&spec)?;
+        std::fs::write(&bundle_out, serde_json::to_string_pretty(&value)?)?;
+        RenderBundle::load(&bundle_out)?
+    } else {
+        delegate::run_delegate(spec_path, &bundle_out)?
+    };
     // The delegate resolves `auto` and validates the mode; dispatch on the
     // resolved mode it wrote into the bundle.
     let mode = bundle.mode.clone();

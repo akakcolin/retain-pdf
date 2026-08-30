@@ -11,7 +11,7 @@ rendering_output = { path = "../rendering_output" }
 rendering_reader = { path = "../rendering_reader" }
 rendering_writer = { path = "../rendering_writer" }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
 
 [[bin]]
 name = "render_rs"
