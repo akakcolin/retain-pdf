@@ -12,9 +12,9 @@ and job-root-normalized, never byte-exact.
 Each producer runs on its OWN job root (identical inputs) so the delegate's
 render-source temp files and the native work_dir never cross-contaminate. The
 native producer is incremental: `build_bundle` fills the 15 keys across
-N11a..N11f, so `ASSERTED_KEYS` grows per batch. All five modes (`typst`,
-`typst_visual`, `auto`, `overlay`, `dual`) run the full bundle compare; only
-`page_specs` (N11f) stays unasserted.
+N11a..N11f, so `ASSERTED_KEYS` grew per batch. Since N11f all five modes
+(`typst`, `typst_visual`, `auto`, `overlay`, `dual`) run the full 15-key
+compare including `page_specs` (full emitter dicts, 29-key blocks).
 
 Run from backend/scripts:
     /Volumes/data/Projects/retain-pdf/.venv/bin/python \
@@ -41,13 +41,11 @@ import orchestrator_parity as op  # noqa: E402
 _PY_BIN = os.environ.get("RETAIN_PDF_PYTHON_BIN") or sys.executable
 _DELEGATE_ENTRY = os.path.join(_SCRIPTS_DIR, "entrypoints", "run_render_delegate.py")
 
-#: N11a+ keys the native producer already computes exactly (per mode). Grows
-#: as N11b..N11f land the remaining keys. The auto fixture resolves to
-#: typst_visual (non-editable text fixture), so it asserts the same keys.
-#: N11c adds source_pdf + precleaned_page_indices (render-source prep); N11d adds
-#: translated_pages (prepare + first-line indent + policy); N11e adds
-#: overlay_page_specs for overlay/dual (color adapt writes _render_* onto every
-#: translated_pages item, so the full translated_pages compare holds for all modes).
+#: The full 15-key set the native producer computes (per mode). The auto fixture
+#: resolves to typst_visual (non-editable text fixture), so it asserts the same
+#: keys. N11c landed source_pdf + precleaned_page_indices; N11d translated_pages
+#: (prepare + first-line indent + policy); N11e overlay_page_specs for
+#: overlay/dual; N11f page_specs (full emitter dicts) for every mode.
 _ASSERTED_KEYS = {
     "typst": [
         "schema_version",
@@ -61,6 +59,7 @@ _ASSERTED_KEYS = {
         "visual_profile_fill_map",
         "page_map",
         "translated_pages",
+        "page_specs",
         "start_page",
         "end_page",
         "overlay_page_specs",
@@ -77,6 +76,7 @@ _ASSERTED_KEYS = {
         "visual_profile_fill_map",
         "page_map",
         "translated_pages",
+        "page_specs",
         "start_page",
         "end_page",
         "overlay_page_specs",
@@ -93,6 +93,7 @@ _ASSERTED_KEYS = {
         "visual_profile_fill_map",
         "page_map",
         "translated_pages",
+        "page_specs",
         "start_page",
         "end_page",
         "overlay_page_specs",
@@ -110,6 +111,7 @@ _ASSERTED_KEYS = {
         "page_map",
         "translated_pages",
         "overlay_page_specs",
+        "page_specs",
         "start_page",
         "end_page",
     ],
@@ -126,6 +128,7 @@ _ASSERTED_KEYS = {
         "page_map",
         "translated_pages",
         "overlay_page_specs",
+        "page_specs",
         "start_page",
         "end_page",
     ],

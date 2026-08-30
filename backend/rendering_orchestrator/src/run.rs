@@ -26,8 +26,9 @@ pub fn run(spec_path: &Path) -> Result<RenderOutcome> {
     let started = Instant::now();
     let spec = RenderStageSpec::load(spec_path)?;
     let bundle_out = spec.job.job_root.join("render-bundle.json");
-    // C3-N11: build the bundle natively when the flag is set; the delegate is
-    // the parity reference and remains the default until N11f flips it.
+    // C3-N11: build the bundle natively by default (N11f flipped it on); the
+    // delegate stays the parity reference, reachable via
+    // `RETAINPDF_RENDER_BUNDLE_NATIVE=0` or the orchestrator escape hatch.
     let bundle: RenderBundle = if bundle_builder::native_enabled() {
         let value = bundle_builder::build_bundle(&spec)?;
         std::fs::write(&bundle_out, serde_json::to_string_pretty(&value)?)?;
