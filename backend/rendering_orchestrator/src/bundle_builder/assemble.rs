@@ -20,6 +20,7 @@ pub struct AssembleInputs {
     pub page_map_indices: Vec<i32>,
     pub precleaned_page_indices: Vec<i32>,
     pub translated_pages: Value,
+    pub overlay_page_specs: Option<Value>,
     pub page_specs: Value,
 }
 
@@ -52,7 +53,10 @@ pub fn assemble(inputs: AssembleInputs) -> Value {
     map.insert("page_specs".to_string(), inputs.page_specs);
     map.insert("start_page".to_string(), json!(inputs.start_page));
     map.insert("end_page".to_string(), json!(inputs.end_page));
-    map.insert("overlay_page_specs".to_string(), Value::Null);
+    map.insert(
+        "overlay_page_specs".to_string(),
+        inputs.overlay_page_specs.unwrap_or(Value::Null),
+    );
     Value::Object(map)
 }
 
@@ -73,6 +77,7 @@ mod tests {
             page_map_indices: vec![0, 1],
             precleaned_page_indices: vec![0],
             translated_pages: json!({}),
+            overlay_page_specs: None,
             page_specs: json!([]),
         });
         let obj = value.as_object().unwrap();

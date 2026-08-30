@@ -138,7 +138,7 @@ fn resolve_first_line_indent_lookup(
 
 /// Python `str(item.get("item_id", "") or "")` — falsy scalars (missing, "",
 /// 0, false) become "".
-fn py_item_id(item: &Value) -> String {
+pub(crate) fn py_item_id(item: &Value) -> String {
     match item.get("item_id") {
         Some(v) if value_falsy(v) => String::new(),
         Some(v) => py_str(v),
@@ -147,7 +147,7 @@ fn py_item_id(item: &Value) -> String {
 }
 
 /// Python `bool(x)` over scalar dict values (used for the `or ""` gate).
-fn value_falsy(value: &Value) -> bool {
+pub(crate) fn value_falsy(value: &Value) -> bool {
     match value {
         Value::Null => true,
         Value::Bool(b) => !*b,
@@ -160,7 +160,7 @@ fn value_falsy(value: &Value) -> bool {
 
 /// Python `str(v)` for scalar dict values: strings pass through, numbers and
 /// bools stringify, null/absent become "".
-fn py_str(value: &Value) -> String {
+pub(crate) fn py_str(value: &Value) -> String {
     match value {
         Value::String(s) => s.clone(),
         Value::Bool(b) => {

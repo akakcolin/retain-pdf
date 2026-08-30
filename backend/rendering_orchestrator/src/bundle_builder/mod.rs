@@ -14,13 +14,15 @@
 
 pub mod analysis;
 pub mod assemble;
+pub mod color_adapt;
+pub mod overlay;
 pub mod prepare;
 pub mod render_source;
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use serde_json::{json, Value};
 
 use crate::spec::RenderStageSpec;
@@ -42,18 +44,13 @@ pub fn native_enabled() -> bool {
     }
 }
 
-/// Mirrors `build_bundle`'s 15-key assembly. N11c: mode (auto resolved via
-/// whole-document analysis)/font/output/work_dir/start/end/page_map/fill_map/
-/// source_pdf/precleaned_page_indices are real; translated_pages and page_specs
-/// are placeholders until N11d/N11f respectively.
+/// Mirrors `build_bundle`'s 15-key assembly. N11d: translated_pages (prepare +
+/// first-line indent + policy) is real. N11e: color adapt runs over the prepared
+/// pages for every mode (writing `_render_cover_fill` / `_render_text_color`),
+/// and overlay/dual additionally assemble `overlay_page_specs` (page geometry +
+/// RenderBlock DTOs). page_specs stays a placeholder until N11f.
 pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
     let mut mode = spec.params.render_mode_str();
-    if !matches!(mode.as_str(), "typst" | "typst_visual" | "auto") {
-        bail!(
-            "native build_bundle supports typst/typst_visual/auto only, got {mode:?} \
-             (overlay/dual land in N11e)"
-        );
-    }
 
     // `job_dirs.resolve_job_dirs(root).rendered_dir` — Python `Path.resolve()`
     // canonicalizes the existing job root.
@@ -80,12 +77,6 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
         analysis::build_render_document_analysis(&spec.inputs.source_pdf, &selected_pages)?;
     if mode == "auto" {
         mode = analysis::resolve_effective_render_mode(&mode, !selected_pages.is_empty(), Some(&document_analysis));
-        if !matches!(mode.as_str(), "typst" | "typst_visual") {
-            bail!(
-                "auto resolution produced {mode:?}, which native build_bundle does not \
-                 support yet (overlay/dual land in N11e)"
-            );
-        }
     }
 
     // N11c: protected pages (for render-source prep) load eagerly so a
@@ -129,6 +120,25 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
         spec.params.source_cleanup_strategy.as_deref(),
     )?;
 
+    // N11e: color adapt runs for every mode (`precomputed_colors_by_item_id={}`),
+    // writing `_render_cover_fill` / `_render_text_color` onto each item.
+    let adapted_pages = color_adapt::apply_adaptive_overlay_colors_batch(
+        &spec.inputs.source_pdf,
+        &prepared_pages,
+    )?;
+
+    // N11e: overlay/dual assemble `overlay_page_specs` (geometry + blocks); the
+    // typst modes leave the bundle key null.
+    let overlay_page_specs = if matches!(mode.as_str(), "overlay" | "dual") {
+        Some(serde_json::to_value(overlay::build_overlay_page_specs(
+            &spec.inputs.source_pdf,
+            &adapted_pages,
+            &font_unify_mode(spec),
+        )?)?)
+    } else {
+        None
+    };
+
     let work_dir = background_work_dir(&output_pdf);
     prepare_work_dir(&work_dir)?;
 
@@ -142,7 +152,8 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
         end_page,
         page_map_indices: selected_pages.keys().copied().collect(),
         precleaned_page_indices: render_source_pdf.source_text_precleaned_page_indices,
-        translated_pages: serde_json::to_value(&prepared_pages)?,
+        translated_pages: serde_json::to_value(&adapted_pages)?,
+        overlay_page_specs,
         page_specs: json!([]),
     }))
 }
@@ -177,6 +188,23 @@ fn font_family(spec: &RenderStageSpec) -> String {
         .map(str::trim)
         .unwrap_or("")
         .to_string()
+}
+
+/// `layout.FONT_UNIFY_MODE`: `role_min` unless the spec sets a valid explicit
+/// mode (`role_min` / `off`); any other value falls back to the module default.
+fn font_unify_mode(spec: &RenderStageSpec) -> String {
+    let mode = spec
+        .params
+        .font_unify_mode
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_lowercase();
+    if mode == "off" {
+        "off".to_string()
+    } else {
+        "role_min".to_string()
+    }
 }
 
 /// `default_typst_temp_root(output_pdf) / "background-book"`: walk the parents

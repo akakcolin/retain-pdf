@@ -12,9 +12,9 @@ and job-root-normalized, never byte-exact.
 Each producer runs on its OWN job root (identical inputs) so the delegate's
 render-source temp files and the native work_dir never cross-contaminate. The
 native producer is incremental: `build_bundle` fills the 15 keys across
-N11a..N11f, so `ASSERTED_KEYS` grows per batch and the modes the native side
-does not support yet (`overlay`/`dual` until N11e, `auto` until N11b) are
-asserted to bail cleanly with the expected message.
+N11a..N11f, so `ASSERTED_KEYS` grows per batch. All five modes (`typst`,
+`typst_visual`, `auto`, `overlay`, `dual`) run the full bundle compare; only
+`page_specs` (N11f) stays unasserted.
 
 Run from backend/scripts:
     /Volumes/data/Projects/retain-pdf/.venv/bin/python \
@@ -45,7 +45,9 @@ _DELEGATE_ENTRY = os.path.join(_SCRIPTS_DIR, "entrypoints", "run_render_delegate
 #: as N11b..N11f land the remaining keys. The auto fixture resolves to
 #: typst_visual (non-editable text fixture), so it asserts the same keys.
 #: N11c adds source_pdf + precleaned_page_indices (render-source prep); N11d adds
-#: translated_pages (prepare + first-line indent + policy).
+#: translated_pages (prepare + first-line indent + policy); N11e adds
+#: overlay_page_specs for overlay/dual (color adapt writes _render_* onto every
+#: translated_pages item, so the full translated_pages compare holds for all modes).
 _ASSERTED_KEYS = {
     "typst": [
         "schema_version",
@@ -95,27 +97,39 @@ _ASSERTED_KEYS = {
         "end_page",
         "overlay_page_specs",
     ],
+    "overlay": [
+        "schema_version",
+        "mode",
+        "source_pdf",
+        "font_family",
+        "output_pdf",
+        "work_dir",
+        "redaction_strategy",
+        "precleaned_page_indices",
+        "visual_profile_fill_map",
+        "page_map",
+        "translated_pages",
+        "overlay_page_specs",
+        "start_page",
+        "end_page",
+    ],
+    "dual": [
+        "schema_version",
+        "mode",
+        "source_pdf",
+        "font_family",
+        "output_pdf",
+        "work_dir",
+        "redaction_strategy",
+        "precleaned_page_indices",
+        "visual_profile_fill_map",
+        "page_map",
+        "translated_pages",
+        "overlay_page_specs",
+        "start_page",
+        "end_page",
+    ],
 }
-
-#: The reference `translated_pages` runs color adapt (N11e) which writes these
-#: two keys onto every item; until color adapt lands natively the native side
-#: cannot reproduce them, so they are stripped from the reference for the N11d
-#: translated_pages compare (N11f turns this into a full compare).
-_COLOR_ADAPT_KEYS = ("_render_cover_fill", "_render_text_color")
-
-
-def _strip_color_adapt_keys(value):
-    if isinstance(value, dict):
-        return {k: _strip_color_adapt_keys(v) for k, v in value.items() if k not in _COLOR_ADAPT_KEYS}
-    if isinstance(value, list):
-        return [_strip_color_adapt_keys(v) for v in value]
-    return value
-
-_UNSUPPORTED_MODES = {
-    "overlay": "overlay/dual land in N11e",
-    "dual": "overlay/dual land in N11e",
-}
-
 
 def _normalize(value, job_root):
     """Float-normalize numbers, absorb the volatile job-root prefix in paths."""
@@ -167,17 +181,6 @@ def check_mode(mode):
         native_bundle = root / "native.json"
         native_result = _run_native_dump(render_rs_bin, rs_spec, native_bundle)
 
-        if mode in _UNSUPPORTED_MODES:
-            assert native_result.returncode != 0, (
-                f"{mode}: native build_bundle unexpectedly succeeded"
-            )
-            assert _UNSUPPORTED_MODES[mode] in native_result.stderr, (
-                f"{mode}: native stderr {native_result.stderr!r} missing "
-                f"expected message {_UNSUPPORTED_MODES[mode]!r}"
-            )
-            print(f"orchestrator bundle parity PASS: {mode} rejected natively")
-            return
-
         assert native_result.returncode == 0, (
             f"{mode}: native dump failed ({native_result.returncode}):\n{native_result.stderr}"
         )
@@ -196,8 +199,6 @@ def check_mode(mode):
         for key in _ASSERTED_KEYS[mode]:
             got = _normalize(native[key], str(rs_spec.parent))
             want = _normalize(reference[key], str(py_spec.parent))
-            if key == "translated_pages":
-                want = _strip_color_adapt_keys(want)
             assert got == want, (
                 f"{mode}: key {key!r} diverges\n  native: {got}\n  ref:    {want}"
             )
