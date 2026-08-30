@@ -200,6 +200,98 @@ def _build_layout_payload() -> dict:
     }
 
 
+def _clv2_seg(raw_type: str, content: str) -> dict:
+    return {"type": raw_type, "content": content}
+
+
+def _build_content_list_v2_payload() -> list:
+    return [
+        [
+            {
+                "type": "title",
+                "bbox": [60, 60, 535, 100],
+                "content": {
+                    "title_content": [
+                        _clv2_seg("text", "Adaptive Systems in Complex Environments")
+                    ]
+                },
+            },
+            {
+                "type": "page_header",
+                "bbox": [60, 40, 535, 60],
+                "content": {
+                    "page_header_content": [_clv2_seg("text", "Journal of Adaptive Systems")]
+                },
+            },
+            {
+                "type": "paragraph",
+                "bbox": [60, 120, 535, 190],
+                "content": {
+                    "paragraph_content": [
+                        _clv2_seg(
+                            "text",
+                            "The dynamics of complex adaptive systems emerge from nonlinear "
+                            "interactions, coupling local agent behavior to global structure",
+                        ),
+                        _clv2_seg("equation_inline", r"C(\theta) = \alpha + \beta"),
+                        _clv2_seg("text", "under bounded rationality."),
+                    ]
+                },
+            },
+            {
+                "type": "list",
+                "bbox": [60, 200, 535, 260],
+                "content": {
+                    "list_items": [
+                        {"item_content": [_clv2_seg("text", "first principle")]},
+                        {"item_content": [_clv2_seg("text", "second principle")]},
+                    ]
+                },
+            },
+            {"type": "image", "bbox": [60, 280, 300, 420]},
+            {
+                "type": "page_number",
+                "bbox": [280, 810, 320, 830],
+                "content": {"page_number_content": [_clv2_seg("text", "1")]},
+            },
+        ],
+        [
+            {
+                "type": "paragraph",
+                "bbox": [60, 120, 535, 200],
+                "content": {
+                    "paragraph_content": [
+                        _clv2_seg(
+                            "text",
+                            "1. first\n2. second\n3. third\n4. fourth\n5. fifth\n6. sixth",
+                        )
+                    ]
+                },
+            },
+            {
+                "type": "paragraph",
+                "bbox": [60, 220, 535, 300],
+                "content": {
+                    "paragraph_content": [
+                        _clv2_seg(
+                            "text",
+                            "Conclusion: robustness follows from modularity, and the torsional angle ",
+                        ),
+                        _clv2_seg("equation_inline", r"E = mc^2 + \frac{1}{2} mv^2"),
+                    ]
+                },
+            },
+            {
+                "type": "page_footer",
+                "bbox": [60, 810, 535, 830],
+                "content": {
+                    "page_footer_content": [_clv2_seg("text", "Adaptive Systems, 2026")]
+                },
+            },
+        ],
+    ]
+
+
 def _build_source_pdf(path: Path) -> None:
     doc = fitz.open()
     for _ in range(2):
@@ -209,13 +301,13 @@ def _build_source_pdf(path: Path) -> None:
     doc.close()
 
 
-def _write_normalize_spec(job_root: Path, source_pdf: Path, source_json: Path) -> Path:
+def _write_normalize_spec(job_root: Path, source_pdf: Path, source_json: Path, *, provider: str = "mineru") -> Path:
     spec = {
         "schema_version": "normalize.stage.v1",
         "stage": "normalize",
         "job": {"job_id": "normalize-parity", "job_root": str(job_root), "workflow": "normalize"},
         "inputs": {
-            "provider": "mineru",
+            "provider": provider,
             "source_json": str(source_json),
             "source_pdf": str(source_pdf),
             "provider_version": "2025.11.1",
@@ -306,7 +398,7 @@ def _extract_label_numbers(stdout: str) -> tuple[int, int, int, int, int]:
     return tuple(int(v) for v in (*validated.groups(), *report.groups()))
 
 
-def check_normalize_ocr_parity() -> None:
+def _check_provider_parity(payload_builder, provider: str) -> None:
     render_rs_bin = _locate_render_rs_bin()
     assert render_rs_bin.exists(), f"render_rs binary not found: {render_rs_bin}"
     with tempfile.TemporaryDirectory(prefix="rps-normalize-") as tmp_dir:
@@ -315,12 +407,12 @@ def check_normalize_ocr_parity() -> None:
         _build_source_pdf(source_pdf)
         source_json = root / "layout.json"
         source_json.write_text(
-            json.dumps(_build_layout_payload(), ensure_ascii=False, indent=2),
+            json.dumps(payload_builder(), ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
 
-        native_spec = _write_normalize_spec(root / "job_a" / "job", source_pdf, source_json)
-        python_spec = _write_normalize_spec(root / "job_b" / "job", source_pdf, source_json)
+        native_spec = _write_normalize_spec(root / "job_a" / "job", source_pdf, source_json, provider=provider)
+        python_spec = _write_normalize_spec(root / "job_b" / "job", source_pdf, source_json, provider=provider)
 
         (native_doc, native_report), native_stdout = _run_native(render_rs_bin, native_spec)
         (python_doc, python_report), python_stdout = _run_python(python_spec)
@@ -330,8 +422,8 @@ def check_normalize_ocr_parity() -> None:
             native_report["validation"], python_report["validation"], "report.validation"
         )
         _assert_semantic_equal(native_report["defaults"], python_report["defaults"], "report.defaults")
-        assert native_report["detected_provider"] == python_report["detected_provider"] == "mineru"
-        assert native_report["provider"] == python_report["provider"] == "mineru"
+        assert native_report["detected_provider"] == python_report["detected_provider"] == provider
+        assert native_report["provider"] == python_report["provider"] == provider
         assert native_report["provider_was_explicit"] is python_report["provider_was_explicit"] is True
         assert native_report["provider_mismatch_allowed"] is False
 
@@ -343,7 +435,12 @@ def check_normalize_ocr_parity() -> None:
         page_count = len(native_doc["pages"])
         block_count = sum(len(page["blocks"]) for page in native_doc["pages"])
         assert native_nums[0] == page_count and native_nums[1] == block_count
-        print(f"normalize_ocr parity PASS: native vs python ({page_count} pages, {block_count} blocks)")
+        print(f"normalize_ocr parity PASS ({provider}): native vs python ({page_count} pages, {block_count} blocks)")
+
+
+def check_normalize_ocr_parity() -> None:
+    _check_provider_parity(_build_layout_payload, "mineru")
+    _check_provider_parity(_build_content_list_v2_payload, "mineru_content_list_v2")
 
 
 if __name__ == "__main__":

@@ -5,10 +5,11 @@
 //! source PDF, rebuild paddle-style line geometry, and persist the compact
 //! document + pretty report with the production stdout labels.
 //!
-//! C5-N2a supports the `mineru` provider adapter (the default OCR provider);
-//! the generic_flat_ocr / mineru_content_list_v2 / paddle adapters are separate
-//! batches and stay on the python subprocess until then.
+//! C5-N2a/C5-N2b support the `mineru` and `mineru_content_list_v2` provider
+//! adapters; the generic_flat_ocr / paddle adapters are separate batches and
+//! stay on the python subprocess until then.
 
+pub mod adapter_content_list_v2;
 pub mod adapter_mineru;
 pub mod common;
 pub mod contract;
@@ -26,6 +27,9 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use serde_json::{json, Value};
 
+use self::adapter_content_list_v2::{
+    build_content_list_v2_document, PROVIDER_MINERU_CONTENT_LIST_V2,
+};
 use self::adapter_mineru::{build_mineru_document, PROVIDER_MINERU};
 use self::contract::enrich_document_contract_v1;
 use self::defaults::apply_document_defaults_with_report;
@@ -151,6 +155,8 @@ fn adapt_document_with_report(
 ) -> Result<(Value, Value)> {
     let mut document = if provider == PROVIDER_MINERU {
         build_mineru_document(payload, document_id, source_json, provider_version)
+    } else if provider == PROVIDER_MINERU_CONTENT_LIST_V2 {
+        build_content_list_v2_document(payload, document_id, source_json, provider_version)
     } else {
         anyhow::bail!("unsupported native OCR provider adapter: {provider}");
     };
