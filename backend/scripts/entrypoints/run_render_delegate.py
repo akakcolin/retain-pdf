@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""C1 render-orchestrator delegation entrypoint.
+"""Parity reference for the native `render_rs` bundle builder (C3-N11).
 
-Reads the real render stage spec and produces the `render.bundle.v1` JSON that
-the native `render_rs` chain consumes. Covers the prepare/page-specs segment of
-the production `build_book_typst_background_pdf` flow (render source prep +
-document analysis + translated-page prepare/color-adapt + page specs + visual
-profile fill map); the background -> typst emit/compile -> save segment runs
-natively in Rust.
+Since C3-N11f the native `bundle_builder::build_bundle` is the production
+default; this module is the Python parity reference / escape hatch. It is
+invoked by `render_rs` only when `RETAINPDF_RENDER_BUNDLE_NATIVE=0`
+(`RETAINPDF_RENDER_ORCHESTRATOR_OFF=1`), by the bundle differential gate
+(`orchestrator_bundle_parity.py`), and as the D3 corpus producer
+(`gen_contract_corpus.py`, which must not build the release binary).
+
+Reads the real render stage spec and produces the `render.bundle.v1` JSON.
+Covers the prepare/page-specs segment of the production
+`build_book_typst_background_pdf` flow (render source prep + document analysis
++ translated-page prepare/color-adapt + page specs + visual profile fill map);
+the background -> typst emit/compile -> save segment runs natively in Rust.
 
 Supports `typst` / `typst_visual` / `overlay` / `dual` / `auto` (auto resolves
 via the pipeline render-mode rules). For overlay/dual the bundle carries
