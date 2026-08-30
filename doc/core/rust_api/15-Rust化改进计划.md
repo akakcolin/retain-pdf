@@ -110,3 +110,18 @@ rust_api（服务壳，编排作业）
 ### 最大风险
 
 writer 原语语义等价性（B-F/B-G）：现有 `overlay_page` 是 pikepdf 风格 Form XObject，非 fitz `show_pdf_page` 等价物；红批 `apply_redactions`（text-remove/graphics-none/image-none）与 cover fill 采样无独立原语。必须像素级 parity + 真实样本 corpus，不能以单 fixture 全等验收。
+
+## 阶段 C 续：非 AI worker 子进程清零（C5 批次）
+
+> 阶段 C 判据「渲染不再 spawn python3」已在 C3-N11f 达成；C5 把同一接管原则推广到其余非 AI 的 Python worker 子进程（`run_*.py` entrypoint，非 AI 翻译/OCR provider 服务），逐个 `render_rs` 子命令化。每个批次沿用 `_native.py` shim + 差分/parity 验证模式。
+
+| 批次 | 内容 | 关键点 |
+|---|---|---|
+| C5-N1 | `run_extract_text_layer.py`（skip-OCR 文本层提取）→ `render_rs --extract-text-layer --spec` | reader `page_rect`/`page_text_blocks` → `generic_flat_ocr`；`extract_text_layer_command` 默认路由 native，`RETAINPDF_RENDER_ORCHESTRATOR_OFF=1` 回退；`[render_rs,--extract-text-layer,...]` 落 `WorkerContract::Unknown`（同 python 路径，无新契约臂）；差分 `extract_text_layer_parity.py`（完成，2aba4919） |
+| C5-N2.. | 其余非 AI worker（normalize OCR / 外部 provider 桥除外）按依赖序逐个接管 | 每个 batch 对齐：spec serde 镜像 + 子命令 dispatch + rust_api 默认路由 + 差分 smoke + CI |
+
+### 终态判据（阶段 C 续）
+
+- skip-OCR 作业的文本层提取不再 spawn python3（`render_rs --extract-text-layer` 进程内完成）。
+- `_routing.ALLOWLIST` 不新增 routed fn（native 路径是 Rust 而非 Python shim）；`smoke_d1_mandate` 常绿。
+- 逃逸阀不变：`RETAINPDF_RENDER_ORCHESTRATOR_OFF=1` 逐个 worker 回退 python reference。
