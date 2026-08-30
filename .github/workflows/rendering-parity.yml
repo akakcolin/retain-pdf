@@ -173,6 +173,7 @@ jobs:
             smoke_end_to_end_pixel_parity \
             smoke_zero_fitz \
             smoke_d1_mandate \
+            extract_text_layer_parity \
             orchestrator_bundle_parity \
             orchestrator_parity
           do
