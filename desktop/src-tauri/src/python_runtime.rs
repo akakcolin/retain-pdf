@@ -61,19 +61,46 @@ pub fn resolve_bundled_python_home(bundled_home: &Path) -> Option<PathBuf> {
         return None;
     }
     if cfg!(target_os = "macos") {
-        let framework_home = bundled_home
+        let versions_dir = bundled_home
             .join("Frameworks")
             .join("Python.framework")
-            .join("Versions")
-            .join("Current");
+            .join("Versions");
+        let framework_home = versions_dir.join("Current");
         if framework_home.exists() {
             return Some(framework_home);
+        }
+        // The `Current` symlink is not preserved by every packaging pipeline
+        // (e.g. Tauri resource bundling dereferences it); fall back to the
+        // concrete version directory so PYTHONHOME still resolves.
+        if let Some(latest) = latest_framework_version(&versions_dir) {
+            return Some(latest);
         }
     }
     if !bundled_home.join("pyvenv.cfg").exists() {
         return Some(bundled_home.to_path_buf());
     }
     None
+}
+
+fn latest_framework_version(versions_dir: &Path) -> Option<PathBuf> {
+    let mut version_dirs: Vec<PathBuf> = std::fs::read_dir(versions_dir)
+        .ok()?
+        .flatten()
+        .filter_map(|entry| {
+            let path = entry.path();
+            if !path.is_dir() {
+                return None;
+            }
+            let name = entry.file_name();
+            let name = name.to_string_lossy().into_owned();
+            if name == "Current" || !name.chars().all(|c| c.is_ascii_digit() || c == '.') {
+                return None;
+            }
+            Some(path)
+        })
+        .collect();
+    version_dirs.sort();
+    version_dirs.pop()
 }
 
 fn bundled_site_packages(home: &Path) -> Vec<PathBuf> {
