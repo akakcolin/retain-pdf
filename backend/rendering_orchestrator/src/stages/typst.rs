@@ -51,11 +51,43 @@ pub fn run_typst(bundle: &RenderBundle, cleaned_bg_path: &Path) -> anyhow::Resul
 /// `RETAIN_PDF_TYPST_FONT_DIRS`.
 pub(crate) fn compile_context() -> CompileContext {
     CompileContext {
-        typ_bin: resolve_typst_bin(env::var("TYPST_BIN").ok().as_deref(), None),
+        typ_bin: resolve_typst_bin(env::var("TYPST_BIN").ok().as_deref(), which_typst().as_deref()),
         timeout_seconds: DEFAULT_COMPILE_TIMEOUT_SECONDS,
         backends_fonts_dir: resolve_backend_fonts_dir(),
         env_font_dirs: env::var("RETAIN_PDF_TYPST_FONT_DIRS").ok(),
     }
+}
+
+/// `shutil.which("typst")` over the process PATH — the `which` step of
+/// `shared._resolve_typst_bin` (env `TYPST_BIN` -> which -> snap default).
+/// `resolve_typst_bin` stays pure; the caller supplies the discovery result.
+fn which_typst() -> Option<String> {
+    which_in_path(env::var_os("PATH"))
+}
+
+fn which_in_path(path_var: Option<std::ffi::OsString>) -> Option<String> {
+    let path_var = path_var?;
+    for dir in env::split_paths(&path_var).filter(|d| !d.as_os_str().is_empty()) {
+        let candidate = dir.join("typst");
+        if candidate.is_file() {
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let executable = candidate
+                    .metadata()
+                    .map(|m| m.permissions().mode() & 0o111 != 0)
+                    .unwrap_or(false);
+                if executable {
+                    return Some(candidate.to_string_lossy().into_owned());
+                }
+            }
+            #[cfg(not(unix))]
+            {
+                return Some(candidate.to_string_lossy().into_owned());
+            }
+        }
+    }
+    None
 }
 
 /// `fonts.BACKEND_FONTS_DIR` (= `backend/fonts`) resolved from env override,
@@ -138,5 +170,32 @@ mod tests {
             Path::new("/b/out.pdf"),
         ]);
         assert_eq!(root, PathBuf::from("/"));
+    }
+
+    #[test]
+    fn which_finds_executable_typst_on_path() {
+        let dir = std::env::temp_dir().join(format!("rrt_which_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let typst = dir.join("typst");
+        std::fs::write(&typst, "#!/bin/sh\nexit 0\n").unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&typst, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let path = std::ffi::OsString::from(format!("{}:/usr/bin", dir.display()));
+        assert_eq!(which_in_path(Some(path)), Some(typst.to_string_lossy().into_owned()));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn which_skips_missing_and_non_executable() {
+        let dir = std::env::temp_dir().join(format!("rrt_which_none_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let typst = dir.join("typst");
+        std::fs::write(&typst, "#!/bin/sh\nexit 0\n").unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&typst, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let path = std::ffi::OsString::from(format!("{}:/usr/bin", dir.display()));
+        assert_eq!(which_in_path(Some(path)), None);
+        assert_eq!(which_in_path(None), None);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
