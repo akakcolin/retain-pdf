@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::path::Path;
 use std::sync::Arc;
 
 use lopdf::content::{Content, Operation};
@@ -18,6 +19,24 @@ use super::context::{JobSubmitDeps, SnapshotBuildDeps, UploadStoreDeps};
 use super::job_builders::{build_ocr_job_snapshot, build_translation_job_snapshot};
 use super::submit::create_translation_job;
 use super::upload::{store_pdf_upload, UploadedPdfInput};
+
+/// Resolve a python that can actually run `import fitz` — the upload repair
+/// path spawns it (`repair_pdf_with_pymupdf`). A bare `python` is not on PATH
+/// on macOS, so prefer `PYTHON_BIN`, then the repo venv (has PyMuPDF), then the
+/// platform default name.
+fn test_python_bin() -> String {
+    if let Ok(bin) = std::env::var("PYTHON_BIN") {
+        let trimmed = bin.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+    let venv = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.venv/bin/python");
+    if venv.exists() {
+        return venv.to_string_lossy().into_owned();
+    }
+    crate::process::python::platform_python_bin().to_string()
+}
 
 fn test_state(test_name: &str) -> AppState {
     let root = std::env::temp_dir().join(format!(
@@ -55,7 +74,7 @@ fn test_state(test_name: &str) -> AppState {
         downloads_dir,
         jobs_db_path: data_root.join("db").join("jobs.db"),
         output_root,
-        python_bin: "python".to_string(),
+        python_bin: test_python_bin(),
         python_entrypoint_mode: crate::config::PythonWorkerEntrypointMode::Script,
         bind_host: "127.0.0.1".to_string(),
         port: 41000,
