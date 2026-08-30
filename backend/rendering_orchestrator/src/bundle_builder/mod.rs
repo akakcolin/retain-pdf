@@ -14,8 +14,10 @@
 
 pub mod analysis;
 pub mod assemble;
+pub mod prepare;
 pub mod render_source;
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use anyhow::{bail, Result};
@@ -115,6 +117,18 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
         &document_analysis,
     )?;
 
+    // N11d: prepare boundary + first-line-indent detection + policy boundary,
+    // producing the bundle's `translated_pages` (indent pdf = the RAW source).
+    let selected_pages_i64: BTreeMap<i64, Vec<Value>> = selected_pages
+        .iter()
+        .map(|(&idx, items)| (idx as i64, items.clone()))
+        .collect();
+    let prepared_pages = prepare::prepare_translated_pages_for_render(
+        &spec.inputs.source_pdf,
+        &selected_pages_i64,
+        spec.params.source_cleanup_strategy.as_deref(),
+    )?;
+
     let work_dir = background_work_dir(&output_pdf);
     prepare_work_dir(&work_dir)?;
 
@@ -128,7 +142,7 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
         end_page,
         page_map_indices: selected_pages.keys().copied().collect(),
         precleaned_page_indices: render_source_pdf.source_text_precleaned_page_indices,
-        translated_pages: json!({}),
+        translated_pages: serde_json::to_value(&prepared_pages)?,
         page_specs: json!([]),
     }))
 }

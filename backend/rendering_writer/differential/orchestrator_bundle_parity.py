@@ -44,7 +44,8 @@ _DELEGATE_ENTRY = os.path.join(_SCRIPTS_DIR, "entrypoints", "run_render_delegate
 #: N11a+ keys the native producer already computes exactly (per mode). Grows
 #: as N11b..N11f land the remaining keys. The auto fixture resolves to
 #: typst_visual (non-editable text fixture), so it asserts the same keys.
-#: N11c adds source_pdf + precleaned_page_indices (render-source prep).
+#: N11c adds source_pdf + precleaned_page_indices (render-source prep); N11d adds
+#: translated_pages (prepare + first-line indent + policy).
 _ASSERTED_KEYS = {
     "typst": [
         "schema_version",
@@ -57,6 +58,7 @@ _ASSERTED_KEYS = {
         "precleaned_page_indices",
         "visual_profile_fill_map",
         "page_map",
+        "translated_pages",
         "start_page",
         "end_page",
         "overlay_page_specs",
@@ -72,6 +74,7 @@ _ASSERTED_KEYS = {
         "precleaned_page_indices",
         "visual_profile_fill_map",
         "page_map",
+        "translated_pages",
         "start_page",
         "end_page",
         "overlay_page_specs",
@@ -87,11 +90,26 @@ _ASSERTED_KEYS = {
         "precleaned_page_indices",
         "visual_profile_fill_map",
         "page_map",
+        "translated_pages",
         "start_page",
         "end_page",
         "overlay_page_specs",
     ],
 }
+
+#: The reference `translated_pages` runs color adapt (N11e) which writes these
+#: two keys onto every item; until color adapt lands natively the native side
+#: cannot reproduce them, so they are stripped from the reference for the N11d
+#: translated_pages compare (N11f turns this into a full compare).
+_COLOR_ADAPT_KEYS = ("_render_cover_fill", "_render_text_color")
+
+
+def _strip_color_adapt_keys(value):
+    if isinstance(value, dict):
+        return {k: _strip_color_adapt_keys(v) for k, v in value.items() if k not in _COLOR_ADAPT_KEYS}
+    if isinstance(value, list):
+        return [_strip_color_adapt_keys(v) for v in value]
+    return value
 
 _UNSUPPORTED_MODES = {
     "overlay": "overlay/dual land in N11e",
@@ -178,6 +196,8 @@ def check_mode(mode):
         for key in _ASSERTED_KEYS[mode]:
             got = _normalize(native[key], str(rs_spec.parent))
             want = _normalize(reference[key], str(py_spec.parent))
+            if key == "translated_pages":
+                want = _strip_color_adapt_keys(want)
             assert got == want, (
                 f"{mode}: key {key!r} diverges\n  native: {got}\n  ref:    {want}"
             )

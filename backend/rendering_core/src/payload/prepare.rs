@@ -32,7 +32,7 @@ pub const CONTINUATION_NARROW_BOX_CAPACITY_RELAX_RATIO: f64 = 0.72;
 
 /// `(page_font_size, page_line_pitch, page_line_height, density_baseline,
 /// page_text_width_med)` — the five-tuple `page_metrics` value.
-type PageMetrics = [f64; 5];
+pub type PageMetrics = [f64; 5];
 
 /// Intermediate state holding the shared-reference mutation semantics: a flat
 /// list of all deep-copied items (page-sorted) plus the page index ranges and
@@ -138,26 +138,14 @@ fn attach_first_line_indents(
     }
 }
 
-/// `prepare_render_payloads_by_page` — the C3-N7 boundary (port of prepare.py).
-/// Deep-copies the input pages, so the caller's dicts are untouched, and returns
-/// the prepared page map.
-pub fn prepare_render_payloads_by_page(
+/// `_build_page_metrics`: per-page `(page_font_size, page_line_pitch,
+/// page_line_height, density_baseline, page_text_width_med)`. Reads only raw
+/// item fields, so values are identical before and after `seed_render_fields`.
+pub fn build_page_metrics(
     translated_pages: &BTreeMap<i64, Vec<Value>>,
-    first_line_indent_lookup: Option<&BTreeMap<String, f64>>,
-    effective_inner_bbox_lookup: Option<&BTreeMap<String, Vec<f64>>>,
-) -> BTreeMap<i64, Vec<Value>> {
-    let mut prepared: BTreeMap<i64, Vec<Value>> = BTreeMap::new();
-    for (page_idx, items) in translated_pages {
-        prepared.insert(*page_idx, items.clone());
-    }
-    if prepared.is_empty() {
-        return prepared;
-    }
-
-    let mut flat_items: Vec<Value> = Vec::new();
-    let mut page_ranges: BTreeMap<i64, (usize, usize)> = BTreeMap::new();
+) -> BTreeMap<i64, PageMetrics> {
     let mut page_metrics: BTreeMap<i64, PageMetrics> = BTreeMap::new();
-    for (&page_idx, items) in &prepared {
+    for (&page_idx, items) in translated_pages {
         let typed: Vec<Item> = items.iter().map(Item::from_json_value).collect();
         let typed_refs: Vec<&Item> = typed.iter().collect();
         let (page_font_size, page_line_pitch, page_line_height, density_baseline) =
@@ -183,6 +171,30 @@ pub fn prepare_render_payloads_by_page(
                 page_text_width_med,
             ],
         );
+    }
+    page_metrics
+}
+
+/// `prepare_render_payloads_by_page` — the C3-N7 boundary (port of prepare.py).
+/// Deep-copies the input pages, so the caller's dicts are untouched, and returns
+/// the prepared page map.
+pub fn prepare_render_payloads_by_page(
+    translated_pages: &BTreeMap<i64, Vec<Value>>,
+    first_line_indent_lookup: Option<&BTreeMap<String, f64>>,
+    effective_inner_bbox_lookup: Option<&BTreeMap<String, Vec<f64>>>,
+) -> BTreeMap<i64, Vec<Value>> {
+    let mut prepared: BTreeMap<i64, Vec<Value>> = BTreeMap::new();
+    for (page_idx, items) in translated_pages {
+        prepared.insert(*page_idx, items.clone());
+    }
+    if prepared.is_empty() {
+        return prepared;
+    }
+
+    let page_metrics = build_page_metrics(&prepared);
+    let mut flat_items: Vec<Value> = Vec::new();
+    let mut page_ranges: BTreeMap<i64, (usize, usize)> = BTreeMap::new();
+    for (&page_idx, items) in &prepared {
         let start = flat_items.len();
         for mut item in items.clone() {
             seed_render_fields(&mut item);

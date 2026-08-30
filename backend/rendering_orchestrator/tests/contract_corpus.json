@@ -278,9 +278,9 @@
               "preserved_line_boxes": [],
               "skip_reason": "",
               "text_color": [
-                0,
-                0,
-                0
+                0.0,
+                0.0,
+                0.0
               ],
               "toc_entries": [],
               "use_cover_fill": true
@@ -335,9 +335,9 @@
               "preserved_line_boxes": [],
               "skip_reason": "",
               "text_color": [
-                0,
-                0,
-                0
+                0.0,
+                0.0,
+                0.0
               ],
               "toc_entries": [],
               "use_cover_fill": true
@@ -924,6 +924,9 @@
       "name": "render_bundle",
       "shape": {
         "fields": {
+          "end_page": {
+            "type": "any"
+          },
           "font_family": {
             "type": "any"
           },
@@ -931,6 +934,9 @@
             "type": "any"
           },
           "output_pdf": {
+            "type": "any"
+          },
+          "overlay_page_specs": {
             "type": "any"
           },
           "page_map": {
@@ -1193,6 +1199,9 @@
           "source_pdf": {
             "type": "any"
           },
+          "start_page": {
+            "type": "any"
+          },
           "translated_pages": {
             "type": "map",
             "value": {
@@ -1312,15 +1321,18 @@
         },
         "open": false,
         "required": [
+          "end_page",
           "font_family",
           "mode",
           "output_pdf",
+          "overlay_page_specs",
           "page_map",
           "page_specs",
           "precleaned_page_indices",
           "redaction_strategy",
           "schema_version",
           "source_pdf",
+          "start_page",
           "translated_pages",
           "visual_profile_fill_map",
           "work_dir"
@@ -1328,9 +1340,11 @@
         "type": "obj"
       },
       "value": {
+        "end_page": 1,
         "font_family": "Source Han Serif SC",
         "mode": "typst",
         "output_pdf": "<job_root>/rendered/out.pdf",
+        "overlay_page_specs": null,
         "page_map": {
           "source_page_indices": [
             0,
@@ -1383,9 +1397,9 @@
                 "preserved_line_boxes": [],
                 "skip_reason": "",
                 "text_color": [
-                  0,
-                  0,
-                  0
+                  0.0,
+                  0.0,
+                  0.0
                 ],
                 "toc_entries": [],
                 "use_cover_fill": true
@@ -1440,9 +1454,9 @@
                 "preserved_line_boxes": [],
                 "skip_reason": "",
                 "text_color": [
-                  0,
-                  0,
-                  0
+                  0.0,
+                  0.0,
+                  0.0
                 ],
                 "toc_entries": [],
                 "use_cover_fill": true
@@ -1460,6 +1474,7 @@
         "redaction_strategy": null,
         "schema_version": "render.bundle.v1",
         "source_pdf": "<job_root>/rendered/typst/out.source-bbox-text-stripped.pdf",
+        "start_page": 0,
         "translated_pages": {
           "0": [
             {

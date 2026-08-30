@@ -83,6 +83,9 @@ def _bundle() -> dict:
         "page_map": {"source_page_indices": [0]},
         "translated_pages": {0: [{"item_id": "item-0", "translated_text": "Hello"}]},
         "page_specs": [_page_spec()],
+        "start_page": 0,
+        "end_page": 1,
+        "overlay_page_specs": None,
     }
 
 

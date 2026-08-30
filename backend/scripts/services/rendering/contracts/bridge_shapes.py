@@ -183,7 +183,7 @@ PrecleanedPageIndicesShape = list[int]
 
 # --------------------------------------------------------------------------
 # Boundary 6 — render bundle (`entrypoints/run_render_delegate.py::build_bundle`)
-# → `rendering_orchestrator::bundle::RenderBundle`. All 12 keys emitted.
+# → `rendering_orchestrator::bundle::RenderBundle`. All 15 keys emitted.
 
 
 class RenderBundlePageMapShape(TypedDict):
@@ -203,6 +203,12 @@ class RenderBundleShape(TypedDict):
     page_map: RenderBundlePageMapShape
     translated_pages: dict[int, list[RedactionItemShape]]
     page_specs: list[EmitterPageSpecShape]
+    start_page: int
+    end_page: int
+    #: `list[OverlayPageSpec] | None` — `None` for typst/typst_visual bundles.
+    #: Declared as `Any` because the D3 gate has no optional-union node; the
+    #: overlay sub-structure is asserted by the bundle parity differential.
+    overlay_page_specs: Any
 
 
 # --------------------------------------------------------------------------
