@@ -185,9 +185,21 @@ def _contract_item(
     }
 
 
+def _title_item(item_id: str, page_idx: int, bbox, translated: str) -> dict:
+    item = _contract_item(item_id, page_idx, 1, bbox, translated)
+    item["layout_role"] = "heading"
+    item["semantic_role"] = "heading"
+    item["structure_role"] = "heading"
+    return item
+
+
 def _translated_pages() -> dict[int, list[dict]]:
     return {
         0: [
+            # A heading: exercises the title-fit budget path (fit_single_line +
+            # content_kind=markdown) in the page_specs emitter, which the
+            # body-paragraph items below never trigger.
+            _title_item("p001-h001", 0, [40.0, 40.0, 340.0, 70.0], "第一章 标题"),
             _contract_item("p001-b001", 0, 1, [40.0, 40.0, 360.0, 80.0], "你好世界"),
             _contract_item("p001-b002", 0, 2, [40.0, 140.0, 360.0, 180.0], "第二段译文"),
         ],

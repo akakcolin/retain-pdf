@@ -349,7 +349,10 @@ fn resolve_fit_budget(
     };
     let downward_expand = downward_room * TITLE_FIT_DOWNWARD_EXPAND_RATIO;
     let max_width_expand = width * TITLE_FIT_MAX_WIDTH_EXPAND_RATIO;
-    let width_expand = (max_width - width).min(max_width_expand) * TITLE_FIT_WIDTH_EXPAND_RATIO;
+    // Python `title_fit.py`: `min(max_width_expand, room * RATIO)` — scale the
+    // room FIRST, then clamp (clamping the raw room first diverges when the
+    // horizontal room exceeds ~11.9% of the title width).
+    let width_expand = ((max_width - width) * TITLE_FIT_WIDTH_EXPAND_RATIO).min(max_width_expand);
     let max_total_height_expand = height * TITLE_FIT_MAX_TOTAL_HEIGHT_EXPAND_RATIO;
     upward_shift = upward_shift.min(max_total_height_expand);
     let downward_expand = (max_total_height_expand - upward_shift)
