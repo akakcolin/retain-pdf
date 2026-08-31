@@ -97,7 +97,7 @@ async function uploadPdf(file: File, backendKey: string, developerMode = false) 
 上传限制说明：
 
 - 当前后端默认不额外限制 PDF 大小和页数
-- 如果部署方配置了 `RUST_API_UPLOAD_MAX_BYTES` / `RUST_API_UPLOAD_MAX_PAGES`，以前端实际收到的服务端报错为准
+- 如果部署方配置了 `RUST_API_UPLOAD_MAX_BYTES` / `RUST_API_UPLOAD_MAX_PAGES` / `RUST_API_UPLOAD_MAX_COMPLEXITY`，以前端实际收到的服务端报错为准
 
 ## 4. 创建任务
 

@@ -81,6 +81,7 @@ fn test_state(test_name: &str) -> AppState {
         simple_port: 41001,
         upload_max_bytes: 0,
         upload_max_pages: 0,
+        upload_max_complexity: 0,
         api_keys: HashSet::new(),
         max_running_jobs: 1,
         provider_limits: crate::config::ProviderLimitsConfig::default(),
@@ -113,6 +114,7 @@ fn submit_context<'a>(state: &'a AppState) -> JobSubmitDeps<'a> {
             &state.config.uploads_dir,
             state.config.upload_max_bytes,
             state.config.upload_max_pages,
+            state.config.upload_max_complexity,
             &state.config.python_bin,
         ),
         JobLaunchDeps::new(
@@ -350,6 +352,7 @@ async fn store_pdf_upload_rejects_non_pdf_filename() {
         &state.config.uploads_dir,
         0,
         0,
+        0,
         &state.config.python_bin,
         UploadedPdfInput {
             filename: "notes.txt".to_string(),
@@ -373,6 +376,7 @@ async fn store_pdf_upload_rejects_path_traversal_filename() {
     let upload = store_pdf_upload(
         state.db.as_ref(),
         &state.config.uploads_dir,
+        0,
         0,
         0,
         &state.config.python_bin,
@@ -401,6 +405,7 @@ async fn store_pdf_upload_rejects_absolute_path_filename() {
         &state.config.uploads_dir,
         0,
         0,
+        0,
         &state.config.python_bin,
         UploadedPdfInput {
             filename: "/etc/evil.pdf".to_string(),
@@ -422,6 +427,7 @@ async fn store_pdf_upload_rejects_nul_byte_in_filename() {
     let err = store_pdf_upload(
         state.db.as_ref(),
         &state.config.uploads_dir,
+        0,
         0,
         0,
         &state.config.python_bin,
@@ -447,6 +453,7 @@ async fn store_pdf_upload_rejects_backslash_traversal_filename() {
         &state.config.uploads_dir,
         0,
         0,
+        0,
         &state.config.python_bin,
         UploadedPdfInput {
             filename: "..\\..\\evil.pdf".to_string(),
@@ -470,6 +477,7 @@ async fn store_pdf_upload_repairs_bad_xref_pdf() {
         &state.config.uploads_dir,
         0,
         0,
+        0,
         &state.config.python_bin,
         UploadedPdfInput {
             filename: "bad-xref.pdf".to_string(),
@@ -483,6 +491,53 @@ async fn store_pdf_upload_repairs_bad_xref_pdf() {
     assert_eq!(upload.page_count, 1);
     let repaired_doc = Document::load(&upload.stored_path).expect("repaired pdf is valid");
     assert_eq!(repaired_doc.get_pages().len(), 1);
+}
+
+#[tokio::test]
+async fn store_pdf_upload_rejects_high_complexity_pdf() {
+    let state = test_state("store-upload-high-complexity");
+    let err = store_pdf_upload(
+        state.db.as_ref(),
+        &state.config.uploads_dir,
+        0,
+        0,
+        1,
+        &state.config.python_bin,
+        UploadedPdfInput {
+            filename: "complex.pdf".to_string(),
+            bytes: build_test_pdf_bytes(),
+            developer_mode: false,
+        },
+    )
+    .await
+    .expect_err("complexity over budget should be rejected");
+    match err {
+        AppError::BadRequest(message) => {
+            assert!(message.contains("复杂度"), "unexpected message: {message}")
+        }
+        other => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn store_pdf_upload_accepts_high_complexity_budget() {
+    let state = test_state("store-upload-high-complexity-budget");
+    let upload = store_pdf_upload(
+        state.db.as_ref(),
+        &state.config.uploads_dir,
+        0,
+        0,
+        u64::MAX,
+        &state.config.python_bin,
+        UploadedPdfInput {
+            filename: "complex-ok.pdf".to_string(),
+            bytes: build_test_pdf_bytes(),
+            developer_mode: false,
+        },
+    )
+    .await
+    .expect("large complexity budget should accept the pdf");
+    assert_eq!(upload.page_count, 1);
 }
 
 #[tokio::test]

@@ -28,6 +28,7 @@ pub(crate) struct UploadStoreDeps<'a> {
     pub(crate) uploads_dir: &'a Path,
     pub(crate) upload_max_bytes: u64,
     pub(crate) upload_max_pages: u32,
+    pub(crate) upload_max_complexity: u64,
     pub(crate) python_bin: &'a str,
 }
 
@@ -37,6 +38,7 @@ impl<'a> UploadStoreDeps<'a> {
         uploads_dir: &'a Path,
         upload_max_bytes: u64,
         upload_max_pages: u32,
+        upload_max_complexity: u64,
         python_bin: &'a str,
     ) -> Self {
         Self {
@@ -44,6 +46,7 @@ impl<'a> UploadStoreDeps<'a> {
             uploads_dir,
             upload_max_bytes,
             upload_max_pages,
+            upload_max_complexity,
             python_bin,
         }
     }

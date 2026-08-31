@@ -112,14 +112,17 @@
 
 ## 分歧台账（reader 原语 vs fitz）
 
-- **text_traces 为空**：mupdf 无 `get_texttrace` 等价物（spans/drawings 无 opacity/type-3 信号）→ native `hidden_text=False`；影响仅限「隐藏文本且 <20 词」页，分类 parity 用 corpus kind 断言兜底。
-- **text_intrusion 空白 span**（B-C）：spans/blocks 原语按非空文本契约丢弃纯空白 span，`collect_page_intrusive_display_text_rects` 因此不再 flag 裸空白 span（原始 `get_text("dict")` reference 会）；影响仅「span 全部为空白」的 display 区域，smoke_text_read_bridge 已断言 native==回退。
-- **image_rects xref tie**：mupdf 无 xref 关联 bbox，`page_snapshot` 取首个资源 xref，image_rects 聚合全部 placement rects（≤0.01pt 覆盖精确关联）。
-- **drawing rect 分歧**：已有 golden 差分记录。
-- **native 页索引推导边界**（B2-Inc5 doc=None 分支）：`layout._native.read_source_page_sizes` 会跳过不可读页，与 fitz `0 <= idx < len(doc)` 仅在「范围内但不可读」页有边角分歧；`overlay_pdf_size_mismatches` native 分支假设 overlay 页数==specs 数（fitz 用 `len(overlay_doc)` 实测），编译按 spec 生成、页数恒等，仅防御性检测有差异。
-- **颜色适配**：batch 路径（`apply_adaptive_overlay_colors_batch`）PDF 访问已 native（3 个 source native 原语：`sample_page_color_fills`/`extract_page_span_dicts`/`sample_title_visual_colors`），共享决策树 `_apply_adaptive_overlay_colors_with_data` 纯 Python；参考实现（`PageTextColorSampler.build`/`title_text_color_from_visual_components`）仍走 fitz（B-D 后纯几何 `fitz.Rect` 强转已清除，仅剩必需 fitz 消费）。
-- **限定为 fallback/非默认策略**：`workflow/direct_overlay.py`、`fill.py`、`source_cleanup/pdf/document.py` —— NATIVE=False 时仍走 fitz，属参考实现。`source_page_overlay`/`overlay_ops`/`overlay_book` 及 `page_overlay.overlay_pages_from_single_pdf`（经 compositor 注入）的 `show_pdf_page` 合成已接 native（B-F）；其余 fitz 逻辑仍属参考实现。
-- **source 顶层留 reference（B-E）**：`document_ops.page_word_count`/`_visible_text_traces`/`page_has_editable_text`/`page_is_pseudo_editable_scan` 依赖 `get_texttrace` 与 `get_text("words")`（mupdf-rs 无等价物，硬边界）——`page_is_pseudo_editable_scan` 仍是 strip_hidden_text 的 fitz 预扫描（硬边界；C3-N9 后逐页 strip 走 native `strip_hidden_text_pages`，预扫描语义留在 Python）；`vector_profile.collect_page_drawing_rects` 的 per-drawing zigzag rect 也留 reference（fitz lineart 丢末点，复刻脆弱）。
+标注：`CI 锁定` = rendering-parity 套件硬断言；`仅文档` = 暂不可断言/刻意保留的差异面。
+
+- **text_traces 为空**：mupdf 无 `get_texttrace` 等价物（spans/drawings 无 opacity/type-3 信号）→ native `hidden_text=False`；影响仅限「隐藏文本且 <20 词」页，分类 parity 用 corpus kind 断言兜底。（CI 锁定：`golden_pdf_replay.rs` 断言空 text_traces + corpus kind）
+- **text_intrusion 空白 span**（B-C）：spans/blocks 原语按非空文本契约丢弃纯空白 span，`collect_page_intrusive_display_text_rects` 因此不再 flag 裸空白 span（原始 `get_text("dict")` reference 会）；影响仅「span 全部为空白」的 display 区域。（CI 锁定：smoke_text_read_bridge 断言 native==回退）
+- **image_rects xref tie**：mupdf 无 xref 关联 bbox，`page_snapshot` 取首个资源 xref，image_rects 聚合全部 placement rects（≤0.01pt 覆盖精确关联）。（CI 锁定：`image_rects_diff.rs` 钉 placement union + `golden_pdf_replay.rs` 钉聚合 key）
+- **page_word_count 10% 容差**：fitz `get_text("words")`（`fz_stext_words` + PRESERVE_LIGATURES 映射）vs mupdf-rs `fz_page_words`（ligature 映射 U+FFFD、邻词合并），25/42 golden 页有差异、max 5.4%。（CI 锁定：`golden_pdf_replay.rs` `assert_snapshot_achievable` 10% 相对容差）
+- **drawing rect 分歧**：`page_drawing_count` 已硬断言；per-drawing rect 在部分 stroked zigzag 有差异（fitz lineart 丢末点）。（CI 锁定 count：`drawings_diff.rs`；rect 留 Python reference，仅文档）
+- **native 页索引推导边界**（B2-Inc5 doc=None 分支）：`layout._native.read_source_page_sizes` 会跳过不可读页，与 fitz `0 <= idx < len(doc)` 仅在「范围内但不可读」页有边角分歧；`overlay_pdf_size_mismatches` native 分支假设 overlay 页数==specs 数（fitz 用 `len(overlay_doc)` 实测），编译按 spec 生成、页数恒等，仅防御性检测有差异。（仅文档）
+- **颜色适配**：batch 路径（`apply_adaptive_overlay_colors_batch`）PDF 访问已 native（3 个 source native 原语：`sample_page_color_fills`/`extract_page_span_dicts`/`sample_title_visual_colors`），共享决策树 `_apply_adaptive_overlay_colors_with_data` 纯 Python；参考实现（`PageTextColorSampler.build`/`title_text_color_from_visual_components`）仍走 fitz（B-D 后纯几何 `fitz.Rect` 强转已清除，仅剩必需 fitz 消费）。（仅文档）
+- **限定为 fallback/非默认策略**：`workflow/direct_overlay.py`、`fill.py`、`source_cleanup/pdf/document.py` —— NATIVE=False 时仍走 fitz，属参考实现。`source_page_overlay`/`overlay_ops`/`overlay_book` 及 `page_overlay.overlay_pages_from_single_pdf`（经 compositor 注入）的 `show_pdf_page` 合成已接 native（B-F）；其余 fitz 逻辑仍属参考实现。（仅文档）
+- **source 顶层留 reference（B-E）**：`document_ops.page_word_count`/`_visible_text_traces`/`page_has_editable_text`/`page_is_pseudo_editable_scan` 依赖 `get_texttrace` 与 `get_text("words")`（mupdf-rs 无等价物，硬边界）——`page_is_pseudo_editable_scan` 仍是 strip_hidden_text 的 fitz 预扫描（硬边界；C3-N9 后逐页 strip 走 native `strip_hidden_text_pages`，预扫描语义留在 Python）；`vector_profile.collect_page_drawing_rects` 的 per-drawing zigzag rect 也留 reference（fitz lineart 丢末点，复刻脆弱）。（仅文档，硬边界）
 
 ## 结论
 

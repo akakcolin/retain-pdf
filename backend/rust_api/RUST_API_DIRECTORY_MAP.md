@@ -56,7 +56,7 @@
   - `config/server.rs`
     `PYTHON_BIN`、`RUST_API_BIND_HOST`、`RUST_API_PORT`。
   - `config/upload.rs`
-    `RUST_API_UPLOAD_MAX_BYTES`、`RUST_API_UPLOAD_MAX_PAGES`。
+    `RUST_API_UPLOAD_MAX_BYTES`、`RUST_API_UPLOAD_MAX_PAGES`、`RUST_API_UPLOAD_MAX_COMPLEXITY`。
   - `config/provider.rs`
     MinerU / Paddle / DeepSeek 的 base URL、HTTP timeout、retry、provider 上传门槛和 Paddle input image limit。
   - `config/job_runner.rs`

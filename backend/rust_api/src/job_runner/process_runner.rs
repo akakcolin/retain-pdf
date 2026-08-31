@@ -134,6 +134,7 @@ mod tests {
             simple_port: 41001,
             upload_max_bytes: 0,
             upload_max_pages: 0,
+            upload_max_complexity: 0,
             api_keys: HashSet::new(),
             max_running_jobs: 1,
             provider_limits: crate::config::ProviderLimitsConfig::default(),

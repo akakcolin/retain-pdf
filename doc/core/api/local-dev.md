@@ -60,6 +60,7 @@ Docker 中 `docker/delivery/docker/auth.local.json` 的 `api_keys` 必须和 `do
 - `PYTHON_BIN`：Python 可执行文件。
 - `RUST_API_UPLOAD_MAX_BYTES`：普通上传大小限制，`0` 表示不限制。
 - `RUST_API_UPLOAD_MAX_PAGES`：普通上传页数限制，`0` 表示不限制。
+- `RUST_API_UPLOAD_MAX_COMPLEXITY`：普通上传复杂度限制（页数 × 对象数），`0` 表示不限制。
 - `RUST_API_MAX_RUNNING_JOBS`：最大并发任务数。
 
 ## Docker 配置位置

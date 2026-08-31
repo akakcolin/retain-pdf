@@ -27,6 +27,7 @@ pub(crate) async fn create_ocr_job_from_upload(
                 deps.uploads.uploads_dir,
                 deps.uploads.upload_max_bytes,
                 deps.uploads.upload_max_pages,
+                deps.uploads.upload_max_complexity,
                 deps.uploads.python_bin,
                 upload,
             )

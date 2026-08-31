@@ -439,6 +439,7 @@ Upload limit policy:
 
 - `RUST_API_UPLOAD_MAX_BYTES`
 - `RUST_API_UPLOAD_MAX_PAGES`
+- `RUST_API_UPLOAD_MAX_COMPLEXITY` (pages × objects)
 - either value set to `0` means that limit is disabled
 
 Response:

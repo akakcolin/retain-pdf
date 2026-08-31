@@ -47,6 +47,7 @@ pub async fn store_pdf_upload(
     uploads_dir: &Path,
     upload_max_bytes: u64,
     upload_max_pages: u32,
+    upload_max_complexity: u64,
     python_bin: &str,
     upload: UploadedPdfInput,
 ) -> Result<UploadRecord, AppError> {
@@ -76,6 +77,17 @@ pub async fn store_pdf_upload(
             "当前服务限制：PDF 页数必须不超过 {} 页",
             upload_max_pages
         )));
+    }
+    if upload_max_complexity > 0 {
+        let object_count = load_pdf_object_count(&upload_path)
+            .map_err(|e| AppError::bad_request(format!("invalid pdf: {e}")))?;
+        let complexity = page_count as u128 * object_count as u128;
+        if complexity > upload_max_complexity as u128 {
+            return Err(AppError::bad_request(format!(
+                "当前服务限制：PDF 复杂度（页数 {} × 对象数 {}）必须不超过 {}",
+                page_count, object_count, upload_max_complexity
+            )));
+        }
     }
 
     let content_hash = crate::db::documents::sha256_hex(&upload.bytes);
@@ -114,6 +126,10 @@ async fn load_pdf_page_count_or_repair(path: &Path, python_bin: &str) -> Result<
 
 fn load_pdf_page_count(path: &Path) -> Result<u32, lopdf::Error> {
     Document::load(path).map(|doc| doc.get_pages().len() as u32)
+}
+
+fn load_pdf_object_count(path: &Path) -> Result<u64, lopdf::Error> {
+    Document::load(path).map(|doc| doc.objects.len() as u64)
 }
 
 async fn repair_pdf_with_pymupdf(path: &Path, python_bin: &str) -> Result<(), String> {
