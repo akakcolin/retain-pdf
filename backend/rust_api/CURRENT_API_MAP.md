@@ -56,11 +56,10 @@
 
 代码主入口：
 
-- [`backend/scripts/entrypoints/run_provider_case.py`](/home/wxyhgk/tmp/Code/backend/scripts/entrypoints/run_provider_case.py)
-- [`backend/scripts/entrypoints/run_provider_ocr.py`](/home/wxyhgk/tmp/Code/backend/scripts/entrypoints/run_provider_ocr.py)
 - [`backend/scripts/entrypoints/run_normalize_ocr.py`](/home/wxyhgk/tmp/Code/backend/scripts/entrypoints/run_normalize_ocr.py)
 - [`backend/scripts/entrypoints/run_translate_only.py`](/home/wxyhgk/tmp/Code/backend/scripts/entrypoints/run_translate_only.py)
-- [`backend/scripts/entrypoints/run_render_only.py`](/home/wxyhgk/tmp/Code/backend/scripts/entrypoints/run_render_only.py)
+
+render 阶段由 native `render_rs --spec` 执行（prepare/typst/overlay/save 全 native），无 Python 渲染入口。
 
 ## 2. 当前正式 workflow
 
@@ -233,12 +232,9 @@ Rust 根据 workflow 选择运行计划：
 
 当前生产主链使用这些 stage worker：
 
-- `run_normalize_ocr.py --spec specs/normalize.spec.json`
+- `run_normalize_ocr.py --spec specs/normalize.spec.json`（非 allowlist OCR provider 的 Python 回退）
 - `run_translate_only.py --spec specs/translate.spec.json`
-- `run_render_only.py --spec specs/render.spec.json`
-
-`run_provider_case.py` 仍保留为 legacy/local wrapper，用于本地一次性验证 provider-backed 全流程；不要把它当成
-Rust API 生产主链入口。
+- `render_rs --spec specs/render.spec.json`（native 渲染，prepare/typst/overlay/save 全 native）
 
 ## 6. 当前最重要的产物目录
 

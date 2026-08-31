@@ -6,11 +6,11 @@ direct_typst 模式让模型直接输出 `$...$` inline LaTeX(渲染时由 mitex
 边界存在的前提下是确定性文本操作,由本模块在翻译时统一保证(验证前、入缓存
 前),而不是靠提示词要求模型自律。
 
-`$` 扫描语义对齐渲染层 tokenizer(services/rendering/layout/text_tokens.py),
+`$` 扫描语义对齐渲染层 tokenizer(rendering_core/src/text/tokens.rs),
 使翻译时规整与渲染时 passthrough 对跨度边界的判定一致。渲染层既有的规整链
 (surround_inline_math_with_spaces 等)保持不动,作为旧缓存条目的幂等兜底。
-本模块必须保持零依赖:translation 与 rendering 都可以 import pipeline_shared,
-但二者不能互相 import。
+本模块必须保持零依赖:translation 与 render_rs(native) 都可消费 pipeline_shared,
+但 Python 侧不再存在渲染树。
 """
 
 from __future__ import annotations
@@ -179,7 +179,7 @@ def normalize_direct_typst_translation(text: str) -> str:
 
 
 # mitex 不兼容写法数据库:与渲染层 sanitize_direct_typst_inline_math 的
-# 改写规则对应(services/rendering/layout/inline_content/core/inline_math.py)。
+# 改写规则对应(rendering_core/src/inline_content/inline_math.rs)。
 # 用途:翻译前扫描源文本,匹配到哪条就把哪条提示给模型,由模型在语义层
 # 完成替换——复杂公式里正则改写必然出错,但"检测某命令出现过"是可靠的。
 # 渲染期正则改写保留作兜底。

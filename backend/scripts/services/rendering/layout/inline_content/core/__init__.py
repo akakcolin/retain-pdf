@@ -1,1 +1,0 @@
-"""Core formula rendering helpers."""

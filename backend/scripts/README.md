@@ -24,7 +24,7 @@
 
 核心流程可以概括成：
 
-`PDF -> OCR provider -> document_schema -> services/translation -> services/rendering -> PDF`
+`PDF -> OCR provider -> document_schema -> services/translation -> render_rs(native) -> PDF`
 
 更具体一点：
 
@@ -56,39 +56,22 @@
 
 ## 推荐入口
 
-日常使用优先走这些入口：
+当前存活入口（整条主链路由 Rust API 驱动，本地直跑用 worker 入口）：
 
-- `scripts/entrypoints/run_book.py`
-  当前最上层完整入口。通过 `book.stage.v1` 串起 `normalize -> translate -> render`，适合人工本地跑整条主链路。
-- `scripts/entrypoints/run_provider_case.py`
-  本地一条命令跑“provider -> normalize -> translate -> render”的通用入口名。底层由 provider 分发层决定具体 OCR 实现，入口名不暴露 provider。
-- `scripts/entrypoints/run_document_flow.py`
-  已经有 OCR JSON 和 PDF 时，优先用这个中性入口名跑完整流程。
 - `scripts/entrypoints/run_normalize_ocr.py`
-  顶层 normalize worker。把 raw OCR JSON 收口成 `document.v1.json`。
-- `scripts/entrypoints/run_provider_ocr.py`
-  本地 OCR-only 通用入口名。只跑 provider -> unpack -> normalize。
+  顶层 normalize worker。把 raw OCR JSON 收口成 `document.v1.json`（非 allowlist OCR provider 的 Python 回退）。
 - `scripts/entrypoints/run_translate_only.py`
   顶层 translate worker。只接受已经标准化的 `document.v1.json`。
-- `scripts/entrypoints/run_render_only.py`
-  顶层 render worker。只接受翻译产物和 PDF。
 - `scripts/entrypoints/translate_book.py`
   只翻译，不渲染。
-- `scripts/entrypoints/build_book.py`
-  只渲染，不重新翻译。
-- `scripts/entrypoints/build_page.py`
-  单页渲染调试入口。
-- `scripts/entrypoints/translate_page.py`
-  单页翻译调试入口。
 - `scripts/entrypoints/validate_document_schema.py`
   契约排错入口。只用于检查 `document.v1` 或 adapter 行为，不是日常整链路入口。
+- `scripts/entrypoints/diagnose_failure_with_ai.py`
+  失败诊断入口。
 - `scripts/devtools/tests/document_schema/regression_check.py`
   长期回归工具，不是主流程入口。
 
-不要把测试脚本当主入口。正常验证整条链路时，优先跑：
-
-1. `run_book.py --spec <job_root>/specs/book.spec.json`
-2. 或 Rust API 提交 job，让 Rust 通过 spec 驱动三个 worker
+render 阶段由 native `render_rs --spec render.spec.json` 执行（见下文「Stage Spec 约定」），不再有 Python 渲染入口。不要把测试脚本当主入口；正常整链路走 Rust API 提交 job，让 Rust 通过 spec 驱动各 worker。
 
 如果要改翻译链路，推荐阅读顺序是：
 
@@ -121,10 +104,8 @@
   provider / translate / render 共用的阶段协议、summary 和 JSON IO。
 - `services/translation`
   OCR payload 到翻译 JSON。
-- `services/rendering`
-  翻译 JSON 到 PDF。
 - `runtime/pipeline`
-  翻译和渲染的总编排层。
+  翻译阶段编排层。
 - `services/README.md`
   具体能力实现层总说明。
 - `foundation/config`
@@ -191,31 +172,17 @@
   - 翻译 key 通过 `credential_ref=env:RETAIN_TRANSLATION_API_KEY`
   - 如果 provider 是 `mineru`，对应 token 通过 `credential_ref=env:RETAIN_MINERU_API_TOKEN`
   - 运行时由 Rust 注入环境变量，Python 通过 `stage_specs.resolve_credential_ref(...)` 读取
-- Rust 主工作流和本地 book/translate 入口都已切到 spec-only
-  - `run_normalize_ocr.py`
-  - `run_provider_ocr.py`
-  - `run_translate_only.py`
-  - `run_render_only.py`
-  - `run_translate_from_ocr.py`
-  - `run_document_flow.py`
-  - `run_provider_case.py`
-  - `run_book.py`
-  - `translate_book.py`
-
-本地开发入口当前也已统一到 stage spec 主路径：
-
-- `entrypoints/run_provider_case.py` -> 当前 provider-backed full workflow 的本地通用入口名
-- `entrypoints/run_document_flow.py` -> 当前 normalized-document full flow 的本地通用入口名
-- `entrypoints/run_provider_ocr.py` -> 当前 OCR-only provider flow 的本地通用入口名
-- `services/document_schema/normalize_pipeline.py` -> `normalize.stage.v1`
-- `services/translation/translate_only_pipeline.py` -> `translate.stage.v1`
-- `services/rendering/workflow/render_only.py` -> `render.stage.v1`
-- `services/translation/from_ocr_pipeline.py` -> `book.stage.v1`
-- `entrypoints/run_book.py` -> `book.stage.v1`
+- Rust 主工作流和本地入口都已切到 spec-only；存活入口：
+  - `entrypoints/run_normalize_ocr.py` -> `normalize.stage.v1`（非 allowlist OCR provider 的 Python 回退）
+  - `entrypoints/run_translate_only.py` -> `translate.stage.v1`
+  - `entrypoints/translate_book.py`
+  - `entrypoints/validate_document_schema.py`
+  - `entrypoints/diagnose_failure_with_ai.py`
+- render 阶段由 native `render_rs --spec render.spec.json` 执行，不再有 Python 渲染入口
 
 也就是说，当前“最上层整个流程”的真实执行口径是：
 
-- 本地：`run_book.py --spec .../book.spec.json`
+- 本地：`translate_book.py` / 直接跑 worker 入口（`run_normalize_ocr.py`、`run_translate_only.py`）
 - Rust API：创建 job，由 Rust 生成 `specs/*.spec.json` 并依次启动 worker
 - 测试脚本：只做回归，不代表主执行路径
 
@@ -260,13 +227,12 @@ python backend/scripts/devtools/sync_python_requirements.py --repo-root . --chec
 - [services/translation/orchestration/README.md](./services/translation/orchestration/README.md)
 - [services/translation/continuation/README.md](./services/translation/continuation/README.md)
 - [services/translation/policy/README.md](./services/translation/policy/README.md)
-- [services/rendering/README.md](./services/rendering/README.md)
 - [services/mineru/README.md](./services/mineru/README.md)
 
 ## 设计边界
 
 - `services/translation` 不直接操作 PDF
-- `services/rendering` 不直接决定翻译策略
+- `render_rs`（native）不直接决定翻译策略
 - `runtime/pipeline` 负责编排，不下沉到实现细节
 - `foundation/` 不承载具体业务流程
 - `entrypoints/` 只做入口，不承载核心实现
@@ -283,8 +249,8 @@ python backend/scripts/devtools/sync_python_requirements.py --repo-root . --chec
 
 - `runtime/pipeline` 重新直接 import `services.ocr_provider` / `services.mineru`
 - `runtime/pipeline` 重新理解 provider raw token，例如 `layoutParsingResults`
-- `services/translation` / `services/rendering` 重新碰 provider raw adapter
+- `services/translation` 重新碰 provider raw adapter
 - `entrypoints/*` 绕过稳定入口，直接连深层实现
 - `services/ocr_provider/__init__.py` 丢掉显式公共导出面
 - `services/ocr_provider/provider_pipeline.py` 丢掉稳定 compat symbol 或不再承担主链 handoff
-- `services/ocr_provider/paddle_*` 反向依赖 `runtime/pipeline` / `services/translation` / `services/rendering`
+- `services/ocr_provider/paddle_*` 反向依赖 `runtime/pipeline` / `services/translation`

@@ -11,7 +11,6 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT / "backend" / "scripts") not in sys.path:
     sys.path.append(str(REPO_ROOT / "backend" / "scripts"))
 
-from foundation.shared.stage_specs import RENDER_STAGE_SCHEMA_VERSION
 from foundation.shared.stage_specs import TRANSLATE_STAGE_SCHEMA_VERSION
 from services.translation.workflow.batching.batching import _is_low_risk_batchable_item
 from services.translation.services.context.execution_context import context_with_memory_guidance
@@ -37,7 +36,7 @@ def _manifest_path(job_root: Path) -> Path:
 
 
 def _summary_path(job_root: Path) -> Path:
-    return job_root / "artifacts" / "mineru_pipeline_summary.json"
+    return job_root / "artifacts" / "pipeline_summary.json"
 
 
 def _source_pdf_path(job_root: Path) -> Path:
@@ -324,49 +323,6 @@ def _build_translate_spec(
     return spec_path
 
 
-def _build_render_spec(job_root: Path, *, translated_pdf_name: str, render_mode: str) -> Path:
-    source_pdf = _source_pdf_path(job_root)
-    translations_dir = (job_root / "translated").resolve()
-    translation_manifest = _manifest_path(job_root)
-    spec_dir = (job_root / "artifacts" / "devtools").resolve()
-    spec_dir.mkdir(parents=True, exist_ok=True)
-    spec_path = spec_dir / "render.stage.devtools.json"
-    payload = {
-        "schema_version": RENDER_STAGE_SCHEMA_VERSION,
-        "stage": "render",
-        "job": {
-            "job_id": job_root.name,
-            "job_root": str(job_root),
-            "workflow": "render_only",
-        },
-        "inputs": {
-            "source_pdf": str(source_pdf),
-            "translations_dir": str(translations_dir),
-            "translation_manifest": str(translation_manifest),
-        },
-        "params": {
-            "start_page": 0,
-            "end_page": -1,
-            "render_mode": render_mode,
-            "compile_workers": 0,
-            "typst_font_family": "",
-            "pdf_compress_dpi": 0,
-            "translated_pdf_name": translated_pdf_name,
-            "body_font_size_factor": 1.0,
-            "body_leading_factor": 1.0,
-            "inner_bbox_shrink_x": 0.0,
-            "inner_bbox_shrink_y": 0.0,
-            "inner_bbox_dense_shrink_x": 0.0,
-            "inner_bbox_dense_shrink_y": 0.0,
-            "model": "",
-            "base_url": "",
-            "credential_ref": "",
-        },
-    }
-    spec_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    return spec_path
-
-
 def retranslate_job(
     job_root: Path,
     *,
@@ -394,18 +350,6 @@ def retranslate_job(
     return subprocess.run(command, cwd=str(REPO_ROOT), check=False).returncode
 
 
-def rerender_job(job_root: Path, *, translated_pdf_name: str, render_mode: str) -> int:
-    spec_path = _build_render_spec(job_root, translated_pdf_name=translated_pdf_name, render_mode=render_mode)
-    command = [
-        sys.executable,
-        str((REPO_ROOT / "backend" / "scripts" / "services" / "rendering" / "render_only_pipeline.py").resolve()),
-        "--spec",
-        str(spec_path),
-    ]
-    print("running:", " ".join(command))
-    return subprocess.run(command, cwd=str(REPO_ROOT), check=False).returncode
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Inspect or rerun a strict-contract translation job that is backed by translation-manifest.json."
@@ -413,28 +357,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("job", help="Job id or absolute job root path.")
     parser.add_argument(
         "--action",
-        choices=("inspect", "retranslate", "rerender", "full"),
+        choices=("inspect", "retranslate"),
         default="inspect",
-        help="Inspect, retranslate, rerender, or run retranslate+rerender.",
+        help="Inspect or retranslate a translated job.",
     )
-    parser.add_argument(
-        "--translated-pdf-name",
-        default="debug-rerender-translated.pdf",
-        help="Output PDF name for rerender mode.",
-    )
-    parser.add_argument(
-        "--render-mode",
-        default="auto",
-        help="Render mode passed to render_only pipeline. Render-only now resolves inputs through translation-manifest.json only.",
-    )
-    parser.add_argument("--mode", default="sci", help="Translation mode for retranslate/full.")
+    parser.add_argument("--mode", default="sci", help="Translation mode for retranslate.")
     parser.add_argument("--math-mode", default="direct_typst", help="Math mode for retranslate/full.")
     parser.add_argument("--workers", type=int, default=100, help="Workers for retranslate/full.")
     parser.add_argument("--batch-size", type=int, default=8, help="Batch size for retranslate/full.")
     parser.add_argument(
         "--skip-title-translation",
         action="store_true",
-        help="Pass skip_title_translation during retranslate/full.",
+        help="Pass skip_title_translation during retranslate.",
     )
     parser.add_argument("--item-id", default="", help="Inspect a specific translated item id.")
     parser.add_argument("--page", type=int, default=0, help="Inspect items on a 1-based page number.")
@@ -458,35 +392,13 @@ def main() -> int:
         )
     if args.action == "inspect":
         return inspect_job(job_root)
-    if args.action == "retranslate":
-        return retranslate_job(
-            job_root,
-            mode=args.mode,
-            math_mode=args.math_mode,
-            workers=args.workers,
-            batch_size=args.batch_size,
-            skip_title_translation=args.skip_title_translation,
-        )
-    if args.action == "rerender":
-        return rerender_job(
-            job_root,
-            translated_pdf_name=args.translated_pdf_name,
-            render_mode=args.render_mode,
-        )
-    translate_rc = retranslate_job(
+    return retranslate_job(
         job_root,
         mode=args.mode,
         math_mode=args.math_mode,
         workers=args.workers,
         batch_size=args.batch_size,
         skip_title_translation=args.skip_title_translation,
-    )
-    if translate_rc != 0:
-        return translate_rc
-    return rerender_job(
-        job_root,
-        translated_pdf_name=args.translated_pdf_name,
-        render_mode=args.render_mode,
     )
 
 

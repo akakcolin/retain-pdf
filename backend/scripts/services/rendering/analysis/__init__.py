@@ -1,1 +1,0 @@
-"""Rendering analysis layer."""

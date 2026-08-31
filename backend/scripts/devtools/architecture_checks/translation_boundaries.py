@@ -7,7 +7,6 @@ from devtools.architecture_checks.common import module_allowed
 from devtools.architecture_checks.common import read_text
 from devtools.architecture_checks.common import rel
 from devtools.architecture_checks.common import scan_py_files
-from devtools.architecture_checks.translation_rules import FROM_OCR_ENTRYPOINT
 from devtools.architecture_checks.translation_rules import TRANSLATE_ONLY_ENTRYPOINT
 from devtools.architecture_checks.translation_rules import TRANSLATION_ALLOWED_ROOT_DIRS
 from devtools.architecture_checks.translation_rules import TRANSLATION_ALLOWED_ROOT_FILES
@@ -88,8 +87,6 @@ def check_translation_internal_boundaries(errors: list[str]) -> None:
     forbidden_public_eager_imports = (
         "from services.translation.",
         "import services.translation.",
-        "from services.rendering",
-        "import services.rendering",
     )
     for item in forbidden_public_eager_imports:
         if item in public_text:
@@ -111,7 +108,7 @@ def check_translation_internal_boundaries(errors: list[str]) -> None:
                 break
 
     for path in scan_py_files(TRANSLATION_ROOT):
-        if path in {TRANSLATE_ONLY_ENTRYPOINT, FROM_OCR_ENTRYPOINT}:
+        if path == TRANSLATE_ONLY_ENTRYPOINT:
             continue
         if translation_layer_for(path) == "workflow":
             continue
@@ -132,8 +129,6 @@ def check_translation_internal_boundaries(errors: list[str]) -> None:
             "import services.translation.workflow",
             "from services.translation.services.policy",
             "import services.translation.services.policy",
-            "from services.rendering",
-            "import services.rendering",
             "from runtime.pipeline",
             "import runtime.pipeline",
         )

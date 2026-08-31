@@ -71,7 +71,7 @@ def infer_failure_stage(*, default_stage: str, trace_text: str, detail: str) -> 
         )
     ):
         return "translation"
-    if any(token in combined for token in ("render_stage.py", "services.rendering", "typst compile", "typst error", "render failed", "failed to render")):
+    if any(token in combined for token in ("typst compile", "typst error", "render failed", "failed to render")):
         return "render"
     if "normaliz" in combined or "document_schema" in combined:
         return "normalization"

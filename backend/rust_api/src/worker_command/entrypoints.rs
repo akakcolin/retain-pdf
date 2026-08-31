@@ -27,10 +27,10 @@ pub(super) fn render_only_command(
     render_rs_command(config, spec_path)
 }
 
-/// C3 production takeover (render_rs 全量接管): every render stage runs through
-/// the native `render_rs` orchestrator (`bundle_builder::build_bundle` resolves
-/// `auto` and rejects anything else). The Python `run_render_only.py` fallback
-/// and the `RETAINPDF_RENDER_ORCHESTRATOR_RS/OFF` escape valves are retired.
+/// render_rs 全量接管: every render stage runs through the native `render_rs`
+/// orchestrator (`bundle_builder::build_bundle` resolves `auto` and rejects
+/// anything else). The Python render fallback and the
+/// `RETAINPDF_RENDER_ORCHESTRATOR_RS/OFF` escape valves are retired.
 
 fn render_rs_command(config: &WorkerCommandRuntimeConfig<'_>, spec_path: &Path) -> Vec<String> {
     let bin = config.render_rs_bin.to_string_lossy().into_owned();
@@ -48,9 +48,7 @@ mod tests {
             python_bin: "python",
             python_entrypoint_mode: PythonWorkerEntrypointMode::Script,
             run_normalize_ocr_script: scripts,
-            run_extract_text_layer_script: scripts,
             run_translate_only_script: scripts,
-            run_render_only_script: scripts,
             render_rs_bin,
         }
     }

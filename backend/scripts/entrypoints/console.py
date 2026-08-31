@@ -17,31 +17,13 @@ def _run_structured(
     return 0
 
 
-def run_book() -> int:
-    from services.translation.entrypoints.from_ocr_pipeline import main
-
-    return _run_structured(main, default_stage="translation", provider="translation")
-
-
 def run_normalize_ocr() -> int:
     from services.document_schema.normalize_pipeline import main
 
     return _run_structured(main, default_stage="normalization", provider="ocr")
 
 
-def run_translate_from_ocr() -> int:
-    from services.translation.entrypoints.from_ocr_pipeline import main
-
-    return _run_structured(main, default_stage="translation", provider="translation")
-
-
 def run_translate_only() -> int:
     from services.translation.entrypoints.translate_only_pipeline import main
 
     return _run_structured(main, default_stage="translation", provider="translation")
-
-
-def run_render_only() -> int:
-    from services.rendering.workflow.render_only import main
-
-    return _run_structured(main, default_stage="rendering", provider="rendering")

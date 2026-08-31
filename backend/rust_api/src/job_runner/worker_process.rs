@@ -46,26 +46,15 @@ pub(super) fn spawn_worker_process(
         .with_context(|| format!("failed to spawn python worker: {program}"))
 }
 
-/// Whether a worker program is the native render orchestrator (used to
-/// discriminate the renderer label).
-fn render_rs_env(program: &Path, bin: &Path) -> bool {
-    program == bin
-}
-
-/// Resolve the renderer label recorded on a render job's runtime info:
-/// `render_rs` when the command targets the native orchestrator, `python`
-/// otherwise. Non-render workers yield None.
-pub(super) fn renderer_label(command: &[String], render_rs_bin: &Path) -> Option<&'static str> {
+/// Resolve the renderer label recorded on a render job's runtime info.
+/// Rendering is native-only, so every Render contract is `render_rs`;
+/// non-render workers yield None.
+pub(super) fn renderer_label(command: &[String]) -> Option<&'static str> {
     use super::process_contract::WorkerContract;
     if WorkerContract::from_command(command) != WorkerContract::Render {
         return None;
     }
-    let program = Path::new(command.first().map(String::as_str).unwrap_or_default());
-    Some(if render_rs_env(program, render_rs_bin) {
-        "render_rs"
-    } else {
-        "python"
-    })
+    Some("render_rs")
 }
 
 fn apply_job_credentials(command: &mut Command, job: &JobRuntimeState) {
@@ -201,39 +190,23 @@ fn terminate_job_process_tree_windows(pid: u32) -> Result<()> {
 mod tests {
     use super::renderer_label;
     use super::worker_process_exists;
-    use super::render_rs_env;
-    use std::path::Path;
 
     #[test]
-    fn render_rs_env_matches_native_binary() {
-        assert!(render_rs_env(
-            Path::new("/opt/bin/render_rs"),
-            Path::new("/opt/bin/render_rs")
-        ));
-        assert!(render_rs_env(Path::new("render_rs"), Path::new("render_rs")));
-        assert!(!render_rs_env(Path::new("python3"), Path::new("/opt/bin/render_rs")));
-    }
-
-    #[test]
-    fn renderer_label_discriminates_render_flavors() {
-        let bin = Path::new("/opt/bin/render_rs");
-        let render_rs_cmd = vec!["/opt/bin/render_rs".to_string(), "--spec".to_string(), "spec.json".to_string()];
-        assert_eq!(renderer_label(&render_rs_cmd, bin), Some("render_rs"));
-        let python_cmd = vec![
-            "/opt/bin/python3".to_string(),
-            "run_render_only.py".to_string(),
+    fn renderer_label_marks_render_contracts_as_render_rs() {
+        let render_rs_cmd = vec![
+            "/opt/bin/render_rs".to_string(),
+            "--spec".to_string(),
             "spec.json".to_string(),
         ];
-        assert_eq!(renderer_label(&python_cmd, bin), Some("python"));
+        assert_eq!(renderer_label(&render_rs_cmd), Some("render_rs"));
     }
 
     #[test]
     fn renderer_label_none_for_non_render_workers() {
-        let bin = Path::new("/opt/bin/render_rs");
         let normalize_cmd = vec!["/opt/bin/python3".to_string(), "run_normalize_ocr.py".to_string()];
-        assert_eq!(renderer_label(&normalize_cmd, bin), None);
+        assert_eq!(renderer_label(&normalize_cmd), None);
         let unknown_cmd = vec!["/opt/bin/python3".to_string(), "custom.py".to_string()];
-        assert_eq!(renderer_label(&unknown_cmd, bin), None);
+        assert_eq!(renderer_label(&unknown_cmd), None);
     }
 
     #[test]

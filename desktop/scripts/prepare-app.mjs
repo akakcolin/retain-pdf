@@ -255,21 +255,19 @@ function pruneBundledMacPythonRuntime(root) {
       }
       // pymupdf/pikepdf/lxml are unreachable from the desktop's worker flow:
       // render/normalize/extract run natively (render_rs), and the always-Python
-      // OCR/translate workers lazy-import the rendering tree
+      // OCR/translate workers lazy-import fitz
       // (services/ocr_provider/paddle_runner.py + translation/llm/domain_context.py),
       // degrading page-count progress / sci domain inference instead of importing it.
-      // PIL is not imported by any bundled script. rendering_bridge ships only
-      // for the services/rendering Python tree, which the desktop bundle now
-      // excludes.
+      // PIL is not imported by any bundled script. rendering_bridge is deleted
+      // (Python rendering tree retired), so no bridge ships into the bundle.
       const removableSitePackages = [
         "fitz", "pymupdf", "core", // pymupdf
         "lxml", // pikepdf dependency
         "pikepdf",
         "PIL", // pillow
-        "rendering_bridge",
       ];
       const removableDistInfo =
-        /^(pymupdf|lxml|pikepdf|pillow|rendering_bridge)-.+\.dist-info$/;
+        /^(pymupdf|lxml|pikepdf|pillow)-.+\.dist-info$/;
       for (const packageName of removableSitePackages) {
         removalTargets.push(path.join(sitePackagesRoot, packageName));
       }
@@ -806,14 +804,15 @@ desktopIndexHtml = desktopIndexHtml.replace('\n    <script src="./runtime-config
 fs.writeFileSync(desktopIndexPath, desktopIndexHtml, "utf8");
 
 const DEAD_ENTRYPOINTS = new Set([
-  "run_render_only.py", // python render fallback: imports services.rendering
-  "run_document_flow.py", // legacy book flow: imports book_pipeline -> services.rendering
-  "run_book.py", // legacy: from_ocr_pipeline -> book_pipeline
+  "run_extract_text_layer.py", // native extract-text-layer: no python worker
+  "run_render_only.py", // python render retired: render_rs native
+  "run_document_flow.py", // legacy book flow, deleted
+  "run_book.py", // legacy: from_ocr_pipeline, deleted
   "translate_book.py", // legacy wrapper
-  "translate_page.py", // legacy: services.rendering.legacy.*
-  "build_book.py", // legacy: book_pipeline
-  "build_page.py", // legacy: services.rendering.legacy.*
-  "run_translate_from_ocr.py", // legacy: from_ocr_pipeline
+  "translate_page.py", // legacy: services.rendering.legacy.*, deleted
+  "build_book.py", // legacy: book_pipeline, deleted
+  "build_page.py", // legacy: services.rendering.legacy.*, deleted
+  "run_translate_from_ocr.py", // legacy: from_ocr_pipeline, deleted
   "diagnose_failure_with_ai.py", // dev diagnostic, never spawned by rust_api
 ]);
 

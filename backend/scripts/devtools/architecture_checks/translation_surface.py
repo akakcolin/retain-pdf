@@ -13,11 +13,8 @@ from devtools.architecture_checks.translation_rules import DEVTOOLS_ROOT
 from devtools.architecture_checks.translation_rules import DEVTOOLS_TRANSLATION_INTERNAL_DIR_ALLOWLIST
 from devtools.architecture_checks.translation_rules import DEVTOOLS_TRANSLATION_INTERNAL_IMPORT_ALLOWLIST
 from devtools.architecture_checks.translation_rules import DOCUMENT_SCHEMA_ROOT
-from devtools.architecture_checks.translation_rules import FROM_OCR_ENTRYPOINT
 from devtools.architecture_checks.translation_rules import PIPELINE_ROOT
-from devtools.architecture_checks.translation_rules import RENDERING_ROOT
 from devtools.architecture_checks.translation_rules import TRANSLATE_ONLY_ENTRYPOINT
-from devtools.architecture_checks.translation_rules import TRANSLATION_RENDERING_IMPORT_EXCEPTIONS
 from devtools.architecture_checks.translation_rules import TRANSLATION_ROOT
 from devtools.architecture_checks.translation_rules import TRANSLATION_STAGE_PIPELINE
 
@@ -43,20 +40,6 @@ def check_translation_worker_protocol(errors: list[str]) -> None:
     if '"translation_diagnostics.json"' not in translate_only_text:
         errors.append(
             "services/translation/entrypoints/translate_only_pipeline.py: translate-only worker must keep translation_diagnostics.json as stable diagnostics output"
-        )
-
-    from_ocr_text = read_text(FROM_OCR_ENTRYPOINT)
-    if "PipelineEventWriter(" not in from_ocr_text:
-        errors.append(
-            "services/translation/entrypoints/from_ocr_pipeline.py: translate-from-ocr worker must initialize PipelineEventWriter"
-        )
-    if "STDOUT_LABEL_EVENTS_JSONL" not in from_ocr_text:
-        errors.append(
-            "services/translation/entrypoints/from_ocr_pipeline.py: translate-from-ocr worker must publish pipeline_events.jsonl via stdout contract"
-        )
-    if 'artifact_key="pipeline_events_jsonl"' not in from_ocr_text:
-        errors.append(
-            "services/translation/entrypoints/from_ocr_pipeline.py: translate-from-ocr worker must publish pipeline_events_jsonl artifact"
         )
 
 
@@ -93,7 +76,6 @@ def check_translation_public_surface_usage(errors: list[str]) -> None:
         OCR_PROVIDER_ROOT,
         MINERU_ROOT,
         DOCUMENT_SCHEMA_ROOT,
-        RENDERING_ROOT,
     )
     allowed_prefixes = (
         "services.translation.public",
@@ -143,17 +125,3 @@ def check_devtools_translation_internal_usage(errors: list[str]) -> None:
         errors.append(
             f"{rel(path)}: devtools script imports translation internals; add it to DEVTOOLS_TRANSLATION_INTERNAL_IMPORT_ALLOWLIST or use services.translation.public"
         )
-
-
-def check_translation_rendering_separation(errors: list[str]) -> None:
-    for path in scan_py_files(TRANSLATION_ROOT):
-        exception_prefixes = TRANSLATION_RENDERING_IMPORT_EXCEPTIONS.get(path.relative_to(TRANSLATION_ROOT), ())
-        for module in imported_modules(path):
-            if not module.startswith("services.rendering"):
-                continue
-            if module_allowed(module, exception_prefixes):
-                continue
-            errors.append(
-                f"{rel(path)}: translation layer must not import rendering services directly: '{module}'"
-            )
-            break

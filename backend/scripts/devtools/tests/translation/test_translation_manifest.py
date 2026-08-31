@@ -8,7 +8,6 @@ REPO_SCRIPTS_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_SCRIPTS_ROOT))
 
 
-from runtime.pipeline.translation_loader import load_translated_pages
 import services.translation.core.payload.manifest as manifest_module
 from services.translation.core.payload.manifest import load_translation_manifest
 from services.translation.core.payload.manifest import load_translation_manifest_file
@@ -74,47 +73,6 @@ def test_write_translation_manifest_uses_same_directory_atomic_replace(tmp_path,
     assert tmp_path_used.parent == manifest_path.parent
     assert target_path == manifest_path
     assert not tmp_path_used.exists()
-
-
-def test_load_translated_pages_prefers_manifest() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        translations_dir = Path(tmp)
-        legacy_path = translations_dir / "page-001-deepseek.json"
-        manifest_path = translations_dir / "custom-page-003.json"
-        _write_payload(legacy_path, "legacy text")
-        _write_payload(manifest_path, "manifest text")
-        write_translation_manifest(translations_dir, {2: manifest_path})
-
-        pages = load_translated_pages(translations_dir)
-
-        assert sorted(pages) == [2]
-        assert pages[2][0]["translated_text"] == "manifest text"
-
-
-def test_load_translated_pages_requires_manifest_even_if_legacy_page_payload_exists() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        translations_dir = Path(tmp)
-        legacy_path = translations_dir / "page-002-deepseek.json"
-        _write_payload(legacy_path, "legacy text")
-
-        try:
-            load_translated_pages(translations_dir)
-        except RuntimeError as exc:
-            assert "Translation manifest not found" in str(exc)
-        else:
-            raise AssertionError("expected translation manifest error")
-
-
-def test_load_translated_pages_requires_manifest() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        translations_dir = Path(tmp)
-
-        try:
-            load_translated_pages(translations_dir)
-        except RuntimeError as exc:
-            assert "Translation manifest not found" in str(exc)
-        else:
-            raise AssertionError("expected translation manifest error")
 
 
 def test_load_translation_manifest_file_supports_explicit_path() -> None:

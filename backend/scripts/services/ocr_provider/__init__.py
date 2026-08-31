@@ -1,10 +1,6 @@
-"""OCR provider package public surface.
+"""OCR provider transport package.
 
-`provider_pipeline` is the stable provider-backed workflow entrypoint.
-Provider-specific transport helpers stay in sibling modules, while normalized
-schema adaptation remains under `services.document_schema`.
+Provider drivers and paddle/mineru helpers live in sibling modules; normalized
+schema adaptation remains under `services.document_schema`. The legacy
+monolithic `provider_pipeline` worker was retired with the Python renderer.
 """
-
-from . import provider_pipeline
-
-__all__ = ["provider_pipeline"]

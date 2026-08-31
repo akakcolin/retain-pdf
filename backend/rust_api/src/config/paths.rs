@@ -11,10 +11,7 @@ pub struct RuntimePathsConfig {
     pub data_root: PathBuf,
     pub scripts_dir: PathBuf,
     pub run_normalize_ocr_script: PathBuf,
-    pub run_extract_text_layer_script: PathBuf,
-    pub run_translate_from_ocr_script: PathBuf,
     pub run_translate_only_script: PathBuf,
-    pub run_render_only_script: PathBuf,
     pub run_failure_ai_diagnosis_script: PathBuf,
     pub render_rs_bin: PathBuf,
     pub uploads_dir: PathBuf,
@@ -84,16 +81,9 @@ impl RuntimePathsConfig {
             data_root,
             scripts_dir: scripts_dir.clone(),
             run_normalize_ocr_script: scripts_dir.join("entrypoints").join("run_normalize_ocr.py"),
-            run_extract_text_layer_script: scripts_dir
-                .join("entrypoints")
-                .join("run_extract_text_layer.py"),
-            run_translate_from_ocr_script: scripts_dir
-                .join("entrypoints")
-                .join("run_translate_from_ocr.py"),
             run_translate_only_script: scripts_dir
                 .join("entrypoints")
                 .join("run_translate_only.py"),
-            run_render_only_script: scripts_dir.join("entrypoints").join("run_render_only.py"),
             run_failure_ai_diagnosis_script: scripts_dir
                 .join("entrypoints")
                 .join("diagnose_failure_with_ai.py"),

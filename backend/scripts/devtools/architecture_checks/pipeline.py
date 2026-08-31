@@ -10,13 +10,10 @@ from devtools.architecture_checks.fitz_imports import check_fitz_import_allowlis
 from devtools.architecture_checks.providers import check_ocr_provider_boundaries
 from devtools.architecture_checks.providers import check_pipeline_provider_leaks
 from devtools.architecture_checks.providers import check_service_provider_raw_leaks
-from devtools.architecture_checks.rendering import check_render_pipeline_facade_boundary
-from devtools.architecture_checks.rendering import check_rendering_internal_boundaries
 from devtools.architecture_checks.translation import check_devtools_translation_internal_usage
 from devtools.architecture_checks.translation import check_translation_internal_boundaries
 from devtools.architecture_checks.translation import check_translation_pipeline_facade_boundary
 from devtools.architecture_checks.translation import check_translation_public_surface_usage
-from devtools.architecture_checks.translation import check_translation_rendering_separation
 from devtools.architecture_checks.translation import check_translation_worker_protocol
 from devtools.architecture_checks.translation_field_writers import check_translation_payload_field_writers
 
@@ -33,9 +30,6 @@ def main() -> int:
         check_translation_pipeline_facade_boundary(errors)
         check_translation_public_surface_usage(errors)
         check_devtools_translation_internal_usage(errors)
-        check_render_pipeline_facade_boundary(errors)
-        check_rendering_internal_boundaries(errors)
-        check_translation_rendering_separation(errors)
         check_translation_internal_boundaries(errors)
         check_translation_payload_field_writers(errors)
         check_fitz_import_allowlist(errors)

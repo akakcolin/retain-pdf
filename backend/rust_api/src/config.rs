@@ -56,10 +56,7 @@ pub struct AppConfig {
     pub data_root: PathBuf,
     pub scripts_dir: PathBuf,
     pub run_normalize_ocr_script: PathBuf,
-    pub run_extract_text_layer_script: PathBuf,
-    pub run_translate_from_ocr_script: PathBuf,
     pub run_translate_only_script: PathBuf,
-    pub run_render_only_script: PathBuf,
     pub run_failure_ai_diagnosis_script: PathBuf,
     pub render_rs_bin: PathBuf,
     pub uploads_dir: PathBuf,
@@ -87,9 +84,7 @@ pub struct WorkerCommandRuntimeConfig<'a> {
     pub python_bin: &'a str,
     pub python_entrypoint_mode: PythonWorkerEntrypointMode,
     pub run_normalize_ocr_script: &'a Path,
-    pub run_extract_text_layer_script: &'a Path,
     pub run_translate_only_script: &'a Path,
-    pub run_render_only_script: &'a Path,
     pub render_rs_bin: &'a Path,
 }
 
@@ -140,9 +135,7 @@ impl AppConfig {
             python_bin: &self.python_bin,
             python_entrypoint_mode: self.python_entrypoint_mode,
             run_normalize_ocr_script: &self.run_normalize_ocr_script,
-            run_extract_text_layer_script: &self.run_extract_text_layer_script,
             run_translate_only_script: &self.run_translate_only_script,
-            run_render_only_script: &self.run_render_only_script,
             render_rs_bin: &self.render_rs_bin,
         }
     }
@@ -239,10 +232,7 @@ impl AppConfig {
             data_root: paths.data_root,
             scripts_dir: paths.scripts_dir,
             run_normalize_ocr_script: paths.run_normalize_ocr_script,
-            run_extract_text_layer_script: paths.run_extract_text_layer_script,
-            run_translate_from_ocr_script: paths.run_translate_from_ocr_script,
             run_translate_only_script: paths.run_translate_only_script,
-            run_render_only_script: paths.run_render_only_script,
             run_failure_ai_diagnosis_script: paths.run_failure_ai_diagnosis_script,
             render_rs_bin: paths.render_rs_bin,
             uploads_dir: paths.uploads_dir,

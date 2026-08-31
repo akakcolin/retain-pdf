@@ -49,8 +49,8 @@ local-runtime/
 - Rust API 负责任务状态、stage spec、事件、artifact 引用和进程编排。
 - Python `backend/scripts/runtime/pipeline/` 只做阶段编排，不直接消费 OCR provider 原始结构。
 - Python 翻译入口走 `services.translation.workflow` facade。
-- Python 渲染源 PDF 预处理走 `services.rendering.source.render_source` 和 `services.rendering.source.preparation.*`，不要把 hidden-text strip / compression 细节写回 runtime pipeline。
-- OCR provider 原始产物必须先进入 `document.v1.json`，翻译和渲染只消费 normalized document 与 translation artifacts。
+- 渲染由 native `render_rs --spec` 全量接管（prepare/typst/overlay/save 全 native），不再有 Python 渲染树。
+- OCR provider 原始产物必须先进入 `document.v1.json`，翻译只消费 normalized document 与 translation artifacts。
 
 新增跨层依赖前，先跑：
 

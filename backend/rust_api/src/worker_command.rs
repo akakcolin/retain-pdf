@@ -42,10 +42,7 @@ mod tests {
             data_root: data_root.clone(),
             scripts_dir: scripts_dir.clone(),
             run_normalize_ocr_script: scripts_dir.join("run_normalize_ocr.py"),
-            run_extract_text_layer_script: scripts_dir.join("run_extract_text_layer.py"),
-            run_translate_from_ocr_script: scripts_dir.join("run_translate_from_ocr.py"),
             run_translate_only_script: scripts_dir.join("run_translate_only.py"),
-            run_render_only_script: scripts_dir.join("run_render_only.py"),
             run_failure_ai_diagnosis_script: scripts_dir.join("diagnose_failure_with_ai.py"),
             render_rs_bin: scripts_dir.join("render_rs"),
             uploads_dir,
@@ -267,10 +264,6 @@ mod tests {
             Some(config.render_rs_bin.to_string_lossy().as_ref())
         );
         assert_eq!(cmd.get(1).map(String::as_str), Some("--spec"));
-        assert!(!contains(
-            &cmd,
-            &config.run_render_only_script.to_string_lossy().to_string()
-        ));
         assert!(!contains(&cmd, "--mode"));
         assert!(!contains(&cmd, "--batch-size"));
         assert!(!contains(&cmd, "--classify-batch-size"));
@@ -311,10 +304,6 @@ mod tests {
             Some(config.render_rs_bin.to_string_lossy().as_ref())
         );
         assert_eq!(cmd.get(1).map(String::as_str), Some("--spec"));
-        assert!(!contains(
-            &cmd,
-            &config.run_render_only_script.to_string_lossy().to_string()
-        ));
     }
 
     #[test]

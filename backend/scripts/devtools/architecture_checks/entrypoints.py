@@ -16,37 +16,14 @@ ENTRYPOINT_IMPORT_ALLOWLIST: dict[Path, tuple[str, ...]] = {
         "from collections.abc import",
         "from foundation.shared.structured_errors import",
         "from services.document_schema.normalize_pipeline import",
-        "from services.ocr_provider.provider_pipeline import",
-        "from services.rendering.workflow.render_only import",
-        "from services.translation.entrypoints.from_ocr_pipeline import",
         "from services.translation.entrypoints.translate_only_pipeline import",
-    ),
-    Path("build_book.py"): ("from runtime.pipeline.book_pipeline import",),
-    Path("build_page.py"): (
-        "from services.translation.public import",
-        "from services.rendering.legacy.pdf_overlay import",
-        "from services.rendering.legacy.typst_page_renderer import",
     ),
     Path("diagnose_failure_with_ai.py"): (
         "from services.translation.public import",
     ),
-    Path("run_book.py"): ("from services.translation.entrypoints.from_ocr_pipeline import main",),
-    Path("run_document_flow.py"): (
-        "from runtime.pipeline.book_pipeline import",
-        "from services.translation.public import",
-    ),
     Path("run_normalize_ocr.py"): ("from services.document_schema.normalize_pipeline import main",),
-    Path("run_extract_text_layer.py"): (
-        "from services.document_schema.providers import",
-        "from services.pipeline_shared.io import",
-    ),
-    Path("run_render_only.py"): ("from services.rendering.workflow.render_only import main",),
-    Path("run_translate_from_ocr.py"): ("from services.translation.entrypoints.from_ocr_pipeline import main",),
     Path("run_translate_only.py"): ("from services.translation.entrypoints.translate_only_pipeline import main",),
     Path("translate_book.py"): ("from services.translation.entrypoints.translate_only_pipeline import main",),
-    Path("translate_page.py"): (
-        "from services.translation.public import",
-    ),
     Path("validate_document_schema.py"): ("from services.document_schema import",),
 }
 

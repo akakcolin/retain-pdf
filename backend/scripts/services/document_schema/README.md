@@ -185,7 +185,7 @@
 
 1. 上游 provider 先输出自己的原始结果
 2. adapter 把原始结果转成 `normalized_document_v1`
-3. `services/translation` 和 `services/rendering` 只围绕这份统一结构工作
+3. `services/translation` 与 native `render_rs` 只围绕这份统一结构工作
 
 以当前 provider 实现为例：
 

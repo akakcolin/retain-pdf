@@ -14,9 +14,8 @@ pub struct JobStageTiming {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct JobRuntimeInfo {
-    /// Render worker flavor (`render_rs` for the native orchestrator, `python`
-    /// for the run_render_only.py worker); None for non-render jobs and for
-    /// jobs started before this field was introduced.
+    /// Render worker flavor (`render_rs`; rendering is native-only). None for
+    /// non-render jobs and for jobs started before this field was introduced.
     pub renderer: Option<String>,
     pub current_stage: Option<String>,
     pub stage_started_at: Option<String>,

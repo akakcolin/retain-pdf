@@ -15,14 +15,11 @@ def test_translation_public_import_is_lazy() -> None:
             sys.modules.pop(module_name, None)
         elif module_name.startswith("services.translation.workflow"):
             sys.modules.pop(module_name, None)
-        elif module_name.startswith("services.rendering"):
-            sys.modules.pop(module_name, None)
 
     public = importlib.import_module("services.translation.public")
 
     assert public.__all__
     assert "services.translation.workflow" not in sys.modules
-    assert not any(module_name.startswith("services.rendering") for module_name in sys.modules)
 
 
 def test_translation_public_resolves_exports_on_demand() -> None:

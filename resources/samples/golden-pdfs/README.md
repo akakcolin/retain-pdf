@@ -48,37 +48,6 @@ multi-column-paper.pdf
 
 如果后续要提交小型公开样本，单个文件建议控制在 1 MB 以内，并确认版权允许。
 
-## 本地回归脚本
+## 本地回归
 
-完整跑 OCR、翻译、渲染：
-
-```bash
-RETAIN_TRANSLATION_API_KEY=... python3 backend/scripts/devtools/run_golden_flow.py \
-  --sample-id editable-paper-formula
-```
-
-查看当前可用样本：
-
-```bash
-python3 backend/scripts/devtools/run_golden_flow.py --list-samples
-```
-
-只校验样本清单：
-
-```bash
-python3 backend/scripts/devtools/run_golden_flow.py --check-manifest
-```
-
-复用已有 job 做检查：
-
-```bash
-python3 backend/scripts/devtools/run_golden_flow.py \
-  --job-root data/jobs/<job-id> \
-  --skip-run
-```
-
-脚本会检查：
-
-- 翻译诊断中没有非白名单 unresolved 项。
-- 最终 PDF 存在且页数和源 PDF 一致。
-- 抽样 item 的 Typst 放置坐标和 OCR bbox 左上角一致，默认检查 `p001-b013`。
+渲染已全量由 render_rs 接管（native-only）。Golden PDF 样本的 OCR → 翻译 → 渲染回归走 rust_api 生产主链（render_rs），不再有 Python 全流程回归脚本。

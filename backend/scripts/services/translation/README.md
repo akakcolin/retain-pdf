@@ -151,7 +151,6 @@ production 代码在 translation 外部引用本模块时，默认只允许：
 以下 production 目录不应直接 import translation 内部实现：
 
 - `runtime/pipeline/**`
-- `services/rendering/**`
 - `services/ocr_provider/**`
 - `services/mineru/**`
 - `services/document_schema/**`
@@ -167,8 +166,8 @@ production 代码在 translation 外部引用本模块时，默认只允许：
 如果这些外部模块确实需要新的 translation 能力，先把它设计成稳定 contract 后加到 `public/`，再由外部调用。
 
 `public/` 必须保持 lazy facade：不要在 `services/translation/public/__init__.py` 顶层写
-`from services.translation... import ...` 或 `from services.rendering... import ...`。新增导出时只登记到
-`_EXPORTS`，由 `__getattr__` 按需加载，避免 translation 和 rendering 之间重新形成 import cycle。
+`from services.translation... import ...`。新增导出时只登记到
+`_EXPORTS`，由 `__getattr__` 按需加载，避免 translation 内部包之间重新形成 import cycle。
 
 ### Devtools 与测试例外
 
@@ -216,7 +215,6 @@ public
 
 已删除的兼容 shim：
 
-- `translation/from_ocr_pipeline.py` -> `translation/entrypoints/from_ocr_pipeline.py`
 - `translation/translate_only_pipeline.py` -> `translation/entrypoints/translate_only_pipeline.py`
 - `translation/item_reader.py` -> `translation/core/item_reader.py`
 - `translation/session_context.py` -> `translation/services/context/session_context.py`
@@ -256,7 +254,6 @@ policy 相关 mutation/check/default 已迁到 `services/policy/payload_rules/`�
 - `policy/**` 不应 import `llm/providers` 或 `runtime.pipeline`。
 - `payload/**` 不应 import `llm/providers`、`workflow`、`rendering`。
 - `memory/**` 不应 import `llm/providers`、`workflow`、`rendering`。
-- `translation/**` 整体不应 import `services.rendering`。
 
 这些规则由 `backend/scripts/devtools/check_pipeline_architecture.py` 逐步收紧。当前先卡住新增越界依赖，历史兼容入口会分批迁移。
 
@@ -267,7 +264,7 @@ policy 相关 mutation/check/default 已迁到 `services/policy/payload_rules/`�
 - `public/` 必须保持 lazy export，避免 eager import 拉起 workflow/rendering
 - 已删除 shim 路径不可再引用
 - translation 内部不得直接 import `runtime.pipeline`
-- translation 整体不得直接 import `services.rendering`，唯一窄例外是 `workflow/execution_runner.py` 的 render source prewarm
+- 渲染由 native `render_rs` 接管，Python 侧不存在可 import 的 rendering 树
 
 ## 主要流程
 

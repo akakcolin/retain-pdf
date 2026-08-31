@@ -1,9 +1,11 @@
 name: Rendering Parity
 
 # Differential parity gate for the Rust-ified rendering crates (doc 15 D2).
-# Replays the embedded corpora through the native replay tests and through the
-# production Python shims against a freshly built bridge, so a Rust or Python
-# change that diverges the two sides fails here instead of in a release.
+# Replays the embedded corpora through the native replay tests so a Rust
+# change that diverges the golden corpora fails here instead of in a release.
+# The D5 target-metric gate runs the committed baseline against the
+# target-state sample; live /metrics 对照 runs operationally via
+# `devtools/d5_baseline.py check --base-url <api>`.
 
 "on":
   pull_request:
@@ -11,9 +13,7 @@ name: Rendering Parity
       - "backend/rendering_core/**"
       - "backend/rendering_reader/**"
       - "backend/rendering_writer/**"
-      - "backend/rendering_bridge/**"
       - "backend/rendering_orchestrator/**"
-      - "backend/scripts/services/rendering/**"
       - "resources/samples/golden-pdfs/**"
       - ".github/workflows/rendering-parity.yml"
   push:
@@ -24,9 +24,7 @@ name: Rendering Parity
       - "backend/rendering_core/**"
       - "backend/rendering_reader/**"
       - "backend/rendering_writer/**"
-      - "backend/rendering_bridge/**"
       - "backend/rendering_orchestrator/**"
-      - "backend/scripts/services/rendering/**"
       - "resources/samples/golden-pdfs/**"
       - ".github/workflows/rendering-parity.yml"
 
@@ -55,150 +53,24 @@ jobs:
       - name: Orchestrator bridge-contract gate
         run: cargo test --manifest-path backend/rendering_orchestrator/Cargo.toml
 
-  native-bridge-smoke:
-    name: Native bridge smoke parity
+  d5-metric-baseline:
+    name: D5 metric baseline check
     runs-on: ubuntu-latest
-    env:
-      TYPST_VERSION: "0.14.2"
-      CMARKER_VERSION: "0.1.8"
-      MITEX_VERSION: "0.2.6"
-      RETAIN_PDF_TYPST_FONT_DIRS: ${{ github.workspace }}/backend/fonts
-      RETAIN_PDF_TYPST_FONT_FAMILY: "Source Han Serif SC"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install mupdf-sys build deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential clang libclang-dev pkg-config
-
-      - name: Build native bridge
-        shell: bash
-        run: |
-          python -m venv .venv
-          source .venv/bin/activate
-          python -m pip install --upgrade pip
-          python -m pip install "maturin>=1.4,<2.0"
-          python -m pip install -r docker/requirements-test.txt
-          cd backend/rendering_bridge
-          maturin develop
-
-      - name: Build render orchestrator
-        shell: bash
-        run: |
-          cargo build --manifest-path backend/rendering_orchestrator/Cargo.toml
-
-      - name: Setup Typst runtime
-        run: |
-          typst_url="https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz"
-          download_tar="$RUNNER_TEMP/typst-linux.tar.xz"
-          extract_root="$RUNNER_TEMP/typst-linux"
-          curl -L "$typst_url" -o "$download_tar"
-          rm -rf "$extract_root"
-          mkdir -p "$extract_root"
-          tar -xJf "$download_tar" -C "$extract_root"
-          typst_bin="$(find "$extract_root" -type f -name typst | head -n 1)"
-          if [ -z "$typst_bin" ]; then echo "typst binary not found" >&2; exit 1; fi
-          echo "TYPST_BIN=$typst_bin" >> "$GITHUB_ENV"
-          "$typst_bin" --version
-
-      - name: Setup Typst packages
-        run: |
-          package_root="$RUNNER_TEMP/typst-packages"
-          rm -rf "$package_root"
-          mkdir -p "$package_root/preview"
-          for package_spec in "cmarker:${CMARKER_VERSION}" "mitex:${MITEX_VERSION}"; do
-            package_name="${package_spec%%:*}"
-            package_version="${package_spec##*:}"
-            package_url="https://packages.typst.org/preview/${package_name}-${package_version}.tar.gz"
-            download_tar="$RUNNER_TEMP/${package_name}-${package_version}.tar.gz"
-            extract_root="$RUNNER_TEMP/${package_name}-${package_version}"
-            target_dir="$package_root/preview/${package_name}/${package_version}"
-            curl -L "$package_url" -o "$download_tar"
-            rm -rf "$extract_root"
-            mkdir -p "$extract_root" "$target_dir"
-            tar -xzf "$download_tar" -C "$extract_root"
-            cp -R "$extract_root"/. "$target_dir"/
-          done
-          echo "TYPST_PACKAGE_PATH=$package_root" >> "$GITHUB_ENV"
-          echo "TYPST_PACKAGE_CACHE_PATH=$RUNNER_TEMP/typst-package-cache" >> "$GITHUB_ENV"
-
-      - name: Run rendering pytest suite + guard contract
-        shell: bash
-        run: |
-          source .venv/bin/activate
-          export PYTHONPATH="$GITHUB_WORKSPACE/backend/scripts"
-          cd backend/scripts
-          python -m pytest devtools/tests/rendering/ -q
-
-      # D5 tool self-gate: the committed baseline + representative /metrics
-      # sample (target-state) must parse and compare clean. Live /metrics 对照
-      # runs operationally via `d5_baseline.py check --base-url <api>`.
       - name: D5 metric baseline check
         shell: bash
         run: |
-          source .venv/bin/activate
           export PYTHONPATH="$GITHUB_WORKSPACE/backend/scripts"
           cd backend/scripts
           python devtools/d5_baseline.py check \
             --baseline devtools/d5_baseline.json \
-            --metrics-file devtools/tests/rendering/fixtures/d5_metrics_sample.txt \
+            --metrics-file devtools/tests/d5_baseline/fixtures/d5_metrics_sample.txt \
             --desktop-manifest "$GITHUB_WORKSPACE/desktop/app/backend/bundle-manifest.json"
-
-  # Dev-parity gate: maturin build --release -> pip install --target -> import,
-  # on every OS the bridge is built on. The desktop bundle no longer ships the
-  # pyo3 bridge (C4·R); this catches Windows/macOS build/load regressions for
-  # developers who maturin-build the bridge locally.
-  bridge-bundle-smoke:
-    name: Bridge wheel bundle smoke (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install mupdf-sys build deps
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            sudo apt-get update
-            sudo apt-get install -y build-essential clang libclang-dev pkg-config
-          fi
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            brew install pkg-config
-          fi
-
-      - name: Build bridge wheel and smoke bundled import
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            export LIBCLANG_PATH="C:\\Program Files\\LLVM\\bin"
-          fi
-          TEMP_POSIX="${RUNNER_TEMP//\\//}"
-          python -m pip install --upgrade pip
-          python -m pip install "maturin>=1.4,<2.0"
-          cd backend/rendering_bridge
-          mkdir -p "$TEMP_POSIX/bridge-wheels"
-          maturin build --release --out "$TEMP_POSIX/bridge-wheels"
-          python -m pip install --target "$TEMP_POSIX/bridge-sp" "$(ls "$TEMP_POSIX"/bridge-wheels/*.whl | head -n 1)"
-          PYTHONPATH="$TEMP_POSIX/bridge-sp" python -c "import rendering_bridge; print('bridge import ok')"

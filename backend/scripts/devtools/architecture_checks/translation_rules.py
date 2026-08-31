@@ -7,12 +7,10 @@ from devtools.architecture_checks.common import SCRIPTS_ROOT
 PIPELINE_ROOT = SCRIPTS_ROOT / "runtime" / "pipeline"
 DOCUMENT_SCHEMA_ROOT = SCRIPTS_ROOT / "services" / "document_schema"
 TRANSLATION_ROOT = SCRIPTS_ROOT / "services" / "translation"
-RENDERING_ROOT = SCRIPTS_ROOT / "services" / "rendering"
 DEVTOOLS_ROOT = SCRIPTS_ROOT / "devtools"
 TRANSLATION_STAGE_PIPELINE = PIPELINE_ROOT / "translation_stage.py"
 
 TRANSLATE_ONLY_ENTRYPOINT = SCRIPTS_ROOT / "services" / "translation" / "entrypoints" / "translate_only_pipeline.py"
-FROM_OCR_ENTRYPOINT = SCRIPTS_ROOT / "services" / "translation" / "entrypoints" / "from_ocr_pipeline.py"
 TRANSLATION_ALLOWED_ROOT_DIRS = {
     "artifacts",
     "core",
@@ -281,13 +279,6 @@ TRANSLATION_LAYER_IMPORT_EXCEPTIONS: dict[Path, tuple[str, ...]] = {
         "services.translation.services.postprocess",
     ),
 }
-TRANSLATION_RENDERING_IMPORT_EXCEPTIONS: dict[Path, tuple[str, ...]] = {
-    # Translation can start render-source prewarm in parallel with LLM work, but
-    # must not reach into broader rendering internals.
-    Path("workflow/execution_runner.py"): (
-        "services.rendering.source.prewarm",
-    ),
-}
 TRANSLATION_SHARED_COMPAT_IMPORTS = (
     "services.translation.core.item_reader",
     "services.translation.services.context.session_context",
@@ -308,7 +299,6 @@ DEVTOOLS_TRANSLATION_INTERNAL_IMPORT_ALLOWLIST = {
     Path("inspect_translation_repair_candidates.py"),
     Path("job_debug_runner.py"),
     Path("replay_translation_item.py"),
-    Path("run_golden_flow.py"),
     Path("translation_repair_runner.py"),
 }
 DEVTOOLS_TRANSLATION_INTERNAL_DIR_ALLOWLIST = {

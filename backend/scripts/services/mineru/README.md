@@ -26,12 +26,10 @@
 
 ## 推荐入口
 
-- `scripts/entrypoints/run_provider_case.py`
-  本地人工使用时优先走这个通用入口名。它是中性入口名，不把 provider 名字写死。
-- `mineru_pipeline.py`
-  `entrypoints/run_provider_case.py` 背后的稳定实现。
+- `normalize_pipeline.py`
+  MinerU `layout.json -> document.v1.json` 的 Python 规范化实现（allowlist 之外走 `entrypoints/run_normalize_ocr.py`，allowlist 内由 native `render_rs --normalize-ocr` 执行）。
 - `mineru_job.py`
-  只做解析和解包，适合先拿 MinerU 结果再手动接翻译。
+  只做提交、解析和解包，适合先拿 MinerU 结果再手动接后续流程。
 - `mineru_api.py`
   最底层 API 调用封装，只在需要直接调 MinerU 接口时使用。
 - `scripts/devtools/tools/mineru_api_example.py`
@@ -67,8 +65,6 @@
   只负责 MinerU provider 私有产物文件名、目录名
 - `job_flow.py`
   只负责任务编排、下载解包和持久化
-- `mineru_pipeline.py`
-  只负责把规范化后的 OCR 输入送进翻译/渲染主链路
 
 注意：
 
@@ -82,13 +78,13 @@
 
 典型链路是：
 
-1. `mineru_job.py` 或 `mineru_pipeline.py` 向 MinerU 提交 PDF
+1. `mineru_job.py` 向 MinerU 提交 PDF
 2. 轮询直到任务完成
 3. 下载并解包结果
 4. 把原始 PDF 复制到 `source`
 5. 把解析结果放到 `ocr/unpacked`
 6. 同时生成 `ocr/normalized/document.v1.json`
-7. 后续由 `runtime/pipeline` 调 `services/translation` 和 `services/rendering` 完成剩余流程
+7. 后续由 Rust 主流程调翻译（`run_translate_only.py`）和 native `render_rs` 完成剩余流程
 
 当前 `pipeline_summary.json` 里还会写入一份 `schema_validation`，用于快速确认
 规范化文档是否满足当前 `document.v1` 契约；同时会带上 `normalization_report`

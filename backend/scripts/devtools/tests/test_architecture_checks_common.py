@@ -16,14 +16,14 @@ def test_imported_modules_reports_import_and_from_modules(tmp_path: Path) -> Non
     source = tmp_path / "imports.py"
     source.write_text(
         "import os\n"
-        "import services.rendering.source_cleanup as cleanup\n"
+        "import services.document_schema.adapters as adapters\n"
         "from services.translation.public import TranslationExecutionRequest\n",
         encoding="utf-8",
     )
 
     assert architecture_common.imported_modules(source) == [
         "os",
-        "services.rendering.source_cleanup",
+        "services.document_schema.adapters",
         "services.translation.public",
     ]
 
@@ -79,9 +79,6 @@ def test_pipeline_main_fails_and_reports_syntax_error(
         "check_translation_pipeline_facade_boundary",
         "check_translation_public_surface_usage",
         "check_devtools_translation_internal_usage",
-        "check_render_pipeline_facade_boundary",
-        "check_rendering_internal_boundaries",
-        "check_translation_rendering_separation",
         "check_translation_internal_boundaries",
     ):
         monkeypatch.setattr(architecture_pipeline, name, check_noop)

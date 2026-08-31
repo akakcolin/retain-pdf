@@ -116,6 +116,26 @@ def _prepare_run_job(case: dict, case_root: Path, run_root: Path) -> tuple[Path,
     return job_root, spec_path
 
 
+def _resolve_render_rs_bin() -> Path:
+    env = os.environ.get("RETAIN_PDF_RENDER_RS_BIN")
+    if env:
+        return Path(env)
+    candidates = (
+        REPO_ROOT / "backend/rendering_orchestrator/target/release/render_rs",
+        REPO_ROOT / "backend/rendering_orchestrator/target/debug/render_rs",
+    )
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    found = shutil.which("render_rs")
+    if found:
+        return Path(found)
+    raise FileNotFoundError(
+        "render_rs binary not found; build with: "
+        "cargo build --release --manifest-path backend/rendering_orchestrator/Cargo.toml"
+    )
+
+
 def _load_summary(job_root: Path) -> dict:
     summary_path = job_root / "artifacts" / "pipeline_summary.json"
     if not summary_path.exists():
@@ -137,20 +157,12 @@ def run_benchmark(args: argparse.Namespace) -> Path:
     job_root, spec_path = _prepare_run_job(case, case_root, run_root)
     stdout_path = run_root / "render.stdout.log"
     stderr_path = run_root / "render.stderr.log"
-    profile_path = run_root / "render.prof"
 
     command = [
-        sys.executable,
+        str(_resolve_render_rs_bin()),
+        "--spec",
+        str(spec_path),
     ]
-    if args.profile:
-        command.extend(["-m", "cProfile", "-o", str(profile_path)])
-    command.extend(
-        [
-            str(REPO_ROOT / "backend/scripts/entrypoints/run_render_only.py"),
-            "--spec",
-            str(spec_path),
-        ]
-    )
 
     started = time.perf_counter()
     with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
@@ -179,7 +191,6 @@ def run_benchmark(args: argparse.Namespace) -> Path:
             "stderr": str(stderr_path),
             "summary": str(job_root / "artifacts" / "pipeline_summary.json"),
             "output_pdf": str(summary.get("output_pdf", "")),
-            "profile": str(profile_path) if args.profile else "",
         },
         "input_hashes": {
             "source_pdf_sha256": _sha256(source_pdf) if source_pdf.exists() else "",
@@ -198,7 +209,6 @@ def main() -> None:
     parser.add_argument("--run-id", type=str, default="")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--no-materialize", action="store_true")
-    parser.add_argument("--profile", action="store_true")
     args = parser.parse_args()
     run_benchmark(args)
 

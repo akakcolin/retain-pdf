@@ -21,19 +21,15 @@ Its backend is now split into two layers:
 - Python side:
   - OCR normalization to `document.v1.json`
   - translation
-  - Typst rendering
-  - PDF merge/post-processing
+- Rust native (`render_rs --spec`):
+  - Typst rendering (prepare / typst / overlay / save all native)
 
 Current Python entrypoints used by the Rust layer:
 
 - `scripts/entrypoints/run_normalize_ocr.py`
 - `scripts/entrypoints/run_translate_only.py`
-- `scripts/entrypoints/run_render_only.py`
 
-Legacy/local wrappers retained for manual runs:
-
-- `scripts/entrypoints/run_provider_case.py`
-- `scripts/entrypoints/run_document_flow.py`
+Render runs through the native `render_rs --spec` orchestrator; there is no Python render entrypoint.
 
 Current top-level workflow contract:
 

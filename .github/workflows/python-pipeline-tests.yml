@@ -1,8 +1,8 @@
 name: Python Pipeline Tests
 
-# Gate for the Python-side OCR/normalize/rendering-layout production suites that
+# Gate for the Python-side OCR/normalize production suites that
 # rendering-parity.yml does not cover (it only runs devtools/tests/rendering).
-# Runs document_schema + text_layout pytest on PR/main.
+# Runs document_schema pytest on PR/main.
 
 "on":
   pull_request:
@@ -13,13 +13,11 @@ name: Python Pipeline Tests
       - "backend/scripts/services/mineru/**"
       - "backend/scripts/services/network/**"
       - "backend/scripts/services/pipeline_shared/**"
-      - "backend/scripts/services/rendering/layout/**"
       - "backend/scripts/services/translation/core/ocr/**"
       - "backend/scripts/services/translation/services/policy/**"
       - "backend/rust_api/src/services/ai/**"
       - "backend/rust_api/src/routes/ai.rs"
       - "backend/scripts/devtools/tests/document_schema/**"
-      - "backend/scripts/devtools/tests/text_layout/**"
       - ".github/workflows/python-pipeline-tests.yml"
   push:
     branches:
@@ -32,13 +30,11 @@ name: Python Pipeline Tests
       - "backend/scripts/services/mineru/**"
       - "backend/scripts/services/network/**"
       - "backend/scripts/services/pipeline_shared/**"
-      - "backend/scripts/services/rendering/layout/**"
       - "backend/scripts/services/translation/core/ocr/**"
       - "backend/scripts/services/translation/services/policy/**"
       - "backend/rust_api/src/services/ai/**"
       - "backend/rust_api/src/routes/ai.rs"
       - "backend/scripts/devtools/tests/document_schema/**"
-      - "backend/scripts/devtools/tests/text_layout/**"
       - ".github/workflows/python-pipeline-tests.yml"
 
 jobs:
@@ -58,9 +54,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r docker/requirements-test.txt
 
-      - name: Run document_schema + text_layout suites
+      - name: Run document_schema suite
         shell: bash
         run: |
           export PYTHONPATH="$GITHUB_WORKSPACE/backend/scripts"
           cd backend/scripts
-          python -m pytest devtools/tests/document_schema/ devtools/tests/text_layout/ -q
+          python -m pytest devtools/tests/document_schema/ -q

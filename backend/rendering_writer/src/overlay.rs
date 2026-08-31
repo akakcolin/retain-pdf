@@ -188,8 +188,7 @@ pub fn show_pdf_page(
 }
 
 /// Build the dual-book doc: each page = source page (left) + translated page
-/// (right), mirroring `book_support.build_dual_doc_pages`. Reused by both the
-/// pyo3 bridge (`rendering_bridge::build_dual_doc_pages`) and the render
+/// (right), mirroring `book_support.build_dual_doc_pages`. Used by the render
 /// orchestrator's dual stage.
 pub fn build_dual_doc_pages(
     source: &PdfDocument,

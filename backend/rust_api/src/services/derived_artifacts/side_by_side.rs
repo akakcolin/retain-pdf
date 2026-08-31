@@ -6,7 +6,7 @@ use crate::process::python::PythonCommand;
 
 use super::{cached_output_is_fresh, job_artifacts_dir, DerivedArtifactDeps};
 
-const SIDE_BY_SIDE_SCRIPT: &str = "services/rendering/tools/side_by_side_pdf.py";
+const SIDE_BY_SIDE_SCRIPT: &str = "services/derived_artifacts/side_by_side_pdf.py";
 
 pub(crate) fn ensure_side_by_side_pdf(
     deps: DerivedArtifactDeps<'_>,

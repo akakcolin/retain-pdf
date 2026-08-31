@@ -1,6 +1,6 @@
-//! Background stage: `build_clean_background_pdf` (mirror of the bridge
-//! `build_clean_background_pdf` pyfunction, `rendering_bridge/src/lib.rs:350`).
-//! Opens the render doc (reader) and the edit pdf (writer) on the same source
+//! Background stage: `build_clean_background_pdf` (the pyo3 bridge mirror is
+//! retired with rendering_bridge). Opens the render doc (reader) and the edit
+//! pdf (writer) on the same source
 //! path, applies the page-spec replacement + visual-profile fills natively,
 //! runs the redaction stage with a render-clip closure, then saves the cleaned
 //! background PDF optimised.

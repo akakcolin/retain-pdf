@@ -1,1 +1,0 @@
-"""Fallback formula rendering helpers."""

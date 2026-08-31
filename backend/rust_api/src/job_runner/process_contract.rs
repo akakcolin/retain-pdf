@@ -32,7 +32,6 @@ impl WorkerContract {
         match file_name {
             "run_normalize_ocr.py" => WorkerContract::Normalize,
             "run_translate_only.py" => WorkerContract::Translate,
-            "run_render_only.py" => WorkerContract::Render,
             _ => WorkerContract::Unknown,
         }
     }
@@ -183,12 +182,12 @@ mod tests {
     #[test]
     fn worker_contract_detects_known_scripts() {
         assert_eq!(
-            WorkerContract::from_command(&build_job("run_render_only.py").command),
-            WorkerContract::Render
-        );
-        assert_eq!(
             WorkerContract::from_command(&build_job("run_translate_only.py").command),
             WorkerContract::Translate
+        );
+        assert_eq!(
+            WorkerContract::from_command(&build_job("run_normalize_ocr.py").command),
+            WorkerContract::Normalize
         );
         assert_eq!(
             WorkerContract::from_command(&build_job("custom.py").command),
@@ -240,7 +239,16 @@ mod tests {
         std::fs::create_dir_all(summary.parent().expect("summary parent")).expect("summary dir");
         std::fs::write(&summary, b"{}").expect("summary");
 
-        let mut job = build_job("run_render_only.py");
+        let mut job = JobSnapshot::new(
+            "job-test".to_string(),
+            CreateJobInput::default(),
+            vec![
+                "/opt/app/backend/bin/render_rs".to_string(),
+                "--spec".to_string(),
+                "/tmp/spec.json".to_string(),
+            ],
+        )
+        .into_runtime();
         job.artifacts = Some(JobArtifacts {
             output_pdf: Some("jobs/job-test/rendered/output.pdf".to_string()),
             summary: Some("jobs/job-test/artifacts/pipeline_summary.json".to_string()),

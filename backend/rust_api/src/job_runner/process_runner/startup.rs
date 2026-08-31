@@ -1,6 +1,5 @@
 use anyhow::Result;
 use std::collections::HashSet;
-use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
@@ -18,7 +17,7 @@ use super::super::{
 };
 use crate::config::WorkerProcessRuntimeConfig;
 
-fn prepare_job_for_spawn(job: &mut JobRuntimeState, render_rs_bin: &Path) {
+fn prepare_job_for_spawn(job: &mut JobRuntimeState) {
     job.status = JobStatusKind::Running;
     if job.started_at.is_none() {
         job.started_at = Some(now_iso());
@@ -27,7 +26,7 @@ fn prepare_job_for_spawn(job: &mut JobRuntimeState, render_rs_bin: &Path) {
         job.stage = Some(job_stage_str(JobStage::Running).to_string());
         job.stage_detail = Some(job_stage_detail(JobStage::Running).to_string());
     }
-    if let Some(renderer) = renderer_label(&job.command, render_rs_bin) {
+    if let Some(renderer) = renderer_label(&job.command) {
         job.runtime
             .get_or_insert_with(JobRuntimeInfo::default)
             .renderer = Some(renderer.to_string());
@@ -43,7 +42,7 @@ pub(super) async fn spawn_started_process(
     mut job: JobRuntimeState,
     extra_cancel_job_ids: &[String],
 ) -> Result<(JobRuntimeState, tokio::process::Child)> {
-    prepare_job_for_spawn(&mut job, worker_runtime.render_rs_bin);
+    prepare_job_for_spawn(&mut job);
 
     let child = spawn_worker_process(worker_runtime, &job)?;
     job.pid = child.id();

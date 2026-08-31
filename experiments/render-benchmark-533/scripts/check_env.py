@@ -20,8 +20,9 @@ def _check(name: str, ok: bool, detail: str = "") -> bool:
 
 
 def main() -> None:
+    render_rs_bin = REPO_ROOT / "backend/rendering_orchestrator/target/release/render_rs"
     ok = True
-    ok &= _check("repo root", (REPO_ROOT / "backend/scripts/entrypoints/run_render_only.py").exists(), str(REPO_ROOT))
+    ok &= _check("render_rs binary", render_rs_bin.exists(), str(render_rs_bin))
     ok &= _check("python >= 3.10", sys.version_info >= (3, 10), sys.version.split()[0])
     ok &= _check("typst executable", shutil.which("typst") is not None, shutil.which("typst") or "not found")
     ok &= _check("PyMuPDF import", importlib.util.find_spec("fitz") is not None)
