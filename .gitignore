@@ -6,12 +6,6 @@ node_modules/
 target/
 
 output/
-!backend/scripts/services/rendering/output/
-!backend/scripts/services/rendering/output/**/
-!backend/scripts/services/rendering/output/**/*.py
-!backend/scripts/services/rendering/output/**/*.md
-backend/scripts/services/rendering/output/**/__pycache__/
-backend/scripts/services/rendering/output/**/.ipynb_checkpoints/
 scripts/.env/*.env
 Fast_API/jobs/
 Fast_API/jobs.db
