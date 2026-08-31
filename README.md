@@ -170,15 +170,12 @@ docker compose ps
 
 - [后端脚本说明](backend/scripts/README.md)
 - `frontend/`：当前生产使用的前端，也是桌面端 bundle 的输入目录；index/reader/detail 三页均已迁移为 React SPA（`src/pages/` 是新世界入口，esbuild 打包，`src/js/` 保留纯逻辑核心）。
-- `frontend-react/`：另一条 React 前端迁移区（独立技术栈：Vite + TypeScript），当前不直接替代 `frontend/`。
 - `desktop/`：Electron 桌面端打包与运行壳。
 
 ### 当前目录结构
 
 - `frontend/`
   当前生产使用的前端，三页 React SPA（esbuild 打包），源码见 `frontend/src/pages/`。
-- `frontend-react/`
-  另一条 React 前端迁移区（独立技术栈）。
 - `desktop/`
   Electron 桌面端打包、运行壳和桌面端前端 bundle。
 - `backend/`
@@ -198,7 +195,7 @@ RetainPDF 目前已经形成完整产品链路：
 
 - Rust API 负责上传、任务、图书馆、事件、产物、断点恢复和 Provider 调度。
 - Python pipeline 负责 OCR 归一化、翻译、诊断、渲染和 PDF 处理。
-- `frontend/` 是当前生产入口，已是三页 React SPA；`frontend-react/` 是另一条独立技术栈的迁移区。
+- `frontend/` 是当前生产入口，已是三页 React SPA。
 - Docker 和桌面端是当前主要交付形态。
 - API、数据库、artifact、reader、glossary 和 stage spec 已有主线文档维护。
 

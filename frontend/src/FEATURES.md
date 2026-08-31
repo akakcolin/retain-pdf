@@ -1,6 +1,6 @@
 # 前端功能树地图（`frontend/src`）
 
-日常开发以 **`frontend/`** 为准（不是 `frontend-react/`）。  
+日常开发以 **`frontend/`** 为准。  
 本文说明**两套「features」**、阅读器双引擎、以及共享 `js/*` 该往哪放。
 
 ## 总览
@@ -127,7 +127,7 @@ frontend/src/
 
 | 文件 | 内容 |
 |------|------|
-| `frontend/README.md` | 入口、命令、与 frontend-react 关系 |
+| `frontend/README.md` | 入口、命令、与桌面端 bundle 关系 |
 | `pages/home/composition/README.md` | 主页装配规则 |
 | `pages/home/features/README.md` | home React features 索引 |
 | `pages/home/features/library/README.md` | 书架子目录 |

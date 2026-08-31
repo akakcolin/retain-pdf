@@ -22,7 +22,7 @@ AI 可以提高效率，但不能替代边界判断、测试验证和最终责�
 应包含：
 
 - 项目根目录：`/home/wxyhgk/tmp/Code`
-- 主要模块：`backend/rust_api/`、`backend/scripts/`、`frontend/`、`frontend-react/`、`desktop/`、`docker/`、`doc/`
+- 主要模块：`backend/rust_api/`、`backend/scripts/`、`frontend/`、`desktop/`、`docker/`、`doc/`
 - 核心规则：不要回滚无关脏改；手动编辑用 patch；改前先读相邻代码；按模块跑测试。
 - 文档入口：根目录 `CONTRIBUTING.md` 和 `doc/core/contributing/README.md`
 
@@ -73,7 +73,6 @@ PYTHONPATH=backend/scripts python3 -m pytest backend/scripts/devtools/tests/rend
 
 - 改 `frontend/**` 后需要跑 `npm --prefix desktop run verify-frontend-sync`。
 - 不要只改 `desktop/app/frontend/**`。
-- `frontend-react/` 是迁移区，不默认替代 `frontend/`。
 - 本地静态前端默认端口是 `40001`。
 
 常用检查：

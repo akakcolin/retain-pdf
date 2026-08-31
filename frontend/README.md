@@ -13,10 +13,6 @@
 **文件夹逻辑与双 features 树**：见 [`src/FEATURES.md`](src/FEATURES.md)  
 （`js/features` = 领域；`pages/home/features` = React UI；阅读器另见 `pages/reader` + `js/reader`。）
 
-## 与 `frontend-react/`
-
-仓库根还有 `frontend-react/`：**独立 Vite 实验/迁移区**，端口 40002，**不替代**本目录。日常开发与发版以 `frontend/` 为准。
-
 ## 常用命令
 
 ```bash

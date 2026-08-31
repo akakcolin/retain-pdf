@@ -3,7 +3,6 @@
 ## 目录边界
 
 - `frontend/`：当前生产使用的静态前端源码，也是桌面端 bundle 的输入。
-- `frontend-react/`：新 React 前端迁移区，当前不直接替代 `frontend/`。
 - `desktop/`：Electron 桌面端打包。
 - `desktop/app/frontend/**`：桌面端实际读取的前端 bundle，不应该作为主要编辑入口。
 
@@ -13,15 +12,6 @@
 cd frontend
 python3 -m http.server 40001 --bind 0.0.0.0
 ```
-
-React 迁移区如需单独启动：
-
-```bash
-cd frontend-react
-npm run dev
-```
-
-默认端口：`40002`。该入口仍是迁移区，不直接替代生产 `frontend/`。
 
 默认端口：
 
@@ -47,7 +37,6 @@ npm --prefix desktop run verify-frontend-sync
 - UI 逻辑优先放到现有 feature/controller/view 模块，不要把新流程塞回一个大入口文件。
 - 新增下载、reader、状态卡、术语表能力时，确认桌面端 bundle 也能通过 `npm --prefix desktop run verify-frontend-sync`。
 - 前端需要新增 API 字段时，先确认后端是否有稳定 view/projection，不要让前端从内部 payload、raw artifact 或数据库字段里猜。
-- `frontend-react/` 的改动应明确是迁移区能力，除非 PR 目标就是切换生产入口。
 
 ## 常用检查
 
