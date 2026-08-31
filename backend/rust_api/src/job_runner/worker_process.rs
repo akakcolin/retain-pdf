@@ -15,8 +15,7 @@ use tokio::time::{sleep, Duration};
 use crate::config::{PythonWorkerEntrypointMode, WorkerProcessRuntimeConfig};
 use crate::models::domain::JobRuntimeState;
 use crate::ocr_provider::{
-    configured_provider_credential_env, is_configured_command_provider, provider_token,
-    provider_token_env_name, require_supported_provider,
+    provider_token, provider_token_env_name, require_supported_provider,
 };
 use crate::process::python::{prepend_python_bin_dir_to_path, worker_env};
 
@@ -77,10 +76,6 @@ fn apply_job_credentials(command: &mut Command, job: &JobRuntimeState) {
         );
     }
     if let Ok(provider_kind) = require_supported_provider(&job.request_payload.ocr.provider) {
-        if is_configured_command_provider(&job.request_payload.ocr.provider) {
-            apply_configured_provider_credential(command, job);
-            return;
-        }
         let token = provider_token(&provider_kind, &job.request_payload.ocr);
         if !token.is_empty() {
             if let Some(env_name) = provider_token_env_name(&provider_kind) {
@@ -88,40 +83,6 @@ fn apply_job_credentials(command: &mut Command, job: &JobRuntimeState) {
             }
         }
     }
-}
-
-fn apply_configured_provider_credential(command: &mut Command, job: &JobRuntimeState) {
-    let Some(env_name) = configured_provider_credential_env(&job.request_payload.ocr.provider)
-    else {
-        return;
-    };
-    let token = configured_provider_token(job);
-    if token.is_empty() {
-        return;
-    }
-    command.env(&env_name, &token);
-    command.env("RETAIN_OCR_CREDENTIAL", token);
-}
-
-fn configured_provider_token(job: &JobRuntimeState) -> String {
-    for key in ["credential", "token", "api_key"] {
-        let Some(value) = job.request_payload.ocr.options.get(key) else {
-            continue;
-        };
-        if let Some(text) = value
-            .as_str()
-            .map(str::trim)
-            .filter(|item| !item.is_empty())
-        {
-            return text.to_string();
-        }
-    }
-    std::env::var(
-        configured_provider_credential_env(&job.request_payload.ocr.provider).unwrap_or_default(),
-    )
-    .unwrap_or_default()
-    .trim()
-    .to_string()
 }
 
 #[cfg(unix)]

@@ -134,25 +134,24 @@ fn provider_public_definition_from_config(
     }
 }
 
-fn kind_for_public_key(key: &str, provider_kind: &str) -> OcrProviderKind {
+fn kind_for_public_key(key: &str, _provider_kind: &str) -> OcrProviderKind {
     match key {
         "mineru" => OcrProviderKind::Mineru,
         "paddle" => OcrProviderKind::Paddle,
         "local" => OcrProviderKind::Local,
-        _ if matches!(provider_kind, "local_command" | "remote_command") => OcrProviderKind::Local,
         _ => OcrProviderKind::Unknown,
     }
 }
 
 fn provider_capabilities_for_public(
     known_kind: &OcrProviderKind,
-    provider_kind: &str,
+    _provider_kind: &str,
 ) -> OcrProviderCapabilities {
     provider_capabilities(known_kind).unwrap_or_else(|| OcrProviderCapabilities {
-        supports_remote_url_submit: provider_kind != "local_command",
+        supports_remote_url_submit: true,
         supports_local_file_upload: true,
-        supports_polling: !matches!(provider_kind, "local_command" | "remote_command"),
-        supports_download_bundle: !matches!(provider_kind, "local_command" | "remote_command"),
+        supports_polling: true,
+        supports_download_bundle: true,
         supports_extra_formats: false,
         supports_formula_toggle: false,
         supports_table_toggle: false,
@@ -161,16 +160,11 @@ fn provider_capabilities_for_public(
 
 fn provider_artifact_layout_for_public(
     known_kind: &OcrProviderKind,
-    key: &str,
-    provider_kind: &str,
+    _key: &str,
+    _provider_kind: &str,
 ) -> OcrProviderArtifactLayout {
     provider_artifact_layout(known_kind).unwrap_or_else(|| {
-        let raw_dir = if matches!(provider_kind, "local_command" | "remote_command") {
-            format!("{key}_raw")
-        } else {
-            "provider_raw".to_string()
-        };
-        OcrProviderArtifactLayout::new("result.json", "bundle.zip", raw_dir, "result.json")
+        OcrProviderArtifactLayout::new("result.json", "bundle.zip", "provider_raw", "result.json")
     })
 }
 
@@ -394,7 +388,7 @@ mod tests {
 
     #[test]
     fn supported_provider_keys_lists_all_supported_backends() {
-        assert_eq!(supported_provider_keys(), vec!["mineru", "paddle", "local"]);
+        assert_eq!(supported_provider_keys(), vec!["mineru", "paddle"]);
     }
 
     #[test]
@@ -425,22 +419,6 @@ mod tests {
             .map(|option| option.aliases.contains_key("paddleocr-vl"))
             .unwrap_or(false));
     }
-    #[test]
-    fn local_provider_raw_provider_default_is_empty_so_env_var_precedence_applies() {
-        let definitions = provider_public_definitions();
-        let local = definitions
-            .iter()
-            .find(|definition| definition.key == "local")
-            .expect("local public definition");
-        assert_eq!(
-            local
-                .options
-                .get("raw_provider")
-                .map(|option| option.default.as_str()),
-            Some(Some(""))
-        );
-    }
-
     #[test]
     fn ensure_provider_diagnostics_initializes_capabilities() {
         let mut artifacts = JobArtifacts::default();

@@ -28,8 +28,6 @@ pub(crate) fn test_state(test_name: &str) -> crate::AppState {
         rust_api_root,
         data_root: data_root.clone(),
         scripts_dir: scripts_dir.clone(),
-        run_provider_case_script: scripts_dir.join("run_provider_case.py"),
-        run_provider_ocr_script: scripts_dir.join("run_provider_ocr.py"),
         run_normalize_ocr_script: scripts_dir.join("run_normalize_ocr.py"),
         run_extract_text_layer_script: scripts_dir.join("run_extract_text_layer.py"),
         run_translate_from_ocr_script: scripts_dir.join("run_translate_from_ocr.py"),

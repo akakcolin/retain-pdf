@@ -5,9 +5,9 @@ use super::input::ResolvedJobSpec;
 const REDACTED_SECRET: &str = "[REDACTED]";
 const SENSITIVE_JSON_KEYS: &[&str] = &["api_key", "mineru_token", "paddle_token"];
 
-// Keys under `ocr.options` that worker_process.rs treats as credentials for
-// configured (option-sourced) OCR providers, exported as RETAIN_OCR_CREDENTIAL.
-// See job_runner::worker_process::configured_provider_token.
+// Keys under `ocr.options` that should be redacted wherever the resolved job
+// spec is logged or echoed back. Command-provider OCR is retired, but a client
+// may still pass secret-looking option keys via `ocr_options`.
 const OCR_OPTION_SECRET_KEYS: &[&str] = &["credential", "token", "api_key"];
 
 pub fn sensitive_values(spec: &ResolvedJobSpec) -> Vec<String> {

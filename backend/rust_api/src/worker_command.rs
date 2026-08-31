@@ -2,48 +2,20 @@
 mod command_builder;
 #[path = "worker_command/entrypoints.rs"]
 mod entrypoints;
-#[path = "worker_command/legacy_ocr.rs"]
-mod legacy_ocr;
 #[path = "worker_command/stage_commands.rs"]
 mod stage_commands;
 #[path = "worker_command/stage_specs.rs"]
 pub(crate) mod stage_specs;
 
-#[cfg(test)]
-use crate::config::WorkerCommandRuntimeConfig;
-#[cfg(test)]
-use crate::models::domain::ResolvedJobSpec;
-#[cfg(test)]
-use crate::storage_paths::JobPaths;
-#[cfg(test)]
-use std::path::Path;
-
-pub(crate) use self::legacy_ocr::build_ocr_command;
 pub(crate) use self::stage_commands::{build_worker_stage_command, WorkerStageCommand};
-
-#[cfg(test)]
-fn build_legacy_provider_case_command(
-    config: &WorkerCommandRuntimeConfig<'_>,
-    upload_path: &Path,
-    request: &ResolvedJobSpec,
-    job_paths: &JobPaths,
-) -> Vec<String> {
-    use self::entrypoints::provider_case_command as build_provider_case_entrypoint;
-    use self::stage_specs::write_provider_stage_spec;
-
-    let spec_path = write_provider_stage_spec(request, job_paths, Some(upload_path))
-        .expect("write provider stage spec");
-    build_provider_case_entrypoint(config, &spec_path)
-}
 
 #[cfg(test)]
 mod tests {
     use self::stage_specs::TRANSLATION_API_KEY_ENV_NAME;
     use super::*;
     use crate::config::{AppConfig, PythonWorkerEntrypointMode};
-    use crate::models::domain::{OcrProviderKind, WorkflowKind};
+    use crate::models::domain::{ResolvedJobSpec, WorkflowKind};
     use crate::models::request::{CreateJobInput, GlossaryEntryInput};
-    use crate::ocr_provider::provider_token_env_name;
     use crate::storage_paths::JobPaths;
     use std::collections::HashSet;
     use std::path::Path;
@@ -69,8 +41,6 @@ mod tests {
             rust_api_root,
             data_root: data_root.clone(),
             scripts_dir: scripts_dir.clone(),
-            run_provider_case_script: scripts_dir.join("run_provider_case.py"),
-            run_provider_ocr_script: scripts_dir.join("run_provider_ocr.py"),
             run_normalize_ocr_script: scripts_dir.join("run_normalize_ocr.py"),
             run_extract_text_layer_script: scripts_dir.join("run_extract_text_layer.py"),
             run_translate_from_ocr_script: scripts_dir.join("run_translate_from_ocr.py"),
@@ -449,162 +419,6 @@ mod tests {
     }
 
     #[test]
-    fn legacy_provider_case_command_writes_provider_stage_spec_and_hides_secrets() {
-        let config = test_config();
-        let mut request = build_request(WorkflowKind::Book);
-        request.job_id = "job-command-test".to_string();
-        let job_paths = build_paths(config.as_ref());
-        let cmd = build_legacy_provider_case_command(
-            &config.worker_command_runtime(),
-            Path::new("/tmp/source/job.pdf"),
-            &request,
-            &job_paths,
-        );
-
-        assert!(contains(
-            &cmd,
-            &config
-                .run_provider_case_script
-                .to_string_lossy()
-                .to_string()
-        ));
-        assert!(contains(&cmd, "--spec"));
-        let spec_path = arg_value(&cmd, "--spec").expect("provider spec path");
-        let spec_json =
-            std::fs::read_to_string(spec_path).expect("provider stage spec should be written");
-        let payload: serde_json::Value = serde_json::from_str(&spec_json).expect("valid json");
-        assert_eq!(payload["schema_version"], "provider.stage.v1");
-        assert_eq!(
-            payload["ocr"]["credential_ref"],
-            format!(
-                "env:{}",
-                provider_token_env_name(&OcrProviderKind::Mineru).expect("mineru token env")
-            )
-        );
-        assert_eq!(
-            payload["translation"]["credential_ref"],
-            format!("env:{TRANSLATION_API_KEY_ENV_NAME}")
-        );
-        assert!(!spec_json.contains("mineru-token-test"));
-        assert!(!spec_json.contains("sk-test"));
-    }
-
-    #[test]
-    fn legacy_provider_case_command_writes_paddle_provider_stage_spec_and_hides_paddle_secret() {
-        let config = test_config();
-        let mut request = build_request(WorkflowKind::Book);
-        request.job_id = "job-command-test".to_string();
-        request.ocr.provider = "paddle".to_string();
-        request.ocr.paddle_token = "paddle-secret".to_string();
-        request.ocr.paddle_api_url = "https://paddle.example/api".to_string();
-        request.ocr.paddle_model = "paddleocr-vl".to_string();
-        let job_paths = build_paths(config.as_ref());
-        let cmd = build_legacy_provider_case_command(
-            &config.worker_command_runtime(),
-            Path::new("/tmp/source/job.pdf"),
-            &request,
-            &job_paths,
-        );
-
-        assert!(contains(
-            &cmd,
-            &config
-                .run_provider_case_script
-                .to_string_lossy()
-                .to_string()
-        ));
-        let spec_path = arg_value(&cmd, "--spec").expect("provider spec path");
-        let spec_json =
-            std::fs::read_to_string(spec_path).expect("provider stage spec should be written");
-        let payload: serde_json::Value = serde_json::from_str(&spec_json).expect("valid json");
-        assert_eq!(payload["ocr"]["provider"], "paddle");
-        assert_eq!(
-            payload["ocr"]["credential_ref"],
-            format!(
-                "env:{}",
-                provider_token_env_name(&OcrProviderKind::Paddle).expect("paddle token env")
-            )
-        );
-        assert_eq!(
-            payload["ocr"]["paddle_api_url"],
-            "https://paddle.example/api"
-        );
-        assert_eq!(payload["ocr"]["paddle_model"], "paddleocr-vl");
-        assert_eq!(
-            payload["ocr"]["options"]["paddle_model"],
-            "PaddleOCR-VL-1.6"
-        );
-        assert!(!spec_json.contains("paddle-secret"));
-    }
-
-    #[test]
-    fn legacy_provider_case_command_writes_ocr_options_overrides() {
-        let config = test_config();
-        let mut request = build_request(WorkflowKind::Book);
-        request.job_id = "job-command-test".to_string();
-        request.ocr.provider = "paddle".to_string();
-        request.ocr.options.insert(
-            "paddle_model".to_string(),
-            serde_json::Value::String("PaddleOCR-VL-1.5".to_string()),
-        );
-        request.ocr.options.insert(
-            "custom_option".to_string(),
-            serde_json::Value::String("custom-value".to_string()),
-        );
-        let job_paths = build_paths(config.as_ref());
-        let cmd = build_legacy_provider_case_command(
-            &config.worker_command_runtime(),
-            Path::new("/tmp/source/job.pdf"),
-            &request,
-            &job_paths,
-        );
-        let spec_path = arg_value(&cmd, "--spec").expect("provider spec path");
-        let spec_json =
-            std::fs::read_to_string(spec_path).expect("provider stage spec should be written");
-        let payload: serde_json::Value = serde_json::from_str(&spec_json).expect("valid json");
-
-        assert_eq!(
-            payload["ocr"]["options"]["paddle_model"],
-            "PaddleOCR-VL-1.5"
-        );
-        assert_eq!(payload["ocr"]["options"]["custom_option"], "custom-value");
-    }
-
-    #[test]
-    fn ocr_command_uses_provider_ocr_script() {
-        let config = test_config();
-        let request = build_request(WorkflowKind::Ocr);
-        let job_paths = build_paths(config.as_ref());
-        let cmd = build_ocr_command(
-            &config.worker_command_runtime(),
-            Some(Path::new("/tmp/source.pdf")),
-            &request,
-            &job_paths,
-        )
-        .expect("build OCR command");
-
-        assert!(contains(
-            &cmd,
-            &config.run_provider_ocr_script.to_string_lossy().to_string()
-        ));
-        assert!(contains(&cmd, "--spec"));
-        let spec_path = arg_value(&cmd, "--spec").expect("provider spec path");
-        let spec_json =
-            std::fs::read_to_string(spec_path).expect("provider stage spec should be written");
-        let payload: serde_json::Value = serde_json::from_str(&spec_json).expect("valid json");
-        assert_eq!(payload["schema_version"], "provider.stage.v1");
-        assert_eq!(payload["source"]["file_path"], "/tmp/source.pdf");
-        assert_eq!(
-            payload["ocr"]["credential_ref"],
-            format!(
-                "env:{}",
-                provider_token_env_name(&OcrProviderKind::Mineru).expect("mineru token env")
-            )
-        );
-        assert!(!spec_json.contains("mineru-token-test"));
-    }
-
-    #[test]
     fn translate_only_command_includes_glossary_metadata_and_payload() {
         let config = test_config();
         let mut request = build_request(WorkflowKind::Translate);
@@ -657,93 +471,6 @@ mod tests {
         request.ocr.provider = "paddle".to_string();
         request.ocr.paddle_token = "paddle-secret".to_string();
         let job_paths = build_paths(config.as_ref());
-
-        let provider = read_spec_from_command(&build_legacy_provider_case_command(
-            &config.worker_command_runtime(),
-            Path::new("/tmp/source/job.pdf"),
-            &request,
-            &job_paths,
-        ));
-        assert_object_has_keys(
-            &provider,
-            &[
-                "schema_version",
-                "stage",
-                "job",
-                "source",
-                "ocr",
-                "translation",
-                "render",
-            ],
-        );
-        assert_object_has_keys(&provider["job"], &["job_id", "job_root", "workflow"]);
-        assert_object_has_keys(&provider["source"], &["file_url", "file_path"]);
-        assert_object_has_keys(
-            &provider["ocr"],
-            &[
-                "provider",
-                "credential_ref",
-                "model_version",
-                "paddle_api_url",
-                "paddle_model",
-                "is_ocr",
-                "disable_formula",
-                "disable_table",
-                "language",
-                "page_ranges",
-                "data_id",
-                "no_cache",
-                "cache_tolerance",
-                "extra_formats",
-                "poll_interval",
-                "poll_timeout",
-            ],
-        );
-        assert_object_has_keys(
-            &provider["translation"],
-            &[
-                "start_page",
-                "end_page",
-                "batch_size",
-                "workers",
-                "mode",
-                "math_mode",
-                "skip_title_translation",
-                "classify_batch_size",
-                "rule_profile_name",
-                "custom_rules_text",
-                "glossary_id",
-                "glossary_name",
-                "glossary_resource_entry_count",
-                "glossary_inline_entry_count",
-                "glossary_overridden_entry_count",
-                "glossary_entries",
-                "context_mode",
-                "glossary_mode",
-                "memory_mode",
-                "model",
-                "base_url",
-                "credential_ref",
-            ],
-        );
-        assert_object_has_keys(
-            &provider["render"],
-            &[
-                "render_mode",
-                "compile_workers",
-                "typst_font_family",
-                "pdf_compress_dpi",
-                "translated_pdf_name",
-                "body_font_size_factor",
-                "body_leading_factor",
-                "inner_bbox_shrink_x",
-                "inner_bbox_shrink_y",
-                "inner_bbox_dense_shrink_x",
-                "inner_bbox_dense_shrink_y",
-                "font_unify_mode",
-                "source_cleanup_strategy",
-            ],
-        );
 
         let normalize = read_spec_from_command(&normalize_command(
             config.as_ref(),

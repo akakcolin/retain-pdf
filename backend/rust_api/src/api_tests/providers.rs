@@ -25,10 +25,6 @@ async fn list_ocr_providers_returns_public_contract() {
         .iter()
         .find(|item| item["key"] == "paddle")
         .expect("paddle provider");
-    let local = providers
-        .iter()
-        .find(|item| item["key"] == "local")
-        .expect("local provider");
 
     assert_eq!(paddle["display_name"], "PaddleOCR");
     assert_eq!(paddle["provider_kind"], "remote");
@@ -43,10 +39,8 @@ async fn list_ocr_providers_returns_public_contract() {
         paddle["options"]["paddle_model"]["aliases"]["paddleocr-vl"],
         "PaddleOCR-VL-1.6"
     );
-    assert_eq!(local["provider_kind"], "local_command");
-    assert!(local["credential"].is_null());
-    assert_eq!(
-        local["options"]["command"]["env"],
-        "RETAIN_LOCAL_OCR_COMMAND"
+    assert!(
+        providers.iter().all(|item| item["key"] != "local"),
+        "local command-provider OCR is retired and must not be listed"
     );
 }

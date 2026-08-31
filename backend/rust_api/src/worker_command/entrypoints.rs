@@ -3,36 +3,6 @@ use std::path::Path;
 
 use super::command_builder::{CommandBuilder, PythonEntrypoint};
 
-#[cfg(test)]
-pub(super) fn provider_case_command(
-    config: &WorkerCommandRuntimeConfig<'_>,
-    spec_path: &Path,
-) -> Vec<String> {
-    let mut cmd = CommandBuilder::new(
-        config.python_bin,
-        config.python_entrypoint_mode,
-        &PythonEntrypoint::new(
-            config.run_provider_case_script,
-            "retainpdf-run-provider-case",
-        ),
-    );
-    cmd.path_arg("--spec", spec_path);
-    cmd.finish()
-}
-
-pub(super) fn provider_ocr_command(
-    config: &WorkerCommandRuntimeConfig<'_>,
-    spec_path: &Path,
-) -> Vec<String> {
-    let mut cmd = CommandBuilder::new(
-        config.python_bin,
-        config.python_entrypoint_mode,
-        &PythonEntrypoint::new(config.run_provider_ocr_script, "retainpdf-run-provider-ocr"),
-    );
-    cmd.path_arg("--spec", spec_path);
-    cmd.finish()
-}
-
 pub(super) fn translate_only_command(
     config: &WorkerCommandRuntimeConfig<'_>,
     spec_path: &Path,
@@ -52,39 +22,15 @@ pub(super) fn translate_only_command(
 pub(super) fn render_only_command(
     config: &WorkerCommandRuntimeConfig<'_>,
     spec_path: &Path,
-    render_mode: &str,
+    _render_mode: &str,
 ) -> Vec<String> {
-    let force_on = std::env::var(RENDER_ORCHESTRATOR_FORCE_ON_ENV).as_deref() == Ok("1");
-    let force_off = std::env::var(RENDER_ORCHESTRATOR_FORCE_OFF_ENV).as_deref() == Ok("1");
-    if should_route_render_rs(render_mode, force_on, force_off) {
-        return render_rs_command(config, spec_path);
-    }
-    let mut cmd = CommandBuilder::new(
-        config.python_bin,
-        config.python_entrypoint_mode,
-        &PythonEntrypoint::new(config.run_render_only_script, "retainpdf-run-render-only"),
-    );
-    cmd.path_arg("--spec", spec_path);
-    cmd.finish()
+    render_rs_command(config, spec_path)
 }
 
-/// C3 production takeover: typst/typst_visual/overlay/dual/auto renders run
-/// through the native `render_rs` orchestrator by default (native
-/// `bundle_builder::build_bundle` resolves `auto` and rejects anything else).
-/// `RETAINPDF_RENDER_ORCHESTRATOR_RS=1` (legacy C1 test gate) forces native for
-/// any mode; `RETAINPDF_RENDER_ORCHESTRATOR_OFF=1` forces the python flow.
-const RENDER_ORCHESTRATOR_FORCE_ON_ENV: &str = "RETAINPDF_RENDER_ORCHESTRATOR_RS";
-const RENDER_ORCHESTRATOR_FORCE_OFF_ENV: &str = "RETAINPDF_RENDER_ORCHESTRATOR_OFF";
-
-fn should_route_render_rs(render_mode: &str, force_on: bool, force_off: bool) -> bool {
-    if force_off {
-        return false;
-    }
-    if force_on {
-        return true;
-    }
-    matches!(render_mode, "typst" | "typst_visual" | "overlay" | "dual" | "auto")
-}
+/// C3 production takeover (render_rs 全量接管): every render stage runs through
+/// the native `render_rs` orchestrator (`bundle_builder::build_bundle` resolves
+/// `auto` and rejects anything else). The Python `run_render_only.py` fallback
+/// and the `RETAINPDF_RENDER_ORCHESTRATOR_RS/OFF` escape valves are retired.
 
 fn render_rs_command(config: &WorkerCommandRuntimeConfig<'_>, spec_path: &Path) -> Vec<String> {
     let bin = config.render_rs_bin.to_string_lossy().into_owned();
@@ -101,8 +47,6 @@ mod tests {
         WorkerCommandRuntimeConfig {
             python_bin: "python",
             python_entrypoint_mode: PythonWorkerEntrypointMode::Script,
-            run_provider_case_script: scripts,
-            run_provider_ocr_script: scripts,
             run_normalize_ocr_script: scripts,
             run_extract_text_layer_script: scripts,
             run_translate_only_script: scripts,
@@ -132,30 +76,23 @@ mod tests {
     }
 
     #[test]
-    fn should_route_extract_native_defaults_to_native_and_off_falls_back() {
-        assert!(should_route_extract_native(false));
-        assert!(!should_route_extract_native(true));
-    }
-
-    #[test]
-    fn python_extract_text_layer_command_shape() {
-        let cmd = python_extract_text_layer_command(
+    fn extract_text_layer_command_always_routes_native() {
+        let cmd = extract_text_layer_command(
             &test_command_config(Path::new("/opt/bin/render_rs")),
             Path::new("/tmp/extract.spec.json"),
         );
-        assert_eq!(cmd[0], "python");
-        assert_eq!(cmd[1], "/tmp/scripts");
+        assert_eq!(cmd[0], "/opt/bin/render_rs");
+        assert_eq!(cmd[1], "--extract-text-layer");
         assert_eq!(cmd[2], "--spec");
         assert_eq!(cmd[3], "/tmp/extract.spec.json");
     }
 
     #[test]
-    fn should_route_normalize_native_defaults_to_native_and_off_falls_back() {
+    fn should_route_normalize_native_covers_known_providers_only() {
         for provider in ["mineru", "mineru_content_list_v2", "paddle", "generic_flat_ocr"] {
-            assert!(should_route_normalize_native(provider, false), "provider {provider}");
-            assert!(!should_route_normalize_native(provider, true), "provider {provider} off");
+            assert!(should_route_normalize_native(provider), "provider {provider}");
         }
-        assert!(!should_route_normalize_native("bogus", false));
+        assert!(!should_route_normalize_native("bogus"));
     }
 
     #[test]
@@ -189,22 +126,17 @@ mod tests {
     }
 
     #[test]
-    fn should_route_render_rs_defaults_to_native_for_render_rs_modes() {
-        for mode in ["typst", "typst_visual", "overlay", "dual", "auto"] {
-            assert!(should_route_render_rs(mode, false, false), "mode {mode}");
+    fn render_only_command_always_routes_render_rs() {
+        for mode in ["typst", "typst_visual", "overlay", "dual", "auto", "bogus"] {
+            let cmd = render_only_command(
+                &test_command_config(Path::new("/opt/bin/render_rs")),
+                Path::new("/tmp/spec.json"),
+                mode,
+            );
+            assert_eq!(cmd[0], "/opt/bin/render_rs", "mode {mode}");
+            assert_eq!(cmd[1], "--spec", "mode {mode}");
+            assert_eq!(cmd[2], "/tmp/spec.json", "mode {mode}");
         }
-    }
-
-    #[test]
-    fn should_route_render_rs_keeps_unknown_modes_on_python() {
-        assert!(!should_route_render_rs("bogus", false, false));
-    }
-
-    #[test]
-    fn should_route_render_rs_force_flags() {
-        assert!(should_route_render_rs("overlay", true, false));
-        assert!(!should_route_render_rs("typst", true, true));
-        assert!(!should_route_render_rs("typst", false, true));
     }
 }
 
@@ -212,19 +144,11 @@ pub(super) fn extract_text_layer_command(
     config: &WorkerCommandRuntimeConfig<'_>,
     spec_path: &Path,
 ) -> Vec<String> {
-    let force_off = std::env::var(RENDER_ORCHESTRATOR_FORCE_OFF_ENV).as_deref() == Ok("1");
-    if should_route_extract_native(force_off) {
-        return native_extract_text_layer_command(config, spec_path);
-    }
-    python_extract_text_layer_command(config, spec_path)
+    native_extract_text_layer_command(config, spec_path)
 }
 
 /// C5-N1 routing decision: the skip-OCR text-layer extraction runs natively by
-/// default; `RETAINPDF_RENDER_ORCHESTRATOR_OFF=1` falls back to the python worker.
-fn should_route_extract_native(force_off: bool) -> bool {
-    !force_off
-}
-
+/// default (render_rs `--extract-text-layer`); the python worker is retired.
 fn native_extract_text_layer_command(
     config: &WorkerCommandRuntimeConfig<'_>,
     spec_path: &Path,
@@ -237,29 +161,12 @@ fn native_extract_text_layer_command(
     ]
 }
 
-fn python_extract_text_layer_command(
-    config: &WorkerCommandRuntimeConfig<'_>,
-    spec_path: &Path,
-) -> Vec<String> {
-    let mut cmd = CommandBuilder::new(
-        config.python_bin,
-        config.python_entrypoint_mode,
-        &PythonEntrypoint::new(
-            config.run_extract_text_layer_script,
-            "retainpdf-run-extract-text-layer",
-        ),
-    );
-    cmd.path_arg("--spec", spec_path);
-    cmd.finish()
-}
-
 pub(super) fn normalize_ocr_command(
     config: &WorkerCommandRuntimeConfig<'_>,
     spec_path: &Path,
     provider: &str,
 ) -> Vec<String> {
-    let force_off = std::env::var(RENDER_ORCHESTRATOR_FORCE_OFF_ENV).as_deref() == Ok("1");
-    if should_route_normalize_native(provider, force_off) {
+    if should_route_normalize_native(provider) {
         return native_normalize_ocr_command(config, spec_path);
     }
     python_normalize_ocr_command(config, spec_path)
@@ -268,13 +175,11 @@ pub(super) fn normalize_ocr_command(
 /// C5-N2a..C5-N2d routing decision: the mineru, mineru_content_list_v2, paddle
 /// and generic_flat_ocr provider normalize workers run natively by default; other
 /// providers stay on the python worker until their adapters land.
-/// `RETAINPDF_RENDER_ORCHESTRATOR_OFF=1` forces the python flow.
-fn should_route_normalize_native(provider: &str, force_off: bool) -> bool {
-    !force_off
-        && matches!(
-            provider,
-            "mineru" | "mineru_content_list_v2" | "paddle" | "generic_flat_ocr"
-        )
+fn should_route_normalize_native(provider: &str) -> bool {
+    matches!(
+        provider,
+        "mineru" | "mineru_content_list_v2" | "paddle" | "generic_flat_ocr"
+    )
 }
 
 fn native_normalize_ocr_command(

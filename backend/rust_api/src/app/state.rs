@@ -106,8 +106,6 @@ mod tests {
                 rust_api_root: self.rust_api_root.clone(),
                 data_root: self.data_root.clone(),
                 scripts_dir: self.scripts_dir.clone(),
-                run_provider_case_script: self.scripts_dir.join("run_provider_case.py"),
-                run_provider_ocr_script: self.scripts_dir.join("run_provider_ocr.py"),
                 run_normalize_ocr_script: self.scripts_dir.join("run_normalize_ocr.py"),
                 run_extract_text_layer_script: self.scripts_dir.join("run_extract_text_layer.py"),
                 run_translate_from_ocr_script: self.scripts_dir.join("run_translate_from_ocr.py"),

@@ -23,18 +23,6 @@ def run_book() -> int:
     return _run_structured(main, default_stage="translation", provider="translation")
 
 
-def run_provider_ocr() -> int:
-    from services.ocr_provider.provider_pipeline import main
-
-    return _run_structured(main, default_stage="provider", provider="ocr")
-
-
-def run_provider_case() -> int:
-    from services.ocr_provider.provider_pipeline import main
-
-    return _run_structured(main, default_stage="provider", provider="ocr")
-
-
 def run_normalize_ocr() -> int:
     from services.document_schema.normalize_pipeline import main
 

@@ -10,8 +10,6 @@ pub struct RuntimePathsConfig {
     pub rust_api_root: PathBuf,
     pub data_root: PathBuf,
     pub scripts_dir: PathBuf,
-    pub run_provider_case_script: PathBuf,
-    pub run_provider_ocr_script: PathBuf,
     pub run_normalize_ocr_script: PathBuf,
     pub run_extract_text_layer_script: PathBuf,
     pub run_translate_from_ocr_script: PathBuf,
@@ -85,11 +83,6 @@ impl RuntimePathsConfig {
             rust_api_root,
             data_root,
             scripts_dir: scripts_dir.clone(),
-            run_provider_case_script: resolve_entrypoint_script(
-                &scripts_dir,
-                "run_provider_case.py",
-            ),
-            run_provider_ocr_script: resolve_entrypoint_script(&scripts_dir, "run_provider_ocr.py"),
             run_normalize_ocr_script: scripts_dir.join("entrypoints").join("run_normalize_ocr.py"),
             run_extract_text_layer_script: scripts_dir
                 .join("entrypoints")
@@ -123,11 +116,6 @@ pub fn create_runtime_dirs(paths: &RuntimePathsConfig) -> Result<()> {
         std::fs::create_dir_all(parent)?;
     }
     Ok(())
-}
-
-fn resolve_entrypoint_script(scripts_dir: &Path, script_name: &str) -> PathBuf {
-    let entrypoints_dir = scripts_dir.join("entrypoints");
-    entrypoints_dir.join(script_name)
 }
 
 /// Locate the native `render_rs` orchestrator binary.

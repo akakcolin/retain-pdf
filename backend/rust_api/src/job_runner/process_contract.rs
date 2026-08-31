@@ -12,7 +12,6 @@ pub(crate) enum WorkerContract {
     Normalize,
     Translate,
     Render,
-    Provider,
     Unknown,
 }
 
@@ -34,7 +33,6 @@ impl WorkerContract {
             "run_normalize_ocr.py" => WorkerContract::Normalize,
             "run_translate_only.py" => WorkerContract::Translate,
             "run_render_only.py" => WorkerContract::Render,
-            "run_provider_ocr.py" => WorkerContract::Provider,
             _ => WorkerContract::Unknown,
         }
     }
@@ -48,7 +46,7 @@ pub(super) fn validate_successful_worker_outputs(
         WorkerContract::Normalize => validate_normalize_outputs(job, data_root),
         WorkerContract::Translate => validate_translation_outputs(job, data_root),
         WorkerContract::Render => validate_render_outputs(job, data_root),
-        WorkerContract::Provider | WorkerContract::Unknown => Ok(()),
+        WorkerContract::Unknown => Ok(()),
     }
 }
 

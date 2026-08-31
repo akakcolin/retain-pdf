@@ -1,6 +1,6 @@
 use crate::models::domain::{now_iso, JobRuntimeState, JobStatusKind};
-use crate::ocr_provider::{is_configured_command_provider, parse_provider_kind, OcrProviderKind};
-use crate::worker_command::{build_ocr_command, build_worker_stage_command, WorkerStageCommand};
+use crate::ocr_provider::{parse_provider_kind, OcrProviderKind};
+use crate::worker_command::{build_worker_stage_command, WorkerStageCommand};
 use anyhow::Result;
 
 use super::{
@@ -38,7 +38,6 @@ use provider_transport::execute_provider_transport;
 pub use support::sync_parent_with_ocr_child;
 use support::{fail_missing_source_pdf, fail_ocr_transport, save_ocr_job};
 use text_layer::execute_text_layer_extraction;
-use transport::resolve_local_upload_path;
 use workspace::OcrWorkspace;
 
 pub async fn execute_ocr_job(
@@ -56,12 +55,16 @@ pub async fn execute_ocr_job(
         )
         .await;
     }
-    let is_command_provider = is_configured_command_provider(&job.request_payload.ocr.provider);
-    let provider_kind = if is_command_provider {
-        OcrProviderKind::Local
-    } else {
-        parse_provider_kind(&job.request_payload.ocr.provider)
-    };
+    let provider_kind = parse_provider_kind(&job.request_payload.ocr.provider);
+    if provider_kind == OcrProviderKind::Local {
+        // command-provider OCR retired (C3 takeover): hard-error instead of
+        // executing the legacy in-process provider pipeline.
+        fail_ocr_transport(
+            &mut job,
+            &anyhow::anyhow!("local_command/remote_command OCR provider 已退役；请改用 mineru 或 paddle"),
+        );
+        return Ok(job);
+    }
     job.status = JobStatusKind::Running;
     if job.started_at.is_none() {
         job.started_at = Some(now_iso());
@@ -79,18 +82,7 @@ pub async fn execute_ocr_job(
         &provider_kind,
         output_job_id_override,
     )?;
-    let upload_path = resolve_local_upload_path(deps.db.as_ref(), &job)?;
-    job.command = build_ocr_command(
-        &deps.worker_command_runtime(),
-        upload_path.as_deref(),
-        &job.request_payload,
-        &workspace.job_paths,
-    )?;
     save_ocr_job(&deps, &job, parent_job_id.as_deref()).await?;
-
-    if is_command_provider {
-        return execute_process_job(deps, job, &[]).await;
-    }
 
     let source_pdf_path = match execute_provider_transport(
         &deps,

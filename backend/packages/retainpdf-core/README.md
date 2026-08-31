@@ -20,8 +20,6 @@ Production worker commands registered by this package:
 
 ```bash
 retainpdf-run-book
-retainpdf-run-provider-ocr
-retainpdf-run-provider-case
 retainpdf-run-normalize-ocr
 retainpdf-run-translate-from-ocr
 retainpdf-run-translate-only

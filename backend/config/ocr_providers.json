@@ -53,23 +53,6 @@
           }
         }
       }
-    },
-    "local": {
-      "display_name": "Local OCR",
-      "kind": "local_command",
-      "credential": null,
-      "options": {
-        "command": {
-          "type": "string",
-          "env": "RETAIN_LOCAL_OCR_COMMAND",
-          "default": ""
-        },
-        "raw_provider": {
-          "type": "string",
-          "env": "RETAIN_OCR_RAW_PROVIDER",
-          "default": ""
-        }
-      }
     }
   },
   "paddle": {

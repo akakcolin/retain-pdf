@@ -58,36 +58,6 @@ pub fn ocr_provider_definition(provider: &str) -> Option<Value> {
     ocr_provider_definitions().get(&provider_key).cloned()
 }
 
-pub fn configured_provider_kind(provider: &str) -> Option<String> {
-    ocr_provider_definition(provider).and_then(|definition| {
-        definition
-            .get("kind")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(ToString::to_string)
-    })
-}
-
-pub fn is_configured_command_provider(provider: &str) -> bool {
-    configured_provider_kind(provider)
-        .map(|kind| matches!(kind.as_str(), "local_command" | "remote_command"))
-        .unwrap_or(false)
-}
-
-pub fn configured_provider_credential_env(provider: &str) -> Option<String> {
-    ocr_provider_definition(provider).and_then(|definition| {
-        definition
-            .get("credential")
-            .and_then(Value::as_object)
-            .and_then(|credential| credential.get("env"))
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(ToString::to_string)
-    })
-}
-
 fn paddle_config() -> Value {
     let payload = ocr_provider_config();
     let mut legacy = payload.get("paddle").cloned().unwrap_or(Value::Null);
@@ -173,18 +143,6 @@ fn legacy_provider_definitions() -> serde_json::Map<String, Value> {
                         .cloned()
                         .unwrap_or(Value::Object(serde_json::Map::new()))
                 }
-            }
-        }),
-    );
-    providers.insert(
-        "local".to_string(),
-        serde_json::json!({
-            "display_name": "Local OCR",
-            "kind": "local_command",
-            "credential": null,
-            "options": {
-                "command": {"type": "string", "env": "RETAIN_LOCAL_OCR_COMMAND", "default": ""},
-                "raw_provider": {"type": "string", "env": "RETAIN_OCR_RAW_PROVIDER", "default": ""}
             }
         }),
     );

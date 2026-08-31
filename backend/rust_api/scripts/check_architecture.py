@@ -704,7 +704,6 @@ def check_worker_command_boundary(errors: list[str]) -> None:
             )
 
     required_modules = (
-        SRC_ROOT / "worker_command" / "legacy_ocr.rs",
         SRC_ROOT / "worker_command" / "stage_commands.rs",
         SRC_ROOT / "worker_command" / "stage_specs.rs",
     )
@@ -728,16 +727,9 @@ def check_worker_command_boundary(errors: list[str]) -> None:
 
     snapshot_factory_path = SRC_ROOT / "services" / "job_snapshot_factory.rs"
     snapshot_factory_text = route_source_without_tests(snapshot_factory_path)
-    if "crate::worker_command" in snapshot_factory_text or "build_ocr_command" in snapshot_factory_text:
+    if "crate::worker_command" in snapshot_factory_text:
         errors.append(
             "src/services/job_snapshot_factory.rs: snapshot creation must not build worker commands"
-        )
-
-    child_creation_path = SRC_ROOT / "job_runner" / "translation_flow_child.rs"
-    child_creation_text = route_source_without_tests(child_creation_path)
-    if "build_ocr_command" in child_creation_text:
-        errors.append(
-            "src/job_runner/translation_flow_child.rs: OCR child creation must keep a placeholder command; execute_ocr_job builds provider command"
         )
 
 
