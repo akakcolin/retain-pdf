@@ -8,7 +8,6 @@
 
 - `pdf_overlay.py`
 - `typst_page_renderer.py`
-- `pdf_compress.py`
 
 ## 不该做什么
 

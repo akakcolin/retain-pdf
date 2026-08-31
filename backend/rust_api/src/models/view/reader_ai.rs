@@ -72,3 +72,30 @@ pub struct ReaderAiUsedContextView {
 fn default_reader_ai_scope() -> String {
     "document".to_string()
 }
+
+/// 阅读器「选中文字翻译」请求。凭据字段与 ReaderAiChatRequest 同构,便于复用
+/// ReaderAiConfig::from_request 的解析/校验(provider 默认 deepseek,env 回退等)。
+#[derive(Debug, Deserialize)]
+pub struct TranslateTextRequest {
+    pub text: String,
+    #[serde(default = "default_target_language")]
+    pub target_language: String,
+    #[serde(default)]
+    pub provider: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub api_key: Option<String>,
+    #[serde(default)]
+    pub base_url: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TranslateTextView {
+    pub translated_text: String,
+    pub target_language: String,
+}
+
+fn default_target_language() -> String {
+    "简体中文".to_string()
+}

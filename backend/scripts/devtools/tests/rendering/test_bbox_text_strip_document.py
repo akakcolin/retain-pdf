@@ -1127,16 +1127,20 @@ def test_bbox_text_strip_single_worker_preserves_form_recursion(monkeypatch: pyt
             seen_recurse_forms.append(recurse_forms)
             return b"", 0, 0
 
-        # Force the Python reference: production now routes to the native
-        # bridge, which never calls the Python `strip_bbox_text_from_page`.
+        # Exercise the Python reference via the skip-form-pages mode: production
+        # now routes the default mode to the native bridge (native-only), and
+        # this Python-by-design mode still calls `strip_bbox_text_from_page`
+        # (the generated pages have no form XObjects, so `recurse_forms=True`
+        # passes through unchanged).
         with mock.patch.object(
             source_cleanup_document, "strip_bbox_text_from_page", side_effect=fake_strip_page
-        ), mock.patch.object(source_cleanup_document._native, "NATIVE", False):
+        ):
             strip_bbox_text_rects_from_pdf_copy(
                 source_pdf_path=source_pdf,
                 output_pdf_path=output_pdf,
                 page_rects={index: [fitz.Rect(20.0, 35.0, 120.0, 65.0)] for index in range(85)},
                 recurse_forms=True,
+                skip_form_xobject_pages=True,
             )
 
     assert seen_recurse_forms

@@ -512,37 +512,23 @@ def apply_adaptive_overlay_colors_batch(
     pages: dict[int, list[dict]],
     precomputed_colors_by_item_id: dict[str, dict[str, tuple[float, float, float]]] | None = None,
 ) -> dict[int, list[dict]]:
-    """Production color-adaptation entry point. Routes through the native shim
-    when built; otherwise the pure-Python reference (fitz open + per-page
-    `apply_adaptive_overlay_colors`, out-of-range pages pass through as shallow
-    copies)."""
+    """Production color-adaptation entry point, native-only. The per-page
+    reference `apply_adaptive_overlay_colors` is retained as the parity/test
+    surface; production always routes through the native shim."""
     from services.rendering.output.typst import _native
 
-    if _routing.routed("typst", "apply_adaptive_overlay_colors_batch", _native.NATIVE):
-        return _native.apply_adaptive_overlay_colors_batch(
-            source_pdf_path=source_pdf_path,
-            pages=pages,
-            precomputed_colors_by_item_id=precomputed_colors_by_item_id,
+    if not _routing.routed("typst", "apply_adaptive_overlay_colors_batch", _native.NATIVE):
+        raise RuntimeError(
+            "typst.apply_adaptive_overlay_colors_batch is native-only: the "
+            "rendering_bridge source primitives (sample_page_color_fills, "
+            "sample_title_visual_colors, extract_page_span_dicts) are required"
         )
 
-    import fitz  # reference (fitz) fallback path only
-
-    doc = fitz.open(source_pdf_path)
-    try:
-        results: dict[int, list[dict]] = {}
-        for page_idx in sorted(pages):
-            items = pages[page_idx]
-            if page_idx < 0 or page_idx >= len(doc):
-                results[page_idx] = list(items)
-                continue
-            results[page_idx] = apply_adaptive_overlay_colors(
-                doc[page_idx],
-                items,
-                precomputed_colors_by_item_id=precomputed_colors_by_item_id,
-            )
-        return results
-    finally:
-        doc.close()
+    return _native.apply_adaptive_overlay_colors_batch(
+        source_pdf_path=source_pdf_path,
+        pages=pages,
+        precomputed_colors_by_item_id=precomputed_colors_by_item_id,
+    )
 
 
 def _local_sampling_rects(items: list[dict]) -> list[Rect]:

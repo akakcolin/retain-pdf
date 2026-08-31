@@ -62,7 +62,6 @@ pub struct AppConfig {
     pub run_render_only_script: PathBuf,
     pub run_failure_ai_diagnosis_script: PathBuf,
     pub render_rs_bin: PathBuf,
-    pub render_rs_delegate_script: PathBuf,
     pub uploads_dir: PathBuf,
     pub downloads_dir: PathBuf,
     pub jobs_db_path: PathBuf,
@@ -92,7 +91,6 @@ pub struct WorkerCommandRuntimeConfig<'a> {
     pub run_translate_only_script: &'a Path,
     pub run_render_only_script: &'a Path,
     pub render_rs_bin: &'a Path,
-    pub render_rs_delegate_script: &'a Path,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -103,7 +101,6 @@ pub struct WorkerProcessRuntimeConfig<'a> {
     pub python_bin: &'a str,
     pub python_entrypoint_mode: PythonWorkerEntrypointMode,
     pub render_rs_bin: &'a Path,
-    pub render_rs_delegate_script: &'a Path,
     pub worker_terminate_grace_secs: u64,
     pub worker_terminate_poll_ms: u64,
 }
@@ -148,7 +145,6 @@ impl AppConfig {
             run_translate_only_script: &self.run_translate_only_script,
             run_render_only_script: &self.run_render_only_script,
             render_rs_bin: &self.render_rs_bin,
-            render_rs_delegate_script: &self.render_rs_delegate_script,
         }
     }
 
@@ -160,7 +156,6 @@ impl AppConfig {
             python_bin: &self.python_bin,
             python_entrypoint_mode: self.python_entrypoint_mode,
             render_rs_bin: &self.render_rs_bin,
-            render_rs_delegate_script: &self.render_rs_delegate_script,
             worker_terminate_grace_secs: self.job_runner.worker_terminate_grace_secs,
             worker_terminate_poll_ms: self.job_runner.worker_terminate_poll_ms,
         }
@@ -250,7 +245,6 @@ impl AppConfig {
             run_render_only_script: paths.run_render_only_script,
             run_failure_ai_diagnosis_script: paths.run_failure_ai_diagnosis_script,
             render_rs_bin: paths.render_rs_bin,
-            render_rs_delegate_script: paths.render_rs_delegate_script,
             uploads_dir: paths.uploads_dir,
             downloads_dir: paths.downloads_dir,
             jobs_db_path: paths.jobs_db_path,

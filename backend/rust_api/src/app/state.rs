@@ -117,10 +117,6 @@ mod tests {
                     .scripts_dir
                     .join("diagnose_failure_with_ai.py"),
                 render_rs_bin: self.scripts_dir.join("render_rs"),
-                render_rs_delegate_script: self
-                    .scripts_dir
-                    .join("entrypoints")
-                    .join("run_render_delegate.py"),
                 uploads_dir: self.uploads_dir.clone(),
                 downloads_dir: self.downloads_dir.clone(),
                 jobs_db_path: self.jobs_db_path.clone(),

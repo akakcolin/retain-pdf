@@ -17,6 +17,7 @@ use crate::routes::library;
 use crate::routes::library_data;
 use crate::routes::library_extras;
 use crate::routes::providers;
+use crate::routes::translate;
 use crate::routes::uploads;
 
 pub fn build_app(state: AppState) -> Router {
@@ -119,6 +120,10 @@ pub fn build_app(state: AppState) -> Router {
         )
         .route("/api/v1/search", get(library_data::search_blocks_route))
         .route("/api/v1/ai/ask", post(ai_proxy::ask_proxy))
+        .route(
+            "/api/v1/translate/text",
+            post(translate::translate_text_route),
+        )
         .route(
             "/api/v1/assets",
             post(library_extras::upload_asset_route).layer(DefaultBodyLimit::disable()),

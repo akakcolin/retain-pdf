@@ -63,8 +63,10 @@ pub fn escape_markdown_literal_asterisks(text: &str) -> String {
 /// `(body_start, match_end)` for the shortest valid body. The regex is
 /// `(?<![\\*])(?P<marker>\*\*|\*)(?=\S)(?P<body>[^*\n]*?\S)(?P=marker)(?!\*)`.
 fn match_emphasis(text: &str, start: usize) -> Option<(usize, usize)> {
+    let chars: Vec<(usize, char)> = text.char_indices().collect();
     if start > 0 {
-        let prev = text[..start].chars().next_back().unwrap();
+        let prev_idx = chars.partition_point(|(b, _)| *b < start).checked_sub(1)?;
+        let prev = chars[prev_idx].1;
         if prev == '\\' || prev == '*' {
             return None;
         }
@@ -83,24 +85,28 @@ fn match_emphasis(text: &str, start: usize) -> Option<(usize, usize)> {
     if text[body_start..].chars().next().unwrap().is_whitespace() {
         return None;
     }
-    let mut k = body_start + 1;
-    while k <= text.len() {
-        let last_char = text[k - 1..].chars().next().unwrap();
+    // 按字符位置推进（Python 以字符索引），避免多字节字符上字节步进 panic。
+    // start/marker 均为 ASCII，故 body_start 必在字符边界。
+    let body_char = chars.partition_point(|(b, _)| *b < body_start);
+    let char_len = chars.len();
+    let mut k = body_char + 1;
+    while k <= char_len {
+        let last_char = chars[k - 1].1;
         if last_char == '*' || last_char == '\n' {
             return None;
         }
         if !last_char.is_whitespace() {
             if marker_len == 2 {
-                if text[k..].starts_with("**") {
-                    let after = if k + 2 < text.len() { text[k + 2..].chars().next().unwrap() } else { '\0' };
+                if k + 1 < char_len && chars[k].1 == '*' && chars[k + 1].1 == '*' {
+                    let after = if k + 2 < char_len { chars[k + 2].1 } else { '\0' };
                     if after != '*' {
-                        return Some((body_start, k + 2));
+                        return Some((body_start, chars[k + 1].0 + 1));
                     }
                 }
-            } else if k < text.len() && text[k..].starts_with('*') {
-                let after = if k + 1 < text.len() { text[k + 1..].chars().next().unwrap() } else { '\0' };
+            } else if k < char_len && chars[k].1 == '*' {
+                let after = if k + 1 < char_len { chars[k + 1].1 } else { '\0' };
                 if after != '*' {
-                    return Some((body_start, k + 1));
+                    return Some((body_start, chars[k].0 + 1));
                 }
             }
         }
@@ -851,6 +857,29 @@ mod tests {
         assert_eq!(escape_literal_asterisks_preserving_emphasis("**strong**"), r"**strong**");
         assert_eq!(escape_literal_asterisks_preserving_emphasis("plain"), "plain");
         assert_eq!(escape_literal_asterisks_preserving_emphasis("a**b"), r"a\*\*b");
+    }
+
+    // 回归：`*` 后紧跟多字节字符（如中文 `（`）时不能 panic。
+    // Python 原版按字符索引，Rust 移植曾用字节步进 k+=1 导致切片落在
+    // 非字符边界 → pyo3 panic。期望值取自 Python inline_math.py 逐字比对。
+    #[test]
+    fn does_not_panic_on_multibyte_after_asterisk() {
+        assert_eq!(escape_literal_asterisks_preserving_emphasis("a*（b）"), r"a\*（b）");
+        assert_eq!(escape_literal_asterisks_preserving_emphasis("a*b（"), r"a\*b（");
+        assert_eq!(escape_literal_asterisks_preserving_emphasis("*（中文加粗）*"), "*（中文加粗）*");
+        assert_eq!(escape_literal_asterisks_preserving_emphasis("a*（b）*c"), "a*（b）*c");
+        assert_eq!(
+            escape_literal_asterisks_preserving_emphasis(
+                "袁萌*（IEEE会员），曾轩*（IEEE高级会员）"
+            ),
+            "袁萌*（IEEE会员），曾轩*（IEEE高级会员）"
+        );
+        assert_eq!(
+            escape_literal_asterisks_preserving_emphasis(
+                "袁萌，董志轩，王玉燕，严长浩*（IEEE会员），毕兆瑞（IEEE会员），朱克伦（IEEE会员），王胜国（IEEE终身高级会员），周电（IEEE高级会员），曾轩*（IEEE高级会员）"
+            ),
+            "袁萌，董志轩，王玉燕，严长浩*（IEEE会员），毕兆瑞（IEEE会员），朱克伦（IEEE会员），王胜国（IEEE终身高级会员），周电（IEEE高级会员），曾轩*（IEEE高级会员）"
+        );
     }
 
     #[test]

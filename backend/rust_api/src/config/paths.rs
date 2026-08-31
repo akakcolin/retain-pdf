@@ -19,7 +19,6 @@ pub struct RuntimePathsConfig {
     pub run_render_only_script: PathBuf,
     pub run_failure_ai_diagnosis_script: PathBuf,
     pub render_rs_bin: PathBuf,
-    pub render_rs_delegate_script: PathBuf,
     pub uploads_dir: PathBuf,
     pub downloads_dir: PathBuf,
     pub jobs_db_path: PathBuf,
@@ -106,9 +105,6 @@ impl RuntimePathsConfig {
                 .join("entrypoints")
                 .join("diagnose_failure_with_ai.py"),
             render_rs_bin,
-            render_rs_delegate_script: scripts_dir
-                .join("entrypoints")
-                .join("run_render_delegate.py"),
             uploads_dir,
             downloads_dir,
             jobs_db_path,

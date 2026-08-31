@@ -6,7 +6,6 @@
 
 pub mod bundle;
 pub mod bundle_builder;
-pub mod delegate;
 pub mod extract_text_layer;
 pub mod normalize;
 pub mod protected_pages;

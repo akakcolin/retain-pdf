@@ -31,32 +31,6 @@ def optimize_pdf_file_with_pikepdf(*, input_pdf_path: Path, output_pdf_path: Pat
     return target
 
 
-def _extract_pages_with_pikepdf_python(
-    *,
-    source_pdf_path: Path,
-    output_pdf_path: Path,
-    start_page: int,
-    end_page: int,
-) -> Path:
-    """Pure-Python reference for `extract_pages_with_pikepdf` (routed through
-    `_native.py` when the native module is built)."""
-    output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
-    with pikepdf.Pdf.open(source_pdf_path) as source_pdf:
-        last_page = len(source_pdf.pages) - 1
-        start = max(0, int(start_page))
-        end = last_page if end_page < 0 else min(int(end_page), last_page)
-        output_pdf = pikepdf.Pdf.new()
-        if start <= end:
-            output_pdf.pages.extend(source_pdf.pages[start : end + 1])
-        output_pdf.save(
-            output_pdf_path,
-            object_stream_mode=pikepdf.ObjectStreamMode.generate,
-            compress_streams=True,
-            recompress_flate=False,
-        )
-    return output_pdf_path
-
-
 def extract_pages_with_pikepdf(
     *,
     source_pdf_path: Path,
@@ -64,8 +38,7 @@ def extract_pages_with_pikepdf(
     start_page: int,
     end_page: int,
 ) -> Path:
-    """Route to the native Rust page extraction when built (see `_native.py`);
-    otherwise the pure-Python implementation above."""
+    """Route to the native Rust page extraction (see `_native.py`)."""
     import services.rendering.source._native as _native
 
     return _native.extract_pages(

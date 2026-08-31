@@ -87,27 +87,6 @@ def _layout_page_spec(
     )
 
 
-def _read_source_page_sizes_python(*, source_pdf_path: Path, page_indices: list[int]) -> PageSizeLookup:
-    """Pure-Python reference for `_native.read_source_page_sizes`: fitz
-    `page.rect` width/height per readable index (the pre-B2-1
-    `build_render_page_specs` fitz block)."""
-    import fitz
-
-    source_doc = fitz.open(source_pdf_path)
-    try:
-        return {
-            page_index: (
-                float(source_doc[page_index].rect.width),
-                float(source_doc[page_index].rect.height),
-            )
-            for page_index in sorted(
-                page_idx for page_idx in page_indices if 0 <= page_idx < len(source_doc)
-            )
-        }
-    finally:
-        source_doc.close()
-
-
 def build_render_page_specs(
     *,
     source_pdf_path: Path,

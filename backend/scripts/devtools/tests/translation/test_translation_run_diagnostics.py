@@ -126,6 +126,15 @@ class _AlwaysBadRequestSession:
         return _AlwaysBadRequestResponse(self.text)
 
 
+class _RecordingSession:
+    def __init__(self):
+        self.calls = []
+
+    def post(self, *args, **kwargs):
+        self.calls.append(copy.deepcopy(kwargs.get("json", {})))
+        return _FakeResponse({"choices": [{"message": {"content": "ok"}}]})
+
+
 class _StatusResponse:
     def __init__(self, status_code: int):
         self.status_code = status_code
@@ -521,6 +530,21 @@ class TranslationRunDiagnosticsTests(unittest.TestCase):
         self.assertIn("request_meta=model=demo-model", message)
         self.assertIn("message_chars=5", message)
         self.assertIn("body_bytes=", message)
+
+    def test_request_chat_content_normalizes_model_to_lowercase(self):
+        deepseek_client = load_deepseek_client()
+        session = _RecordingSession()
+        with patch.object(deepseek_client, "get_session", return_value=session):
+            deepseek_client.request_chat_content(
+                [{"role": "user", "content": "hello"}],
+                api_key="token",
+                model="Deepseek-v4-flash",
+                base_url="https://api.deepseek.com/v1",
+                timeout=120,
+                request_label="case-normalization-test",
+            )
+        self.assertEqual(len(session.calls), 1)
+        self.assertEqual(session.calls[0]["model"], "deepseek-v4-flash")
 
 
 class StructuredFailureClassificationTests(unittest.TestCase):

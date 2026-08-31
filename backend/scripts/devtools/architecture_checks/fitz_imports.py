@@ -14,189 +14,87 @@ from devtools.architecture_checks.common import scan_py_files
 #: - ``hard_boundary`` — fitz API with no mupdf-rs equivalent (words-clip,
 #:   get_texttrace, per-drawing zigzag rects, get_pixmap sampling) or a
 #:   Python-only PDF rewrite/redaction stage deliberately not ported.
-#: - ``fallback_reference`` — the fitz path is the parity/fallback net for a
-#:   native-routed ``_native.py`` primitive; runs only on bridge failure / NATIVE=False.
+#: - ``fallback_reference`` — the fitz path is the in-memory-page reference for
+#:   a native-routed ``_native.py`` page-read primitive (the IN_MEMORY_PAGE
+#:   capability boundary, which the native path cannot serve); file-backed pages
+#:   are native-only and raise on bridge failure.
 #: - ``non_default_write`` — fitz writes an output PDF only on a non-production path.
 #: - ``non_render_service`` — outside services/rendering (ocr_provider/translation/entrypoints).
 FITZ_IMPORT_ALLOWLIST: dict[Path, tuple[str, str]] = {
     # ---- fallback_reference: fitz path is the parity/fallback net for a native-routed primitive
-    Path("services/rendering/analysis/classifier.py"): (
-        "fallback_reference",
-        "fitz reference for native classify_render_page (fitz.open)",
-    ),
-    Path("services/rendering/analysis/document/builder.py"): (
-        "fallback_reference",
-        "fitz reference for native build_render_document_analysis",
-    ),
-    Path("services/rendering/analysis/profile/builder.py"): (
-        "fallback_reference",
-        "build_render_page_profile(page: fitz.Page) reference primitive",
-    ),
-    Path("services/rendering/analysis/profile/background_coverage.py"): (
-        "fallback_reference",
-        "page.rect / rect & page.rect coverage reference",
-    ),
-    Path("services/rendering/analysis/profile/drawing_count.py"): (
-        "fallback_reference",
-        "get_cdrawings / get_drawings count reference",
-    ),
-    Path("services/rendering/analysis/profile/geometry.py"): (
-        "fallback_reference",
-        "page.rect / cropbox / rotation / number geometry reference",
-    ),
-    Path("services/rendering/analysis/profile/image_background.py"): (
-        "fallback_reference",
-        "primary-image coverage reference via page.rect",
-    ),
-    Path("services/rendering/analysis/profile/page_cropbox.py"): (
-        "fallback_reference",
-        "page.cropbox read reference",
-    ),
-    Path("services/rendering/analysis/profile/page_index.py"): (
-        "fallback_reference",
-        "page.number reference",
-    ),
-    Path("services/rendering/analysis/profile/page_rotation.py"): (
-        "fallback_reference",
-        "page.rotation reference",
-    ),
-    Path("services/rendering/analysis/profile/page_size.py"): (
-        "fallback_reference",
-        "page.rect width/height reference",
-    ),
-    Path("services/rendering/analysis/profile/primary_image.py"): (
-        "fallback_reference",
-        "pick_primary_background_image(page) reference",
-    ),
-    Path("services/rendering/analysis/profile/rect_area.py"): (
-        "fallback_reference",
-        "fitz.Rect area helper reference",
-    ),
-    Path("services/rendering/analysis/profile/text_layer.py"): (
-        "fallback_reference",
-        "get_text('words') + trace-count reference",
-    ),
-    Path("services/rendering/analysis/profile/text_traces.py"): (
-        "fallback_reference",
-        "get_texttrace reference (native classifier parity net)",
-    ),
-    Path("services/rendering/analysis/profile/vector_layer.py"): (
-        "fallback_reference",
-        "drawing-count / vector-heavy reference",
-    ),
-    Path("services/rendering/document/_native.py"): (
-        "fallback_reference",
-        "native shim for copy_toc / save_optimized_pdf; fitz fallback",
-    ),
-    Path("services/rendering/document/metadata.py"): (
-        "fallback_reference",
-        "get_toc / set_toc reference for native copy_toc",
-    ),
-    Path("services/rendering/document/pdf_ops.py"): (
-        "fallback_reference",
-        "subset_fonts + save reference for native save_optimized_pdf",
-    ),
-    Path("services/rendering/layout/page_specs.py"): (
-        "fallback_reference",
-        "fitz reference for native read_source_page_sizes",
-    ),
-    Path("services/rendering/layout/payload/_native.py"): (
-        "fallback_reference",
-        "native shim; fitz fallback reference",
-    ),
     Path("services/rendering/layout/payload/first_line_indent.py"): (
-        "fallback_reference",
-        "get_pixmap / DisplayList pixel-sampling reference for native first-line-indent",
+        "hard_boundary",
+        "get_pixmap / DisplayList pixel-sampling reference kept for ~20 typst tests; production first-line-indent is native-only",
     ),
     Path("services/rendering/output/typst/_native.py"): (
-        "fallback_reference",
-        "native shim; fitz fallback reference",
+        "hard_boundary",
+        "native typst shim; fitz.open reopens native emit bytes into a fitz.Document; write-path fallbacks retired (native-only)",
     ),
     Path("services/rendering/output/typst/book_renderer.py"): (
-        "fallback_reference",
-        "build_dual_book_pdf fitz fallback for bytes-level native book render",
+        "hard_boundary",
+        "production book/dual/background render orchestration; fitz open/save + copy_toc",
     ),
     Path("services/rendering/output/typst/book_support.py"): (
-        "fallback_reference",
-        "new_page + show_pdf_page reference for native build_dual_doc_pages",
+        "hard_boundary",
+        "production background-pdf page-size read + fitz open/save to output",
     ),
     Path("services/rendering/output/typst/color_adapt.py"): (
-        "fallback_reference",
-        "get_pixmap / get_text('dict', clip=...) reference for native title-color",
+        "hard_boundary",
+        "per-page color-adaptation parity/test reference (production batch is native-only); get_pixmap / get_text('dict', clip) sampling",
     ),
     Path("services/rendering/output/typst/overlay_book.py"): (
-        "fallback_reference",
-        "build_dual_book_pdf fitz fallback for native overlay book",
-    ),
-    Path("services/rendering/output/typst/overlay_color.py"): (
-        "fallback_reference",
-        "fitz reference for native overlay fill/color",
+        "hard_boundary",
+        "production per-page/book overlay compile + merge; fitz open + doc[page_idx].rect",
     ),
     Path("services/rendering/output/typst/overlay_ops.py"): (
-        "fallback_reference",
-        "show_pdf_page(overlay=True) fallback compositor for native show_pdf_page_on_doc",
+        "hard_boundary",
+        "production overlay orchestration; fitz.open(overlay_pdf) + show_pdf_page_on_doc compositor",
     ),
     Path("services/rendering/output/typst/overlay_runtime.py"): (
-        "fallback_reference",
-        "overlay_pdf_size_mismatches fitz open + rect is the parity net for native read_source_page_sizes",
+        "hard_boundary",
+        "overlay_pdf_size_mismatches fitz open + rect read",
     ),
     Path("services/rendering/output/typst/source_page_overlay.py"): (
-        "fallback_reference",
-        "delegates to show_pdf_page_on_doc compositor fallback",
+        "hard_boundary",
+        "production source-page overlay; delegates to show_pdf_page_on_doc compositor",
     ),
     Path("services/rendering/pdf_structure_profile/sampler.py"): (
-        "fallback_reference",
-        "fitz reference for native build_pdf_structure_profile",
+        "hard_boundary",
+        "per-page pdf-structure parity/test reference (document-level build is native-only); get_bboxlog / get_text('dict') / get_xobjects",
     ),
     Path("services/rendering/source/_native.py"): (
-        "fallback_reference",
-        "native shim; fitz.open / save fallback for save_optimized_pdf",
-    ),
-    Path("services/rendering/source/background/_native.py"): (
-        "fallback_reference",
-        "native shim; fitz.open / get_text('dict') fallbacks for build_clean_background_pdf",
+        "hard_boundary",
+        "native shim; fitz.Rect return coercion for native collect_vector_text_rects + fitz.Page annotations; write-path fallbacks retired (native-only)",
     ),
     Path("services/rendering/source/background/detect.py"): (
         "fallback_reference",
-        "get_image_info reference for native page_has_large_background_image",
+        "get_image_info reference for native page_has_large_background_image; runs only for in-memory pages (IN_MEMORY_PAGE boundary)",
     ),
     Path("services/rendering/source/background/page_overlay.py"): (
-        "fallback_reference",
-        "show_pdf_page(fitz.Rect(...), overlay=True) fallback compositor",
-    ),
-    Path("services/rendering/source/background/stage.py"): (
-        "fallback_reference",
-        "fitz reference for native build_clean_background_pdf",
+        "hard_boundary",
+        "default low-level show_pdf_page compositor for page overlay",
     ),
     Path("services/rendering/source/cleanup/math_spans.py"): (
         "fallback_reference",
-        "get_text('dict') references for native math-protection / non-math-span heights",
-    ),
-    Path("services/rendering/source/compression/image_pipeline.py"): (
-        "fallback_reference",
-        "fitz.open + extract_image reference for native compress_images_only",
-    ),
-    Path("services/rendering/source/prewarm_payload.py"): (
-        "fallback_reference",
-        "fitz reference for native read_source_page_sizes_and_count",
+        "get_text('dict') references for native math-protection / non-math-span heights; run only for in-memory pages (IN_MEMORY_PAGE boundary)",
     ),
     Path("services/rendering/source/vector_profile.py"): (
         "fallback_reference",
-        "get_cdrawings reference for native page_drawing_count",
+        "get_cdrawings reference for native page_drawing_count; runs only for in-memory pages (IN_MEMORY_PAGE boundary)",
     ),
     Path("services/rendering/source/vector_text.py"): (
         "fallback_reference",
-        "get_drawings / get_cdrawings reference for native collect_vector_text_rects",
+        "get_drawings / get_cdrawings reference for native collect_vector_text_rects; runs only for in-memory pages (IN_MEMORY_PAGE boundary)",
     ),
     Path("services/rendering/source_cleanup/planning/page_context.py"): (
-        "fallback_reference",
-        "fitz reference for native build_page_contexts",
-    ),
-    Path("services/rendering/visual_profile/sampler.py"): (
-        "fallback_reference",
-        "fitz reference for native build_document_visual_profile",
+        "hard_boundary",
+        "shared per-page context builder (_build_context_from_fitz) for planner/items/coordinate_resolver wrappers; batch build is native-only",
     ),
     # ---- hard_boundary: fitz API with no mupdf-rs equivalent / Python-only rewrite
+    Path("services/rendering/document/_native.py"): (
+        "hard_boundary",
+        "native copy_toc shim; fitz.open reopens the native output bytes into a fitz.Document",
+    ),
     Path("services/rendering/source/cleanup/auto.py"): (
         "hard_boundary",
         "redaction planning; add_redact_annot / apply_redactions",
@@ -382,8 +280,8 @@ FITZ_IMPORT_ALLOWLIST: dict[Path, tuple[str, str]] = {
         "pikepdf document rewrite (Python-only) with fitz.Rect",
     ),
     Path("services/rendering/source_cleanup/pdf/_native.py"): (
-        "fallback_reference",
-        "native shim for strip_bbox_text_rects_from_pdf_copy; fitz.Rect serialization",
+        "hard_boundary",
+        "native strip shim; fitz.Rect serialization for the bridge (Python-only modes stay in document.py)",
     ),
     # ---- non_default_write: fitz writes PDFs only on non-default/non-production paths
     Path("services/rendering/source/dev_overlay/builders.py"): (
@@ -393,10 +291,6 @@ FITZ_IMPORT_ALLOWLIST: dict[Path, tuple[str, str]] = {
     Path("services/rendering/source/dev_overlay/text_draw.py"): (
         "non_default_write",
         "insert_textbox / insert_text / insert_image / insert_font direct-draw",
-    ),
-    Path("services/rendering/workflow/direct_overlay.py"): (
-        "non_default_write",
-        "direct-overlay debug workflow; apply_translated_items_to_page + save_optimized_pdf",
     ),
     Path("services/rendering/tools/side_by_side_pdf.py"): (
         "non_default_write",

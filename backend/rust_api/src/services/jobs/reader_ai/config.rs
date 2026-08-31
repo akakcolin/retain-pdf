@@ -101,7 +101,9 @@ fn resolve_provider_defaults(provider: &str) -> Result<ProviderDefaults, AppErro
             default_base_url: "https://api.deepseek.com/v1".to_string(),
             api_key_env: "DEEPSEEK_API_KEY",
         }),
-        "openai" => Ok(ProviderDefaults {
+        // 前端/桌面把自定义 OpenAI 兼容端点命名为 openai-compatible;协议与
+        // openai 相同(chat/completions + Bearer),只是 base_url/model 由请求/环境覆盖。
+        "openai" | "openai-compatible" => Ok(ProviderDefaults {
             default_model: "gpt-4.1-mini".to_string(),
             default_base_url: "https://api.openai.com/v1".to_string(),
             api_key_env: "OPENAI_API_KEY",
@@ -134,6 +136,14 @@ mod tests {
     #[test]
     fn openai_compatible_provider_is_still_supported() {
         let defaults = resolve_provider_defaults("openai").expect("openai defaults");
+        assert_eq!(defaults.default_model, "gpt-4.1-mini");
+        assert_eq!(defaults.default_base_url, "https://api.openai.com/v1");
+        assert_eq!(defaults.api_key_env, "OPENAI_API_KEY");
+    }
+
+    #[test]
+    fn openai_compatible_alias_resolves_to_openai_protocol_defaults() {
+        let defaults = resolve_provider_defaults("openai-compatible").expect("openai-compatible defaults");
         assert_eq!(defaults.default_model, "gpt-4.1-mini");
         assert_eq!(defaults.default_base_url, "https://api.openai.com/v1");
         assert_eq!(defaults.api_key_env, "OPENAI_API_KEY");

@@ -381,19 +381,6 @@ def first_line_indent_from_item_lines(item: dict, *, font_size_pt: float) -> flo
     return round(max(0.0, min(indent_pt, max_indent)), 2)
 
 
-def _read_source_page_sizes_and_count_python(source_pdf_path: Path) -> tuple[int, dict[int, float]]:
-    """Pure-Python reference for `_native.read_page_sizes_and_count`: fitz
-    `len(doc)` plus per-page `page.rect` width (the pre-B2-6 prewarm geometry
-    block). Unreadable docs return `(0, {})`."""
-    import fitz
-
-    try:
-        with fitz.open(source_pdf_path) as doc:
-            return len(doc), {index: float(page.rect.width) for index, page in enumerate(doc)}
-    except Exception:
-        return 0, {}
-
-
 def _pixmap_first_line_indent_policy(*, page_count: int) -> dict[str, Any]:
     value = str(os.environ.get("RETAIN_RENDER_PIXMAP_INDENT", "") or "").strip().lower()
     if value in {"1", "true", "yes", "on"}:

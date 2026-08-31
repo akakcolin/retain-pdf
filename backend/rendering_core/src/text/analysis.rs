@@ -336,13 +336,13 @@ fn wrap_parenthesized_inline_math(source: &str) -> String {
             chunks.push(source[cursor..].chars().next().unwrap());
             cursor += source[cursor..].chars().next().unwrap().len_utf8();
         }
-        let mut open_index = token.start as isize - 1;
-        while open_index >= 0 {
-            let ch = source[open_index as usize..].chars().next().unwrap();
+        let mut open_index = token.start;
+        while open_index > 0 {
+            let Some(ch) = source[..open_index].chars().next_back() else { break };
+            open_index -= ch.len_utf8();
             if !ch.is_whitespace() {
                 break;
             }
-            open_index -= ch.len_utf8() as isize;
         }
         let mut close_index = token.end;
         while close_index < source.len() {
@@ -352,14 +352,14 @@ fn wrap_parenthesized_inline_math(source: &str) -> String {
             }
             close_index += ch.len_utf8();
         }
-        let open_ok = open_index >= 0
-            && source[open_index as usize..].chars().next().unwrap() == '(';
+        let open_ok = open_index < token.start
+            && source[open_index..].chars().next() == Some('(');
         let close_ok = close_index < source.len()
             && source[close_index..].chars().next().unwrap() == ')';
         if open_ok && close_ok {
             let expr = token_math_body(token).trim().to_string();
             // Pop back to just after the '('.
-            while !chunks.is_empty() && cursor > open_index as usize {
+            while !chunks.is_empty() && cursor > open_index {
                 let popped = chunks.pop().unwrap();
                 cursor -= popped.len_utf8();
             }
@@ -416,6 +416,16 @@ mod tests {
     fn wrap_parenthesized_math() {
         let out = normalize_direct_typst_math_boundaries("( $g-h$ )");
         assert_eq!(out, "$(g-h)$");
+    }
+
+    #[test]
+    fn wrap_parenthesized_math_cjk_before_paren_no_panic() {
+        // Multi-byte CJK char immediately before the token used to panic
+        // on a non-char-boundary byte slice (token.start - 1).
+        let out = normalize_direct_typst_math_boundaries("应$x_1$");
+        assert_eq!(out, "应$x_1$");
+        let out = normalize_direct_typst_math_boundaries("应( $x_1$ )");
+        assert_eq!(out, "应$(x_1)$");
     }
 
     #[test]

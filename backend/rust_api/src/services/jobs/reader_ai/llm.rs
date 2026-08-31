@@ -14,10 +14,41 @@ pub(super) async fn complete_reader_answer(
     chunks: &[RetrievedChunk],
 ) -> Result<String, AppError> {
     let messages = build_messages(request, chunks);
+    post_chat_completion(config, messages, 0.2).await
+}
+
+/// 阅读器「选中文字翻译」:翻译 system prompt + 原文,只取译文。
+pub(super) async fn complete_text_translation(
+    config: &ReaderAiConfig,
+    text: &str,
+    target_language: &str,
+) -> Result<String, AppError> {
+    let messages = vec![
+        ChatMessage {
+            role: "system".to_string(),
+            content: format!(
+                "你是 RetainPDF 的翻译引擎。将用户提供的原文翻译成 {target_language}。\
+                 只输出译文,不要输出原文、解释或引号;保持原文换行。"
+            ),
+        },
+        ChatMessage {
+            role: "user".to_string(),
+            content: text.trim().to_string(),
+        },
+    ];
+    post_chat_completion(config, messages, 0.2).await
+}
+
+/// 共享的 chat/completions HTTP 调用:client 构建 / POST / Bearer / 429 / 解析 / 空答判。
+async fn post_chat_completion(
+    config: &ReaderAiConfig,
+    messages: Vec<ChatMessage>,
+    temperature: f32,
+) -> Result<String, AppError> {
     let payload = ChatCompletionRequest {
         model: config.model.clone(),
         messages,
-        temperature: 0.2,
+        temperature,
     };
     let url = format!("{}/chat/completions", config.base_url);
     let client = reqwest::Client::builder()

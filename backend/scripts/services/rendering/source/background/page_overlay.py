@@ -38,7 +38,7 @@ def _composite_in_place(
 
     `overlay_pages_from_single_pdf`'s default when no native compositor is
     injected; the `output/typst` layer passes `_native.show_pdf_page_on_doc`
-    instead (returns a fresh doc on native hit, same doc on fallback)."""
+    instead (native-only; returns a fresh doc on native hit)."""
     target_doc[target_page_idx].show_pdf_page(fitz.Rect(*rect), source_doc, source_page_idx, overlay=True)
     return target_doc
 

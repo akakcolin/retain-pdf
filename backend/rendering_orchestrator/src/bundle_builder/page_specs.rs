@@ -1,6 +1,6 @@
 //! N11f: native `build_render_page_specs` — the bundle's `page_specs` key
-//! (`entrypoints/run_render_delegate.py::build_bundle`): per selected page, the
-//! page geometry from the RENDER-SOURCE PDF plus the full emitter dicts
+//! (retired `entrypoints/run_render_delegate.py::build_bundle`): per selected
+//! page, the page geometry from the RENDER-SOURCE PDF plus the full emitter dicts
 //! (`_page_spec_to_dict` / `_block_to_dict`, 29-key blocks).
 //!
 //! Mirrors `page_specs.build_render_page_specs(source_pdf_path=render_source.path,
@@ -50,7 +50,7 @@ const TITLE_FIT_UPWARD_HEIGHT_RATIO_MAX: f64 = 0.05;
 
 /// `build_render_page_specs(..., prepared=True)`: the `page_specs` array as
 /// emitter dicts. Pages whose index is outside the render-source PDF are skipped
-/// (the delegate's `read_source_page_sizes` gate).
+/// (the retired Python `build_bundle`'s `read_source_page_sizes` gate).
 pub fn build_render_page_specs(
     source_pdf_path: &Path,
     translated_pages: &BTreeMap<i64, Vec<Value>>,

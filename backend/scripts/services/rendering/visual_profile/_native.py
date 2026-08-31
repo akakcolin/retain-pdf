@@ -3,9 +3,10 @@
 Build the pyo3 module with maturin from `backend/rendering_bridge` and
 `import rendering_bridge` succeeds; this module then routes
 `sampler.build_document_visual_profile` through the ported Rust primitives
-(`source.background._native` fills/spans/foreground). Without the native module
-every call falls back to the pure-Python implementation in `sampler.py`, so
-importing this module is always safe.
+(`source.background._native` fills/spans/foreground). The document-level profile
+build is native-only: it raises when the bridge is unavailable instead of
+running the retired `sampler` reference. Importing this module is always safe;
+the routed call is gated at call time.
 
 The native path opens the source PDF three times (once per primitive): batch
 local-background fills for every item that needs one, whole-page span dicts
@@ -34,12 +35,15 @@ def build_document_visual_profile(
     source_pdf_path: Path,
     pages: dict[int, list[dict]],
 ):
-    """`sampler.build_document_visual_profile`, routed to the native primitives
-    when the module is built; otherwise the pure-Python reference in `sampler`."""
+    """`sampler.build_document_visual_profile`, routed to the native primitives.
+    Native-only: the `sampler` fitz reference is retired; production routes
+    through the bridge."""
     if not _routing.routed("visual_profile", "build_document_visual_profile", NATIVE):
-        from services.rendering.visual_profile.sampler import build_document_visual_profile as _reference
-
-        return _reference(source_pdf_path=source_pdf_path, pages=pages)
+        raise RuntimeError(
+            "visual_profile.build_document_visual_profile is native-only: the "
+            "rendering_bridge source primitives (sample_page_color_fills, "
+            "extract_page_span_dicts, sample_foreground_colors) are required"
+        )
 
     from services.rendering.source.background import _native as _source_native
     from services.rendering.source.rects import Rect

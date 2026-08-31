@@ -1,5 +1,6 @@
-//! `render.bundle.v1` schema — the delegation hand-off produced by
-//! `entrypoints/run_render_delegate.py` and consumed by the native stage chain.
+//! `render.bundle.v1` schema — the hand-off produced by native
+//! `bundle_builder::build_bundle` (mirroring the retired
+//! `entrypoints/run_render_delegate.py`) and consumed by the native stage chain.
 //!
 //! Two shape constraints (C1 plan):
 //! - `translated_pages` are the ORIGINAL pre-page-spec enriched items — Rust

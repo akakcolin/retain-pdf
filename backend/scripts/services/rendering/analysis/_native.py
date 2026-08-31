@@ -1,12 +1,11 @@
-"""Optional native (Rust) backend for `build_render_document_analysis`.
+"""Native (Rust) backend for `build_render_document_analysis`.
 
 Builds the whole-document render analysis from a single bridge call
 (`build_render_document_analysis`), which opens the PDF once and walks every
 selected page through `page_snapshot` -> `build_render_page_profile` ->
-`build_render_page_analysis` in Rust. Without the native module — or when a
-native call fails — `build_render_document_analysis` falls back to the
-pure-Python reference `document.builder._build_render_document_analysis_python`,
-so importing this module is always safe.
+`build_render_page_analysis` in Rust. The Python fitz reference
+(`document.builder._build_render_document_analysis_python`) is retired; this
+module is native-only and raises when the bridge is unavailable.
 
 Documented divergences (the empty-`text_traces` fallback, since mupdf-rs exposes
 no text-trace opacity/type-3 signal): `visible_text` / `editable_text` fall back
@@ -39,12 +38,15 @@ def build_render_document_analysis(
     start_page: int = 0,
     end_page: int = -1,
 ) -> RenderDocumentAnalysis:
-    """`document.builder.build_render_document_analysis`, routed to the native
-    bridge when built; otherwise the pure-Python reference. Any native failure
-    falls back to the reference (analysis is advisory — a fallback result is
-    better than raising)."""
+    """`document.builder.build_render_document_analysis`, native-only. The
+    bridge is mandatory: when it is unavailable (or the feature flag forces it
+    off) this raises instead of running the retired Python reference; a native
+    bridge failure also propagates after recording the fallback for D5."""
     if not _routing.routed("analysis", "build_render_document_analysis", NATIVE):
-        return _build_python(source_pdf_path, translated_pages, start_page, end_page)
+        raise RuntimeError(
+            "analysis.build_render_document_analysis is native-only: the rendering_bridge "
+            "build is required"
+        )
     try:
         result = _build_native(source_pdf_path, translated_pages, start_page, end_page)
         _routing.record_native_hit("analysis", "build_render_document_analysis")
@@ -55,29 +57,7 @@ def build_render_document_analysis(
             "build_render_document_analysis",
             _routing.FallbackReason.NATIVE_BRIDGE_ERROR,
         )
-        print(
-            f"render document analysis native failed {type(exc).__name__}: {exc}; falling back to reference",
-            flush=True,
-        )
-        return _build_python(source_pdf_path, translated_pages, start_page, end_page)
-
-
-def _build_python(
-    source_pdf_path: Path,
-    translated_pages: dict[int, list[dict]] | None,
-    start_page: int,
-    end_page: int,
-) -> RenderDocumentAnalysis:
-    # Lazy: builder's public delegator imports this shim, so a top-level
-    # reference import here would be circular.
-    from services.rendering.analysis.document.builder import _build_render_document_analysis_python
-
-    return _build_render_document_analysis_python(
-        source_pdf_path=source_pdf_path,
-        translated_pages=translated_pages,
-        start_page=start_page,
-        end_page=end_page,
-    )
+        raise
 
 
 def _build_native(

@@ -2,10 +2,10 @@
 //! (`plan_source_cleanup_native` / `uncovered_unsafe_vector_item_ids_native`)
 //! and the native orchestrator's render-source prep (C3-N11c).
 //!
-//! Mirrors `page_context._build_page_contexts_python`: bboxlog entries with
-//! empty rects are dropped (the fitz consumers never see them), the inverse ctm
-//! is the pure `inverse_affine` of the raw page ctm, and pages whose rect or ctm
-//! cannot be read are omitted.
+//! Mirrors `page_context._build_context_from_fitz` and the native batch skip:
+//! bboxlog entries with empty rects are dropped (the fitz consumers never see
+//! them), the inverse ctm is the pure `inverse_affine` of the raw page ctm, and
+//! pages whose rect or ctm cannot be read are omitted.
 
 use std::collections::BTreeMap;
 

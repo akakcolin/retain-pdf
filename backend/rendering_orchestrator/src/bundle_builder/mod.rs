@@ -1,13 +1,9 @@
-//! Native `build_bundle` (C3-N11): in-process mirror of
+//! Native `build_bundle` (C3-N11): in-process mirror of the retired
 //! `entrypoints/run_render_delegate.py::build_bundle`, producing the
 //! `render.bundle.v1` hand-off so `render_rs` no longer spawns python3 for the
 //! prepare/page-specs segment. Built incrementally in sub-batches N11a..N11f,
 //! each reproducing one `build_bundle` step over the public Rust leaf
 //! functions; N11f lands the final key (`page_specs`) and flips the default on.
-//!
-//! Gate: `RETAINPDF_RENDER_BUNDLE_NATIVE` (default on since N11f; an explicit
-//! `0/false/off/no` forces off, and `RETAINPDF_RENDER_ORCHESTRATOR_OFF=1` still
-//! routes the whole orchestration through the Python delegate escape hatch).
 
 pub mod analysis;
 pub mod assemble;
@@ -16,6 +12,7 @@ pub mod overlay;
 pub mod page_specs;
 pub mod prepare;
 pub mod render_source;
+pub mod visual_profile;
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -33,15 +30,6 @@ pub const RENDER_BUNDLE_SCHEMA_VERSION: &str = "render.bundle.v1";
 const RENDERED_DIR_NAME: &str = "rendered";
 const TYPST_DIR_NAME: &str = "typst";
 const BACKGROUND_BOOK_SUBDIR: &str = "background-book";
-
-/// `RETAINPDF_RENDER_BUNDLE_NATIVE` — on by default since N11f; an explicit
-/// `0/false/off/no` forces off (the Python delegate reference path).
-pub fn native_enabled() -> bool {
-    match std::env::var("RETAINPDF_RENDER_BUNDLE_NATIVE") {
-        Ok(raw) => !["0", "false", "off", "no"].contains(&raw.trim().to_lowercase().as_str()),
-        Err(_) => true,
-    }
-}
 
 /// Mirrors `build_bundle`'s 15-key assembly. N11d: translated_pages (prepare +
 /// first-line indent + policy) is real. N11e: color adapt runs over the prepared
@@ -79,7 +67,8 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
     }
 
     // N11c: protected pages (for render-source prep) load eagerly so a
-    // wrong-schema normalized document errors here exactly like the delegate.
+    // wrong-schema normalized document errors here exactly like the retired
+    // Python `build_bundle`.
     let protected_pages = crate::protected_pages::protected_pages_from_document_path(
         spec.inputs
             .translations_dir
@@ -143,13 +132,21 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
 
     // N11f: `page_specs` — full emitter dicts (`_page_spec_to_dict`, 29-key
     // blocks) from the RENDER-SOURCE pdf over the color-adapted pages. The
-    // delegate re-applies the C3-N8 policy boundary (`prepared=True`); the pages
-    // are already policy-applied, so the pass-through is idempotent.
+    // retired Python `build_bundle` re-applied the C3-N8 policy boundary
+    // (`prepared=True`); the pages are already policy-applied, so the
+    // pass-through is idempotent.
     let page_specs = page_specs::build_render_page_specs(
         &render_source_pdf.path,
         &adapted_pages,
         &font_unify_mode(spec),
     )?;
+
+    // Load the prewarmed visual profile (empty map when absent; mirrors the
+    // retired Python `build_bundle`'s `load_visual_profile_runtime` over the
+    // prewarm artifacts dir).
+    let visual_profile_fill_map = serde_json::to_value(visual_profile::visual_profile_fill_map(
+        &spec.inputs.translations_dir,
+    )?)?;
 
     Ok(assemble::assemble(AssembleInputs {
         mode,
@@ -164,6 +161,7 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
         translated_pages: serde_json::to_value(&adapted_pages)?,
         overlay_page_specs,
         page_specs,
+        visual_profile_fill_map,
     }))
 }
 
@@ -261,20 +259,5 @@ mod tests {
             background_work_dir(out),
             PathBuf::from("/tmp/job/rendered/typst/background-book")
         );
-    }
-
-    #[test]
-    fn env_flag_on_by_default_forces_off_with_falsy() {
-        std::env::remove_var("RETAINPDF_RENDER_BUNDLE_NATIVE");
-        assert!(native_enabled());
-        std::env::set_var("RETAINPDF_RENDER_BUNDLE_NATIVE", "1");
-        assert!(native_enabled());
-        std::env::set_var("RETAINPDF_RENDER_BUNDLE_NATIVE", "0");
-        assert!(!native_enabled());
-        std::env::set_var("RETAINPDF_RENDER_BUNDLE_NATIVE", "false");
-        assert!(!native_enabled());
-        std::env::set_var("RETAINPDF_RENDER_BUNDLE_NATIVE", "off");
-        assert!(!native_enabled());
-        std::env::remove_var("RETAINPDF_RENDER_BUNDLE_NATIVE");
     }
 }

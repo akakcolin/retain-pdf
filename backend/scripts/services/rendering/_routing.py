@@ -58,64 +58,20 @@ class NativeMandatoryError(RuntimeError):
     """
 
 
-#: Retained Python dual-implementations, keyed by ``(subsystem, fn)``. Reasons:
+#: Retained Python dual-implementations, keyed by ``(subsystem, fn)``. Empty:
+#: every routed fn is native-only under the D1 mandate — the parity-reference
+#: duals retired with their differential harnesses (D1 双实现清零). The two
+#: routed fns that previously carried ``hard_boundary`` notes need no entry:
 #:
-#: - ``parity_reference`` — the Python side is the differential parity harness
-#:   reference (bridges re-run it with ``NATIVE=False`` for byte-exact diffing);
-#:   must survive until the harness migrates.
-#: - ``hard_boundary`` — no Rust equivalent / native diverges (e.g.
-#:   ``collect_page_drawing_rects`` changes redaction output on stroked zigzag
-#:   paths); Python is deliberately the only implementation.
+#: - ``source.collect_page_drawing_rects`` never calls :func:`routed`
+#:   (``DELIBERATELY_NOT_ROUTED``), so the mandate never gates it.
+#: - ``source_cleanup.strip_bbox_text_rects_from_pdf_copy``'s default mode is
+#:   native-only; the ``skip_form_xobject_pages`` / ``max_elapsed_seconds`` modes
+#:   return before :func:`routed` and stay Python-only (documented in the shim).
 #:
-#: The D1 gate asserts this list matches the routed call sites in both
-#: directions: no routed fn may be missing, and no entry may be stale.
-ALLOWLIST: dict[tuple[str, str], str] = {
-    ("source", "sanitize_pdf_copy"): "parity_reference",
-    ("source", "compress_images_only"): "parity_reference",
-    ("source", "extract_pages"): "parity_reference",
-    ("source", "save_optimized"): "parity_reference",
-    ("source", "read_page_sizes_and_count"): "parity_reference",
-    ("source", "collect_vector_text_rects"): "parity_reference",
-    ("source", "page_drawing_count"): "parity_reference",
-    ("source", "page_has_large_background_image"): "parity_reference",
-    ("source", "extract_page_text_spans"): "parity_reference",
-    ("source", "extract_page_text_blocks"): "parity_reference",
-    ("source", "collect_page_math_protection_rects"): "parity_reference",
-    ("source", "collect_page_non_math_span_heights"): "parity_reference",
-    ("source", "copy_toc"): "parity_reference",
-    ("source", "copy_toc_for_page_map"): "parity_reference",
-    ("source", "build_hidden_text_stripped_pdf_copy"): "parity_reference",
-    ("source", "collect_page_drawing_rects"): "hard_boundary",
-    ("background", "build_clean_background_pdf"): "parity_reference",
-    ("background", "sample_page_color_fills"): "parity_reference",
-    ("background", "extract_page_span_dicts"): "parity_reference",
-    ("background", "sample_title_visual_colors"): "parity_reference",
-    ("background", "sample_foreground_colors"): "parity_reference",
-    ("typst", "emit_typst_source"): "parity_reference",
-    ("typst", "emit_typst_book_overlay_source"): "parity_reference",
-    ("typst", "apply_adaptive_overlay_colors_batch"): "parity_reference",
-    ("typst", "show_pdf_page"): "parity_reference",
-    ("typst", "build_dual_doc_pages"): "parity_reference",
-    ("layout", "read_source_page_sizes"): "parity_reference",
-    ("layout_payload", "detect_first_line_indents"): "parity_reference",
-    ("layout_payload", "build_block_payloads"): "parity_reference",
-    ("layout_payload", "emit_render_blocks"): "parity_reference",
-    ("layout_payload", "apply_body_pipeline"): "parity_reference",
-    ("layout_payload", "mark_adjacent_collision_risk"): "parity_reference",
-    ("layout_payload", "prepare_render_payloads_by_page"): "parity_reference",
-    ("layout_payload", "seed_render_fields"): "parity_reference",
-    ("policy", "apply_render_pages_policy_fields"): "parity_reference",
-    ("policy", "apply_render_page_policy_fields"): "parity_reference",
-    ("layout_payload", "resolve_book_body_font_target"): "parity_reference",
-    ("visual_profile", "build_document_visual_profile"): "parity_reference",
-    ("pdf_structure_profile", "build_pdf_structure_profile"): "parity_reference",
-    ("analysis", "build_render_document_analysis"): "parity_reference",
-    ("analysis", "classify_render_page"): "parity_reference",
-    ("source_cleanup_planning", "build_page_contexts"): "parity_reference",
-    ("source_cleanup_planning", "plan_source_cleanup"): "parity_reference",
-    ("source_cleanup_planning", "item_ids_with_uncovered_unsafe_vector_overlap"): "parity_reference",
-    ("source_cleanup", "strip_bbox_text_rects_from_pdf_copy"): "parity_reference",
-}
+#: The only fallback surfaces the mandate never blocks are the ``IN_MEMORY_PAGE``
+#: capability boundary and ``NATIVE_BRIDGE_ERROR`` recovery.
+ALLOWLIST: dict[tuple[str, str], str] = {}
 
 _GLOBAL_FLAG_ENV = "RETAIN_PDF_NATIVE"
 _SUBSYSTEM_FLAG_PREFIX = "RETAIN_PDF_NATIVE_"

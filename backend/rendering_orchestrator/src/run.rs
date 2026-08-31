@@ -7,7 +7,6 @@ use anyhow::Result;
 
 use crate::bundle::RenderBundle;
 use crate::bundle_builder;
-use crate::delegate;
 use crate::spec::RenderStageSpec;
 use crate::stages;
 use crate::summary;
@@ -26,17 +25,15 @@ pub fn run(spec_path: &Path) -> Result<RenderOutcome> {
     let started = Instant::now();
     let spec = RenderStageSpec::load(spec_path)?;
     let bundle_out = spec.job.job_root.join("render-bundle.json");
-    // C3-N11: build the bundle natively by default (N11f flipped it on); the
-    // delegate stays the parity reference, reachable via
-    // `RETAINPDF_RENDER_BUNDLE_NATIVE=0` or the orchestrator escape hatch.
-    let bundle: RenderBundle = if bundle_builder::native_enabled() {
+    // C3-N11: build the bundle natively (in-process mirror of the retired
+    // `run_render_delegate.py` prepare/page-specs segment); the delegate and its
+    // `RETAINPDF_RENDER_BUNDLE_NATIVE` gate were retired with it.
+    let bundle: RenderBundle = {
         let value = bundle_builder::build_bundle(&spec)?;
         std::fs::write(&bundle_out, serde_json::to_string_pretty(&value)?)?;
         RenderBundle::load(&bundle_out)?
-    } else {
-        delegate::run_delegate(spec_path, &bundle_out)?
     };
-    // The delegate resolves `auto` and validates the mode; dispatch on the
+    // `build_bundle` resolves `auto` and validates the mode; dispatch on the
     // resolved mode it wrote into the bundle.
     let mode = bundle.mode.clone();
     match mode.as_str() {

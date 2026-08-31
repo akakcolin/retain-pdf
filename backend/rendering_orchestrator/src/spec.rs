@@ -1,6 +1,6 @@
 //! serde mirror of `foundation/shared/stage_specs.py::RenderStageSpec`
 //! (`render.stage.v1`). Only the fields the orchestrator consumes directly are
-//! typed; everything else the delegate re-reads from the spec file itself.
+//! typed; everything else `build_bundle` re-reads from the spec file itself.
 //! Params are `Option` so a missing or `null` value falls back to the same
 //! Python defaults (`render_mode` -> `"typst"`, `typst_font_family` ->
 //! `TYPST_DEFAULT_FONT_FAMILY`).

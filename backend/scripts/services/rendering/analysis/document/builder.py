@@ -2,14 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import fitz
-
 from services.rendering.analysis.document.models import RenderDocumentAnalysis
 from services.rendering.analysis.document.models import RenderPageAnalysis
-from services.rendering.analysis.profile.builder import build_render_page_profile
 from services.rendering.analysis.profile.models import RenderPageProfile
 from services.rendering.analysis.route.builder import build_render_page_route
-from services.translation.public import resolve_page_range
 
 
 def build_render_document_analysis(
@@ -19,9 +15,7 @@ def build_render_document_analysis(
     start_page: int = 0,
     end_page: int = -1,
 ) -> RenderDocumentAnalysis:
-    """Whole-document render analysis, routed through the native shim when
-    built; otherwise the pure-Python reference
-    `_build_render_document_analysis_python`."""
+    """Whole-document render analysis, routed through the native shim (native-only)."""
     from services.rendering.analysis._native import build_render_document_analysis as _impl
 
     return _impl(
@@ -30,37 +24,6 @@ def build_render_document_analysis(
         start_page=start_page,
         end_page=end_page,
     )
-
-
-def _build_render_document_analysis_python(
-    *,
-    source_pdf_path: Path,
-    translated_pages: dict[int, list[dict]] | None = None,
-    start_page: int = 0,
-    end_page: int = -1,
-) -> RenderDocumentAnalysis:
-    doc = fitz.open(source_pdf_path)
-    try:
-        if not doc:
-            return RenderDocumentAnalysis(pages={})
-        selected_pages = _selected_page_indices(
-            page_count=len(doc),
-            translated_pages=translated_pages,
-            start_page=start_page,
-            end_page=end_page,
-        )
-        pages = {
-            page_idx: build_render_page_analysis(
-                build_render_page_profile(
-                    doc[page_idx],
-                    ocr_items=(translated_pages or {}).get(page_idx),
-                )
-            )
-            for page_idx in selected_pages
-        }
-        return RenderDocumentAnalysis(pages=pages)
-    finally:
-        doc.close()
 
 
 def build_render_page_analysis(profile: RenderPageProfile) -> RenderPageAnalysis:
@@ -81,19 +44,6 @@ def build_render_page_analysis(profile: RenderPageProfile) -> RenderPageAnalysis
         drawing_count=profile.vector_layer.drawing_count,
         vector_heavy=profile.vector_layer.vector_heavy,
     )
-
-
-def _selected_page_indices(
-    *,
-    page_count: int,
-    translated_pages: dict[int, list[dict]] | None,
-    start_page: int,
-    end_page: int,
-) -> list[int]:
-    if translated_pages:
-        return sorted(page_idx for page_idx in translated_pages if 0 <= page_idx < page_count)
-    resolved_start, resolved_stop = resolve_page_range(page_count, start_page, end_page)
-    return list(range(resolved_start, resolved_stop + 1))
 
 
 __all__ = [

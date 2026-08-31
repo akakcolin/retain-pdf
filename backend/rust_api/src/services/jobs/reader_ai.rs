@@ -8,7 +8,10 @@ use std::fs;
 use std::path::Path;
 
 use crate::error::AppError;
-use crate::models::api::{ReaderAiChatRequest, ReaderAiChatView, ReaderAiUsedContextView};
+use crate::models::api::{
+    ReaderAiChatRequest, ReaderAiChatView, ReaderAiUsedContextView, TranslateTextRequest,
+    TranslateTextView,
+};
 use crate::models::domain::{JobSnapshot, JobStatusKind};
 use crate::storage_paths::resolve_markdown_path;
 use tracing::info;
@@ -16,8 +19,44 @@ use tracing::info;
 use artifact_chunks::chunks_from_translation_artifacts;
 use chunking::chunk_markdown;
 use config::ReaderAiConfig;
-use llm::complete_reader_answer;
+use llm::{complete_reader_answer, complete_text_translation};
 use retrieval::retrieve_chunks;
+
+/// 阅读器「选中文字翻译」:无状态,凭据经 ReaderAiChatRequest 合成复用 ReaderAiConfig 解析。
+pub(crate) async fn translate_text(
+    request: TranslateTextRequest,
+) -> Result<TranslateTextView, AppError> {
+    let text = normalize_translate_text(&request.text)?;
+    let target_language = request.target_language.trim().to_string();
+    let synthesized = ReaderAiChatRequest {
+        message: text.clone(),
+        scope: "translate".to_string(),
+        provider: request.provider,
+        model: request.model,
+        api_key: request.api_key,
+        base_url: request.base_url,
+        context: None,
+        history: vec![],
+    };
+    let config = ReaderAiConfig::from_request(Some(&synthesized))?;
+    let translated_text = complete_text_translation(&config, &text, &target_language).await?;
+    Ok(TranslateTextView {
+        translated_text,
+        target_language,
+    })
+}
+
+/// 同步校验+规整:trim、非空、长度上限。失败返回 BadRequest。
+fn normalize_translate_text(raw: &str) -> Result<String, AppError> {
+    let text = raw.trim().to_string();
+    if text.is_empty() {
+        return Err(AppError::bad_request("text is required"));
+    }
+    if text.chars().count() > 2000 {
+        return Err(AppError::bad_request("text is too long (max 2000 chars)"));
+    }
+    Ok(text)
+}
 
 pub(crate) async fn answer_reader_chat(
     data_root: &Path,
@@ -128,6 +167,73 @@ fn ensure_markdown_ready(job: &JobSnapshot) -> Result<(), AppError> {
 mod tests {
     use super::*;
     use crate::models::{CreateJobInput, JobSnapshot};
+
+    fn request_with(text: &str, target_language: Option<&str>) -> TranslateTextRequest {
+        let mut value = serde_json::json!({ "text": text });
+        if let Some(lang) = target_language {
+            value["target_language"] = serde_json::json!(lang);
+        }
+        serde_json::from_value(value).expect("translate request")
+    }
+
+    #[test]
+    fn translate_text_rejects_empty_text() {
+        let err = normalize_translate_text("  ").expect_err("empty rejected");
+        assert!(matches!(err, AppError::BadRequest(_)));
+    }
+
+    #[test]
+    fn translate_text_rejects_overlong_text() {
+        let long = "a".repeat(2001);
+        let err = normalize_translate_text(&long).expect_err("too long rejected");
+        assert!(matches!(err, AppError::BadRequest(_)));
+    }
+
+    #[test]
+    fn translate_text_trims_input() {
+        assert_eq!(
+            normalize_translate_text("  hello  ").expect("trimmed"),
+            "hello".to_string()
+        );
+    }
+
+    #[test]
+    fn translate_text_defaults_target_language_to_simplified_chinese() {
+        let request = request_with("hello", None);
+        assert_eq!(request.target_language, "简体中文");
+    }
+
+    #[test]
+    fn translate_text_accepts_explicit_target_language() {
+        let request = request_with("你好", Some("English"));
+        assert_eq!(request.target_language, "English");
+    }
+
+    #[test]
+    fn translate_text_maps_credentials_into_reader_ai_config() {
+        let request = request_with("hello", None);
+        let request = TranslateTextRequest {
+            provider: Some("deepseek".to_string()),
+            model: Some("deepseek-chat".to_string()),
+            api_key: Some("sk-translate".to_string()),
+            base_url: Some("https://translate.example/v1".to_string()),
+            ..request
+        };
+        let synthesized = ReaderAiChatRequest {
+            message: request.text.clone(),
+            scope: "translate".to_string(),
+            provider: request.provider,
+            model: request.model,
+            api_key: request.api_key,
+            base_url: request.base_url,
+            context: None,
+            history: vec![],
+        };
+        let config = ReaderAiConfig::from_request(Some(&synthesized)).expect("config");
+        assert_eq!(config.model, "deepseek-chat");
+        assert_eq!(config.api_key, "sk-translate");
+        assert_eq!(config.base_url, "https://translate.example/v1");
+    }
 
     #[test]
     fn rejects_running_job_before_markdown_chat() {

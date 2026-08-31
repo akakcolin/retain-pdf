@@ -4,10 +4,11 @@ Builds each `PdfStructurePageProfile` from the pyo3 bridge primitives
 (`read_page_cleanup_contexts` for rect/ctm/bboxlog, `read_page_text_spans` for
 the text spans, `read_page_form_xobjects` for the form XObjects) plus the pure
 `coordinate_resolver` / `source.rects` geometry helpers, so the prewarm path
-needs no live fitz page. Without the native module — or when a native call
-fails — `build_pdf_structure_profile` falls back to the pure-Python reference
-`sampler._build_pdf_structure_profile_python`, so importing this module is
-always safe.
+needs no live fitz page. The document-level build is native-only: it raises when
+the bridge is unavailable instead of running the retired `sampler` reference.
+Native errors propagate to the prewarm caller (which already treats a profile
+failure as optional). Importing this module is always safe; the routed call is
+gated at call time.
 
 Documented divergence: `form_xobjects` reads the (inherited) `/Resources/XObject`
 resource dict — one entry per named form — while fitz `page.get_xobjects()`
@@ -55,35 +56,19 @@ def build_pdf_structure_profile(
     source_pdf_path: Path,
     pages: dict[int, list[dict]] | None = None,
 ) -> PdfStructureDocumentProfile:
-    """`sampler.build_pdf_structure_profile`, routed to the native bridge when
-    built; otherwise the pure-Python reference `_build_pdf_structure_profile_python`.
-    Any native failure falls back to the reference (the prewarm caller treats a
-    profile failure as optional, so parity beats raising)."""
+    """`sampler.build_pdf_structure_profile`, routed to the native bridge.
+    Native-only: the `sampler` fitz reference is retired; native errors
+    propagate to the prewarm caller (which treats profile failure as optional)."""
     if not _routing.routed("pdf_structure_profile", "build_pdf_structure_profile", NATIVE):
-        return _build_python(source_pdf_path, pages)
-    try:
-        result = _build_native(source_pdf_path, pages)
-        _routing.record_native_hit("pdf_structure_profile", "build_pdf_structure_profile")
-        return result
-    except Exception as exc:
-        _routing.record_fallback(
-            "pdf_structure_profile",
-            "build_pdf_structure_profile",
-            _routing.FallbackReason.NATIVE_BRIDGE_ERROR,
+        raise RuntimeError(
+            "pdf_structure_profile.build_pdf_structure_profile is native-only: "
+            "the rendering_bridge read_page_cleanup_contexts / "
+            "read_page_text_spans / read_page_form_xobjects / read_page_geometry "
+            "are required"
         )
-        print(
-            f"pdf structure profile native failed {type(exc).__name__}: {exc}; falling back to reference",
-            flush=True,
-        )
-        return _build_python(source_pdf_path, pages)
-
-
-def _build_python(source_pdf_path: Path, pages: dict[int, list[dict]] | None) -> PdfStructureDocumentProfile:
-    # Lazy: sampler's public delegator imports this shim, so a top-level
-    # reference import here would be circular.
-    from services.rendering.pdf_structure_profile.sampler import _build_pdf_structure_profile_python
-
-    return _build_pdf_structure_profile_python(source_pdf_path, pages)
+    result = _build_native(source_pdf_path, pages)
+    _routing.record_native_hit("pdf_structure_profile", "build_pdf_structure_profile")
+    return result
 
 
 def _build_native(source_pdf_path: Path, pages: dict[int, list[dict]] | None) -> PdfStructureDocumentProfile:

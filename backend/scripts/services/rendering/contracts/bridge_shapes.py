@@ -182,7 +182,7 @@ FillMapShape = dict[str, FillMapEntryShape]
 PrecleanedPageIndicesShape = list[int]
 
 # --------------------------------------------------------------------------
-# Boundary 6 — render bundle (`entrypoints/run_render_delegate.py::build_bundle`)
+# Boundary 6 — render bundle (`rendering_orchestrator::bundle_builder::build_bundle`)
 # → `rendering_orchestrator::bundle::RenderBundle`. All 15 keys emitted.
 
 

@@ -11,7 +11,6 @@ from services.pipeline_shared.events import emit_stage_progress
 from services.pipeline_shared.events import emit_stage_transition
 from services.pipeline_shared.events import reset_render_page_progress
 from services.rendering.source.prewarm import prewarm_manifest_path_from_translations_dir
-from services.rendering.workflow import render_translated_pages_map
 
 
 def render_no_cache_enabled() -> bool:

@@ -2,10 +2,11 @@
 //! (`book_support.prepare_translated_pages_for_render`): build the per-page
 //! metrics, derive the first-line-indent lookup over the RAW source PDF
 //! (`spec.inputs.source_pdf`), run the C3-N7 prepare boundary, then the C3-N8
-//! policy boundary. The delegate passes `first_line_indent_lookup=None` and
-//! `effective_inner_bbox_lookup=None`, so candidates are always derived from the
-//! source PDF (never a passthrough lookup), and the lookup never comes back
-//! `None` in the bundle path (empty candidate set yields `{}`).
+//! policy boundary. The retired Python `build_bundle` passed
+//! `first_line_indent_lookup=None` and `effective_inner_bbox_lookup=None`, so
+//! candidates are always derived from the source PDF (never a passthrough
+//! lookup), and the lookup never comes back `None` in the bundle path (empty
+//! candidate set yields `{}`).
 
 use std::collections::BTreeMap;
 use std::path::Path;

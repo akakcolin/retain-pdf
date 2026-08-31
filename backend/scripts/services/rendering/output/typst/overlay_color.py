@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import fitz
-
 from services.rendering.output.typst.color_adapt import apply_adaptive_overlay_colors_batch
 
 

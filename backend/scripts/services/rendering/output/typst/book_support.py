@@ -128,42 +128,6 @@ def compile_background_pdf_resilient(
         )
 
 
-def _build_dual_doc_pages_python(
-    source_doc: fitz.Document,
-    translated_doc: fitz.Document,
-    dual_doc: fitz.Document,
-    *,
-    start_page: int = 0,
-    end_page: int = -1,
-) -> None:
-    last_page = len(source_doc) - 1
-    start_idx = max(0, start_page)
-    end_idx = last_page if end_page < 0 else min(end_page, last_page)
-    for page_idx in range(start_idx, end_idx + 1):
-        source_page = source_doc[page_idx]
-        translated_page = translated_doc[page_idx]
-        page_width = source_page.rect.width + translated_page.rect.width
-        page_height = max(source_page.rect.height, translated_page.rect.height)
-        dual_page = dual_doc.new_page(width=page_width, height=page_height)
-        dual_page.show_pdf_page(
-            fitz.Rect(0, 0, source_page.rect.width, source_page.rect.height),
-            source_doc,
-            page_idx,
-            overlay=True,
-        )
-        dual_page.show_pdf_page(
-            fitz.Rect(
-                source_page.rect.width,
-                0,
-                source_page.rect.width + translated_page.rect.width,
-                translated_page.rect.height,
-            ),
-            translated_doc,
-            page_idx,
-            overlay=True,
-        )
-
-
 def build_dual_doc_pages(
     source_doc: fitz.Document,
     translated_doc: fitz.Document,

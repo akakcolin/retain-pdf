@@ -38,13 +38,6 @@ pub(super) fn spawn_worker_process(
             command.env("PATH", path);
         }
     }
-    if render_rs_env(Path::new(&job.command[0]), config.render_rs_bin) {
-        // The native orchestrator spawns the delegate itself; point it at the
-        // same python and script rust_api would have used.
-        command
-            .env("RETAIN_PDF_PYTHON_BIN", config.python_bin)
-            .env("RETAIN_PDF_RENDER_DELEGATE_SCRIPT", config.render_rs_delegate_script);
-    }
     apply_job_credentials(&mut command, job);
     configure_child_process(&mut command);
 
@@ -54,8 +47,8 @@ pub(super) fn spawn_worker_process(
         .with_context(|| format!("failed to spawn python worker: {program}"))
 }
 
-/// Whether a worker program is the native render orchestrator (so the spawner
-/// wires delegate-python env vars for it).
+/// Whether a worker program is the native render orchestrator (used to
+/// discriminate the renderer label).
 fn render_rs_env(program: &Path, bin: &Path) -> bool {
     program == bin
 }

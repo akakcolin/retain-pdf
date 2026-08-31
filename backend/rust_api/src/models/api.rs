@@ -39,5 +39,5 @@ pub use super::view::{
     RetryStageKind, RetryStageRequest, RetryStageSubmissionView, StageActionsView,
     StageRetryActionLinkView, StageRetryActionView, TranslationDebugIndexView,
     TranslationDebugItemView, TranslationDebugListItemView, TranslationDebugListView,
-    TranslationDiagnosticsView, TranslationReplayView,
+    TranslationDiagnosticsView, TranslationReplayView, TranslateTextRequest, TranslateTextView,
 };

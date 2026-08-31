@@ -2,9 +2,10 @@
 
 Build the pyo3 module with maturin from `backend/rendering_bridge` and
 `import rendering_bridge` succeeds; this module then routes the Typst source
-emitter through the ported Rust implementation. Without the native module every
-function falls back to the pure-Python implementation, so importing this module
-is always safe.
+emitter through the ported Rust implementation. The write-path primitives are
+native-only: they raise when the bridge is unavailable instead of running the
+retired pure-Python references. Importing this module is always safe; the
+routed calls are gated at call time.
 
 Native output is identical to the Python emitter modulo numeric literal
 formatting (e.g. `260pt` vs `260.0pt`); both parse to the same Typst value.
@@ -20,8 +21,6 @@ import fitz
 from foundation.config import fonts
 from services.rendering import _routing
 from services.rendering.layout.model.models import RenderBlock
-from services.rendering.output.typst.emitter import build_typst_source_from_page_specs
-from services.rendering.output.typst.source_builder import build_typst_book_overlay_source
 
 try:
     from rendering_bridge import build_dual_doc_pages as _native_build_dual_doc_pages
@@ -119,23 +118,22 @@ def emit_typst_source(
     font_family: str = fonts.TYPST_DEFAULT_FONT_FAMILY,
 ) -> str:
     """`emitter.build_typst_source_from_page_specs`, routed to the native Rust
-    emitter when the module is built; otherwise the pure-Python emitter."""
-    if _routing.routed("typst", "emit_typst_source", NATIVE):
-        payload = json.dumps([_page_spec_to_dict(spec) for spec in page_specs])
-        source = _native_emit_typst_source(
-            payload,
-            str(background_pdf_path),
-            str(work_dir),
-            font_family,
+    emitter. Native-only: the Python emitter is the differential-corpus oracle /
+    unit-test surface, production routes through the bridge."""
+    if not _routing.routed("typst", "emit_typst_source", NATIVE):
+        raise RuntimeError(
+            "typst.emit_typst_source is native-only: the rendering_bridge "
+            "emit_typst_source is required"
         )
-        _routing.record_native_hit("typst", "emit_typst_source")
-        return source
-    return build_typst_source_from_page_specs(
-        background_pdf_path=background_pdf_path,
-        page_specs=page_specs,
-        work_dir=work_dir,
-        font_family=font_family,
+    payload = json.dumps([_page_spec_to_dict(spec) for spec in page_specs])
+    source = _native_emit_typst_source(
+        payload,
+        str(background_pdf_path),
+        str(work_dir),
+        font_family,
     )
+    _routing.record_native_hit("typst", "emit_typst_source")
+    return source
 
 
 def _render_block_to_dict(block: RenderBlock) -> dict:
@@ -198,41 +196,25 @@ def emit_typst_book_overlay_source(
     include_cover_rect: bool = False,
 ) -> str:
     """`source_builder.build_typst_book_overlay_source`, routed to the native
-    Rust emitter when the module is built; otherwise the pure-Python reference.
-    The page `items` may be raw translated-item dicts (production; the layout
-    pipeline `build_render_blocks` converts them identically on both paths) or
-    already-built `RenderBlock` instances (corpus/smoke fixtures)."""
-    if _routing.routed("typst", "emit_typst_book_overlay_source", NATIVE):
-        payload = json.dumps(
-            [
-                [width, height, [_render_block_to_dict(b) for b in _as_render_blocks(width, height, items)]]
-                for width, height, items in page_specs
-            ]
+    Rust emitter. Native-only: the Python source builder is the
+    differential-corpus oracle / unit-test surface, production routes through
+    the bridge. The page `items` may be raw translated-item dicts (production;
+    the layout pipeline `build_render_blocks` converts them identically on both
+    paths) or already-built `RenderBlock` instances (corpus/smoke fixtures)."""
+    if not _routing.routed("typst", "emit_typst_book_overlay_source", NATIVE):
+        raise RuntimeError(
+            "typst.emit_typst_book_overlay_source is native-only: the "
+            "rendering_bridge emit_typst_book_overlay_source is required"
         )
-        source = _native_emit_typst_book_overlay_source(payload, font_family, include_cover_rect)
-        _routing.record_native_hit("typst", "emit_typst_book_overlay_source")
-        return source
-    return build_typst_book_overlay_source(
-        page_specs,
-        font_family=font_family,
-        include_cover_rect=include_cover_rect,
+    payload = json.dumps(
+        [
+            [width, height, [_render_block_to_dict(b) for b in _as_render_blocks(width, height, items)]]
+            for width, height, items in page_specs
+        ]
     )
-
-
-def _apply_adaptive_overlay_colors_batch_python(
-    *,
-    source_pdf_path: Path,
-    pages: dict[int, list[dict]],
-    precomputed_colors_by_item_id: dict[str, dict[str, tuple[float, float, float]]] | None = None,
-) -> dict[int, list[dict]]:
-    """NATIVE=False fallback: the fitz reference in `color_adapt`."""
-    from services.rendering.output.typst.color_adapt import apply_adaptive_overlay_colors_batch
-
-    return apply_adaptive_overlay_colors_batch(
-        source_pdf_path=source_pdf_path,
-        pages=pages,
-        precomputed_colors_by_item_id=precomputed_colors_by_item_id,
-    )
+    source = _native_emit_typst_book_overlay_source(payload, font_family, include_cover_rect)
+    _routing.record_native_hit("typst", "emit_typst_book_overlay_source")
+    return source
 
 
 def apply_adaptive_overlay_colors_batch(
@@ -242,17 +224,17 @@ def apply_adaptive_overlay_colors_batch(
     precomputed_colors_by_item_id: dict[str, dict[str, tuple[float, float, float]]] | None = None,
 ) -> dict[int, list[dict]]:
     """`color_adapt.apply_adaptive_overlay_colors_batch`, routed to the native
-    primitives when the module is built; otherwise the pure-Python reference in
-    `color_adapt`. Builds every non-rendering decision input (batch sampler
-    rects, span clips, title-visual probes) from the translated items, calls the
-    three source primitives (three PDF opens), then runs the shared
+    primitives. Native-only: the fitz batch reference in `color_adapt` is
+    retired. Builds every non-rendering decision input (batch sampler rects,
+    span clips, title-visual probes) from the translated items, calls the three
+    source primitives (three PDF opens), then runs the shared
     `_apply_adaptive_overlay_colors_with_data` decision tree. Out-of-range pages
     pass through as shallow copies."""
     if not _routing.routed("typst", "apply_adaptive_overlay_colors_batch", NATIVE):
-        return _apply_adaptive_overlay_colors_batch_python(
-            source_pdf_path=source_pdf_path,
-            pages=pages,
-            precomputed_colors_by_item_id=precomputed_colors_by_item_id,
+        raise RuntimeError(
+            "typst.apply_adaptive_overlay_colors_batch is native-only: the "
+            "rendering_bridge source primitives (sample_page_color_fills, "
+            "sample_title_visual_colors, extract_page_span_dicts) are required"
         )
     from services.rendering.layout._native import read_source_page_sizes
     from services.rendering.output.typst.color_adapt import DEFAULT_COVER_FILL
@@ -447,23 +429,22 @@ def show_pdf_page_on_doc(
     rect,
 ) -> fitz.Document:
     """`page.show_pdf_page(rect, source_doc, source_page_idx, overlay=True)` on
-    `target_doc[target_page_idx]`, routed to the native bridge (which returns a
-    fresh document) when built; otherwise the in-place fitz reference returns the
-    same `target_doc`."""
-    if _routing.routed("typst", "show_pdf_page", NATIVE):
-        result = _native_show_pdf_page(
-            target_doc.tobytes(),
-            source_doc.tobytes(),
-            int(target_page_idx),
-            int(source_page_idx),
-            tuple(float(v) for v in rect),
+    `target_doc[target_page_idx]`, routed to the native bridge which returns a
+    fresh document. Native-only: the in-place fitz reference is retired."""
+    if not _routing.routed("typst", "show_pdf_page", NATIVE):
+        raise RuntimeError(
+            "typst.show_pdf_page is native-only: the rendering_bridge "
+            "show_pdf_page is required"
         )
-        _routing.record_native_hit("typst", "show_pdf_page")
-        return fitz.open(stream=result, filetype="pdf")
-    target_doc[target_page_idx].show_pdf_page(
-        fitz.Rect(*rect), source_doc, source_page_idx, overlay=True
+    result = _native_show_pdf_page(
+        target_doc.tobytes(),
+        source_doc.tobytes(),
+        int(target_page_idx),
+        int(source_page_idx),
+        tuple(float(v) for v in rect),
     )
-    return target_doc
+    _routing.record_native_hit("typst", "show_pdf_page")
+    return fitz.open(stream=result, filetype="pdf")
 
 
 def build_dual_doc_pages(
@@ -474,27 +455,19 @@ def build_dual_doc_pages(
     start_page: int = 0,
     end_page: int = -1,
 ) -> fitz.Document:
-    """`book_support.build_dual_doc_pages`, routed to the native bridge (returns
-    a fresh document) when built; otherwise the pure-Python reference mutates
-    `dual_doc` and returns it."""
-    if _routing.routed("typst", "build_dual_doc_pages", NATIVE):
-        result = _native_build_dual_doc_pages(
-            source_doc.tobytes(),
-            translated_doc.tobytes(),
-            int(start_page),
-            int(end_page),
+    """`book_support.build_dual_doc_pages`, routed to the native bridge which
+    returns a fresh document. Native-only: the pure-Python reference is
+    retired."""
+    if not _routing.routed("typst", "build_dual_doc_pages", NATIVE):
+        raise RuntimeError(
+            "typst.build_dual_doc_pages is native-only: the rendering_bridge "
+            "build_dual_doc_pages is required"
         )
-        _routing.record_native_hit("typst", "build_dual_doc_pages")
-        return fitz.open(stream=result, filetype="pdf")
-    from services.rendering.output.typst.book_support import (
-        _build_dual_doc_pages_python,
+    result = _native_build_dual_doc_pages(
+        source_doc.tobytes(),
+        translated_doc.tobytes(),
+        int(start_page),
+        int(end_page),
     )
-
-    _build_dual_doc_pages_python(
-        source_doc,
-        translated_doc,
-        dual_doc,
-        start_page=start_page,
-        end_page=end_page,
-    )
-    return dual_doc
+    _routing.record_native_hit("typst", "build_dual_doc_pages")
+    return fitz.open(stream=result, filetype="pdf")

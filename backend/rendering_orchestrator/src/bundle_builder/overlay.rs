@@ -1,6 +1,7 @@
 //! N11e: native `build_overlay_page_specs` — the overlay/dual bundle key
-//! (`entrypoints/run_render_delegate.py::build_bundle`): per selected page, the
-//! page geometry from the RAW source PDF (`read_source_page_sizes` == fitz
+//! (retired `entrypoints/run_render_delegate.py::build_bundle`): per selected
+//! page, the page geometry from the RAW source PDF (`read_source_page_sizes` ==
+//! fitz
 //! `page.rect` dimensions) plus the `RenderBlock` DTOs for that page's items.
 //!
 //! The blocks run the identical layout pipeline as `blocks.build_render_blocks`:
@@ -31,7 +32,8 @@ use serde_json::{json, Value};
 
 /// `build_overlay_page_specs`: per selected page, page_rect dims from the source
 /// PDF plus the page's RenderBlock DTOs. Out-of-range / unreadable pages are
-/// skipped (the delegate's `if page_idx in source_sizes` gate).
+/// skipped (the retired Python `build_bundle`'s `if page_idx in source_sizes`
+/// gate).
 pub fn build_overlay_page_specs(
     source_pdf_path: &Path,
     prepared_pages: &BTreeMap<i64, Vec<Value>>,
@@ -63,8 +65,9 @@ pub fn build_overlay_page_specs(
 }
 
 /// `blocks.build_render_blocks` over one page's translated items, producing the
-/// `RenderBlock` DTO array (the delegate converts via `_as_render_blocks` ->
-/// `_render_block_to_dict`, whose fields match `emit_render_blocks` output).
+/// `RenderBlock` DTO array (the retired Python `build_bundle` converted via
+/// `_as_render_blocks` -> `_render_block_to_dict`, whose fields match
+/// `emit_render_blocks` output).
 fn build_render_blocks(items: &[Value], page_width: f64, page_height: f64, font_unify_mode: &str) -> Vec<Value> {
     let mut seeded = items.to_vec();
     for item in &mut seeded {

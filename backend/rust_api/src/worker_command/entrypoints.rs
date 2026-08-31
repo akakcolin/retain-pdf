@@ -69,10 +69,10 @@ pub(super) fn render_only_command(
 }
 
 /// C3 production takeover: typst/typst_visual/overlay/dual/auto renders run
-/// through the native `render_rs` orchestrator by default (the delegate
-/// resolves `auto` and rejects anything else). `RETAINPDF_RENDER_ORCHESTRATOR_RS=1`
-/// (legacy C1 test gate) forces native for any mode; `RETAINPDF_RENDER_ORCHESTRATOR_OFF=1`
-/// forces the python flow.
+/// through the native `render_rs` orchestrator by default (native
+/// `bundle_builder::build_bundle` resolves `auto` and rejects anything else).
+/// `RETAINPDF_RENDER_ORCHESTRATOR_RS=1` (legacy C1 test gate) forces native for
+/// any mode; `RETAINPDF_RENDER_ORCHESTRATOR_OFF=1` forces the python flow.
 const RENDER_ORCHESTRATOR_FORCE_ON_ENV: &str = "RETAINPDF_RENDER_ORCHESTRATOR_RS";
 const RENDER_ORCHESTRATOR_FORCE_OFF_ENV: &str = "RETAINPDF_RENDER_ORCHESTRATOR_OFF";
 
@@ -108,7 +108,6 @@ mod tests {
             run_translate_only_script: scripts,
             run_render_only_script: scripts,
             render_rs_bin,
-            render_rs_delegate_script: scripts,
         }
     }
 

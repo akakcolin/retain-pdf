@@ -2,7 +2,7 @@
 //!
 //! Mirror of `runtime/pipeline/translation_loader.py` +
 //! `services/translation/core/payload/{manifest,translations,template_contract}.py`
-//! for the render-delegate path. Reads the on-disk translation artifacts a job
+//! for the render-bundle path. Reads the on-disk translation artifacts a job
 //! produces:
 //!
 //! ```text

@@ -4,7 +4,6 @@ from pathlib import Path
 
 from services.rendering.contracts import RenderDocumentAnalysis
 from services.rendering.source.rects import Rect
-from services.rendering.source_cleanup.planning.accumulator import BBoxTextStripCandidateAccumulator
 from services.rendering.source_cleanup.planning.geometry import formula_guard_rects
 from services.rendering.source_cleanup.planning.geometry import ocr_bbox_to_pdf_rect_with_ctm
 from services.rendering.source_cleanup.planning.item_classifier import item_allows_item_cover_fallback
@@ -39,10 +38,9 @@ def plan_source_cleanup(
     document_analysis: RenderDocumentAnalysis | None = None,
     pdf_structure_profile=None,
 ) -> BBoxTextStripCandidates:
-    """Production entry, driven by `PlanningPageContext` per page. When the
-    native bridge is present the whole candidates assembly runs in Rust
-    (`_native.plan_source_cleanup`); otherwise it behaves identically through
-    the Python reference context builder."""
+    """Production entry, driven by `PlanningPageContext` per page. Native-only:
+    the whole candidates assembly runs in Rust (`_native.plan_source_cleanup`);
+    without the bridge it raises."""
     from services.rendering.source_cleanup.planning import _native
 
     return _native.plan_source_cleanup(
@@ -54,41 +52,6 @@ def plan_source_cleanup(
         document_analysis=document_analysis,
         pdf_structure_profile=pdf_structure_profile,
     )
-
-
-def _plan_source_cleanup_from_contexts(
-    *,
-    source_pdf_path: Path,
-    translated_pages: dict[int, list[dict]],
-    protected_pages: dict[int, list[dict]],
-    skip_formula_pages: bool,
-    skip_form_xobject_pages: bool,
-    document_analysis: RenderDocumentAnalysis | None,
-) -> BBoxTextStripCandidates:
-    from services.rendering.source_cleanup.planning import _native
-
-    accumulator = BBoxTextStripCandidateAccumulator()
-    contexts = _native.build_page_contexts(source_pdf_path, sorted(translated_pages))
-    for page_idx, items in translated_pages.items():
-        ctx = contexts.get(page_idx)
-        if ctx is None:
-            continue
-        features = PageCleanupFeatures(
-            content_stream_size=ctx.content_stream_size,
-            has_form_xobjects=ctx.has_form_xobjects,
-        )
-        accumulator.add_page_features(page_idx, features)
-        page_plan = plan_source_cleanup_page_ctx(
-            ctx,
-            translated_items=items,
-            protected_items=protected_pages.get(page_idx, []),
-            skip_formula_pages=skip_formula_pages,
-            skip_form_xobject_pages=skip_form_xobject_pages,
-            features=features,
-            document_analysis=document_analysis,
-        )
-        accumulator.add_page_plan(page_idx, page_plan)
-    return accumulator.build()
 
 
 def plan_source_cleanup_page_ctx(
@@ -263,31 +226,15 @@ def item_ids_with_uncovered_unsafe_vector_overlap(
     source_pdf_path: Path,
     translated_pages: dict[int, list[dict]],
 ) -> frozenset[str]:
-    """Routed to `_native` when the bridge is present; the pure-Python
-    reference is `_item_ids_with_uncovered_unsafe_vector_overlap_python`."""
+    """Native-only: requires the rendering_bridge
+    `uncovered_unsafe_vector_item_ids_native` primitive. The per-page reference
+    `page_uncovered_unsafe_vector_item_ids_ctx` remains as the parity/test surface."""
     from services.rendering.source_cleanup.planning import _native
 
     return _native.item_ids_with_uncovered_unsafe_vector_overlap(
         source_pdf_path=source_pdf_path,
         translated_pages=translated_pages,
     )
-
-
-def _item_ids_with_uncovered_unsafe_vector_overlap_python(
-    *,
-    source_pdf_path: Path,
-    translated_pages: dict[int, list[dict]],
-) -> frozenset[str]:
-    from services.rendering.source_cleanup.planning import _native
-
-    contexts = _native.build_page_contexts(source_pdf_path, sorted(translated_pages))
-    item_ids: set[str] = set()
-    for page_idx, items in translated_pages.items():
-        ctx = contexts.get(page_idx)
-        if ctx is None:
-            continue
-        item_ids.update(page_uncovered_unsafe_vector_item_ids_ctx(ctx, items))
-    return frozenset(item_ids)
 
 
 def page_uncovered_unsafe_vector_item_ids_ctx(

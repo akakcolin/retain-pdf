@@ -1,14 +1,13 @@
-"""Optional native (Rust) backend for source-cleanup planning page contexts.
+"""Native (Rust) backend for source-cleanup planning page contexts.
 
 Builds `PlanningPageContext` objects for a batch of pages through the pyo3
 bridge (`rendering_bridge.read_page_cleanup_contexts`), which computes the
 bboxlog, content-stream size, form-xobject flag, and page ctm natively with
-mupdf-rs. Without the native module every call falls back to the pure-Python
-reference in `page_context.py` (fitz), so importing this module is always safe.
+mupdf-rs. The batch entry points are native-only: without the bridge they
+raise instead of running the retired Python references.
 
 The native path reads the source PDF once and skips pages the bridge omits
-(load / ctm failure) — mirroring the reference `fitz.open` loop's out-of-range
-skip, so missing keys mean the same thing in both paths.
+(load / ctm failure), so missing keys mean the same thing across callers.
 """
 
 from __future__ import annotations
@@ -35,12 +34,14 @@ def build_page_contexts(
     source_pdf_path: Path,
     page_indices: list[int],
 ):
-    """`page_context` per-page contexts, routed to the native primitives when
-    the module is built; otherwise the pure-Python reference in `page_context`."""
+    """`page_context` per-page contexts, native-only: requires the rendering_bridge
+    `read_page_cleanup_contexts` primitive. The per-page reference helper
+    `page_context._build_context_from_fitz` remains as the parity/test surface."""
     if not _routing.routed("source_cleanup_planning", "build_page_contexts", NATIVE):
-        from services.rendering.source_cleanup.planning.page_context import _build_page_contexts_python
-
-        return _build_page_contexts_python(source_pdf_path=source_pdf_path, page_indices=page_indices)
+        raise RuntimeError(
+            "source_cleanup_planning.build_page_contexts is native-only: the "
+            "rendering_bridge read_page_cleanup_contexts primitive is required"
+        )
     from services.rendering.source_cleanup.planning.page_context import PlanningPageContext
     from services.rendering.source_cleanup.planning.page_context import decode_bboxlog_entries
     from services.rendering.source_cleanup.planning.page_context import inverse_ctm_from_ctm
@@ -118,22 +119,14 @@ def plan_source_cleanup(
     document_analysis=None,
     pdf_structure_profile=None,
 ) -> "BBoxTextStripCandidates":
-    """`planner.plan_source_cleanup`, routed to the native bridge (whole
-    candidates assembly in Rust) when built; otherwise the pure-Python
-    reference. `document_analysis` supplies the per-page `allows_pikepdf_text_strip`
-    route gate; pages absent from it have no analysis route and are never gated."""
+    """`planner.plan_source_cleanup`, native-only: the whole candidates assembly
+    runs in Rust (`rendering_bridge.plan_source_cleanup_native`). `document_analysis`
+    supplies the per-page `allows_pikepdf_text_strip` route gate; pages absent
+    from it have no analysis route and are never gated."""
     if not _routing.routed("source_cleanup_planning", "plan_source_cleanup", NATIVE):
-        from services.rendering.source_cleanup.planning.planner import (
-            _plan_source_cleanup_from_contexts,
-        )
-
-        return _plan_source_cleanup_from_contexts(
-            source_pdf_path=source_pdf_path,
-            translated_pages=translated_pages,
-            protected_pages=protected_pages or {},
-            skip_formula_pages=skip_formula_pages,
-            skip_form_xobject_pages=skip_form_xobject_pages,
-            document_analysis=document_analysis,
+        raise RuntimeError(
+            "source_cleanup_planning.plan_source_cleanup is native-only: the "
+            "rendering_bridge plan_source_cleanup_native primitive is required"
         )
     allows_map = None
     if document_analysis is not None:
@@ -163,17 +156,18 @@ def item_ids_with_uncovered_unsafe_vector_overlap(
     source_pdf_path: Path,
     translated_pages: dict[int, list[dict]],
 ) -> frozenset[str]:
-    """`planner.item_ids_with_uncovered_unsafe_vector_overlap`, routed to the
-    native bridge when built; otherwise the pure-Python reference."""
+    """`planner.item_ids_with_uncovered_unsafe_vector_overlap`, native-only:
+    requires the rendering_bridge `uncovered_unsafe_vector_item_ids_native`
+    primitive. The per-page reference
+    `planner.page_uncovered_unsafe_vector_item_ids_ctx` remains as the
+    parity/test surface."""
     if not _routing.routed(
         "source_cleanup_planning", "item_ids_with_uncovered_unsafe_vector_overlap", NATIVE
     ):
-        from services.rendering.source_cleanup.planning.planner import (
-            _item_ids_with_uncovered_unsafe_vector_overlap_python,
-        )
-
-        return _item_ids_with_uncovered_unsafe_vector_overlap_python(
-            source_pdf_path=source_pdf_path, translated_pages=translated_pages
+        raise RuntimeError(
+            "source_cleanup_planning.item_ids_with_uncovered_unsafe_vector_overlap is "
+            "native-only: the rendering_bridge uncovered_unsafe_vector_item_ids_native "
+            "primitive is required"
         )
     pdf_bytes = source_pdf_path.read_bytes()
     raw = _native_uncovered_unsafe_vector_item_ids(pdf_bytes, json.dumps(translated_pages))

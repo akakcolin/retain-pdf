@@ -7,6 +7,7 @@ pub(super) mod live_stage;
 mod presentation;
 mod query;
 mod reader_ai;
+pub(crate) use reader_ai::translate_text;
 mod reader_regions;
 mod readiness;
 mod stage_plan;

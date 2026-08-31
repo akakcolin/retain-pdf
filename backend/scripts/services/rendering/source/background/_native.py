@@ -2,9 +2,9 @@
 
 Build the pyo3 module with maturin from `backend/rendering_bridge` and
 `import rendering_bridge` succeeds; this module then routes
-`build_clean_background_pdf` through the ported Rust stage. Without the native
-module every call falls back to the pure-Python implementation, so importing
-this module is always safe.
+`build_clean_background_pdf` through the ported Rust stage. The stage + sampler
+primitives are native-only: they raise when the bridge is unavailable instead
+of running the retired pure-Python references.
 
 The native stage ports `stage.py::build_clean_background_pdf`. Page-spec
 replacement (`redaction_items_from_layout_blocks`) and the visual-profile fill
@@ -13,8 +13,7 @@ translated items plus the raw `RenderPageSpec` JSON (`render_page_spec_to_bridge
 and a flat first-wins fill map (`visual_profile_fill_map`), and the Rust side
 applies the replacement + per-item fill before redaction. Formula-region guard
 protection and vector-text rect collection are full 7R-6 ports, and the
-`text_layer_only`/`text_redaction` subroutes are full 7R-7 ports. Calls with an
-instrumented (mocked) Python stage fall back to pure Python.
+`text_layer_only`/`text_redaction` subroutes are full 7R-7 ports.
 """
 
 from __future__ import annotations
@@ -23,17 +22,6 @@ import json
 from pathlib import Path
 
 from services.rendering import _routing
-import services.rendering.source.background.stage as _stage
-from services.rendering.policy import protect_formula_regions_in_redaction_items
-from services.rendering.source.rects import Rect
-from services.rendering.source.rects import coerce
-from services.rendering.source.background.redaction_items import (
-    redaction_items_from_layout_blocks,
-)
-from services.rendering.source.background.stage import _build_clean_background_pdf_python
-from services.rendering.source.document_ops import save_optimized_pdf
-from services.rendering.source.redaction import redact_source_text_areas
-from services.rendering.source.vector_text import collect_vector_text_rects
 
 try:
     from rendering_bridge import build_clean_background_pdf as _native_build_clean_background_pdf
@@ -45,35 +33,6 @@ try:
     NATIVE = True
 except ImportError:  # pragma: no cover - native build not present
     NATIVE = False
-
-
-def _python_stage_instrumented() -> bool:
-    """True when the pure-Python stage's functions have been replaced (e.g.
-    mocked in white-box tests) — the caller is exercising the Python
-    orchestration, so route there instead of the native stage."""
-    return (
-        _stage.collect_vector_text_rects is not collect_vector_text_rects
-        or _stage.protect_formula_regions_in_redaction_items
-        is not protect_formula_regions_in_redaction_items
-        or _stage.redact_source_text_areas is not redact_source_text_areas
-        or _stage.save_optimized_pdf is not save_optimized_pdf
-        or _stage.redaction_items_from_layout_blocks
-        is not redaction_items_from_layout_blocks
-    )
-
-
-def _native_eligible(
-    redaction_strategy: str | None,
-) -> tuple[bool, _routing.FallbackReason | None]:
-    """True when the native stage can take the call: every strategy (auto /
-    visual_cover / visual_cover_and_remove_text / text_layer_only / text_redaction)
-    resolves to a ported route, and the Python stage is not instrumented.
-    `page_specs` and `visual_profile` no longer gate native — the shim
-    precomputes them into the item DTO. Returns the reason alongside False so
-    the routing layer can log it."""
-    if _python_stage_instrumented():
-        return False, _routing.FallbackReason.STAGE_INSTRUMENTED
-    return True, None
 
 
 def render_page_spec_to_bridge(spec) -> dict:
@@ -128,26 +87,9 @@ def build_clean_background_pdf(
     visual_profile=None,
 ) -> Path:
     if not _routing.routed("background", "build_clean_background_pdf", NATIVE):
-        return _build_clean_background_pdf_python(
-            source_pdf_path=source_pdf_path,
-            translated_pages=translated_pages,
-            output_pdf_path=output_pdf_path,
-            redaction_strategy=redaction_strategy,
-            page_specs=page_specs,
-            source_text_precleaned_page_indices=source_text_precleaned_page_indices,
-            visual_profile=visual_profile,
-        )
-    eligible, reason = _native_eligible(redaction_strategy)
-    if not eligible:
-        _routing.record_fallback("background", "build_clean_background_pdf", reason)
-        return _build_clean_background_pdf_python(
-            source_pdf_path=source_pdf_path,
-            translated_pages=translated_pages,
-            output_pdf_path=output_pdf_path,
-            redaction_strategy=redaction_strategy,
-            page_specs=page_specs,
-            source_text_precleaned_page_indices=source_text_precleaned_page_indices,
-            visual_profile=visual_profile,
+        raise RuntimeError(
+            "background.build_clean_background_pdf is native-only: the "
+            "rendering_bridge build_clean_background_pdf is required"
         )
 
     source_bytes = source_pdf_path.read_bytes()
@@ -195,7 +137,10 @@ def sample_page_color_fills(
         result = json.loads(_native_sample_page_color_fills(source_pdf_path.read_bytes(), config_json))
         _routing.record_native_hit("background", "sample_page_color_fills")
         return result
-    return _sample_page_color_fills_python(source_pdf_path=source_pdf_path, by_page=by_page)
+    raise RuntimeError(
+        "background.sample_page_color_fills is native-only: the rendering_bridge "
+        "sample_page_color_fills is required"
+    )
 
 
 def extract_page_span_dicts(
@@ -215,7 +160,10 @@ def extract_page_span_dicts(
         result = json.loads(_native_extract_page_span_dicts(source_pdf_path.read_bytes(), clips_json))
         _routing.record_native_hit("background", "extract_page_span_dicts")
         return result
-    return _extract_page_span_dicts_python(source_pdf_path=source_pdf_path, clips_by_page=clips_by_page)
+    raise RuntimeError(
+        "background.extract_page_span_dicts is native-only: the rendering_bridge "
+        "extract_page_span_dicts is required"
+    )
 
 
 def sample_title_visual_colors(
@@ -238,7 +186,10 @@ def sample_title_visual_colors(
         result = json.loads(_native_sample_title_visual_colors(source_pdf_path.read_bytes(), visuals_json))
         _routing.record_native_hit("background", "sample_title_visual_colors")
         return result
-    return _sample_title_visual_colors_python(source_pdf_path=source_pdf_path, visuals_by_page=visuals_by_page)
+    raise RuntimeError(
+        "background.sample_title_visual_colors is native-only: the rendering_bridge "
+        "sample_title_visual_colors is required"
+    )
 
 
 def sample_foreground_colors(
@@ -265,153 +216,7 @@ def sample_foreground_colors(
         )
         _routing.record_native_hit("background", "sample_foreground_colors")
         return result
-    return _sample_foreground_colors_python(source_pdf_path=source_pdf_path, probes_by_page=probes_by_page)
-
-
-def _sample_foreground_colors_python(
-    *,
-    source_pdf_path: Path,
-    probes_by_page: dict[int, list[dict]],
-) -> dict[str, dict[str, list[float]]]:
-    import fitz
-
-    from services.rendering.visual_profile.foreground import sample_foreground_color_from_pixels
-
-    source_doc = fitz.open(source_pdf_path)
-    try:
-        result: dict[str, dict[str, list[float]]] = {}
-        for page_idx, probes in probes_by_page.items():
-            if page_idx < 0 or page_idx >= len(source_doc):
-                continue
-            page = source_doc[page_idx]
-            page_out: dict[str, list[float]] = {}
-            for i, probe in enumerate(probes):
-                rect = fitz.Rect(probe["rect"])
-                background = tuple(float(component) for component in probe["fill"])
-                color, confidence = sample_foreground_color_from_pixels(page, rect, background)
-                if color is not None:
-                    page_out[str(i)] = [
-                        float(color[0]),
-                        float(color[1]),
-                        float(color[2]),
-                        float(confidence),
-                    ]
-            if page_out:
-                result[str(page_idx)] = page_out
-        return result
-    finally:
-        source_doc.close()
-
-
-def _sample_page_color_fills_python(
-    *,
-    source_pdf_path: Path,
-    by_page: dict[int, dict[str, list[list[float]]]],
-) -> dict[str, dict[str, object]]:
-    import fitz
-
-    from services.rendering.source.background.fill import LocalBackgroundSampler
-    from services.rendering.source.background.fill import _batch_sampler_clip_rect
-    from services.rendering.source.background.fill import sample_local_background_fill
-
-    source_doc = fitz.open(source_pdf_path)
-    try:
-        result: dict[str, dict[str, object]] = {}
-        for page_idx, cfg in by_page.items():
-            if page_idx < 0 or page_idx >= len(source_doc):
-                continue
-            page = source_doc[page_idx]
-            batch_rects = [fitz.Rect(rect) for rect in cfg["batch_rects"]]
-            target_rects = [fitz.Rect(rect) for rect in cfg["target_rects"]]
-            valid_count = sum(1 for rect in batch_rects if not rect.is_empty and not rect.is_infinite)
-            clip_rect = _batch_sampler_clip_rect(page, batch_rects, allow_full_page=True)
-            sampler = LocalBackgroundSampler.build(page, batch_rects)
-            targets: dict[str, list[float]] = {}
-            for i, rect in enumerate(target_rects):
-                fill = sample_local_background_fill(page, rect, sampler=sampler)
-                targets[str(i)] = [float(fill[0]), float(fill[1]), float(fill[2])]
-            result[str(page_idx)] = {
-                "batch": {
-                    "count": valid_count,
-                    "clip": (
-                        [float(clip_rect.x0), float(clip_rect.y0), float(clip_rect.x1), float(clip_rect.y1)]
-                        if clip_rect is not None
-                        else None
-                    ),
-                },
-                "targets": targets,
-            }
-        return result
-    finally:
-        source_doc.close()
-
-
-def _extract_page_span_dicts_python(
-    *,
-    source_pdf_path: Path,
-    clips_by_page: dict[int, list[list[float] | None]],
-) -> dict[str, dict[str, list[list[float]]]]:
-    import fitz
-
-    source_doc = fitz.open(source_pdf_path)
-    try:
-        result: dict[str, dict[str, list[list[float]]]] = {}
-        for page_idx, clips in clips_by_page.items():
-            if page_idx < 0 or page_idx >= len(source_doc):
-                continue
-            page = source_doc[page_idx]
-            page_out: dict[str, list[list[float]]] = {}
-            for i, clip in enumerate(clips):
-                spans: list[list[float]] = []
-                text = page.get_text("dict", clip=fitz.Rect(clip)) if clip is not None else page.get_text("dict")
-                for block in text.get("blocks", []):
-                    for line in block.get("lines", []):
-                        for span in line.get("spans", []):
-                            span_text = str(span.get("text") or "")
-                            bbox = span.get("bbox")
-                            if not isinstance(bbox, (list, tuple)) or len(bbox) < 4:
-                                continue
-                            rect = Rect(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
-                            if rect.is_empty or rect.is_infinite:
-                                continue
-                            color = span.get("color")
-                            if not isinstance(color, int):
-                                continue
-                            spans.append(
-                                [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]), color, span_text]
-                            )
-                page_out[str(i)] = spans
-            result[str(page_idx)] = page_out
-        return result
-    finally:
-        source_doc.close()
-
-
-def _sample_title_visual_colors_python(
-    *,
-    source_pdf_path: Path,
-    visuals_by_page: dict[int, list[dict]],
-) -> dict[str, dict[str, list[float]]]:
-    import fitz
-
-    from services.rendering.output.typst.color_adapt import title_text_color_from_visual_components
-
-    source_doc = fitz.open(source_pdf_path)
-    try:
-        result: dict[str, dict[str, list[float]]] = {}
-        for page_idx, visuals in visuals_by_page.items():
-            if page_idx < 0 or page_idx >= len(source_doc):
-                continue
-            page = source_doc[page_idx]
-            page_out: dict[str, list[float]] = {}
-            for i, visual in enumerate(visuals):
-                rect = coerce(visual["rect"])
-                fill = tuple(float(component) for component in visual["fill"])
-                color = title_text_color_from_visual_components(page, rect, fill)
-                if color is not None:
-                    page_out[str(i)] = [float(color[0]), float(color[1]), float(color[2])]
-            if page_out:
-                result[str(page_idx)] = page_out
-        return result
-    finally:
-        source_doc.close()
+    raise RuntimeError(
+        "background.sample_foreground_colors is native-only: the rendering_bridge "
+        "sample_foreground_colors is required"
+    )

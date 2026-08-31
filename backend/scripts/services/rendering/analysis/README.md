@@ -6,8 +6,7 @@
 
 ## 对外入口
 
-- `classifier.py`
-- `profile/`
+- `profile/`（数据模型；profile 构建已 native-only）
 - `route/`
 
 ## 不该做什么

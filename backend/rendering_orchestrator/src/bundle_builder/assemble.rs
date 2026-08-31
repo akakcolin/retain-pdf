@@ -22,6 +22,7 @@ pub struct AssembleInputs {
     pub translated_pages: Value,
     pub overlay_page_specs: Option<Value>,
     pub page_specs: Value,
+    pub visual_profile_fill_map: Value,
 }
 
 pub fn assemble(inputs: AssembleInputs) -> Value {
@@ -44,7 +45,10 @@ pub fn assemble(inputs: AssembleInputs) -> Value {
         "precleaned_page_indices".to_string(),
         json!(inputs.precleaned_page_indices),
     );
-    map.insert("visual_profile_fill_map".to_string(), json!({}));
+    map.insert(
+        "visual_profile_fill_map".to_string(),
+        inputs.visual_profile_fill_map,
+    );
     map.insert(
         "page_map".to_string(),
         json!({ "source_page_indices": inputs.page_map_indices }),
@@ -79,6 +83,7 @@ mod tests {
             translated_pages: json!({}),
             overlay_page_specs: None,
             page_specs: json!([]),
+            visual_profile_fill_map: json!({}),
         });
         let obj = value.as_object().unwrap();
         let keys: Vec<&str> = obj.keys().map(String::as_str).collect();

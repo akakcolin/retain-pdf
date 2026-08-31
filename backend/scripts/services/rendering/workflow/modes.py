@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from services.rendering.legacy.pdf_compress import compress_pdf_images_only
+from services.rendering.source.compression.pdf_copy import compress_pdf_images_only
 from services.rendering.document.pdf_ops import save_fast_pdf
 from services.rendering.document.pdf_ops import save_optimized_pdf
 from services.rendering.document.pikepdf_pages import extract_pages_with_pikepdf

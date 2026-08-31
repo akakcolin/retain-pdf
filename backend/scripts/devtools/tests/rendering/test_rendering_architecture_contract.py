@@ -120,7 +120,7 @@ def test_pipeline_architecture_rejects_direct_wired_reference_import(tmp_path: P
     source_root.mkdir(parents=True)
     offender = source_root / "bad_import.py"
     offender.write_text(
-        "from services.rendering.source.preparation.xobject_sanitize import _build_invalid_xobject_sanitized_pdf_copy_python\n",
+        "from services.rendering.output.typst.color_adapt import title_text_color_from_visual_components\n",
         encoding="utf-8",
     )
 
@@ -253,52 +253,6 @@ def test_layout_accepts_layout_shim_import(tmp_path: Path) -> None:
     assert not any("must not import" in item for item in errors)
 
 
-def test_layout_rejects_direct_wired_reference_import(tmp_path: Path) -> None:
-    rendering_root = tmp_path / "services" / "rendering"
-    layout_root = rendering_root / "layout"
-    layout_root.mkdir(parents=True)
-    (layout_root / "bad_import.py").write_text(
-        "from services.rendering.layout.page_specs import _read_source_page_sizes_python\n",
-        encoding="utf-8",
-    )
-
-    errors: list[str] = []
-    with (
-        mock.patch.object(rendering_checks, "RENDERING_ROOT", rendering_root),
-        mock.patch.object(rendering_checks, "RENDERING_SOURCE_ROOT", rendering_root / "source"),
-        mock.patch.object(
-            rendering_checks,
-            "RENDERING_SOURCE_CLEANUP_ROOT",
-            rendering_root / "source_cleanup",
-        ),
-        mock.patch.object(
-            rendering_checks,
-            "RENDERING_PROFILE_ROOT",
-            rendering_root / "analysis" / "profile",
-        ),
-        mock.patch.object(
-            rendering_checks,
-            "RENDERING_ROUTE_ROOT",
-            rendering_root / "analysis" / "route",
-        ),
-        mock.patch.object(
-            rendering_checks,
-            "RENDERING_TYPST_ROOT",
-            rendering_root / "output" / "typst",
-        ),
-        mock.patch.object(
-            rendering_checks,
-            "RENDERING_LAYOUT_ROOT",
-            layout_root,
-        ),
-        mock.patch.object(rendering_checks, "SCRIPTS_ROOT", tmp_path),
-        mock.patch.object(architecture_common, "SCRIPTS_ROOT", tmp_path),
-    ):
-        rendering_checks.check_rendering_internal_boundaries(errors)
-
-    assert any("route through the _native shim instead" in item for item in errors)
-
-
 def test_layout_payload_accepts_shim_import(tmp_path: Path) -> None:
     rendering_root = tmp_path / "services" / "rendering"
     layout_root = rendering_root / "layout"
@@ -344,53 +298,6 @@ def test_layout_payload_accepts_shim_import(tmp_path: Path) -> None:
         rendering_checks.check_rendering_internal_boundaries(errors)
 
     assert not any("must not import" in item for item in errors)
-
-
-def test_layout_payload_rejects_direct_wired_reference_import(tmp_path: Path) -> None:
-    rendering_root = tmp_path / "services" / "rendering"
-    layout_root = rendering_root / "layout"
-    payload_root = layout_root / "payload"
-    payload_root.mkdir(parents=True)
-    (payload_root / "bad_import.py").write_text(
-        "from services.rendering.layout.payload.first_line_indent import detect_first_line_indent_pt_with_displaylist\n",
-        encoding="utf-8",
-    )
-
-    errors: list[str] = []
-    with (
-        mock.patch.object(rendering_checks, "RENDERING_ROOT", rendering_root),
-        mock.patch.object(rendering_checks, "RENDERING_SOURCE_ROOT", rendering_root / "source"),
-        mock.patch.object(
-            rendering_checks,
-            "RENDERING_SOURCE_CLEANUP_ROOT",
-            rendering_root / "source_cleanup",
-        ),
-        mock.patch.object(
-            rendering_checks,
-            "RENDERING_PROFILE_ROOT",
-            rendering_root / "analysis" / "profile",
-        ),
-        mock.patch.object(
-            rendering_checks,
-            "RENDERING_ROUTE_ROOT",
-            rendering_root / "analysis" / "route",
-        ),
-        mock.patch.object(
-            rendering_checks,
-            "RENDERING_TYPST_ROOT",
-            rendering_root / "output" / "typst",
-        ),
-        mock.patch.object(
-            rendering_checks,
-            "RENDERING_LAYOUT_ROOT",
-            layout_root,
-        ),
-        mock.patch.object(rendering_checks, "SCRIPTS_ROOT", tmp_path),
-        mock.patch.object(architecture_common, "SCRIPTS_ROOT", tmp_path),
-    ):
-        rendering_checks.check_rendering_internal_boundaries(errors)
-
-    assert any("route through the _native shim instead" in item for item in errors)
 
 
 def test_color_adapt_accepts_shim_import(tmp_path: Path) -> None:
@@ -683,12 +590,12 @@ def test_source_cleanup_planning_rejects_cross_layer_import(tmp_path: Path) -> N
     assert any("must not import" in item for item in errors)
 
 
-def test_pdf_structure_profile_rejects_direct_wired_reference_import(tmp_path: Path) -> None:
+def test_rendering_rejects_direct_wired_reference_import(tmp_path: Path) -> None:
     rendering_root = tmp_path / "services" / "rendering"
-    profile_root = rendering_root / "pdf_structure_profile"
+    profile_root = rendering_root / "source"
     profile_root.mkdir(parents=True)
     (profile_root / "bad_import.py").write_text(
-        "from services.rendering.pdf_structure_profile.sampler import _build_pdf_structure_profile_python\n",
+        "from services.rendering.source.vector_profile import _page_drawing_count_python\n",
         encoding="utf-8",
     )
 
@@ -776,12 +683,12 @@ def test_pdf_structure_profile_accepts_shim_import(tmp_path: Path) -> None:
     assert not any("route through the _native shim instead" in item for item in errors)
 
 
-def test_render_document_analysis_rejects_direct_wired_reference_import(tmp_path: Path) -> None:
+def test_rejects_direct_wired_reference_import(tmp_path: Path) -> None:
     rendering_root = tmp_path / "services" / "rendering"
     document_root = rendering_root / "analysis" / "document"
     document_root.mkdir(parents=True)
     (document_root / "bad_import.py").write_text(
-        "from services.rendering.analysis.document.builder import _build_render_document_analysis_python\n",
+        "from services.rendering.output.typst.color_adapt import title_text_color_from_visual_components\n",
         encoding="utf-8",
     )
 

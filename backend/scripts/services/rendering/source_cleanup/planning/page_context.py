@@ -4,17 +4,16 @@
 page — page rect, bboxlog entries, content-stream size, form-xobject flag, and
 the inverse page transformation matrix — so `planner` (and its resolver / items
 helpers) can run from a context instead of a live fitz.Page. The native bridge
-(`_native.build_page_contexts`) builds contexts with mupdf-rs; the pure Python
-reference here builds them from fitz. Page rect and bboxlog entries are pure
-`Rect` / `Matrix` (attribute-compatible with fitz) so both paths carry the same
-data types and downstream math is identical.
+(`_native.build_page_contexts`) builds contexts with mupdf-rs; the shared per-page
+helper `_build_context_from_fitz` here backs the fitz planner wrappers and tests.
+Page rect and bboxlog entries are pure `Rect` / `Matrix` (attribute-compatible
+with fitz) so both paths carry the same data types and downstream math is identical.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import field
-from pathlib import Path
 
 import fitz
 
@@ -104,20 +103,3 @@ def _build_context_from_fitz(doc: fitz.Document | None, page: fitz.Page) -> Plan
         has_form_xobjects=has_form_xobjects,
         inverse_ctm=inverse_ctm_from_ctm(page.transformation_matrix),
     )
-
-
-def _build_page_contexts_python(
-    *,
-    source_pdf_path: Path,
-    page_indices: list[int],
-) -> dict[int, PlanningPageContext]:
-    contexts: dict[int, PlanningPageContext] = {}
-    doc = fitz.open(source_pdf_path)
-    try:
-        for page_idx in page_indices:
-            if page_idx < 0 or page_idx >= len(doc):
-                continue
-            contexts[page_idx] = _build_context_from_fitz(doc, doc[page_idx])
-    finally:
-        doc.close()
-    return contexts

@@ -90,15 +90,8 @@ from services.rendering.analysis.profile.text_layer import TextLayerProfile  # n
 from services.rendering.analysis.profile.image_background import ImageBackgroundProfile  # noqa: E402
 from services.rendering.analysis.profile.vector_layer import VectorLayerProfile  # noqa: E402
 from services.rendering.analysis.profile.ocr_blocks import OcrBlockProfile  # noqa: E402
-from services.rendering.analysis.profile.builder import build_render_page_profile  # noqa: E402
-from services.rendering.analysis.profile.text_layer import build_text_layer_profile  # noqa: E402
-from services.rendering.analysis.profile.text_traces import text_trace_visibility_counts  # noqa: E402
-from services.rendering.analysis.profile.image_background import build_image_background_profile  # noqa: E402
-from services.rendering.analysis.profile.vector_layer import build_vector_layer_profile  # noqa: E402
 from services.rendering.analysis.profile.ocr_blocks import build_ocr_block_profile  # noqa: E402
-from services.rendering.analysis.profile.background_coverage import background_coverage_ratio  # noqa: E402
 from services.rendering.source.background.detect import pick_primary_background_image  # noqa: E402
-from services.rendering.analysis.classifier import classify_render_page  # noqa: E402
 from services.rendering.analysis.route.builder import build_render_page_route  # noqa: E402
 from services.document_schema.semantics import (  # noqa: E402
     block_kind,
@@ -1027,29 +1020,6 @@ def h_build_render_page_route(rng, n):
     return out
 
 
-def h_profile_build_render_page_profile(rng, n):
-    out = []
-    for _ in range(n):
-        snapshot = gen_page_snapshot(rng)
-        page = FakePage(snapshot)
-        ocr_items = gen_ocr_items(rng)
-        threshold = round(rng.choice([0.5, 0.75, 0.9]), 2)
-        profile = build_render_page_profile(
-            page,
-            ocr_items=[{"bbox": b} for b in ocr_items],
-            background_threshold=threshold,
-        )
-        out.append({
-            "input": {
-                "page_snapshot": snapshot,
-                "ocr_items": ocr_items,
-                "background_threshold": threshold,
-            },
-            "expected": profile_to_dict(profile),
-        })
-    return out
-
-
 def h_profile_build_ocr_block_profile(rng, n):
     out = []
     for _ in range(n):
@@ -1068,71 +1038,6 @@ def h_profile_build_ocr_block_profile(rng, n):
     return out
 
 
-def h_profile_build_text_layer_profile(rng, n):
-    out = []
-    for _ in range(n):
-        snapshot = gen_page_snapshot(rng)
-        page = FakePage(snapshot)
-        out.append({
-            "input": {"page_snapshot": snapshot},
-            "expected": text_layer_to_dict(build_text_layer_profile(page)),
-        })
-    return out
-
-
-def h_profile_build_image_background_profile(rng, n):
-    out = []
-    for _ in range(n):
-        snapshot = gen_page_snapshot(rng)
-        page = FakePage(snapshot)
-        threshold = round(rng.choice([0.5, 0.75, 0.9]), 2)
-        out.append({
-            "input": {"page_snapshot": snapshot, "background_threshold": threshold},
-            "expected": image_background_to_dict(
-                build_image_background_profile(page, background_threshold=threshold)
-            ),
-        })
-    return out
-
-
-def h_profile_build_vector_layer_profile(rng, n):
-    out = []
-    for _ in range(n):
-        snapshot = gen_page_snapshot(rng)
-        page = FakePage(snapshot)
-        out.append({
-            "input": {"page_snapshot": snapshot},
-            "expected": vector_layer_to_dict(build_vector_layer_profile(page)),
-        })
-    return out
-
-
-def h_profile_text_trace_visibility_counts(rng, n):
-    out = []
-    for _ in range(n):
-        snapshot = gen_page_snapshot(rng)
-        page = FakePage(snapshot)
-        visible, hidden = text_trace_visibility_counts(page)
-        out.append({
-            "input": {"page_snapshot": snapshot},
-            "expected": [visible, hidden],
-        })
-    return out
-
-
-def h_profile_background_coverage_ratio(rng, n):
-    out = []
-    for _ in range(n):
-        snapshot = gen_page_snapshot(rng)
-        page = FakePage(snapshot)
-        rect = gen_image_bbox(rng, snapshot["rect"]) if rng.random() < 0.8 else None
-        out.append({
-            "input": {"page_snapshot": snapshot, "rect": rect},
-            "expected": background_coverage_ratio(page, fitz.Rect(rect) if rect else None),
-        })
-    return out
-
-
 def h_profile_pick_primary_background_image(rng, n):
     out = []
     for _ in range(n):
@@ -1145,35 +1050,6 @@ def h_profile_pick_primary_background_image(rng, n):
             "expected": {"xref": int(result[0]), "bbox": [float(v) for v in result[1]]}
             if result is not None
             else None,
-        })
-    return out
-
-
-def h_profile_classify_render_page(rng, n):
-    out = []
-    for _ in range(n):
-        snapshot = gen_page_snapshot(rng)
-        page = FakePage(snapshot)
-        threshold = round(rng.choice([0.5, 0.75, 0.9]), 2)
-        c = classify_render_page(page, background_threshold=threshold)
-        route = c.route
-        out.append({
-            "input": {"page_snapshot": snapshot, "background_threshold": threshold},
-            "expected": {
-                "kind": c.kind,
-                "large_background_image": c.large_background_image,
-                "visible_text_traces": c.visible_text_traces,
-                "hidden_text_traces": c.hidden_text_traces,
-                "drawing_count": c.drawing_count,
-                "background_coverage_ratio": c.background_coverage_ratio,
-                "route": {
-                    "redaction": route.redaction,
-                    "background": route.background,
-                    "compose": route.compose,
-                    "layout": route.layout,
-                    "reason": route.reason,
-                },
-            },
         })
     return out
 
@@ -1242,18 +1118,8 @@ REGISTRY = {
     "semantics.is_metadata_semantic": (_item_bool_handler(is_metadata_semantic), ITEM_DEFAULT),
     "route.classify_profile_kind": (h_classify_profile_kind, ITEM_DEFAULT),
     "route.build_render_page_route": (h_build_render_page_route, ITEM_DEFAULT),
-    "profile.build_render_page_profile": (h_profile_build_render_page_profile, SCALAR_DEFAULT),
     "profile.ocr_blocks.build_ocr_block_profile": (h_profile_build_ocr_block_profile, SCALAR_DEFAULT),
-    "profile.text_layer.build_text_layer_profile": (h_profile_build_text_layer_profile, SCALAR_DEFAULT),
-    "profile.image_background.build_image_background_profile": (
-        h_profile_build_image_background_profile,
-        SCALAR_DEFAULT,
-    ),
-    "profile.vector_layer.build_vector_layer_profile": (h_profile_build_vector_layer_profile, SCALAR_DEFAULT),
-    "profile.text_traces.text_trace_visibility_counts": (h_profile_text_trace_visibility_counts, SCALAR_DEFAULT),
-    "profile.background_coverage.background_coverage_ratio": (h_profile_background_coverage_ratio, SCALAR_DEFAULT),
     "profile.detect.pick_primary_background_image": (h_profile_pick_primary_background_image, SCALAR_DEFAULT),
-    "profile.classifier.classify_render_page": (h_profile_classify_render_page, SCALAR_DEFAULT),
 }
 
 SEED = 20260826

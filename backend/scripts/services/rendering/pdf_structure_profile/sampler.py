@@ -28,30 +28,11 @@ def build_pdf_structure_profile(
     source_pdf_path: Path,
     pages: dict[int, list[dict]] | None = None,
 ) -> PdfStructureDocumentProfile:
-    """`pdf_structure_profile` document profile, routed through the native shim
-    when built; otherwise the pure-Python reference `_build_pdf_structure_profile_python`."""
+    """`pdf_structure_profile` document profile, native-only: routes through the
+    native shim and raises when the bridge is unavailable."""
     from services.rendering.pdf_structure_profile._native import build_pdf_structure_profile as _impl
 
     return _impl(source_pdf_path, pages)
-
-
-def _build_pdf_structure_profile_python(
-    source_pdf_path: Path,
-    pages: dict[int, list[dict]] | None = None,
-) -> PdfStructureDocumentProfile:
-    doc = fitz.open(source_pdf_path)
-    try:
-        page_profiles: dict[int, PdfStructurePageProfile] = {}
-        page_items = pages or {index: [] for index in range(len(doc))}
-        for page_index, items in page_items.items():
-            if 0 <= page_index < len(doc):
-                page_profiles[page_index] = build_pdf_structure_page_profile(doc[page_index], items)
-        return PdfStructureDocumentProfile(
-            algorithm=PDF_STRUCTURE_PROFILE_ALGORITHM_VERSION,
-            pages=page_profiles,
-        )
-    finally:
-        doc.close()
 
 
 def build_pdf_structure_page_profile(

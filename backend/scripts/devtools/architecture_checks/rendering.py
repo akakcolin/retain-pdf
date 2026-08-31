@@ -85,8 +85,7 @@ RENDERING_LAYER_IMPORT_RULES: dict[str, tuple[str, ...]] = {
         "services.rendering.policy",
         "services.rendering.layout",
         "services.rendering.layout.inline_content",
-        # Existing source preparation still reuses the PDF compressor facade and Typst temp-root helper.
-        "services.rendering.legacy.pdf_compress",
+        # Source preparation reuses the Typst temp-root helper.
         "services.rendering.output.typst.shared",
         # Source prewarm owns cached render-source preparation and may build
         # precomputed Typst page/color profiles for the render stage.
@@ -220,42 +219,11 @@ SOURCE_CLEANUP_NEXT_EXPERIMENTAL_SYMBOLS = {
 # scanned here. The Typst emitter is included because the Rust emitter is the
 # wired path and production must route via `output.typst._native.emit_typst_source`.
 WIRED_PYTHON_REFERENCE_SYMBOLS = {
-    # write-path primitives routed via source/_native.py
-    ("services.rendering.document.pikepdf_pages", "_extract_pages_with_pikepdf_python"),
-    (
-        "services.rendering.source.compression.image_pipeline",
-        "_compress_pdf_images_only_impl_python",
-    ),
-    (
-        "services.rendering.source.preparation.xobject_sanitize",
-        "_build_invalid_xobject_sanitized_pdf_copy_python",
-    ),
-    # final save byte compaction routed via source/_native.py
-    ("services.rendering.document.pdf_ops", "_save_optimized_pdf_python"),
-    # background stage routed via source/background/_native.py
-    ("services.rendering.source.background.stage", "_build_clean_background_pdf_python"),
-    # pdf structure profile routed via pdf_structure_profile/_native.py
-    (
-        "services.rendering.pdf_structure_profile.sampler",
-        "_build_pdf_structure_profile_python",
-    ),
-    # render-document analysis routed via analysis/_native.py
-    (
-        "services.rendering.analysis.document.builder",
-        "_build_render_document_analysis_python",
-    ),
     # Typst output layer routed via output/typst/_native.py
     ("services.rendering.output.typst.emitter", "build_typst_source_from_page_specs"),
     (
         "services.rendering.output.typst.source_builder",
         "build_typst_book_overlay_source",
-    ),
-    # layout page-size read routed via layout/_native.py
-    ("services.rendering.layout.page_specs", "_read_source_page_sizes_python"),
-    # prewarm page-count / page-width read routed via source/_native.py
-    (
-        "services.rendering.source.prewarm_payload",
-        "_read_source_page_sizes_and_count_python",
     ),
     # vector drawing reads (get_cdrawings) routed via source/_native.py; the
     # shared `_rects_from_drawings` loop is production logic, not a wired symbol
@@ -292,8 +260,6 @@ WIRED_PYTHON_REFERENCE_SYMBOLS = {
         "services.rendering.source.cleanup.math_spans",
         "_collect_page_non_math_span_heights_python",
     ),
-    # layout first-line-indent pixel detection routed via layout/payload/_native.py
-    ("services.rendering.layout.payload.first_line_indent", "detect_first_line_indent_pt_with_displaylist"),
     # color-adapt decision tree + span/visual probes routed via output/typst/_native.py
     # and source/background/_native.py; fill.py primitives are intentionally NOT wired
     # here because color_adapt.py (reference) imports LocalBackgroundSampler directly.
@@ -344,8 +310,6 @@ def check_render_pipeline_facade_boundary(errors: list[str]) -> None:
         "from services.rendering.layout",
         "from services.rendering.legacy.typst_page_renderer import",
         "from services.rendering.legacy.pdf_overlay import",
-        "from services.rendering.legacy.pdf_compress import build_image_compressed_pdf_copy",
-        "from services.rendering.legacy.pdf_compress import compress_pdf_images_only",
     )
     for item in forbidden:
         if item in stage_text or item in execution_text:

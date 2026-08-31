@@ -1,26 +1,22 @@
 {
-  "schema": "retainpdf_d5_baseline_v1",
-  "updated_at": "2026-08-29",
   "desktop": {
-    "source": "bundle-manifest.json:sizesBytes.total",
     "max_bytes": 209715200,
+    "note": "max=200 MiB 兜底 python/typst 运行时回潮（pythonBundled=false 下回潮即 +100MiB+）",
     "observed_bytes": 92784419,
     "observed_source": "本地 buildSizesBytes 语义组件求和（4.1.10 darwin：bin 23.8MiB + fonts 51.6MiB + scripts 5.9MiB + frontend 8.2MiB + ai_service 0.1MiB）",
-    "note": "max=200 MiB 兜底 python/typst 运行时回潮（pythonBundled=false 下回潮即 +100MiB+）"
-  },
-  "python_renderer": {
-    "target_absent": true,
-    "observed_count": null,
-    "note": "C3 验收：渲染不再 spawn python3；render_jobs_total{renderer=python} 应为 0。observed 待首条真实 /metrics record 后填充"
-  },
-  "render_elapsed": {
-    "max_mean_seconds": 60.0,
-    "observed_mean_seconds": 1.035,
-    "observed_source": "data/jobs/20260825080644-7fc9c7/artifacts/pipeline_summary.json（15 页 overlay，render_elapsed=1.035s）",
-    "note": "max=60s 兜底异常卡顿；正常值随文档规模波动"
+    "source": "bundle-manifest.json:sizesBytes.total"
   },
   "native_hit_ratio": {
     "min": 0.9,
+    "note": "D1 双实现清零后各子系统应趋近 1.0；IN_MEMORY_PAGE 为合法回退会拉低。observed 待首条真实 /metrics record 后填充",
+    "observed": {
+      "analysis": 1.0,
+      "background": 1.0,
+      "layout": 1.0,
+      "layout_payload": 1.0,
+      "policy": 1.0,
+      "source_cleanup_planning": 1.0
+    },
     "subsystems": [
       "source",
       "background",
@@ -31,8 +27,19 @@
       "pdf_structure_profile",
       "analysis",
       "source_cleanup_planning"
-    ],
-    "observed": {},
-    "note": "D1 双实现清零后各子系统应趋近 1.0；IN_MEMORY_PAGE 为合法回退会拉低。observed 待首条真实 /metrics record 后填充"
-  }
+    ]
+  },
+  "python_renderer": {
+    "note": "C3 验收：渲染不再 spawn python3；render_jobs_total{renderer=python} 应为 0。observed 待首条真实 /metrics record 后填充",
+    "observed_count": 0,
+    "target_absent": true
+  },
+  "render_elapsed": {
+    "max_mean_seconds": 60.0,
+    "note": "max=60s 兜底异常卡顿；正常值随文档规模波动",
+    "observed_mean_seconds": 2.424,
+    "observed_source": "metrics render_elapsed sum/count"
+  },
+  "schema": "retainpdf_d5_baseline_v1",
+  "updated_at": "2026-08-31"
 }

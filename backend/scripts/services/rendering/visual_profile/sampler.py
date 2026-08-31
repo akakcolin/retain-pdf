@@ -30,25 +30,16 @@ def build_document_visual_profile(
 ) -> DocumentVisualProfile:
     from services.rendering.visual_profile import _native
 
-    if _routing.routed("visual_profile", "build_document_visual_profile", _native.NATIVE):
-        return _native.build_document_visual_profile(
-            source_pdf_path=source_pdf_path,
-            pages=pages,
+    if not _routing.routed("visual_profile", "build_document_visual_profile", _native.NATIVE):
+        raise RuntimeError(
+            "visual_profile.build_document_visual_profile is native-only: the "
+            "rendering_bridge source primitives (sample_page_color_fills, "
+            "extract_page_span_dicts, sample_foreground_colors) are required"
         )
-    import fitz  # reference (fitz) fallback path only
-
-    doc = fitz.open(source_pdf_path)
-    try:
-        page_profiles: dict[int, PageVisualProfile] = {}
-        for page_index, items in pages.items():
-            if 0 <= page_index < len(doc):
-                page_profiles[page_index] = build_page_visual_profile(doc[page_index], page_index, items)
-        return DocumentVisualProfile(
-            algorithm=VISUAL_PROFILE_ALGORITHM_VERSION,
-            pages=page_profiles,
-        )
-    finally:
-        doc.close()
+    return _native.build_document_visual_profile(
+        source_pdf_path=source_pdf_path,
+        pages=pages,
+    )
 
 
 def build_page_visual_profile(
