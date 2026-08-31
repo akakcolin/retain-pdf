@@ -5,7 +5,9 @@ use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Manager};
 
 const DEFAULT_OCR_PROVIDER: &str = "mineru";
-const SUPPORTED_OCR_PROVIDERS: &[&str] = &["mineru", "paddle"];
+// Desktop bundle excludes the paddle OCR tree (prepare-app prunes paddle scripts
+// + pymupdf); only mineru is selectable. Stored paddle configs normalize to mineru.
+const SUPPORTED_OCR_PROVIDERS: &[&str] = &["mineru"];
 const DEFAULT_TRANSLATION_PROVIDER: &str = "deepseek";
 const SUPPORTED_TRANSLATION_PROVIDERS: &[&str] = &["deepseek", "openai-compatible"];
 const DEFAULT_MODEL: &str = "deepseek-v4-flash";
@@ -17,7 +19,6 @@ pub fn create_default_config() -> Value {
         "ocrProvider": DEFAULT_OCR_PROVIDER,
         "translationProvider": DEFAULT_TRANSLATION_PROVIDER,
         "mineruToken": "",
-        "paddleToken": "",
         "modelApiKey": "",
         "model": DEFAULT_MODEL,
         "baseUrl": DEFAULT_BASE_URL,
@@ -74,7 +75,7 @@ fn normalize_config(raw: &Value) -> Value {
             },
         );
     }
-    for key in ["mineruToken", "paddleToken", "modelApiKey"] {
+    for key in ["mineruToken", "modelApiKey"] {
         if let Some(value) = map.get(key) {
             result[key] = Value::String(as_string(value));
         }
@@ -114,7 +115,6 @@ fn merge_config(current: &Value, payload: &Value) -> Value {
         "ocrProvider",
         "translationProvider",
         "mineruToken",
-        "paddleToken",
         "modelApiKey",
         "model",
         "baseUrl",
@@ -149,7 +149,6 @@ fn build_browser_config(config: &Value) -> Value {
         "ocrProvider": config.get("ocrProvider").and_then(Value::as_str).unwrap_or(DEFAULT_OCR_PROVIDER),
         "translationProvider": config.get("translationProvider").and_then(Value::as_str).unwrap_or(DEFAULT_TRANSLATION_PROVIDER),
         "mineruToken": config.get("mineruToken").and_then(Value::as_str).unwrap_or(""),
-        "paddleToken": config.get("paddleToken").and_then(Value::as_str).unwrap_or(""),
         "modelApiKey": config.get("modelApiKey").and_then(Value::as_str).unwrap_or(""),
     })
 }
@@ -163,7 +162,7 @@ fn build_runtime_config(config: &Value, api_key: &str) -> Value {
         "baseUrl": config.get("baseUrl").and_then(Value::as_str).unwrap_or(DEFAULT_BASE_URL),
         "developerConfig": config.get("developerConfig").cloned().unwrap_or_else(|| json!({})),
     });
-    for key in ["ocrProvider", "translationProvider", "mineruToken", "paddleToken", "modelApiKey"] {
+    for key in ["ocrProvider", "translationProvider", "mineruToken", "modelApiKey"] {
         runtime[key] = browser_config[key].clone();
     }
     runtime
@@ -216,4 +215,44 @@ pub fn save(app: &AppHandle, payload: &Value) -> Value {
     let serialized = serde_json::to_string_pretty(&next).unwrap_or_else(|_| "{}".to_string());
     let _ = fs::write(&path, format!("{serialized}\n"));
     next
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn supported_ocr_providers_is_mineru_only() {
+        assert_eq!(SUPPORTED_OCR_PROVIDERS, &["mineru"]);
+    }
+
+    #[test]
+    fn default_config_has_no_paddle() {
+        let default = create_default_config();
+        assert_eq!(default["ocrProvider"], "mineru");
+        assert!(default.get("paddleToken").is_none());
+    }
+
+    #[test]
+    fn stored_paddle_provider_normalizes_to_mineru_and_drops_token() {
+        let normalized = normalize_config(&json!({
+            "ocrProvider": "paddle",
+            "paddleToken": "secret",
+            "mineruToken": "mineru-secret",
+            "translationProvider": "deepseek",
+        }));
+        assert_eq!(normalized["ocrProvider"], "mineru");
+        assert_eq!(normalized["mineruToken"], "mineru-secret");
+        assert!(normalized.get("paddleToken").is_none());
+    }
+
+    #[test]
+    fn browser_and_runtime_configs_exclude_paddle() {
+        let config = normalize_config(&json!({ "ocrProvider": "paddle", "paddleToken": "s" }));
+        let browser = build_browser_config(&config);
+        let runtime = build_runtime_config(&config, "key");
+        assert!(browser.get("paddleToken").is_none());
+        assert!(runtime.get("paddleToken").is_none());
+        assert_eq!(browser["ocrProvider"], "mineru");
+    }
 }

@@ -790,7 +790,6 @@ const desktopRuntimeConfig = `window.__FRONT_RUNTIME_CONFIG__ = {
   xApiKey: "retain-pdf-desktop",
   ocrProvider: "mineru",
   mineruToken: "",
-  paddleToken: "",
   modelApiKey: "",
   model: "deepseek-v4-flash",
   baseUrl: "https://api.deepseek.com/v1",
