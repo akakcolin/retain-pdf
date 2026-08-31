@@ -135,7 +135,6 @@ function buildSizesBytes() {
     typst: dirSize(outputBackendRoot, "typst"),
     typstPackages: dirSize(outputBackendRoot, "typst-packages"),
     fonts: dirSize(outputBackendRoot, "fonts"),
-    aiService: dirSize(outputBackendRoot, "ai_service"),
     scripts: dirSize(outputBackendRoot, "scripts"),
     frontend: dirSize(outputBackendRoot, frontendRel),
   };
@@ -261,8 +260,7 @@ function pruneBundledMacPythonRuntime(root) {
       // degrading page-count progress / sci domain inference instead of importing it.
       // PIL is not imported by any bundled script. rendering_bridge ships only
       // for the services/rendering Python tree, which the desktop bundle now
-      // excludes. The fastapi/uvicorn/httpx/pydantic stack is KEPT: retainpdf_ai
-      // imports uvicorn/fastapi/pydantic/httpx and is spawned by backend_startup.rs.
+      // excludes.
       const removableSitePackages = [
         "fitz", "pymupdf", "core", // pymupdf
         "lxml", // pikepdf dependency
@@ -868,26 +866,6 @@ if (!frontendOnly) {
       return true;
     },
   });
-  // retainpdf-ai：桌面端由 main 进程拉起，Rust 反代 41100
-  const aiServiceSrc = path.join(backendRoot, "ai_service");
-  const aiServiceDst = path.join(outputBackendRoot, "ai_service");
-  if (!fs.existsSync(aiServiceSrc)) {
-    throw new Error(`missing backend/ai_service at ${aiServiceSrc}`);
-  }
-  fs.cpSync(aiServiceSrc, aiServiceDst, {
-    recursive: true,
-    force: true,
-    filter: (sourcePath) => {
-      const base = path.basename(sourcePath);
-      if (base === "__pycache__" || base === ".pytest_cache" || base === "tests") {
-        return false;
-      }
-      return true;
-    },
-  });
-  if (!fs.existsSync(path.join(aiServiceDst, "retainpdf_ai", "__main__.py"))) {
-    throw new Error(`bundled ai_service missing retainpdf_ai/__main__.py under ${aiServiceDst}`);
-  }
 }
 
 if (!frontendOnly && fs.existsSync(rustApiBinary.path)) {

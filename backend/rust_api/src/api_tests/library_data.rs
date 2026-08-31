@@ -236,10 +236,9 @@ async fn search_returns_anchored_hits() {
 }
 
 #[tokio::test]
-async fn ai_proxy_returns_bad_gateway_when_upstream_is_down() {
-    // 指向必死端口:代理应干净地报 502,而不是挂起或 500
-    std::env::set_var("RUST_API_AI_SERVICE_BASE", "http://127.0.0.1:9");
-    let state = test_state("ai-proxy-down");
+async fn ai_ask_requires_llm_api_key() {
+    // 并入 Rust 后不再有第三进程:缺 LLM key 时干净地 400,而不是 502
+    let state = test_state("ai-ask-missing-key");
     let app = build_app(state);
     let response = app
         .oneshot(
@@ -252,9 +251,30 @@ async fn ai_proxy_returns_bad_gateway_when_upstream_is_down() {
                 .expect("request"),
         )
         .await
-        .expect("proxy response");
-    std::env::remove_var("RUST_API_AI_SERVICE_BASE");
-    assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+        .expect("ask response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let payload = json_response(response).await;
+    let message = payload["message"].as_str().unwrap_or("");
+    assert!(message.contains("LLM API Key"), "unexpected message: {message}");
+}
+
+#[tokio::test]
+async fn ai_ask_rejects_empty_question() {
+    let state = test_state("ai-ask-empty-question");
+    let app = build_app(state);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/ai/ask")
+                .header("X-API-Key", "test-key")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"question":"  "}"#))
+                .expect("request"),
+        )
+        .await
+        .expect("ask response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]

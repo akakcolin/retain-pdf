@@ -2,7 +2,7 @@ name: Python Pipeline Tests
 
 # Gate for the Python-side OCR/normalize/rendering-layout production suites that
 # rendering-parity.yml does not cover (it only runs devtools/tests/rendering).
-# Runs document_schema + text_layout + ai_service pytest on PR/main.
+# Runs document_schema + text_layout pytest on PR/main.
 
 "on":
   pull_request:
@@ -16,8 +16,8 @@ name: Python Pipeline Tests
       - "backend/scripts/services/rendering/layout/**"
       - "backend/scripts/services/translation/core/ocr/**"
       - "backend/scripts/services/translation/services/policy/**"
-      - "backend/ai_service/**"
-      - "backend/rust_api/src/routes/ai_proxy.rs"
+      - "backend/rust_api/src/services/ai/**"
+      - "backend/rust_api/src/routes/ai.rs"
       - "backend/scripts/devtools/tests/document_schema/**"
       - "backend/scripts/devtools/tests/text_layout/**"
       - ".github/workflows/python-pipeline-tests.yml"
@@ -35,8 +35,8 @@ name: Python Pipeline Tests
       - "backend/scripts/services/rendering/layout/**"
       - "backend/scripts/services/translation/core/ocr/**"
       - "backend/scripts/services/translation/services/policy/**"
-      - "backend/ai_service/**"
-      - "backend/rust_api/src/routes/ai_proxy.rs"
+      - "backend/rust_api/src/services/ai/**"
+      - "backend/rust_api/src/routes/ai.rs"
       - "backend/scripts/devtools/tests/document_schema/**"
       - "backend/scripts/devtools/tests/text_layout/**"
       - ".github/workflows/python-pipeline-tests.yml"
@@ -57,7 +57,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r docker/requirements-test.txt
-          python -m pip install fastapi pydantic httpx uvicorn
 
       - name: Run document_schema + text_layout suites
         shell: bash
@@ -65,8 +64,3 @@ jobs:
           export PYTHONPATH="$GITHUB_WORKSPACE/backend/scripts"
           cd backend/scripts
           python -m pytest devtools/tests/document_schema/ devtools/tests/text_layout/ -q
-
-      - name: Run ai_service suite
-        shell: bash
-        run: |
-          python -m pytest "$GITHUB_WORKSPACE/backend/ai_service/tests" -q

@@ -2,7 +2,7 @@
 
 **状态：** 设计草案 v0.1  
 **日期：** 2026-07-21  
-**范围：** `backend/ai_service`（retainpdf-ai）及与 Rust / 前端的契约  
+**范围：** `backend/rust_api/src/services/ai/`（agent 循环已并入 Rust）及与前端 / LLM 的契约  
 **非范围：** OCR/翻译流水线；具体 LLM 供应商锁定
 
 配套：
@@ -39,9 +39,9 @@
 │  Frontend (reader AI panel)                                 │
 │  SSE: tool / answer_delta / compress / handoff / done       │
 └───────────────────────────┬─────────────────────────────────┘
-                            │ POST /api/v1/ai/ask  (Rust 代理)
+                            │ POST /api/v1/ai/ask  (Rust 直调)
 ┌───────────────────────────▼─────────────────────────────────┐
-│  Transport  app.py                                          │
+│  Transport  routes/ai.rs                                    │
 │  鉴权 · SSE · 请求校验 · conversation_id 透传               │
 └───────────────────────────┬─────────────────────────────────┘
                             │
@@ -73,13 +73,13 @@
 
 | 层 | 职责 | 现状 | 目标 |
 |----|------|------|------|
-| Transport | HTTP/SSE、Key | `app.py` | 保持薄；事件类型可扩展 |
-| Session/Memory | 多轮、压缩 | `history[-12:]` 原文 | 窗口 + 摘要 + evidence 包 |
+| Transport | HTTP/SSE、Key | `routes/ai.rs` | 保持薄；事件类型可扩展 |
+| Session/Memory | 多轮、压缩 | `services/ai/memory.rs`（窗口 + 压缩已落地） | evidence 包跨轮 |
 | Orchestrator | 路由/协作 | 无（单 agent） | skill 选择 → 可选 multi-agent |
-| Runtime | 工具循环 | `agent.py` | 抽成可复用 loop |
-| Skills | 策略+提示+工具子集 | 硬编码 SYSTEM_PROMPT | 目录化 skill 包 |
-| Tools | 原子 I/O | `tools.py` | 加 scope/timeout/版本 |
-| Evidence | 引用/图 | Citation dataclass | 统一协议，前端可跳可渲 |
+| Runtime | 工具循环 | `services/ai/agent.rs` | 抽成可复用 loop |
+| Skills | 策略+提示+工具子集 | 硬编码 SYSTEM_PROMPT（Rust 常量） | 目录化 skill 包 |
+| Tools | 原子 I/O | `services/ai/tools.rs` | 加 scope/timeout/版本 |
+| Evidence | 引用/图 | Rust citations 模型 | 统一协议，前端可跳可渲 |
 
 ---
 
@@ -206,35 +206,21 @@ Handoff
 
 ## 7. 包结构目标
 
+**现状（2026-08-31）：** 循环已并入 Rust，Python 包结构不再成立。
+
 ```text
-backend/ai_service/retainpdf_ai/
-  app.py                 # Transport
-  config.py
-  rust_client.py
-  tools/                 # 或保留 tools.py 再拆
-    registry.py
-    literature.py        # search/read/favorites
-  skills/
-    loader.py
-    literature_qa/
-      skill.yaml
-      prompt.md
-  runtime/
-    loop.py              # 自 agent.py 抽出
-    budget.py
-    events.py
-  memory/
-    assemble.py          # 拼 messages
-    compress.py          # 摘要 + 裁剪
-  orchestrator/
-    default.py           # v0: 直接 run skill
-  evidence/
-    model.py
-    assign_refs.py
-  agent.py               # 过渡期 facade → 调 runtime
+backend/rust_api/src/services/ai/
+  mod.rs                 # 模块出口
+  llm.rs                 # 直连 LLM chat/completions + Chat trait
+  agent.rs               # 工具循环 + 引用编号
+  tools.rs               # 原子工具注册表
+  ask.rs                 # 编排：解析、会话落库、记忆窗口、SSE
+  memory.rs              # 抽取式压缩 + 窗口组装
+  blocks.rs              # 任务产物块级读取
+  routes/ai.rs           # POST /api/v1/ai/ask SSE 路由
 ```
 
-迁移时 **`POST /v1/ask` 路径与字段保持兼容**；内部改调用链。
+`skills` / `orchestrator` / multi-agent 仍为设计态（见 §6），未实现。
 
 ---
 
@@ -324,9 +310,9 @@ backend/ai_service/retainpdf_ai/
 
 | 路径 | 角色 |
 |------|------|
-| `backend/ai_service/retainpdf_ai/agent.py` | 现循环 / 引用编号 |
-| `backend/ai_service/retainpdf_ai/tools.py` | 原子工具 |
-| `backend/ai_service/retainpdf_ai/app.py` | SSE / history / persist |
-| `backend/ai_service/retainpdf_ai/rust_client.py` | 会话与检索客户端 |
+| `backend/rust_api/src/services/ai/agent.rs` | 现循环 / 引用编号 |
+| `backend/rust_api/src/services/ai/tools.rs` | 原子工具 |
+| `backend/rust_api/src/routes/ai.rs` + `services/ai/ask.rs` | SSE / history / persist |
+| `backend/rust_api/src/services/ai/llm.rs` | 直连 LLM |
 | `frontend/.../use-reader-ask-runtime.ts` | 前端消费 ask |
 | `frontend/.../answer-enhance.ts` | 引用跳转与图 |

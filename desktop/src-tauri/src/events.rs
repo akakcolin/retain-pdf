@@ -28,11 +28,6 @@ pub fn on_event(handle: &AppHandle, event: RunEvent) {
 fn kill_backend(handle: &AppHandle) {
     let state = handle.state::<BackendState>();
     state.stopping.store(true, Ordering::SeqCst);
-    let mut ai_guard = state.ai_child.lock().unwrap();
-    if let Some(child) = ai_guard.as_mut() {
-        let _ = child.kill();
-        let _ = child.wait();
-    }
     if state.using_external.load(Ordering::SeqCst) {
         return;
     }

@@ -22,7 +22,7 @@ import {
   streamMessageText,
 } from "./answer-view.js";
 
-// 仅在 AI 服务未运行(反代 502)时回退到本地 Markdown 检索
+// 仅在 AI 问答路由 502 时回退到本地 Markdown 检索
 function shouldFallbackToLocal(error) {
   return error?.status === 502 || /\b502\b/.test(`${error?.message || ""}`);
 }
@@ -178,7 +178,7 @@ export function useReaderAiChat(ports) {
       const result = await localAnswerer.answer(options);
       return {
         fallback: true,
-        reason: error?.message || "AI 服务未运行",
+        reason: error?.message || "AI 问答暂不可用",
         result,
       };
     }

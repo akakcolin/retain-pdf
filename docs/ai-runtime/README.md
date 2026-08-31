@@ -2,8 +2,8 @@
 
 **状态：** 设计草案（C 架构 + B Session/压缩）  
 **日期：** 2026-07-21  
-**代码现状：** `backend/ai_service` 为无状态薄循环（`RetrievalAgent` + `ToolRegistry`）  
-**产品入口：** 阅读器整本问答 → Rust 代理 `POST /api/v1/ai/ask` → retainpdf-ai `:41100`
+**代码现状：** agent 循环已并入 Rust（`backend/rust_api/src/services/ai/`，无独立服务）  
+**产品入口：** 阅读器整本问答 → `POST /api/v1/ai/ask`（Rust 直调 LLM）
 
 ---
 

@@ -76,8 +76,8 @@ GET /api/v1/search?q=光学光谱&limit=20
 
 ### 4. AI 问答(agentic 检索,带可跳转引用)
 
-> 前端只访问 Rust API 这一个入口:`/api/v1/ai/ask` 是到 retainpdf-ai 服务的
-> 反向代理,认证仍是同一个 X-API-Key,无需任何新配置。
+> 前端只访问 Rust API 这一个入口:`/api/v1/ai/ask` 由 Rust 直调 LLM
+> (agent 循环已并入 rust_api,无独立 AI 服务),认证仍是同一个 X-API-Key。
 
 ```
 POST /api/v1/ai/ask

@@ -9,8 +9,8 @@
 
 | 项 | 位置 |
 |----|------|
-| AI auto-create + `done.conversation_id` | `retainpdf_ai/app.py` |
-| Rust create 客户端 | `retainpdf_ai/rust_client.py` |
+| AI auto-create + `done.conversation_id` | `backend/rust_api/src/services/ai/ask.rs` |
+| 读历史 / 追加消息 | `services/ai/ask.rs` + `services/library/conversations.rs` |
 | 前端粘性存储 | `frontend/src/js/reader/ai/conversation-store.ts` |
 | ask 传/收 conversationId | `api/ai.ts` + `ask-answerer.ts` |
 
@@ -18,10 +18,10 @@
 
 | 项 | 位置 |
 |----|------|
-| 抽取式压缩 `extractive_v1` | `retainpdf_ai/memory/compress.py` |
-| 窗口组装 | `retainpdf_ai/memory/assemble.py` |
-| SSE `compress` + `done.memory` | `retainpdf_ai/app.py` |
-| 配置 | `RETAIN_AI_MEMORY_WINDOW_TURNS` 等（见 config.py） |
+| 抽取式压缩 `extractive_v1` | `backend/rust_api/src/services/ai/memory.rs` |
+| 窗口组装 | `backend/rust_api/src/services/ai/memory.rs` |
+| SSE `compress` + `done.memory` | `services/ai/ask.rs` + `routes/ai.rs` |
+| 配置 | `RETAIN_AI_MEMORY_WINDOW_TURNS` 等（见 `config/ai.rs`） |
 | 摘要落库 | assistant 消息，正文以 `【对话摘要】` 开头 |
 
 
@@ -236,7 +236,7 @@ v1 使用廉价估算：`tokens ≈ chars / 3`（中英混合偏保守可 `/2.5`
 
 ## 5. API 形状
 
-### 5.1 保持兼容：`POST /v1/ask`（retainpdf-ai）
+### 5.1 保持兼容：`POST /v1/ai/ask`（Rust 直调）
 
 ```json
 {
@@ -413,7 +413,7 @@ def ask(question, *, conversation_id, scope, skill_id, budget, force_compress=Fa
 
 ### B2 — Memory 压缩
 
-- [ ] `memory/assemble.py` + `memory/compress.py`  
+- [ ] `services/ai/memory.rs`（assemble + compress）  
 - [ ] `metadata_json` 读写  
 - [ ] SSE `compress`  
 - [ ] 估算 token 与 budget 配置项  

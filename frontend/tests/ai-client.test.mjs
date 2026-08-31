@@ -114,17 +114,17 @@ test("askLibraryAi:携带 X-API-Key,body 含 question/document_id/job_id/stream"
   });
 });
 
-test("askLibraryAi:502 抛出带 status 的 AI 服务未运行错误", async () => {
+test("askLibraryAi:502 抛出带 status 的 AI 路由未响应错误", async () => {
   await assert.rejects(
     askLibraryAi({
       question: "hi",
       fetchImpl: async () => ({ ok: false, status: 502, text: async () => "" }),
     }),
-    (error) => error instanceof AiAskError && error.status === 502 && /AI 服务未运行/.test(error.message),
+    (error) => error instanceof AiAskError && error.status === 502 && /AI 问答路由未响应/.test(error.message),
   );
 });
 
-test("askLibraryAi:401 解析 FastAPI detail 并提示 X-API-Key", async () => {
+test("askLibraryAi:401 解析 AI 路由错误 detail 并提示 X-API-Key", async () => {
   await assert.rejects(
     askLibraryAi({
       question: "hi",

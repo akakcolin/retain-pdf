@@ -95,6 +95,7 @@ mod tests {
             provider_limits: crate::config::ProviderLimitsConfig::default(),
             provider_runtime: crate::config::ProviderRuntimeConfig::default(),
             job_runner: crate::config::JobRunnerConfig::default(),
+            ai: crate::config::AiRuntimeConfig::default(),
         })
     }
 

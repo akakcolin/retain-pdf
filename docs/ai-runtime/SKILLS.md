@@ -2,6 +2,7 @@
 
 **状态：** 草案 v0.1（配合 [AI_RUNTIME.md](./AI_RUNTIME.md)）  
 **日期：** 2026-07-21  
+**现状：** 未实现——agent 循环已并入 Rust，skill 加载器仍为设计态。  
 
 ---
 
@@ -23,7 +24,7 @@
 ## 2. 包格式
 
 ```text
-retainpdf_ai/skills/literature_qa/
+skills/literature_qa/
   skill.yaml      # 清单
   prompt.md       # system（可拆 system.md / developer.md）
   # 可选 policy.py  — 复杂策略时再加

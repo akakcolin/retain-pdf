@@ -1292,6 +1292,7 @@ dependencies = [
  "chrono",
  "csv",
  "fastrand",
+ "futures-util",
  "libc",
  "lopdf",
  "mime_guess",

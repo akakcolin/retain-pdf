@@ -1,6 +1,6 @@
 // Theme Studio M1：点选检查 + 实时调 token + 导出皮肤文件。
 // 零后端、零构建：同源 iframe 直改 CSS 变量即预览。
-// M2(LLM 配色提案)/M3(gpt-image-2 生图入 slot)挂 ai_service dev 路由后接入。
+// M2(LLM 配色提案)/M3(gpt-image-2 生图入 slot)待定。
 
 import {
   CONTRAST_PAIRS,

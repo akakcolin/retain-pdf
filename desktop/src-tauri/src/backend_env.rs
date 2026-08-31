@@ -1,9 +1,6 @@
 use std::path::PathBuf;
 
-use crate::constants::AI_SERVICE_PORT;
-
 pub struct BackendEnvInput {
-    pub ai_service_root: PathBuf,
     pub api_port: u16,
     pub backend_root: PathBuf,
     pub bundled_font_path: PathBuf,
@@ -56,16 +53,11 @@ pub fn build_backend_env(input: BackendEnvInput) -> Vec<(String, String)> {
             "RUST_API_SCRIPTS_DIR".to_string(),
             input.scripts_dir.to_string_lossy().into_owned(),
         ),
-        (
-            "RUST_API_AI_SERVICE_BASE".to_string(),
-            format!("http://127.0.0.1:{AI_SERVICE_PORT}"),
-        ),
         ("PYTHON_BIN".to_string(), input.python_command.clone()),
         (
             "PYTHONPATH".to_string(),
             build_pythonpath(
                 &input.scripts_dir,
-                &input.ai_service_root,
                 &input.bundled_python_import_paths,
                 &host_pythonpath,
             ),
@@ -94,18 +86,6 @@ pub fn build_backend_env(input: BackendEnvInput) -> Vec<(String, String)> {
             "TYPST_PACKAGE_CACHE_PATH".to_string(),
             input.typst_package_cache_path.to_string_lossy().into_owned(),
         ),
-        ("RETAIN_AI_HOST".to_string(), "127.0.0.1".to_string()),
-        ("RETAIN_AI_PORT".to_string(), AI_SERVICE_PORT.to_string()),
-        ("RETAIN_AI_API_KEYS".to_string(), input.desktop_api_key.clone()),
-        ("RETAIN_AI_RUST_API_KEY".to_string(), input.desktop_api_key),
-        (
-            "RETAIN_AI_RUST_API_BASE".to_string(),
-            format!("http://127.0.0.1:{}", input.api_port),
-        ),
-        (
-            "RETAIN_AI_DATA_ROOT".to_string(),
-            input.data_root.to_string_lossy().into_owned(),
-        ),
     ];
 
     if input.typst_package_path.exists() {
@@ -131,14 +111,10 @@ pub fn build_backend_env(input: BackendEnvInput) -> Vec<(String, String)> {
 
 fn build_pythonpath(
     scripts_dir: &PathBuf,
-    ai_service_root: &PathBuf,
     import_paths: &[PathBuf],
     host_pythonpath: &str,
 ) -> String {
-    let mut parts = vec![
-        scripts_dir.to_string_lossy().into_owned(),
-        ai_service_root.to_string_lossy().into_owned(),
-    ];
+    let mut parts = vec![scripts_dir.to_string_lossy().into_owned()];
     for path in import_paths {
         parts.push(path.to_string_lossy().into_owned());
     }

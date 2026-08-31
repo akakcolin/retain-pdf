@@ -13,7 +13,7 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
 use crate::backend_env::{build_backend_env, BackendEnvInput};
 use crate::logging;
-use crate::constants::{AI_SERVICE_PORT, API_PORT, DESKTOP_API_KEY, SIMPLE_PORT};
+use crate::constants::{API_PORT, DESKTOP_API_KEY, SIMPLE_PORT};
 use crate::python_runtime::{
     bundled_import_paths, prepare_python_runtime, resolve_bundled_python_home,
     resolve_python_runtime, PrepareOptions,
@@ -21,7 +21,6 @@ use crate::python_runtime::{
 
 pub struct BackendState {
     pub child: Mutex<Option<Child>>,
-    pub ai_child: Mutex<Option<Child>>,
     pub recent_stdout: Mutex<Vec<String>>,
     pub recent_stderr: Mutex<Vec<String>>,
     pub command: Mutex<String>,
@@ -37,7 +36,6 @@ impl Default for BackendState {
     fn default() -> Self {
         BackendState {
             child: Mutex::new(None),
-            ai_child: Mutex::new(None),
             recent_stdout: Mutex::new(Vec::new()),
             recent_stderr: Mutex::new(Vec::new()),
             command: Mutex::new(String::new()),
@@ -172,7 +170,6 @@ fn start_bundled_backend(handle: &AppHandle) -> Result<(), String> {
     fs::create_dir_all(&typst_package_cache_path).map_err(|error| error.to_string())?;
     emit_progress(handle, 34, "正在准备工作目录", "正在初始化本地数据目录");
 
-    let ai_service_root = resolve_ai_service_root(&backend_root, packaged);
     let bundled_python_home = python_runtime
         .bundled_home
         .as_ref()
@@ -186,7 +183,6 @@ fn start_bundled_backend(handle: &AppHandle) -> Result<(), String> {
         .unwrap_or_default();
 
     let env = build_backend_env(BackendEnvInput {
-        ai_service_root: ai_service_root.clone(),
         api_port,
         backend_root: backend_root.clone(),
         bundled_font_path,
@@ -224,7 +220,6 @@ fn start_bundled_backend(handle: &AppHandle) -> Result<(), String> {
                 .store(true, Ordering::SeqCst);
             logging::log(handle, &format!("[desktop] reusing existing backend on port {api_port}"));
             emit_progress(handle, 52, "检测到已有本地服务", "桌面端将直接复用当前后端");
-            launch_ai_service(handle, &ai_service_root, &python_runtime.command, &env);
             wait_for_port_only("127.0.0.1", api_port, 5000)?;
             emit_progress(handle, 92, "本地服务已就绪", "正在加载主界面");
             return Ok(());
@@ -264,8 +259,6 @@ fn start_bundled_backend(handle: &AppHandle) -> Result<(), String> {
     std::thread::spawn(move || stream_output(stdout, stdout_handle, false));
     let stderr_handle = handle.clone();
     std::thread::spawn(move || stream_output(stderr, stderr_handle, true));
-
-    launch_ai_service(handle, &ai_service_root, &python_runtime.command, &env);
 
     let timeout_ms = if packaged { 90_000 } else { 30_000 };
     logging::log(handle, &format!("[desktop] waiting for backend port {api_port} timeoutMs={timeout_ms}"));
@@ -317,135 +310,6 @@ fn stream_output(stream: impl Read + Send, handle: AppHandle, is_stderr: bool) {
         }
     }
     handle_crash_if_needed(&handle);
-}
-
-fn resolve_ai_service_root(backend_root: &Path, packaged: bool) -> PathBuf {
-    let bundled = backend_root.join("ai_service");
-    if !packaged && !bundled.join("retainpdf_ai").join("__main__.py").exists() {
-        let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("..")
-            .join("backend")
-            .join("ai_service");
-        if repo.join("retainpdf_ai").join("__main__.py").exists() {
-            return repo;
-        }
-    }
-    bundled
-}
-
-fn launch_ai_service(
-    handle: &AppHandle,
-    ai_service_root: &Path,
-    python_command: &str,
-    env: &[(String, String)],
-) {
-    if !ai_service_root.join("retainpdf_ai").join("__main__.py").exists() {
-        logging::log_error(
-            handle,
-            &format!(
-                "[desktop] retainpdf-ai package missing under {}; AI ask will return 502",
-                ai_service_root.display()
-            ),
-        );
-        return;
-    }
-    if can_connect_to_port("127.0.0.1", AI_SERVICE_PORT, 800) {
-        logging::log(
-            handle,
-            &format!(
-                "[desktop] AI service port {} already in use; reusing",
-                AI_SERVICE_PORT
-            ),
-        );
-        return;
-    }
-    logging::log(
-        handle,
-        &format!(
-            "[desktop] spawning retainpdf-ai: {} -m retainpdf_ai (port {})",
-            python_command, AI_SERVICE_PORT
-        ),
-    );
-    let mut child = match Command::new(python_command)
-        .args(["-m", "retainpdf_ai"])
-        .current_dir(ai_service_root)
-        .envs(env.iter().cloned())
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-    {
-        Ok(child) => child,
-        Err(error) => {
-            logging::log_error(handle, &format!("[desktop] failed to spawn retainpdf-ai: {error}"));
-            return;
-        }
-    };
-    let stdout = match child.stdout.take() {
-        Some(stream) => stream,
-        None => return,
-    };
-    let stderr = match child.stderr.take() {
-        Some(stream) => stream,
-        None => return,
-    };
-    {
-        let state = handle.state::<BackendState>();
-        *state.ai_child.lock().unwrap() = Some(child);
-    }
-    let stdout_handle = handle.clone();
-    std::thread::spawn(move || stream_ai_output(stdout, stdout_handle, true));
-    let stderr_handle = handle.clone();
-    std::thread::spawn(move || stream_ai_output(stderr, stderr_handle, false));
-
-    let wait_handle = handle.clone();
-    std::thread::spawn(move || {
-        let timeout_ms = if is_packaged(&wait_handle) { 60_000 } else { 20_000 };
-        let started = Instant::now();
-        while !can_connect_to_port("127.0.0.1", AI_SERVICE_PORT, 800) {
-            if started.elapsed().as_millis() as u64 >= timeout_ms {
-                logging::log_error(
-                    &wait_handle,
-                    &format!(
-                        "[desktop] retainpdf-ai failed to become ready on port {}",
-                        AI_SERVICE_PORT
-                    ),
-                );
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(500));
-        }
-        logging::log(
-            &wait_handle,
-            &format!("[desktop] retainpdf-ai ready on port {}", AI_SERVICE_PORT),
-        );
-    });
-}
-
-fn stream_ai_output(stream: impl Read + Send, handle: AppHandle, report_exit: bool) {
-    let mut reader = std::io::BufReader::new(stream);
-    let mut line = String::new();
-    loop {
-        line.clear();
-        match reader.read_line(&mut line) {
-            Ok(0) => break,
-            Ok(_) => {
-                let trimmed = line.trim_end().to_string();
-                if trimmed.is_empty() {
-                    continue;
-                }
-                logging::log(&handle, &format!("[retainpdf_ai] {trimmed}"));
-            }
-            Err(_) => break,
-        }
-    }
-    if report_exit {
-        let state = handle.state::<BackendState>();
-        if !state.stopping.load(Ordering::SeqCst) {
-            logging::log_error(&handle, "[desktop] retainpdf-ai exited unexpectedly; AI ask will return 502");
-        }
-    }
 }
 
 fn remember_output(handle: &AppHandle, is_stderr: bool, line: String) {

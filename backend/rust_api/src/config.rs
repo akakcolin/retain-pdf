@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Result};
 
+mod ai;
 mod auth;
 mod env_vars;
 mod job_runner;
@@ -11,6 +12,7 @@ mod provider;
 mod server;
 mod upload;
 
+pub use ai::AiRuntimeConfig;
 use auth::AuthRuntimeConfig;
 pub use job_runner::JobRunnerConfig;
 use paths::{create_runtime_dirs, RuntimePathsConfig};
@@ -79,6 +81,7 @@ pub struct AppConfig {
     pub provider_limits: ProviderLimitsConfig,
     pub provider_runtime: ProviderRuntimeConfig,
     pub job_runner: JobRunnerConfig,
+    pub ai: AiRuntimeConfig,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -132,6 +135,7 @@ struct AppConfigParts {
     provider_limits: ProviderLimitsConfig,
     provider_runtime: ProviderRuntimeConfig,
     job_runner: JobRunnerConfig,
+    ai: AiRuntimeConfig,
 }
 
 impl AppConfig {
@@ -195,6 +199,7 @@ impl AppConfig {
             provider_limits: ProviderLimitsConfig::from_env(),
             provider_runtime: ProviderRuntimeConfig::from_env(),
             job_runner: JobRunnerConfig::from_env(),
+            ai: AiRuntimeConfig::from_env(),
         })
     }
 
@@ -218,6 +223,7 @@ impl AppConfig {
             provider_limits: ProviderLimitsConfig::from_env(),
             provider_runtime: ProviderRuntimeConfig::from_env(),
             job_runner: JobRunnerConfig::from_env(),
+            ai: AiRuntimeConfig::from_env(),
         })
     }
 
@@ -230,6 +236,7 @@ impl AppConfig {
             provider_limits,
             provider_runtime,
             job_runner,
+            ai,
         } = parts;
 
         Ok(Self {
@@ -263,6 +270,7 @@ impl AppConfig {
             provider_limits,
             provider_runtime,
             job_runner,
+            ai,
         })
     }
 }

@@ -11,7 +11,7 @@ use crate::routes::glossaries;
 use crate::routes::health;
 use crate::routes::jobs;
 use crate::routes::metrics;
-use crate::routes::ai_proxy;
+use crate::routes::ai;
 use crate::routes::collections;
 use crate::routes::library;
 use crate::routes::library_data;
@@ -119,7 +119,7 @@ pub fn build_app(state: AppState) -> Router {
                 .delete(library_data::delete_favorite_route),
         )
         .route("/api/v1/search", get(library_data::search_blocks_route))
-        .route("/api/v1/ai/ask", post(ai_proxy::ask_proxy))
+        .route("/api/v1/ai/ask", post(ai::ask_route))
         .route(
             "/api/v1/translate/text",
             post(translate::translate_text_route),

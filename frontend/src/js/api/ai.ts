@@ -126,7 +126,7 @@ async function extractErrorMessage(resp) {
     if (message) {
       return message;
     }
-    // FastAPI / AI service: { detail: string | [{msg}] }
+    // AI route error envelope: { detail: string | [{msg}] }
     const detail = envelope?.detail;
     if (typeof detail === "string" && detail.trim()) {
       return detail.trim();
@@ -274,7 +274,7 @@ export async function askLibraryAi({
   });
   if (!resp.ok) {
     if (resp.status === 502) {
-      throw new AiAskError("AI 服务未运行(502),请先启动 retainpdf-ai 服务。", 502);
+      throw new AiAskError("AI 问答路由未响应(502),请检查后端 Rust API 是否在运行。", 502);
     }
     const message = await extractErrorMessage(resp);
     // 401：多半是服务入口 X-API-Key（runtime xApiKey），不是模型 Key
