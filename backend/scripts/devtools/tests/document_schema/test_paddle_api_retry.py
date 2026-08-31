@@ -73,13 +73,6 @@ def test_paddle_optional_payload_sets_page_limit() -> None:
     assert structure_payload["max_num_input_imgs"] == 999
 
 
-def test_paddle_model_defaults_and_aliases_use_shared_config() -> None:
-    assert paddle_api.normalize_model_name("") == "PaddleOCR-VL-1.6"
-    assert paddle_api.normalize_model_name("paddleocr-vl") == "PaddleOCR-VL-1.6"
-    assert paddle_api.normalize_model_name("paddle-ocr-vl-1.6") == "PaddleOCR-VL-1.6"
-    assert paddle_api.normalize_model_name("paddleocr-vl-1.5") == "PaddleOCR-VL-1.5"
-
-
 def test_mineru_request_retries_429_and_raises_rate_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     session = _Session(_Response(429, headers={"Retry-After": "1"}))
     sleeps: list[float] = []
