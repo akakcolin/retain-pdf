@@ -36,6 +36,8 @@ export function BookTranslateLaunchForm({
   onEndPageChange,
   onTranslate,
 }: BookTranslateLaunchFormProps) {
+  // failed / done(已完成) 都是「再次发起」，标题与按钮用「重新翻译」
+  const retranslate = statusTone === "failed" || statusTone === "done";
   return (
     <div className="book-translate-launch-form space-y-2.5">
       {error ? (
@@ -51,7 +53,7 @@ export function BookTranslateLaunchForm({
       {canTranslate ? (
         <div className="space-y-2.5 rounded-lg border border-border/60 bg-muted/15 px-3.5 py-3">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            {statusTone === "failed" ? "重新翻译" : "发起翻译"}
+            {retranslate ? "重新翻译" : "发起翻译"}
           </p>
           <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-muted-foreground">
             <input
@@ -98,7 +100,7 @@ export function BookTranslateLaunchForm({
               ? "提交中…"
               : rangeOn
                 ? "翻译选定页码"
-                : statusTone === "failed"
+                : retranslate
                   ? "重新翻译整本"
                   : "翻译整本"}
           </button>

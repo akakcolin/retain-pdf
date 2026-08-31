@@ -110,6 +110,7 @@ function normalizeCredentials(payload: Partial<CredentialsFields> = {}): Credent
   return normalizeBrowserStoredConfig({
     ocrProvider: payload.ocrProvider || DEFAULT_OCR_PROVIDER,
     translationProvider: payload.translationProvider,
+    mineruToken: payload.mineruToken,
     paddleToken: payload.paddleToken,
     modelApiKey: payload.modelApiKey,
   }) as CredentialsFields;

@@ -292,6 +292,80 @@ test("CredentialsDialog：保存(浏览器模式)——写隐藏 input、同步 
   host.remove();
 });
 
+test("CredentialsDialog：保存 MinerU token 后不被清空（回归：normalizeCredentials 曾丢弃 mineruToken）", async () => {
+  const services = createServices();
+  const { host, root } = await mountHome(services);
+  defaultCredentialsStatePort.patchCredentials({ ocrProvider: "mineru" });
+
+  services.workflowDialog.openUpload();
+  await waitFor(() => byId("mineru_token"), "工作流对话框打开后隐藏 input 挂载");
+
+  dom.window.document.dispatchEvent(new dom.window.CustomEvent(APP_EVENTS.openBrowserCredentials));
+  await waitFor(() => byId("app-settings-dialog") !== null, "打开设置");
+  await waitFor(() => byId("browser-mineru-token") !== null, "API 工作台就绪");
+
+  typeInput(byId("browser-mineru-token"), "mineru-secret");
+  typeInput(byId("browser-api-key"), "deepseek-secret");
+
+  click(byId("browser-credentials-save-btn"));
+  await waitFor(
+    () => defaultCredentialsStatePort.getCredentials().mineruToken === "mineru-secret",
+    "保存后 credentialsStatePort 保留 mineruToken",
+  );
+
+  assert.equal(defaultCredentialsStatePort.getCredentials().mineruToken, "mineru-secret");
+  assert.equal(byId("mineru_token").value, "mineru-secret", "隐藏 input 桥接:mineru_token");
+  // 保存后输入框应回填已存 token，而不是被清空（修复前该断言失败）
+  assert.equal(byId("browser-mineru-token").value, "mineru-secret", "保存后可见输入框保留 MinerU token");
+
+  root.unmount();
+  services.dispose();
+  host.remove();
+});
+
+test("CredentialsDialog：保存 MinerU 时 paddleToken 不被 mineru token 污染（回归）", async () => {
+  const desktopCalls = [];
+  const services = createServices({
+    initialDesktopMode: true,
+    saveDesktopConfig: async (browserConfig, afterSave) => {
+      desktopCalls.push({ browserConfig });
+      await afterSave?.();
+      return { firstRunCompleted: true };
+    },
+  });
+  const { host, root } = await mountHome(services);
+  // 清掉共享单例里其它测试残留的 paddle 值，保证断言干净
+  defaultCredentialsStatePort.setCredentials({
+    ocrProvider: "mineru",
+    mineruToken: "",
+    paddleToken: "",
+    modelApiKey: "",
+  });
+
+  services.workflowDialog.openUpload();
+  await waitFor(() => byId("mineru_token"), "工作流对话框打开后隐藏 input 挂载");
+
+  dom.window.document.dispatchEvent(new dom.window.CustomEvent(APP_EVENTS.openBrowserCredentials, {
+    detail: { setupMode: true },
+  }));
+  await waitFor(() => byId("browser-credentials-dialog") !== null, "打开对话框(setupMode)");
+
+  typeInput(byId("browser-mineru-token"), "mineru-desktop");
+  typeInput(byId("browser-api-key"), "deepseek-desktop");
+
+  click(byId("browser-credentials-save-btn"));
+  await waitFor(() => desktopCalls.length >= 1, "saveDesktopConfig 被调用");
+
+  const last = desktopCalls[desktopCalls.length - 1].browserConfig;
+  assert.equal(last.mineruToken, "mineru-desktop");
+  assert.equal(last.paddleToken, "", "MinerU 保存不应把 mineru token 写进 paddleToken");
+  assert.equal(last.modelApiKey, "deepseek-desktop");
+
+  root.unmount();
+  services.dispose();
+  host.remove();
+});
+
 test("CredentialsDialog：保存(桌面模式)——走 saveDesktopConfig 分支", async () => {
   const desktopCalls = [];
   const services = createServices({

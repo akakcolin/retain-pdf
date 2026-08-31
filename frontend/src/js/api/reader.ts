@@ -1,7 +1,8 @@
 import { buildApiHeaders, isMockMode } from "../config/runtime.js";
 import { unwrapEnvelope } from "../job/core.js";
+import { API_PREFIX } from "../config/api-constants.js";
 import { getMockReaderRegions } from "../mock/documents.js";
-import { buildJobDetailEndpoint, submitJson } from "./http.js";
+import { buildApiEndpoint, buildJobDetailEndpoint, submitJson } from "./http.js";
 
 export async function fetchReaderRegions(jobId, apiPrefix) {
   if (isMockMode()) {
@@ -60,4 +61,34 @@ export async function fetchReaderAiChat(jobId, payload, apiPrefix) {
     };
   }
   return submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/reader/ai/chat`, payload);
+}
+
+// 阅读器「选中文字翻译」:POST /api/v1/translate/text,模型凭据按请求携带(与 AI 问答同源)。
+// submit 参数化便于测试注入,不触真实网络。
+export async function translateText({
+  text = "",
+  targetLanguage = "简体中文",
+  provider,
+  model,
+  apiKey,
+  baseUrl,
+  apiPrefix = API_PREFIX,
+  submit = submitJson,
+}: any = {}) {
+  if (isMockMode()) {
+    return {
+      translated_text: `【mock 译文】${`${text || ""}`.replace(/\s+/g, " ").trim()}`,
+      target_language: `${targetLanguage}`,
+    };
+  }
+  const payload: Record<string, unknown> = {
+    text: `${text}`,
+    target_language: `${targetLanguage}`,
+  };
+  if (`${provider || ""}`.trim()) payload.provider = `${provider}`.trim();
+  if (`${model || ""}`.trim()) payload.model = `${model}`.trim();
+  const key = `${apiKey || ""}`.trim();
+  if (key) payload.api_key = key.replace(/^Bearer\s+/i, "").trim();
+  if (`${baseUrl || ""}`.trim()) payload.base_url = `${baseUrl}`.trim();
+  return submit(buildApiEndpoint(apiPrefix, "translate/text"), payload);
 }

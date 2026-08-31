@@ -114,7 +114,7 @@ test("馆藏卡打开书籍详情:元数据 + 阅读状态切换 + 翻译/读原
   host.remove();
 });
 
-test("已翻译卡打开书籍详情:有对照阅读,无翻译按钮", async () => {
+test("已翻译卡打开书籍详情:有对照阅读,可再次发起翻译", async () => {
   const dom = makeDom("?mock=parallel");
   const byId = (id) => dom.window.document.getElementById(id);
   const { services, root, host } = await bootHomeApp(dom);
@@ -185,7 +185,13 @@ test("已翻译卡打开书籍详情:有对照阅读,无翻译按钮", async () 
     "切换翻译 Tab / 加载进度后仍不打开工作流弹窗",
   );
   assert.ok(byId("book-detail-compare-btn"), "已翻译有对照阅读");
-  assert.equal(byId("book-detail-translate-btn"), null, "已翻译没有翻译按钮");
+  // 已翻译文档可再次发起翻译：翻译 Tab 表单出现「重新翻译整本」
+  const translateBtn = byId("book-detail-translate-btn");
+  assert.ok(translateBtn, "已翻译仍有翻译按钮(重新翻译)");
+  assert.ok(
+    translateBtn.textContent.includes("重新翻译"),
+    `按钮文案应为重新翻译，实际: ${translateBtn.textContent}`,
+  );
   assert.ok(byId("book-detail-read-source-btn"), "仍可读原文");
 
   root.unmount();

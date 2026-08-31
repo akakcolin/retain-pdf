@@ -14,6 +14,7 @@ import {
   ReaderMarkdownPanel,
   ReaderAiPanel,
   ReaderSelectionToolbar,
+  ReaderTranslatePopup,
 } from "./components/react-pdf/index.js";
 import { DownloadToastHost } from "../../shared/react/DownloadToastHost.jsx";
 import { isReaderAiNavigationLocked } from "./external.js";
@@ -153,7 +154,19 @@ export function ReaderAppReactPdf() {
       <ReaderSelectionToolbar
         selection={c.selection}
         onAddNote={c.addNoteFromSelection}
+        onTranslate={c.translateSelection}
         onDismiss={c.clearSelection}
+      />
+
+      <ReaderTranslatePopup
+        open={c.translate.open}
+        quote={c.translate.quote}
+        targetLanguage={c.translate.targetLanguage}
+        result={c.translate.result}
+        loading={c.translate.loading}
+        error={c.translate.error}
+        onClose={c.translate.close}
+        onRetry={c.translate.retry}
       />
 
       <DownloadToastHost />

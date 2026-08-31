@@ -57,7 +57,10 @@ export function BookDetailDialog() {
   const coverUrl = useRecentJobCover(item);
   const readerAvailable = `${item.status || ""}`.trim() === "succeeded"
     && !["running", "queued", "pending"].includes(cardStatus);
-  const canTranslate = libraryOnly || `${item.status || ""}`.trim() === "failed";
+  // 已翻译(succeeded)同样允许再次发起翻译(后端每次创建新 job);
+  // running/queued/pending 期间不显示表单(isActive 分支接管)。
+  const canTranslate = libraryOnly
+    || ["failed", "succeeded"].includes(`${item.status || ""}`.trim());
   const isActive = isRecentJobActive(item)
     || ["running", "queued", "pending"].includes(cardStatus);
   // 封面转圈：书架 live 行 + statusCard 正在跑（重试后 payload 可能仍是旧 succeeded）

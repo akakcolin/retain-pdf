@@ -1,11 +1,12 @@
-// 选文浮条：添加批注（新阅读器专用）
+// 选文浮条：添加批注 / 翻译选中文字（新阅读器专用）
 
-import { StickyNote, X } from "lucide-react";
+import { Languages, StickyNote, X } from "lucide-react";
 import type { ReaderTextSelection } from "../../hooks/use-reader-text-selection.js";
 
 export type ReaderSelectionToolbarProps = {
   selection: ReaderTextSelection | null;
   onAddNote: (selection: ReaderTextSelection) => void;
+  onTranslate: (selection: ReaderTextSelection) => void;
   onDismiss: () => void;
 };
 
@@ -18,6 +19,7 @@ function clipQuote(text: string, max = 42) {
 export function ReaderSelectionToolbar({
   selection,
   onAddNote,
+  onTranslate,
   onDismiss,
 }: ReaderSelectionToolbarProps) {
   if (!selection) {
@@ -67,6 +69,14 @@ export function ReaderSelectionToolbar({
           >
             <StickyNote size={15} strokeWidth={2.25} aria-hidden />
             <span>添加批注</span>
+          </button>
+          <button
+            type="button"
+            className="reader-sel-pop-btn"
+            onClick={() => onTranslate(selection)}
+          >
+            <Languages size={15} strokeWidth={2.25} aria-hidden />
+            <span>翻译</span>
           </button>
           <button
             type="button"

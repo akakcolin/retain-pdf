@@ -5,6 +5,7 @@
 export { API_PREFIX } from "../../../js/config/api-constants.js";
 export {
   apiBase,
+  buildFrontendPageUrl,
   defaultModelApiKey,
   defaultModelBaseUrl,
   defaultModelName,
@@ -165,6 +166,18 @@ export {
   deleteDocument,
   patchDocument,
 } from "../../../js/api/documents.js";
+export type { DocumentRecord } from "../../../js/api/documents.js";
+export {
+  askLibraryAi,
+  AiAskError,
+} from "../../../js/api/ai.js";
+export {
+  deleteConversation,
+  getConversation,
+  listConversations,
+  patchConversation,
+} from "../../../js/api/conversations.js";
+export type { ConversationRecord } from "../../../js/api/conversations.js";
 export {
   listCollections,
   createCollection,
@@ -181,6 +194,7 @@ export {
 export {
   validateDeepSeekToken,
   queryDeepSeekBalance,
+  validateMineruToken,
   validatePaddleToken,
 } from "../../../js/api/providers.js";
 export {
@@ -327,3 +341,23 @@ export {
 export { createStatusDetailTranslationDataPort } from "../../../js/features/status-detail/translation-data-port.js";
 export { createStatusDetailTranslationTabCoordinator } from "../../../js/features/status-detail/translation-tab-coordinator.js";
 export { createTranslationState } from "../../../js/features/status-detail/translation-state.js";
+
+// —— reader ai（主页「图书馆级 AI 问答」复用阅读器回答管线）——
+export {
+  CREDENTIALS_CHANGED_EVENT,
+  hasModelApiKey,
+  MISSING_MODEL_API_KEY_MESSAGE,
+  resolveReaderAiConfig,
+} from "../../../js/reader/ai/config.js";
+export { sanitizeAssistantAnswer } from "../../../js/reader/ai/sanitize-answer.js";
+export {
+  injectCitationMarkers,
+  isAgenticCitation,
+  neutralizeMarkdownAnchors,
+  renderCitationFooter,
+} from "../../../js/reader/ai/answer-enhance.js";
+export type { AiCitationLike } from "../../../js/reader/ai/answer-enhance.js";
+export {
+  renderFinalAnswerHtml,
+  renderStreamingPreviewHtml,
+} from "../../../js/reader/ai/render-answer-html.js";

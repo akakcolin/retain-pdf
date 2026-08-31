@@ -56,7 +56,10 @@ export function useBookDetailTranslate({
         return;
       }
       payload.ocr = { page_ranges: `${s}-${e}` };
-      payload.translation = { start_page: s, end_page: e };
+      // OCR 已按 page_ranges 裁剪 PDF(后端重建 PDF,页号从 1 重编号),translation 的
+      // start/end 是相对裁剪后 pages 列表的 0-based 位置;这里翻译整段选中页(0..e-s),
+      // 不能透传 1-based 原始页码(单页 1-1 会因 start>stop 直接失败)。
+      payload.translation = { start_page: 0, end_page: e - s };
     }
     // 先切到翻译 Tab，保证 bd-job-status-inner 在视口内再接进度
     onTranslateStarted?.();

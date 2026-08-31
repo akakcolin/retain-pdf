@@ -1,0 +1,106 @@
+/* 选中文字翻译浮窗（ReaderTranslatePopup） */
+
+.reader-float-translate .reader-translate-body {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.reader-translate-quote {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--warn) 22%, transparent) 0%, color-mix(in srgb, var(--warn) 10%, transparent) 100%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 18%, transparent);
+  color: var(--ink, var(--ink));
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.reader-translate-status {
+  margin: 0;
+  padding: 14px 0;
+  text-align: center;
+  color: var(--muted, var(--muted));
+  font-size: 12.5px;
+  letter-spacing: -0.01em;
+}
+
+.reader-translate-error {
+  display: grid;
+  gap: 8px;
+  padding: 10px 11px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--danger, var(--warn)) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger, var(--warn)) 22%, transparent);
+}
+.reader-translate-error p {
+  margin: 0;
+  color: var(--ink, var(--ink));
+  font-size: 12.5px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.reader-translate-error button {
+  justify-self: start;
+  min-height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  color: var(--ink, var(--ink));
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.reader-translate-error button:hover {
+  background: color-mix(in srgb, var(--ink) 16%, transparent);
+}
+
+.reader-translate-result {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--ink, var(--ink));
+  font-size: 13.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+.reader-translate-actions {
+  display: flex;
+  gap: 8px;
+}
+.reader-translate-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1 1 0;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink, var(--ink));
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: background 140ms ease, opacity 140ms ease;
+}
+.reader-translate-actions button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 13%, transparent);
+}
+.reader-translate-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}

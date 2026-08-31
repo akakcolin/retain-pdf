@@ -238,8 +238,8 @@
   color: var(--ink);
 }
 .reader-float-ai .aui-session-icon-btn.is-danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--danger, #c44) 10%, var(--paper));
-  color: var(--danger, #c44);
+  background: color-mix(in srgb, var(--danger, var(--warn)) 10%, var(--paper));
+  color: var(--danger, var(--warn));
 }
 .reader-float-ai .aui-session-icon-btn:disabled {
   opacity: 0.35;
@@ -274,8 +274,8 @@
   margin: 0;
   padding: 6px 8px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--danger, #c44) 8%, var(--paper));
-  color: color-mix(in srgb, var(--danger, #c44) 85%, var(--ink));
+  background: color-mix(in srgb, var(--danger, var(--warn)) 8%, var(--paper));
+  color: color-mix(in srgb, var(--danger, var(--warn)) 85%, var(--ink));
   font-size: 11.5px;
   font-weight: 550;
   line-height: 1.4;

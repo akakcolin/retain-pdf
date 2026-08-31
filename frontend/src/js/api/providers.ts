@@ -1,6 +1,19 @@
 import { isMockMode } from "../config/runtime.js";
 import { buildApiEndpoint, submitJson } from "./http.js";
 
+export async function validateMineruToken(apiPrefix, payload) {
+  if (isMockMode()) {
+    void apiPrefix;
+    void payload;
+    return {
+      ok: true,
+      valid: true,
+      summary: "mock mode: token validation skipped",
+    };
+  }
+  return submitJson(buildApiEndpoint(apiPrefix, "providers/mineru/validate-token"), payload);
+}
+
 export async function validatePaddleToken(apiPrefix, payload) {
   if (isMockMode()) {
     void apiPrefix;

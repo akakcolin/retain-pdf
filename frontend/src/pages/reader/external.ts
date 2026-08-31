@@ -51,6 +51,13 @@ export { resolveMarkdownAssetUrl } from "../../js/job/artifacts.js";
 export { parseMarkdownWithMath } from "../../js/reader/markdown-math.js";
 
 // —— AI 追问（react-pdf assistant）——
+export {
+  CREDENTIALS_CHANGED_EVENT,
+  hasModelApiKey,
+  MISSING_MODEL_API_KEY_MESSAGE,
+  resolveReaderAiConfig,
+} from "../../js/reader/ai/config.js";
+export { translateText } from "../../js/api/reader.js";
 export { createReaderAskAnswerer } from "../../js/reader/ai/ask-answerer.js";
 export { createReaderMarkdownAnswerer } from "../../js/reader/ai/markdown-answerer.js";
 export {

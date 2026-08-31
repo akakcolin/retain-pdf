@@ -9,6 +9,7 @@ export { ReaderAiPanel } from "./ReaderAiPanel.js";
 export { ReaderFloatShell } from "./ReaderFloatShell.js";
 export { ReaderReactBoot } from "./ReaderReactBoot.js";
 export { ReaderSelectionToolbar } from "./ReaderSelectionToolbar.js";
+export { ReaderTranslatePopup } from "./ReaderTranslatePopup.js";
 export { ReaderShortcutsHelp } from "./ReaderShortcutsHelp.js";
 export { ReaderFab } from "./ReaderFab.js";
 export { ReaderToolsBar } from "./ReaderToolsBar.js";

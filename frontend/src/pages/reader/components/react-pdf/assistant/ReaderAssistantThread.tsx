@@ -49,13 +49,11 @@ import {
   renderFinalAnswerHtml,
   renderStreamingPreviewHtml,
   shouldIgnoreReaderAiNavEvent,
-  type AiCitationLike,
-} from "../../../external.js";
-import {
   CREDENTIALS_CHANGED_EVENT,
   hasModelApiKey,
   MISSING_MODEL_API_KEY_MESSAGE,
-} from "../../../../../js/reader/ai/config.js";
+  type AiCitationLike,
+} from "../../../external.js";
 
 /** Notion 侧栏式建议：图标 + 短标题 */
 const SUGGESTIONS: Array<{

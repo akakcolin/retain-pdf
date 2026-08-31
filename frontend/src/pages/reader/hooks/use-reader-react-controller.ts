@@ -9,6 +9,7 @@ import { useReaderZoom } from "./use-reader-zoom.js";
 import { useReaderModeNavigation } from "./use-reader-mode-navigation.js";
 import { useReaderAnnotations } from "./use-reader-annotations.js";
 import { useReaderTextSelection } from "./use-reader-text-selection.js";
+import { useReaderTranslate } from "./use-reader-translate.js";
 import { useReaderTools, type ReaderToolsApi } from "./use-reader-tools.js";
 import { useCurrentPage } from "../pdf/useCurrentPage.js";
 import { usePageRowSync } from "../pdf/usePageRowSync.js";
@@ -53,6 +54,8 @@ export type ReaderReactController = {
   selection: ReaderTextSelection | null;
   clearSelection: () => void;
   addNoteFromSelection: (selection: ReaderTextSelection) => void;
+  translate: ReturnType<typeof useReaderTranslate>;
+  translateSelection: (selection: ReaderTextSelection) => void;
   jumpToNote: (note: ReaderNote) => void;
   documentTitle: string;
   download: ReaderSessionState["download"];
@@ -148,6 +151,8 @@ export function useReaderReactController(): ReaderReactController {
     !session.boot.loading && !session.boot.failed,
   );
 
+  const translate = useReaderTranslate();
+
   const addNoteFromSelection = useCallback((sel: ReaderTextSelection) => {
     notes.addFromQuote({
       page: sel.page,
@@ -156,6 +161,12 @@ export function useReaderReactController(): ReaderReactController {
     });
     clearSelection();
   }, [notes, clearSelection]);
+
+  const translateSelection = useCallback((sel: ReaderTextSelection) => {
+    // 翻译后收起选文浮条，译文在独立浮窗展示
+    translate.translateSelection(sel);
+    clearSelection();
+  }, [translate, clearSelection]);
 
   const jumpToNote = useCallback((note: ReaderNote) => {
     // 若批注在译文/原文栏，尽量切到对应单栏或对照
@@ -212,6 +223,8 @@ export function useReaderReactController(): ReaderReactController {
     selection,
     clearSelection,
     addNoteFromSelection,
+    translate,
+    translateSelection,
     jumpToNote,
     documentTitle: session.title || "",
   };

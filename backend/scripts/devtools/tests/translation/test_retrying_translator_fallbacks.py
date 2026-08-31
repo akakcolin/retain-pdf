@@ -195,7 +195,11 @@ class RetryingTranslatorFallbacksTests(unittest.TestCase):
         def fake_plain(*args, **kwargs):
             sentence_item = args[0]
             seen.append(sentence_item["translation_unit_protected_source_text"])
-            return {item["item_id"]: result_entry("translate", "已翻译片段")}
+            # 合并后的整块结果会过 truncation 校验（源 ≥200 字符时 ratio<0.15 判为截断），
+            # 固定返回短文本会被 TruncatedTranslationError 拒绝，故按块长成比例返回。
+            chunk_source = str(sentence_item.get("translation_unit_protected_source_text") or "")
+            translated = "已翻译片段" * max(1, len(chunk_source) // 8)
+            return {item["item_id"]: result_entry("translate", translated)}
 
         result = sentence_level_fallback(
             item,

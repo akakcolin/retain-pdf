@@ -2,6 +2,7 @@
 
 import {
   API_PREFIX,
+  DEFAULT_MODEL_VERSION,
   defaultModelApiKey,
   defaultModelBaseUrl,
   defaultPaddleToken,
@@ -14,6 +15,7 @@ import {
   readHiddenCredentialDomInputs,
   createCredentialRuntimeEnvPort,
   mountBrowserCredentialsFeature,
+  validateMineruToken,
   validatePaddleToken,
 } from "./external.js";
 import { createCredentialsViewFeature } from "../features/credentials/credentials-view-store.js";
@@ -83,11 +85,20 @@ export function createCredentials({
 
   async function validateCredentialOcrToken(
     apiPrefixArg: unknown,
-    _providerId: unknown,
+    providerId: unknown,
     token: unknown,
   ) {
+    const provider = `${providerId || ""}`.toLowerCase();
+    const normalizedToken = `${token || ""}`.trim();
+    if (provider === "mineru") {
+      return validateMineruToken(apiPrefixArg, {
+        mineru_token: normalizedToken,
+        base_url: "https://mineru.net",
+        model_version: DEFAULT_MODEL_VERSION,
+      });
+    }
     return validatePaddleToken(apiPrefixArg, {
-      paddle_token: token,
+      paddle_token: normalizedToken,
       base_url: "https://paddleocr.aistudio-app.com",
     });
   }

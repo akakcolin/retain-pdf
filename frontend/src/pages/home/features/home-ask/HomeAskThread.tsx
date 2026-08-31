@@ -8,12 +8,10 @@ import {
   neutralizeMarkdownAnchors,
   renderCitationFooter,
   type AiCitationLike,
-} from "../../../../js/reader/ai/answer-enhance.js";
-import {
   renderFinalAnswerHtml,
   renderStreamingPreviewHtml,
-} from "../../../../js/reader/ai/render-answer-html.js";
-import { buildFrontendPageUrl } from "../../../../js/config/runtime.js";
+  buildFrontendPageUrl,
+} from "../../composition/external.js";
 import { navigateToReader } from "../reader/navigate-to-reader.js";
 import type { HomeAskCitation, HomeAskMessage } from "./types.js";
 

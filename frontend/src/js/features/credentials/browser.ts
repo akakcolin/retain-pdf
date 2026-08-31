@@ -434,7 +434,7 @@ export function mountBrowserCredentialsFeature({
               /* ignore connectivity on save */
             }
           },
-          values: { ...values, paddleToken: ocrToken, modelApiKey },
+          values: { ...values, modelApiKey },
           setupModePort,
         });
       } else {
@@ -445,7 +445,7 @@ export function mountBrowserCredentialsFeature({
           defaultModelBaseUrl,
           saveTaskOptions,
           saveBrowserStoredConfig,
-          values: { ...values, paddleToken: ocrToken, modelApiKey },
+          values: { ...values, modelApiKey },
         });
       }
       // 再次保证内存态与刚写入的 next 一致
