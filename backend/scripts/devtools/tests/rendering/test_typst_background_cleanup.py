@@ -184,8 +184,15 @@ def test_background_cache_key_includes_visual_profile_payload(tmp_path: Path) ->
 
 
 
-def test_apply_source_page_overlay_uses_cover_only_when_vector_text_detected() -> None:
-    page = fitz.open().new_page(width=300, height=400)
+def test_apply_source_page_overlay_uses_cover_only_when_vector_text_detected(tmp_path: Path) -> None:
+    # page_has_large_background_image is native-only; apply_source_page_overlay
+    # must run on a file-backed page.
+    source_pdf = tmp_path / "source.pdf"
+    doc = fitz.open()
+    doc.new_page(width=300, height=400)
+    doc.save(source_pdf)
+    doc.close()
+
     translated_items = [
         {
             "item_id": "b1",
@@ -196,15 +203,20 @@ def test_apply_source_page_overlay_uses_cover_only_when_vector_text_detected() -
         }
     ]
 
-    with mock.patch(
-        "services.rendering.source.background.redaction_plan.collect_vector_text_rects",
-        return_value=[fitz.Rect(10, 20, 80, 60)],
-    ), mock.patch(
-        "services.rendering.source.background.source_overlay.redact_source_text_areas",
-    ) as redact_mock, mock.patch(
-        "services.rendering.source.background.source_overlay.strip_page_links",
-    ):
-        apply_source_page_overlay(page, translated_items)
+    doc = fitz.open(source_pdf)
+    try:
+        page = doc[0]
+        with mock.patch(
+            "services.rendering.source.background.redaction_plan.collect_vector_text_rects",
+            return_value=[fitz.Rect(10, 20, 80, 60)],
+        ), mock.patch(
+            "services.rendering.source.background.source_overlay.redact_source_text_areas",
+        ) as redact_mock, mock.patch(
+            "services.rendering.source.background.source_overlay.strip_page_links",
+        ):
+            apply_source_page_overlay(page, translated_items)
+    finally:
+        doc.close()
 
     redact_mock.assert_called_once()
     assert redact_mock.call_args.kwargs["cover_only"] is True

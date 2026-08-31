@@ -271,14 +271,14 @@ def test_source_read_family_native_only_shims_raise_when_not_routed(
         doc.close()
 
 
-def test_source_read_family_in_memory_page_uses_reference(
+def test_source_read_family_in_memory_page_is_native_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # In-memory pages keep the pure-Python reference (the IN_MEMORY_PAGE
-    # capability boundary, which the native path cannot serve) even under the
-    # mandate — never blocked. The bridge is present (module_native=True); the
-    # empty-path branch of routed() records IN_MEMORY_PAGE and lets the shim
-    # fall through to the reference.
+    # In-memory pages are native-only too: the pure-Python references were
+    # retired with the IN_MEMORY_PAGE boundary, so every page-read primitive
+    # raises even with the bridge present (module_native=True). routed()
+    # records IN_MEMORY_PAGE (never mandate-blocked); the shim then raises
+    # native-only.
     import fitz
 
     import services.rendering.source._native as source_native
@@ -286,12 +286,21 @@ def test_source_read_family_in_memory_page_uses_reference(
     doc = fitz.open()
     page = doc.new_page()
     try:
+        calls = [
+            lambda: source_native.collect_vector_text_rects(page=page, target_rects=[]),
+            lambda: source_native.page_drawing_count(page=page),
+            lambda: source_native.page_has_large_background_image(page=page),
+            lambda: source_native.extract_page_text_spans(page=page),
+            lambda: source_native.extract_page_text_blocks(page=page),
+            lambda: source_native.collect_page_math_protection_rects(page=page),
+            lambda: source_native.collect_page_non_math_span_heights(page=page),
+        ]
         monkeypatch.setattr(source_native, "NATIVE", True)
         monkeypatch.setenv("RETAIN_PDF_NATIVE", "1")
         monkeypatch.setenv("RETAIN_PDF_NATIVE_MANDATE", "1")
-        assert source_native.page_drawing_count(page=page) == 0
-        assert source_native.extract_page_text_spans(page=page) == []
-        assert source_native.collect_page_math_protection_rects(page=page) == []
+        for call in calls:
+            with pytest.raises(RuntimeError, match="is native-only"):
+                call()
     finally:
         doc.close()
 

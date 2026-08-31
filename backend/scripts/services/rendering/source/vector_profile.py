@@ -72,14 +72,6 @@ def page_drawing_count(page: fitz.Page) -> int:
     return _native.page_drawing_count(page=page)
 
 
-def _page_drawing_count_python(page: fitz.Page) -> int:
-    try:
-        drawings = page.get_cdrawings() if hasattr(page, "get_cdrawings") else page.get_drawings()
-    except Exception:
-        return 0
-    return len(drawings)
-
-
 def page_should_use_cover_only(drawing_rects: list[Rect]) -> bool:
     return len(drawing_rects) >= HEAVY_VECTOR_PAGE_DRAWINGS_THRESHOLD
 

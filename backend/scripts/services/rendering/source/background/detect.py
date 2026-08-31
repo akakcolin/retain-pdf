@@ -6,13 +6,13 @@ runs (five call sites, all default kwargs). It routes through the native bridge
 placement rects (display-list `fill_image` + `fill_image_mask` bounds == fitz
 `get_image_info` bboxes) and the boolean is computed from them here via the
 shared `_has_large_background_image_from_rects` / `_tiled_images_covered`
-helpers.
+helpers. Native-only: it raises when the bridge is unavailable or the page is
+in-memory.
 
 `pick_primary_background_image` deliberately stays on the pure-Python
 reference: it returns the image xref that drives the actual rewrite
 (`image_route.replace_background_image_page`), and mupdf-rs exposes no
-placement→xref association, so native cannot reproduce it. The reference
-implementation of the routed boolean lives in `_page_has_large_background_image_python`.
+placement→xref association, so native cannot reproduce it.
 """
 
 from __future__ import annotations
@@ -41,9 +41,8 @@ def page_has_large_background_image(
     *,
     coverage_ratio_threshold: float = 0.75,
 ) -> bool:
-    """Route through the native bridge (image-read family) when built on a
-    file-backed page; otherwise the pure-Python reference
-    `_page_has_large_background_image_python`.
+    """Route through the native bridge (image-read family). Native-only: raises
+    when the bridge is unavailable or the page is in-memory.
 
     The `_native` import is lazy: `_native`'s top-level imports pull in
     `document_ops`, which imports this module at top, so a module-top import
@@ -55,16 +54,6 @@ def page_has_large_background_image(
     )
 
 
-def _page_has_large_background_image_python(
-    page: fitz.Page,
-    *,
-    coverage_ratio_threshold: float = 0.75,
-) -> bool:
-    if _page_has_primary_background_image(page, coverage_ratio_threshold=coverage_ratio_threshold):
-        return True
-    return page_has_tiled_background_images(page)
-
-
 def _has_large_background_image_from_rects(
     raw_rects: list[Rect],
     page_rect: Rect,
@@ -72,13 +61,12 @@ def _has_large_background_image_from_rects(
     coverage_ratio_threshold: float = 0.75,
 ) -> bool:
     """Primary coverage check OR tiled-coverage check over raw placement rects
-    (native bridge output). Mirrors `_page_has_large_background_image_python`
-    but skips the xref requirement — the native placements carry no xref, so
-    the primary check reduces to "some placement covers >= threshold". The
-    reference's `get_images`/`get_image_rects` fallback path
-    (`_pick_primary_background_image_from_xref_rects`) is intentionally not
-    mirrored; when `get_image_info` fails it can still find a large image, but
-    native would have fallen back to the reference already in that case."""
+    (native bridge output). Skips the xref requirement — the native placements
+    carry no xref, so the primary check reduces to "some placement covers >=
+    threshold". The Python reference's `get_images`/`get_image_rects` fallback
+    path (`_pick_primary_background_image_from_xref_rects`) is intentionally
+    not mirrored; when `get_image_info` fails it can still find a large image,
+    but native would have fallen back already in that case."""
     rects = _intersect_image_rects(raw_rects, page_rect)
     page_area = max(rect_area(page_rect), 1.0)
     if any(rect_area(rect) / page_area >= coverage_ratio_threshold for rect in rects):
@@ -90,14 +78,6 @@ def _intersect_image_rects(raw_rects: list[Rect], page_rect: Rect) -> list[Rect]
     """Clip raw placement rects to the page rect and drop empty intersections
     (== `_image_rects(page)` given the raw rect list)."""
     return [rect & page_rect for rect in raw_rects if not (rect & page_rect).is_empty]
-
-
-def _page_has_primary_background_image(
-    page: fitz.Page,
-    *,
-    coverage_ratio_threshold: float,
-) -> bool:
-    return pick_primary_background_image(page, coverage_ratio_threshold=coverage_ratio_threshold) is not None
 
 
 def pick_primary_background_image(

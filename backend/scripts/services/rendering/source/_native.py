@@ -5,10 +5,9 @@ Build the pyo3 module with maturin from `backend/rendering_bridge` and
 primitives (image XObject sanitize, image-only compression, page extraction)
 through the ported Rust implementations. The write-path primitives are
 native-only (they raise when the bridge is unavailable); the page-read family
-below is native-only on file-backed pages (it raises when the bridge is
-unavailable) and falls back to its pure-Python references only for in-memory
-pages (the IN_MEMORY_PAGE capability boundary, which the native path cannot
-serve).
+below is native-only unconditionally (it raises when the bridge is unavailable
+or the page is in-memory) — the pure-Python references and the IN_MEMORY_PAGE
+capability boundary were retired with them.
 
 The Rust side returns `(pdf_bytes, metadata_json)` for the transformations that
 expose a production result contract (`sanitize_invalid_xobjects`,
@@ -49,9 +48,9 @@ Routed here (drawing-read family): `vector_text.collect_vector_text_rects` and
 `vector_profile.page_drawing_count`. These take a file-backed `fitz.Page`
 (production opens the source by path, so `page.parent.name` is the source
 path); the shim re-opens that file natively and feeds the page bytes to the
-bridge. File-backed pages are native-only (the bridge is mandatory and raises
-when unavailable); only in-memory pages fall back to the pure-Python reference
-(IN_MEMORY_PAGE boundary). `vector_text` reuses the Rust classifier directly
+bridge. Native-only: the bridge is mandatory and raises when unavailable, and
+in-memory pages raise too (the pure-Python references were retired).
+`vector_text` reuses the Rust classifier directly
 (it must, since mupdf always RGB-converts fills and only the native
 classifier's `cs.n() == 3` gate matches Python's `len(fill) == 3`);
 `page_drawing_count` routes through the native count primitive (exact parity —
@@ -67,8 +66,8 @@ relays the pure-Python reference to preserve output exactly.
 Routed here (background-image read family):
 `background.detect.page_has_large_background_image` routes through the native
 placement-rect read (`read_page_image_rects`) when the page is file-backed
-(native-only — raises when the bridge is unavailable; only in-memory pages fall
-back). The native rects match fitz `get_image_info` bboxes (same `fz_bound_image`
+(native-only — raises when the bridge is unavailable or the page is in-memory).
+The native rects match fitz `get_image_info` bboxes (same `fz_bound_image`
 path: display-list `fill_image` + `fill_image_mask` placements in content /
 rotation-stripped space), so the coverage/tiling boolean is computed from them
 in Python, reusing the reference's shared helpers. `background.detect.pick_primary_background_image`
@@ -79,9 +78,9 @@ cannot reproduce it.
 Routed here (cleanup text-read family): `cleanup.text_extract.extract_page_text_spans`
 and `extract_page_text_blocks` (fitz `get_text("dict")`/`get_text("blocks")`
 consumers) and `cleanup.math_spans.collect_page_math_protection_rects` /
-`collect_page_non_math_span_heights`. All four are native-only on file-backed
-pages (they raise when the bridge is unavailable; only in-memory pages fall
-back). The native collectors build the text page
+`collect_page_non_math_span_heights`. All four are native-only (they raise when
+the bridge is unavailable or the page is in-memory). The native collectors
+build the text page
 with fitz's `get_text("dict")` flags (PRESERVE_LIGATURES | PRESERVE_IMAGES |
 PRESERVE_WHITESPACE) in rotation-stripped content space, group spans by (font
 name, size, RGB color, flags), and the shim deserializes the JSON back into
@@ -303,18 +302,14 @@ def read_page_sizes_and_count(*, source_pdf_path: Path) -> tuple[int, dict[int, 
 def _page_source_pdf_path(page: fitz.Page) -> str:
     """The on-disk path backing `page`, or "" for an in-memory page. Production
     opens the source by path, so `page.parent.name` is the path; empty means the
-    shim must fall back to the reference."""
+    shim cannot open the page by path and raises native-only."""
     return getattr(getattr(page, "parent", None), "name", "") or ""
 
 
 def collect_vector_text_rects(*, page: fitz.Page, target_rects: list[fitz.Rect]) -> list[fitz.Rect]:
-    """`vector_text.collect_vector_text_rects`, native-only on a file-backed
-    page: the bridge is mandatory and this raises when it is unavailable. The
-    pure-Python reference survives only for in-memory pages (the IN_MEMORY_PAGE
-    capability boundary, which the native path cannot serve).
-
-    The reference import is lazy to avoid a circular import: `vector_text`
-    imports this shim at module top."""
+    """`vector_text.collect_vector_text_rects`, native-only: the bridge is
+    mandatory and this raises when it is unavailable or the page is in-memory
+    (the Rust classifier is the only implementation)."""
     path = _page_source_pdf_path(page)
     if _routing.routed("source", "collect_vector_text_rects", NATIVE, path=path):
         try:
@@ -333,14 +328,10 @@ def collect_vector_text_rects(*, page: fitz.Page, target_rects: list[fitz.Rect])
                 "source", "collect_vector_text_rects", _routing.FallbackReason.NATIVE_BRIDGE_ERROR
             )
             raise
-    if path:
-        raise RuntimeError(
-            "source.collect_vector_text_rects is native-only: the rendering_bridge "
-            "collect_vector_text_rects is required"
-        )
-    from services.rendering.source.vector_text import _collect_vector_text_rects_python
-
-    return _collect_vector_text_rects_python(page, target_rects)
+    raise RuntimeError(
+        "source.collect_vector_text_rects is native-only: the rendering_bridge "
+        "collect_vector_text_rects is required"
+    )
 
 
 def collect_page_drawing_rects(*, page: fitz.Page) -> list[Rect]:
@@ -361,14 +352,9 @@ def collect_page_drawing_rects(*, page: fitz.Page) -> list[Rect]:
 
 
 def page_drawing_count(*, page: fitz.Page) -> int:
-    """`vector_profile.page_drawing_count`, native-only on a file-backed page:
-    the bridge is mandatory and this raises when it is unavailable. The
-    pure-Python reference survives only for in-memory pages (the IN_MEMORY_PAGE
-    capability boundary). Count parity is exact (`drawings()` length on both
-    sides).
-
-    The reference import is lazy to avoid a circular import: `vector_profile`
-    imports this shim at module top."""
+    """`vector_profile.page_drawing_count`, native-only: the bridge is mandatory
+    and this raises when it is unavailable or the page is in-memory. Count
+    parity is exact (`drawings()` length on both sides)."""
     path = _page_source_pdf_path(page)
     if _routing.routed("source", "page_drawing_count", NATIVE, path=path):
         try:
@@ -382,29 +368,21 @@ def page_drawing_count(*, page: fitz.Page) -> int:
                 "source", "page_drawing_count", _routing.FallbackReason.NATIVE_BRIDGE_ERROR
             )
             raise
-    if path:
-        raise RuntimeError(
-            "source.page_drawing_count is native-only: the rendering_bridge "
-            "read_page_drawing_count is required"
-        )
-    from services.rendering.source.vector_profile import _page_drawing_count_python
-
-    return _page_drawing_count_python(page)
+    raise RuntimeError(
+        "source.page_drawing_count is native-only: the rendering_bridge "
+        "read_page_drawing_count is required"
+    )
 
 
 def page_has_large_background_image(*, page: fitz.Page, coverage_ratio_threshold: float = 0.75) -> bool:
-    """`background.detect.page_has_large_background_image`, native-only on a
-    file-backed page: the bridge is mandatory and this raises when it is
-    unavailable. The pure-Python reference survives only for in-memory pages
-    (the IN_MEMORY_PAGE capability boundary). The native path reads image
-    placement rects from the bridge (display-list `fill_image` bounds == fitz
-    `get_image_info` bboxes) and computes the boolean from them in Python,
-    sharing the reference's coverage/tiling helpers.
+    """`background.detect.page_has_large_background_image`, native-only: the
+    bridge is mandatory and this raises when it is unavailable or the page is
+    in-memory. The native path reads image placement rects from the bridge
+    (display-list `fill_image` bounds == fitz `get_image_info` bboxes) and
+    computes the boolean from them in Python via the shared coverage/tiling
+    helpers.
     `pick_primary_background_image` (the xref-bearing picker that drives the
-    actual image rewrite) is NOT routed — see the module docstring.
-
-    The reference import is lazy to avoid a circular import: `detect` imports
-    this shim at module top."""
+    actual image rewrite) is NOT routed — see the module docstring."""
     path = _page_source_pdf_path(page)
     if _routing.routed("source", "page_has_large_background_image", NATIVE, path=path):
         try:
@@ -428,15 +406,9 @@ def page_has_large_background_image(*, page: fitz.Page, coverage_ratio_threshold
                 _routing.FallbackReason.NATIVE_BRIDGE_ERROR,
             )
             raise
-    if path:
-        raise RuntimeError(
-            "source.page_has_large_background_image is native-only: the "
-            "rendering_bridge read_page_image_rects is required"
-        )
-    from services.rendering.source.background.detect import _page_has_large_background_image_python
-
-    return _page_has_large_background_image_python(
-        page, coverage_ratio_threshold=coverage_ratio_threshold
+    raise RuntimeError(
+        "source.page_has_large_background_image is native-only: the "
+        "rendering_bridge read_page_image_rects is required"
     )
 
 
@@ -451,13 +423,9 @@ def _deserialize_rects(raw: str) -> list[Rect]:
 
 
 def extract_page_text_spans(*, page: fitz.Page) -> list[tuple[Rect, str]]:
-    """`cleanup.text_extract.extract_page_text_spans`, native-only on a
-    file-backed page: the bridge is mandatory and this raises when it is
-    unavailable. The pure-Python reference survives only for in-memory pages
-    (the IN_MEMORY_PAGE capability boundary).
-
-    The reference import is lazy to avoid a circular import: `text_extract`
-    imports this shim at module top."""
+    """`cleanup.text_extract.extract_page_text_spans`, native-only: the bridge
+    is mandatory and this raises when it is unavailable or the page is
+    in-memory."""
     path = _page_source_pdf_path(page)
     if _routing.routed("source", "extract_page_text_spans", NATIVE, path=path):
         try:
@@ -471,21 +439,16 @@ def extract_page_text_spans(*, page: fitz.Page) -> list[tuple[Rect, str]]:
                 "source", "extract_page_text_spans", _routing.FallbackReason.NATIVE_BRIDGE_ERROR
             )
             raise
-    if path:
-        raise RuntimeError(
-            "source.extract_page_text_spans is native-only: the rendering_bridge "
-            "read_page_text_spans is required"
-        )
-    from services.rendering.source.cleanup.text_extract import _extract_page_text_spans_python
-
-    return _extract_page_text_spans_python(page)
+    raise RuntimeError(
+        "source.extract_page_text_spans is native-only: the rendering_bridge "
+        "read_page_text_spans is required"
+    )
 
 
 def extract_page_text_blocks(*, page: fitz.Page) -> list[tuple[Rect, str]]:
-    """`cleanup.text_extract.extract_page_text_blocks`, native-only on a
-    file-backed page: the bridge is mandatory and this raises when it is
-    unavailable. The pure-Python reference survives only for in-memory pages
-    (the IN_MEMORY_PAGE capability boundary)."""
+    """`cleanup.text_extract.extract_page_text_blocks`, native-only: the bridge
+    is mandatory and this raises when it is unavailable or the page is
+    in-memory."""
     path = _page_source_pdf_path(page)
     if _routing.routed("source", "extract_page_text_blocks", NATIVE, path=path):
         try:
@@ -499,21 +462,16 @@ def extract_page_text_blocks(*, page: fitz.Page) -> list[tuple[Rect, str]]:
                 "source", "extract_page_text_blocks", _routing.FallbackReason.NATIVE_BRIDGE_ERROR
             )
             raise
-    if path:
-        raise RuntimeError(
-            "source.extract_page_text_blocks is native-only: the rendering_bridge "
-            "read_page_text_blocks is required"
-        )
-    from services.rendering.source.cleanup.text_extract import _extract_page_text_blocks_python
-
-    return _extract_page_text_blocks_python(page)
+    raise RuntimeError(
+        "source.extract_page_text_blocks is native-only: the rendering_bridge "
+        "read_page_text_blocks is required"
+    )
 
 
 def collect_page_math_protection_rects(*, page: fitz.Page) -> list[Rect]:
-    """`cleanup.math_spans.collect_page_math_protection_rects`, native-only on a
-    file-backed page: the bridge is mandatory and this raises when it is
-    unavailable. The pure-Python reference survives only for in-memory pages
-    (the IN_MEMORY_PAGE capability boundary)."""
+    """`cleanup.math_spans.collect_page_math_protection_rects`, native-only: the
+    bridge is mandatory and this raises when it is unavailable or the page is
+    in-memory."""
     path = _page_source_pdf_path(page)
     if _routing.routed("source", "collect_page_math_protection_rects", NATIVE, path=path):
         try:
@@ -529,23 +487,16 @@ def collect_page_math_protection_rects(*, page: fitz.Page) -> list[Rect]:
                 _routing.FallbackReason.NATIVE_BRIDGE_ERROR,
             )
             raise
-    if path:
-        raise RuntimeError(
-            "source.collect_page_math_protection_rects is native-only: the "
-            "rendering_bridge read_page_math_rects is required"
-        )
-    from services.rendering.source.cleanup.math_spans import (
-        _collect_page_math_protection_rects_python,
+    raise RuntimeError(
+        "source.collect_page_math_protection_rects is native-only: the "
+        "rendering_bridge read_page_math_rects is required"
     )
-
-    return _collect_page_math_protection_rects_python(page)
 
 
 def collect_page_non_math_span_heights(*, page: fitz.Page) -> list[float]:
-    """`cleanup.math_spans.collect_page_non_math_span_heights`, native-only on a
-    file-backed page: the bridge is mandatory and this raises when it is
-    unavailable. The pure-Python reference survives only for in-memory pages
-    (the IN_MEMORY_PAGE capability boundary)."""
+    """`cleanup.math_spans.collect_page_non_math_span_heights`, native-only: the
+    bridge is mandatory and this raises when it is unavailable or the page is
+    in-memory."""
     path = _page_source_pdf_path(page)
     if _routing.routed("source", "collect_page_non_math_span_heights", NATIVE, path=path):
         try:
@@ -560,13 +511,7 @@ def collect_page_non_math_span_heights(*, page: fitz.Page) -> list[float]:
                 _routing.FallbackReason.NATIVE_BRIDGE_ERROR,
             )
             raise
-    if path:
-        raise RuntimeError(
-            "source.collect_page_non_math_span_heights is native-only: the "
-            "rendering_bridge read_page_span_heights is required"
-        )
-    from services.rendering.source.cleanup.math_spans import (
-        _collect_page_non_math_span_heights_python,
+    raise RuntimeError(
+        "source.collect_page_non_math_span_heights is native-only: the "
+        "rendering_bridge read_page_span_heights is required"
     )
-
-    return _collect_page_non_math_span_heights_python(page)

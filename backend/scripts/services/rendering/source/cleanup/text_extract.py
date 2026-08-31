@@ -23,72 +23,23 @@ def extract_page_words(page: fitz.Page) -> list[tuple]:
 
 def extract_page_text_blocks(page: fitz.Page) -> list[tuple[Rect, str]]:
     """`page.get_text("blocks")` text blocks (type 0, stripped non-empty text),
-    routed through the native bridge when built on a file-backed page; otherwise
-    the pure-Python reference `_extract_page_text_blocks_python`.
+    routed through the native bridge. Native-only: raises when the bridge is
+    unavailable or the page is in-memory.
 
-    The `_native` import is lazy: `_native`'s shims import this module's
-    reference lazily, but `_native`'s own module-top imports must not pull this
-    module in at import time."""
+    The `_native` import is lazy: `_native`'s module-top imports must not pull
+    this module in at import time."""
     from services.rendering.source import _native
 
     return _native.extract_page_text_blocks(page=page)
 
 
-def _extract_page_text_blocks_python(page: fitz.Page) -> list[tuple[Rect, str]]:
-    try:
-        raw_blocks = page.get_text("blocks")
-    except Exception:
-        return []
-    blocks: list[tuple[Rect, str]] = []
-    for entry in raw_blocks:
-        if len(entry) < 7:
-            continue
-        try:
-            rect = Rect(*entry[:4])
-        except Exception:
-            continue
-        block_type = entry[6]
-        if block_type != 0 or rect.is_empty:
-            continue
-        text = str(entry[4] or "").strip()
-        if not text:
-            continue
-        blocks.append((rect, text))
-    return blocks
-
-
 def extract_page_text_spans(page: fitz.Page) -> list[tuple[Rect, str]]:
     """`page.get_text("dict")` spans (text blocks, stripped non-empty text),
-    routed through the native bridge when built on a file-backed page; otherwise
-    the pure-Python reference `_extract_page_text_spans_python."""
+    routed through the native bridge. Native-only: raises when the bridge is
+    unavailable or the page is in-memory."""
     from services.rendering.source import _native
 
     return _native.extract_page_text_spans(page=page)
-
-
-def _extract_page_text_spans_python(page: fitz.Page) -> list[tuple[Rect, str]]:
-    try:
-        text_dict = page.get_text("dict")
-    except Exception:
-        return []
-
-    spans: list[tuple[Rect, str]] = []
-    for block in text_dict.get("blocks", []) or []:
-        if block.get("type") != 0:
-            continue
-        for line in block.get("lines", []) or []:
-            for span in line.get("spans", []) or []:
-                bbox = span.get("bbox", [])
-                if len(bbox) != 4:
-                    continue
-                rect = Rect(*bbox)
-                if rect.is_empty:
-                    continue
-                text = str(span.get("text", "") or "").strip()
-                if not text:
-                    continue
-                spans.append((rect, text))
-    return spans
 
 
 def extract_item_word_entries(

@@ -14,14 +14,10 @@ from devtools.architecture_checks.common import scan_py_files
 #: - ``hard_boundary`` — fitz API with no mupdf-rs equivalent (words-clip,
 #:   get_texttrace, per-drawing zigzag rects, get_pixmap sampling) or a
 #:   Python-only PDF rewrite/redaction stage deliberately not ported.
-#: - ``fallback_reference`` — the fitz path is the in-memory-page reference for
-#:   a native-routed ``_native.py`` page-read primitive (the IN_MEMORY_PAGE
-#:   capability boundary, which the native path cannot serve); file-backed pages
-#:   are native-only and raise on bridge failure.
 #: - ``non_default_write`` — fitz writes an output PDF only on a non-production path.
 #: - ``non_render_service`` — outside services/rendering (ocr_provider/translation/entrypoints).
 FITZ_IMPORT_ALLOWLIST: dict[Path, tuple[str, str]] = {
-    # ---- fallback_reference: fitz path is the parity/fallback net for a native-routed primitive
+    # ---- hard_boundary: routed-write / page-read / xref-boundary fitz surface
     Path("services/rendering/layout/payload/first_line_indent.py"): (
         "hard_boundary",
         "get_pixmap / DisplayList pixel-sampling reference kept for ~20 typst tests; production first-line-indent is native-only",
@@ -67,24 +63,16 @@ FITZ_IMPORT_ALLOWLIST: dict[Path, tuple[str, str]] = {
         "native shim; fitz.Rect return coercion for native collect_vector_text_rects + fitz.Page annotations; write-path fallbacks retired (native-only)",
     ),
     Path("services/rendering/source/background/detect.py"): (
-        "fallback_reference",
-        "get_image_info reference for native page_has_large_background_image; runs only for in-memory pages (IN_MEMORY_PAGE boundary)",
+        "hard_boundary",
+        "get_image_info production read (pick_primary_background_image xref picker) + shared coverage/tiling helpers; the routed page_has_large_background_image boolean is native-only",
     ),
     Path("services/rendering/source/background/page_overlay.py"): (
         "hard_boundary",
         "default low-level show_pdf_page compositor for page overlay",
     ),
-    Path("services/rendering/source/cleanup/math_spans.py"): (
-        "fallback_reference",
-        "get_text('dict') references for native math-protection / non-math-span heights; run only for in-memory pages (IN_MEMORY_PAGE boundary)",
-    ),
     Path("services/rendering/source/vector_profile.py"): (
-        "fallback_reference",
-        "get_cdrawings reference for native page_drawing_count; runs only for in-memory pages (IN_MEMORY_PAGE boundary)",
-    ),
-    Path("services/rendering/source/vector_text.py"): (
-        "fallback_reference",
-        "get_drawings / get_cdrawings reference for native collect_vector_text_rects; runs only for in-memory pages (IN_MEMORY_PAGE boundary)",
+        "hard_boundary",
+        "get_cdrawings production collect_page_drawing_rects (zigzag divergence, deliberately not routed) + shared drawing-rect helpers; the routed page_drawing_count is native-only",
     ),
     Path("services/rendering/source_cleanup/planning/page_context.py"): (
         "hard_boundary",
@@ -317,7 +305,6 @@ FITZ_IMPORT_ALLOWLIST: dict[Path, tuple[str, str]] = {
 
 FITZ_IMPORT_CATEGORIES = (
     "hard_boundary",
-    "fallback_reference",
     "non_default_write",
     "non_render_service",
 )

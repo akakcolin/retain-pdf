@@ -270,7 +270,10 @@ def test_apply_source_page_overlay_visual_cover_and_remove_text_redacts_text_on_
         root = Path(tmp)
         image_path = root / "bg.png"
         Image.new("RGB", (1200, 1600), (255, 255, 255)).save(image_path)
+        source_pdf = root / "source.pdf"
 
+        # page_has_large_background_image is native-only; apply_source_page_overlay
+        # must run on a file-backed page.
         doc = fitz.open()
         page = doc.new_page(width=300, height=400)
         page.insert_image(page.rect, filename=str(image_path))
@@ -279,6 +282,9 @@ def test_apply_source_page_overlay_visual_cover_and_remove_text_redacts_text_on_
             "Intermolecular Heck Coupling with Hindered Alkenes",
             fontsize=14,
         )
+        doc.save(source_pdf)
+        doc.close()
+
         translated_items = [
             {
                 "item_id": "b1",
@@ -290,13 +296,17 @@ def test_apply_source_page_overlay_visual_cover_and_remove_text_redacts_text_on_
             }
         ]
 
-        before = page.get_text("text")
-        apply_source_page_overlay(page, translated_items, redaction_strategy="visual_cover_and_remove_text")
-        after = page.get_text("text")
+        doc = fitz.open(source_pdf)
+        try:
+            page = doc[0]
+            before = page.get_text("text")
+            apply_source_page_overlay(page, translated_items, redaction_strategy="visual_cover_and_remove_text")
+            after = page.get_text("text")
+        finally:
+            doc.close()
 
         assert "Intermolecular Heck Coupling" in before
         assert "Intermolecular Heck Coupling" not in after
-        doc.close()
 
 
 def test_build_clean_background_pdf_visual_cover_keeps_hidden_text_layer() -> None:

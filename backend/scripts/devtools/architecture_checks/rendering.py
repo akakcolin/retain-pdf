@@ -225,40 +225,17 @@ WIRED_PYTHON_REFERENCE_SYMBOLS = {
         "services.rendering.output.typst.source_builder",
         "build_typst_book_overlay_source",
     ),
-    # vector drawing reads (get_cdrawings) routed via source/_native.py; the
-    # shared `_rects_from_drawings` loop is production logic, not a wired symbol
-    ("services.rendering.source.vector_text", "_collect_vector_text_rects_python"),
+    # vector drawing reads (get_cdrawings) routed via source/_native.py;
+    # `collect_page_drawing_rects` stays Python-only (native rects diverge on
+    # stroked zigzag paths) so its reference is still wired; the shared
+    # `_rects_from_drawings` loop is production logic, not a wired symbol. The
+    # page-read references (`_collect_vector_text_rects_python`,
+    # `_page_drawing_count_python`, `_page_has_large_background_image_python`,
+    # `_extract_*_python`, `_collect_page_*_python`) were retired with the
+    # IN_MEMORY_PAGE boundary — the routed primitives are native-only now.
     (
         "services.rendering.source.vector_profile",
         "_collect_page_drawing_rects_python",
-    ),
-    ("services.rendering.source.vector_profile", "_page_drawing_count_python"),
-    # background-image read (get_image_info) routed via source/_native.py; the
-    # shared `_has_large_background_image_from_rects` / `_tiled_images_covered`
-    # helpers are production logic, not wired symbols
-    (
-        "services.rendering.source.background.detect",
-        "_page_has_large_background_image_python",
-    ),
-    # cleanup text-read (get_text("dict"/"blocks") consumers) routed via
-    # source/_native.py; `extract_item_word_entries` is NOT wired (de-scoped —
-    # fitz clip truncates words by glyph-ink bbox, which native cannot
-    # reproduce), and `is_special_math_font`/`rect_key` stay shared logic
-    (
-        "services.rendering.source.cleanup.text_extract",
-        "_extract_page_text_spans_python",
-    ),
-    (
-        "services.rendering.source.cleanup.text_extract",
-        "_extract_page_text_blocks_python",
-    ),
-    (
-        "services.rendering.source.cleanup.math_spans",
-        "_collect_page_math_protection_rects_python",
-    ),
-    (
-        "services.rendering.source.cleanup.math_spans",
-        "_collect_page_non_math_span_heights_python",
     ),
     # color-adapt decision tree + span/visual probes routed via output/typst/_native.py
     # and source/background/_native.py; fill.py primitives are intentionally NOT wired

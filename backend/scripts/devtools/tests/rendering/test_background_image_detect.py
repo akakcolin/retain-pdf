@@ -25,9 +25,17 @@ def test_tiled_background_images_are_detected(tmp_path) -> None:
     page = doc.new_page(width=200, height=300)
     for top in range(0, 300, 25):
         page.insert_image(fitz.Rect(0, top, 200, min(top + 25, 300)), filename=image_path)
+    source_pdf = tmp_path / "tiled.pdf"
+    doc.save(source_pdf)
+    doc.close()
 
-    assert page_has_tiled_background_images(page)
-    assert page_has_large_background_image(page)
+    # page_has_large_background_image is native-only (bridge read_page_image_rects
+    # placements), so it must run on a file-backed page; the tiled heuristic is
+    # pure Python and shares the native path's helpers.
+    with fitz.open(source_pdf) as doc:
+        page = doc[0]
+        assert page_has_tiled_background_images(page)
+        assert page_has_large_background_image(page)
 
 
 def test_sparse_images_are_not_treated_as_tiled_background(tmp_path) -> None:
@@ -40,9 +48,14 @@ def test_sparse_images_are_not_treated_as_tiled_background(tmp_path) -> None:
     page = doc.new_page(width=200, height=300)
     page.insert_image(fitz.Rect(20, 20, 120, 100), filename=image_path)
     page.insert_image(fitz.Rect(80, 160, 180, 240), filename=image_path)
+    source_pdf = tmp_path / "sparse.pdf"
+    doc.save(source_pdf)
+    doc.close()
 
-    assert not page_has_tiled_background_images(page)
-    assert not page_has_large_background_image(page)
+    with fitz.open(source_pdf) as doc:
+        page = doc[0]
+        assert not page_has_tiled_background_images(page)
+        assert not page_has_large_background_image(page)
 
 
 def test_primary_background_image_falls_back_to_image_rects_when_info_xref_is_zero() -> None:
@@ -64,5 +77,6 @@ def test_primary_background_image_falls_back_to_image_rects_when_info_xref_is_ze
 
     page = FakePage()
 
-    assert page_has_large_background_image(page) is True
+    # page_has_large_background_image is native-only and requires a real
+    # file-backed page; the xref picker below is the pure-Python production path.
     assert pick_primary_background_image(page) == (42, fitz.Rect(0, 0, 200, 300))

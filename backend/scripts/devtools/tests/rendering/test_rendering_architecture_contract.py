@@ -595,7 +595,7 @@ def test_rendering_rejects_direct_wired_reference_import(tmp_path: Path) -> None
     profile_root = rendering_root / "source"
     profile_root.mkdir(parents=True)
     (profile_root / "bad_import.py").write_text(
-        "from services.rendering.source.vector_profile import _page_drawing_count_python\n",
+        "from services.rendering.source.vector_profile import _collect_page_drawing_rects_python\n",
         encoding="utf-8",
     )
 
