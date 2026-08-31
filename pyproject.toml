@@ -15,6 +15,12 @@ dependencies = [
 test = [
   "pytest==9.0.3",
 ]
+# Desktop bundle only ships the Python HTTP stack (requests/urllib3); the
+# rendering deps (PyMuPDF/pikepdf/Pillow) are pruned from the packaged app.
+desktop = [
+  "requests==2.32.5",
+  "urllib3==2.5.0",
+]
 
 [tool.retain_pdf.external-binaries]
 required = ["typst"]

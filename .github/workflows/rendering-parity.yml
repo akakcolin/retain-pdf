@@ -154,10 +154,10 @@ jobs:
             --metrics-file devtools/tests/rendering/fixtures/d5_metrics_sample.txt \
             --desktop-manifest "$GITHUB_WORKSPACE/desktop/app/backend/bundle-manifest.json"
 
-  # Replicates the release wheel mechanism (release-desktop.yml): maturin build
-  # --release -> pip install --target -> import, on every OS the desktop ships.
-  # The bridge has only ever been CI-built on Linux; this catches Windows/macOS
-  # build or load regressions before a tag-push release hits them.
+  # Dev-parity gate: maturin build --release -> pip install --target -> import,
+  # on every OS the bridge is built on. The desktop bundle no longer ships the
+  # pyo3 bridge (C4·R); this catches Windows/macOS build/load regressions for
+  # developers who maturin-build the bridge locally.
   bridge-bundle-smoke:
     name: Bridge wheel bundle smoke (${{ matrix.os }})
     strategy:

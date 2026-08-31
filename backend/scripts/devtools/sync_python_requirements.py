@@ -38,7 +38,9 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _load_dependency_groups(pyproject_path: Path) -> tuple[list[str], list[str]]:
+def _load_dependency_groups(
+    pyproject_path: Path,
+) -> tuple[list[str], list[str], list[str]]:
     text = pyproject_path.read_text(encoding="utf-8")
     if tomllib is None:
         return _load_dependency_groups_fallback(text, pyproject_path)
@@ -47,12 +49,17 @@ def _load_dependency_groups(pyproject_path: Path) -> tuple[list[str], list[str]]
     runtime = [str(item).strip() for item in project.get("dependencies") or [] if str(item).strip()]
     optional = project.get("optional-dependencies") or {}
     test = [str(item).strip() for item in optional.get("test") or [] if str(item).strip()]
+    desktop = [str(item).strip() for item in optional.get("desktop") or [] if str(item).strip()]
     if not runtime:
         raise RuntimeError(f"No project.dependencies found in {pyproject_path}")
-    return runtime, test
+    if not desktop:
+        raise RuntimeError(f"No project.optional-dependencies.desktop found in {pyproject_path}")
+    return runtime, test, desktop
 
 
-def _load_dependency_groups_fallback(text: str, pyproject_path: Path) -> tuple[list[str], list[str]]:
+def _load_dependency_groups_fallback(
+    text: str, pyproject_path: Path
+) -> tuple[list[str], list[str], list[str]]:
     lines = text.splitlines()
     section = ""
     current_array: str | None = None
@@ -89,9 +96,12 @@ def _load_dependency_groups_fallback(text: str, pyproject_path: Path) -> tuple[l
         arrays[current_array].append(line.rstrip(",").strip().strip('"').strip("'"))
     runtime = arrays.get("project.dependencies", [])
     test = arrays.get("project.optional-dependencies.test", [])
+    desktop = arrays.get("project.optional-dependencies.desktop", [])
     if not runtime:
         raise RuntimeError(f"No project.dependencies found in {pyproject_path}")
-    return runtime, test
+    if not desktop:
+        raise RuntimeError(f"No project.optional-dependencies.desktop found in {pyproject_path}")
+    return runtime, test, desktop
 
 
 def _render_requirements(lines: list[str], *, extra_header: list[str] | None = None) -> str:
@@ -116,16 +126,16 @@ def main() -> None:
     args = parse_args()
     repo_root = args.repo_root.resolve()
     pyproject_path = repo_root / "pyproject.toml"
-    runtime, test = _load_dependency_groups(pyproject_path)
+    runtime, test, desktop = _load_dependency_groups(pyproject_path)
     runtime_with_test = runtime + test
 
     targets = {
         repo_root / "docker" / "requirements-app.txt": _render_requirements(runtime),
         repo_root / "docker" / "requirements-test.txt": _render_requirements(runtime_with_test),
-        repo_root / "desktop" / "requirements-desktop-posix.txt": _render_requirements(runtime),
-        repo_root / "desktop" / "requirements-desktop-windows.txt": _render_requirements(runtime),
+        repo_root / "desktop" / "requirements-desktop-posix.txt": _render_requirements(desktop),
+        repo_root / "desktop" / "requirements-desktop-windows.txt": _render_requirements(desktop),
         repo_root / "desktop" / "requirements-desktop-macos.txt": _render_requirements(
-            runtime,
+            desktop,
             extra_header=DESKTOP_MACOS_EXTRA_HEADER,
         ),
     }
