@@ -352,3 +352,45 @@ def test_policy_native_only_shims_raise_when_not_routed(
     monkeypatch.setenv("RETAIN_PDF_NATIVE_MANDATE", "1")
     with pytest.raises(_routing.NativeMandatoryError):
         call(policy_native)
+
+
+def test_save_fast_routes_to_native_and_returns_pdf_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # save_fast_pdf (default production write) routes through the native bridge:
+    # fitz tobytes in, raw mupdf bytes out, native hit recorded.
+    import fitz
+
+    import services.rendering.source._native as source_native
+
+    monkeypatch.setenv("RETAIN_PDF_NATIVE", "1")
+    doc = fitz.open()
+    page = doc.new_page(width=100, height=150)
+    page.insert_text((20, 40), "save fast")
+    try:
+        out = source_native.save_fast(doc.tobytes())
+    finally:
+        doc.close()
+    reopened = fitz.open(stream=out, filetype="pdf")
+    try:
+        assert "save fast" in reopened[0].get_text("text")
+    finally:
+        reopened.close()
+    snapshot = _routing.snapshot()
+    assert snapshot["total_hits"] == 1
+    assert snapshot["hits"]["source"] == 1
+
+
+def test_save_fast_native_only_shim_raises_when_not_routed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import services.rendering.source._native as source_native
+
+    monkeypatch.setattr(source_native, "NATIVE", False)
+    monkeypatch.setenv("RETAIN_PDF_NATIVE", "1")
+    monkeypatch.setenv("RETAIN_PDF_NATIVE_MANDATE", "0")
+    with pytest.raises(RuntimeError, match="is native-only"):
+        source_native.save_fast(b"")
+    monkeypatch.setenv("RETAIN_PDF_NATIVE_MANDATE", "1")
+    with pytest.raises(_routing.NativeMandatoryError):
+        source_native.save_fast(b"")

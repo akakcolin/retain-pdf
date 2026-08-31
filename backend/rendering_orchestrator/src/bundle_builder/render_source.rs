@@ -21,6 +21,9 @@ use rendering_reader::cleanup_context::build_planning_contexts;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
+use crate::native_stats::subsystem as sub;
+use crate::native_stats::NativeStats;
+
 use super::analysis::RenderDocumentAnalysis;
 use super::{RENDERED_DIR_NAME, TYPST_DIR_NAME};
 
@@ -47,9 +50,11 @@ pub fn build_render_source_pdf(
     strip_hidden_text: bool,
     source_cleanup_strategy: &str,
     document_analysis: &RenderDocumentAnalysis,
+    stats: &mut NativeStats,
 ) -> Result<RenderSourcePdf> {
     let mut render_source_path = source_pdf_path.to_path_buf();
     let work_root = typst_temp_root(output_pdf_path);
+    stats.record_hit(sub::SOURCE);
 
     // 1) invalid-xobject sanitize.
     let sanitized_path =
@@ -116,6 +121,7 @@ pub fn build_render_source_pdf(
                 false, // skip_form_xobject_pages
                 Some(&allows_pikepdf_strip),
             );
+            stats.record_hit(sub::SOURCE_CLEANUP_PLANNING);
             let page_rects: HashMap<i32, Vec<RectTuple>> = candidates
                 .page_rects
                 .into_iter()

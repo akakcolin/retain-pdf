@@ -114,6 +114,7 @@ try:
     from rendering_bridge import read_page_text_blocks as _native_read_page_text_blocks
     from rendering_bridge import read_page_text_spans as _native_read_page_text_spans
     from rendering_bridge import sanitize_invalid_xobjects as _native_sanitize_invalid_xobjects
+    from rendering_bridge import save_fast_pdf as _native_save_fast_pdf
     from rendering_bridge import strip_hidden_text_pages as _native_strip_hidden_text_pages
     from rendering_bridge import subset_and_save_optimized_pdf as _native_subset_and_save_optimized_pdf
 
@@ -272,6 +273,28 @@ def save_optimized(pdf_bytes: bytes) -> bytes:
         )
         raise
     _routing.record_native_hit("source", "save_optimized")
+    return result
+
+
+def save_fast(pdf_bytes: bytes) -> bytes:
+    """`document.pdf_ops.save_fast_pdf`'s raw save (no subset/compaction),
+    routed to the native bridge. Native-only: the bridge is mandatory; when it
+    is unavailable this raises instead of the retired fitz `doc.save` write.
+    Mirrors `save_optimized`'s bytes-in/bytes-out pattern so the default
+    production render path has zero fitz write calls."""
+    if not _routing.routed("source", "save_fast", NATIVE):
+        raise RuntimeError(
+            "source.save_fast is native-only: the rendering_bridge "
+            "save_fast_pdf is required"
+        )
+    try:
+        result = _native_save_fast_pdf(pdf_bytes)
+    except Exception:
+        _routing.record_fallback(
+            "source", "save_fast", _routing.FallbackReason.NATIVE_BRIDGE_ERROR
+        )
+        raise
+    _routing.record_native_hit("source", "save_fast")
     return result
 
 

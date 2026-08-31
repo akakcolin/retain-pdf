@@ -7,6 +7,7 @@
 pub mod bundle;
 pub mod bundle_builder;
 pub mod extract_text_layer;
+pub mod native_stats;
 pub mod normalize;
 pub mod protected_pages;
 pub mod run;

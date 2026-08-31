@@ -197,6 +197,20 @@ fn subset_and_save_optimized_pdf(pdf_bytes: &[u8]) -> PyResult<Vec<u8>> {
     subset_and_clean(pdf_bytes).map_err(PyRuntimeError::new_err)
 }
 
+/// `document/pdf_ops.save_fast_pdf` entry point — PDF bytes in, raw bytes out
+/// (no subset / no compaction, mirroring fitz `doc.save`'s default write). The
+/// native half of the default production save so the default render path has
+/// zero fitz write calls (see the `source/_native.py::save_fast` shim).
+#[pyfunction]
+fn save_fast_pdf(pdf_bytes: &[u8]) -> PyResult<Vec<u8>> {
+    let dir = temp_dir()?;
+    let in_path = dir.join("in.pdf");
+    std::fs::write(&in_path, pdf_bytes).map_err(|e| PyRuntimeError::new_err(format!("write: {e}")))?;
+    let pdf = PdfDocument::open(in_path.as_path())
+        .map_err(|e| PyRuntimeError::new_err(format!("open: {e}")))?;
+    save_to_bytes(&pdf, &dir)
+}
+
 /// `metadata.py::copy_toc` — copy the source outline (remapped to the target
 /// page range) into the target document. Returns the target bytes plus the
 /// number of outline entries written (0 = unchanged, so the shim can skip a
@@ -270,6 +284,7 @@ pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(show_pdf_page, m)?)?;
     m.add_function(wrap_pyfunction!(build_dual_doc_pages, m)?)?;
     m.add_function(wrap_pyfunction!(subset_and_save_optimized_pdf, m)?)?;
+    m.add_function(wrap_pyfunction!(save_fast_pdf, m)?)?;
     m.add_function(wrap_pyfunction!(copy_toc, m)?)?;
     m.add_function(wrap_pyfunction!(copy_toc_for_page_map, m)?)?;
     Ok(())

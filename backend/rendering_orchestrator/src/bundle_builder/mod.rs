@@ -20,6 +20,8 @@ use std::path::PathBuf;
 use anyhow::Result;
 use serde_json::Value;
 
+use crate::native_stats::subsystem as sub;
+use crate::native_stats::NativeStats;
 use crate::spec::RenderStageSpec;
 use crate::translations::{load_translated_pages, select_translated_pages};
 
@@ -36,7 +38,7 @@ const BACKGROUND_BOOK_SUBDIR: &str = "background-book";
 /// pages for every mode (writing `_render_cover_fill` / `_render_text_color`),
 /// and overlay/dual additionally assemble `overlay_page_specs` (page geometry +
 /// RenderBlock DTOs). N11f: `page_specs` is real (full emitter dicts).
-pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
+pub fn build_bundle(spec: &RenderStageSpec, stats: &mut NativeStats) -> Result<Value> {
     let mut mode = spec.params.render_mode_str();
 
     // `job_dirs.resolve_job_dirs(root).rendered_dir` — Python `Path.resolve()`
@@ -62,6 +64,7 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
     // auto-mode resolution. The analysis also drives render-source prep from N11c.
     let document_analysis =
         analysis::build_render_document_analysis(&spec.inputs.source_pdf, &selected_pages)?;
+    stats.record_hit(sub::ANALYSIS);
     if mode == "auto" {
         mode = analysis::resolve_effective_render_mode(&mode, !selected_pages.is_empty(), Some(&document_analysis));
     }
@@ -76,6 +79,7 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
             .map(|parent| parent.join("ocr").join("normalized").join("document.v1.json"))
             .as_deref(),
     )?;
+    stats.record_hit(sub::PDF_STRUCTURE_PROFILE);
 
     // N11c: render-source prep chain (sanitize -> hidden strip -> bbox strip ->
     // compress), producing the real `source_pdf` + `precleaned_page_indices`.
@@ -94,6 +98,7 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
         mode != "overlay",
         &cleanup_strategy,
         &document_analysis,
+        stats,
     )?;
 
     // N11d: prepare boundary + first-line-indent detection + policy boundary,
@@ -107,6 +112,7 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
         &selected_pages_i64,
         spec.params.source_cleanup_strategy.as_deref(),
     )?;
+    stats.record_hit(sub::LAYOUT);
 
     // N11e: color adapt runs for every mode (`precomputed_colors_by_item_id={}`),
     // writing `_render_cover_fill` / `_render_text_color` onto each item.
@@ -140,6 +146,7 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
         &adapted_pages,
         &font_unify_mode(spec),
     )?;
+    stats.record_hit(sub::LAYOUT_PAYLOAD);
 
     // Load the prewarmed visual profile (empty map when absent; mirrors the
     // retired Python `build_bundle`'s `load_visual_profile_runtime` over the
@@ -147,6 +154,7 @@ pub fn build_bundle(spec: &RenderStageSpec) -> Result<Value> {
     let visual_profile_fill_map = serde_json::to_value(visual_profile::visual_profile_fill_map(
         &spec.inputs.translations_dir,
     )?)?;
+    stats.record_hit(sub::VISUAL_PROFILE);
 
     Ok(assemble::assemble(AssembleInputs {
         mode,

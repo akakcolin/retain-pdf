@@ -2,8 +2,8 @@
   "desktop": {
     "max_bytes": 209715200,
     "note": "max=200 MiB 兜底 python/typst 运行时回潮（pythonBundled=false 下回潮即 +100MiB+）",
-    "observed_bytes": 199086356,
-    "observed_source": "bundle-manifest sizesBytes.total=199086356",
+    "observed_bytes": 198981716,
+    "observed_source": "bundle-manifest sizesBytes.total=198981716",
     "source": "bundle-manifest.json:sizesBytes.total"
   },
   "native_hit_ratio": {
@@ -11,11 +11,13 @@
     "note": "D1 双实现清零后各子系统应趋近 1.0；IN_MEMORY_PAGE 为合法回退会拉低。observed 待首条真实 /metrics record 后填充",
     "observed": {
       "analysis": 1.0,
-      "background": 1.0,
       "layout": 1.0,
       "layout_payload": 1.0,
-      "policy": 1.0,
-      "source_cleanup_planning": 1.0
+      "pdf_structure_profile": 1.0,
+      "source": 1.0,
+      "source_cleanup_planning": 1.0,
+      "typst": 1.0,
+      "visual_profile": 1.0
     },
     "subsystems": [
       "source",
@@ -37,7 +39,7 @@
   "render_elapsed": {
     "max_mean_seconds": 60.0,
     "note": "max=60s 兜底异常卡顿；正常值随文档规模波动",
-    "observed_mean_seconds": 2.424,
+    "observed_mean_seconds": 3.853,
     "observed_source": "metrics render_elapsed sum/count"
   },
   "schema": "retainpdf_d5_baseline_v1",

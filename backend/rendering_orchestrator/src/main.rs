@@ -52,7 +52,8 @@ fn parse_args() -> Result<(PathBuf, bool, bool, Option<PathBuf>), String> {
 
 fn dump_bundle_only(spec_path: &Path, dump_path: &Path) -> anyhow::Result<()> {
     let spec = rendering_orchestrator::spec::RenderStageSpec::load(spec_path)?;
-    let value = rendering_orchestrator::bundle_builder::build_bundle(&spec)?;
+    let mut stats = rendering_orchestrator::native_stats::NativeStats::new();
+    let value = rendering_orchestrator::bundle_builder::build_bundle(&spec, &mut stats)?;
     if let Some(parent) = dump_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -105,6 +106,7 @@ fn main() -> ExitCode {
                     println!("source pdf: {}", outcome.source_pdf.display());
                     println!("translations dir: {}", outcome.translations_dir.display());
                     println!("summary: {}", outcome.summary_path.display());
+                    println!("native stats: {}", outcome.stats_path.display());
                     println!("render mode: {}", outcome.mode);
                     println!("pages processed: {}", outcome.page_count);
                     println!("total time: {:.2}s", outcome.elapsed_seconds);
