@@ -50,6 +50,7 @@ export interface WorkflowViewPortLike {
     workflow: string;
     workflowRender: string;
     workflowTranslate: string;
+    workflowOcr: string;
   }) => void;
   renderBudgetNote: (budget: unknown) => void;
   setSubmitControls: (state: unknown) => void;
@@ -84,6 +85,7 @@ export interface WorkflowConstants extends WorkflowPayloadConstants {
   WORKFLOW_BOOK: string;
   WORKFLOW_TRANSLATE: string;
   WORKFLOW_RENDER: string;
+  WORKFLOW_OCR: string;
 }
 
 export interface MountWorkflowFeatureOptions {
@@ -177,6 +179,7 @@ export function mountWorkflowFeature({
     WORKFLOW_BOOK,
     WORKFLOW_TRANSLATE,
     WORKFLOW_RENDER,
+    WORKFLOW_OCR,
   } = constants;
 
   let refreshSubmitControlsRef = null;
@@ -252,6 +255,7 @@ export function mountWorkflowFeature({
       workflow,
       workflowRender: WORKFLOW_RENDER,
       workflowTranslate: WORKFLOW_TRANSLATE,
+      workflowOcr: WORKFLOW_OCR,
     });
   }
 
@@ -442,10 +446,23 @@ export function mountWorkflowFeature({
       payload.ocr = buildOcrPayload(pageRanges, submitValues);
       payload.translation = buildTranslationPayload(developerConfig, submitValues);
     }
+    if (workflow === WORKFLOW_OCR) {
+      // 仅 OCR：只带 ocr 组，不带 translation/render
+      payload.ocr = buildOcrPayload(pageRanges, submitValues);
+    }
     if (workflowUsesRenderStage(workflow)) {
       payload.render = buildRenderPayload(developerConfig);
     }
     return payload;
+  }
+
+  // 会话级覆盖工作流（首页「仅 OCR」按钮用）：只改内存 config，不持久化，
+  // 避免把用户默认工作流改掉。
+  function setWorkflowMode(workflow) {
+    const next = normalizeWorkflow(workflow);
+    setDeveloperConfig({ ...developerConfigWithDefaults(), workflow: next });
+    applyWorkflowMode();
+    refreshSubmitControls();
   }
 
   return {
@@ -462,6 +479,7 @@ export function mountWorkflowFeature({
     refreshSubmitControls,
     resetDeveloperDialog,
     saveDeveloperDialog,
+    setWorkflowMode,
     syncDeveloperDialogFromState,
     updateCredentialGate,
     updateDeveloperWorkflowFormState,

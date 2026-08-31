@@ -42,6 +42,7 @@ export type WorkflowFeature = {
   refreshSubmitControls: () => void;
   resetDeveloperDialog: () => void;
   saveDeveloperDialog: () => unknown;
+  setWorkflowMode: (workflow: string) => void;
   syncDeveloperDialogFromState: () => void;
   updateCredentialGate: (options?: unknown) => void;
   updateDeveloperWorkflowFormState: () => void;

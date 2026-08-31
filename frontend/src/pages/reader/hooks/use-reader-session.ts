@@ -271,6 +271,10 @@ export function useReaderSession(): ReaderSessionState {
 
         setSourceUrl(sourceFinal || "");
         setTranslatedUrl(translatedFinal);
+        // 仅 OCR 等无译文的 job：无译文可对照，退回单栏原文模式
+        if (!translatedFinal) {
+          setMode("source");
+        }
         setTitle(pickDisplayTitle(payload.jobPayload as Record<string, unknown>, jobId));
         setJobPayload((payload.jobPayload as Record<string, unknown>) || null);
         setManifestPayload((payload.manifestPayload as Record<string, unknown>) || null);
@@ -354,7 +358,7 @@ export function useReaderSession(): ReaderSessionState {
     return () => {
       cancelled = true;
     };
-  }, [jobId, documentId, sourceOnly]);
+  }, [jobId, documentId, sourceOnly, setMode]);
 
   const download = useMemo<ReaderDownloadContext>(
     () => ({

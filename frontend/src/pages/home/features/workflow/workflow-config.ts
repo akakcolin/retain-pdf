@@ -30,6 +30,7 @@ import {
 export const WORKFLOW_BOOK = "book";
 export const WORKFLOW_TRANSLATE = "translate";
 export const WORKFLOW_RENDER = "render";
+export const WORKFLOW_OCR = "ocr";
 
 export function workflowConstants() {
   return {
@@ -55,6 +56,7 @@ export function workflowConstants() {
     WORKFLOW_BOOK,
     WORKFLOW_TRANSLATE,
     WORKFLOW_RENDER,
+    WORKFLOW_OCR,
   };
 }
 
@@ -62,9 +64,10 @@ export function normalizeWorkflow(value, {
   book = WORKFLOW_BOOK,
   translate = WORKFLOW_TRANSLATE,
   render = WORKFLOW_RENDER,
+  ocr = WORKFLOW_OCR,
 } = {}) {
   const workflow = `${value || ""}`.trim();
-  if (workflow === translate || workflow === render) {
+  if (workflow === translate || workflow === render || workflow === ocr) {
     return workflow;
   }
   return book;

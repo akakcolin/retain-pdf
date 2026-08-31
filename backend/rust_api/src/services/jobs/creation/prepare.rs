@@ -23,6 +23,7 @@ pub(super) struct PreparedRenderInput {
     pub(super) spec: ResolvedJobSpec,
 }
 
+#[derive(Debug)]
 pub(super) struct PreparedOcrInput {
     pub(super) spec: ResolvedJobSpec,
 }

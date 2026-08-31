@@ -16,7 +16,7 @@ import {
   credentialValidationId,
 } from "./credentials-dom-ids.js";
 import { useCredentialsController } from "./useCredentialsController.js";
-import { OCR_PROVIDER_DEFINITIONS } from "../../composition/external.js";
+import { getAvailableOcrProviders } from "../../composition/external.js";
 
 function validationIcon(tone = "", content = "") {
   if (!content) {
@@ -37,9 +37,10 @@ function resetHandlerFor(handlers) {
 
 export function OcrProviderPanels() {
   const { credentials, view, handlers, tokenInputRef } = useCredentialsController();
-  const activeProvider = OCR_PROVIDER_DEFINITIONS.some((item) => item.id === credentials.ocrProvider)
+  const providers = getAvailableOcrProviders();
+  const activeProvider = providers.some((item) => item.id === credentials.ocrProvider)
     ? credentials.ocrProvider
-    : OCR_PROVIDER_DEFINITIONS[0].id;
+    : providers[0].id;
 
   // provider 切换后，新激活面板的 token input 是已挂载的非受控节点
   // (defaultValue="")；从 store 回填已保存 token(镜像 DeepSeekPanel 做法)。
@@ -59,12 +60,12 @@ export function OcrProviderPanels() {
           value={activeProvider}
           onChange={(event) => handlers?.changeProvider?.(event)}
         >
-          {OCR_PROVIDER_DEFINITIONS.map((provider) => (
+          {providers.map((provider) => (
             <option key={provider.id} value={provider.id}>{provider.label}</option>
           ))}
         </select>
       </label>
-      {OCR_PROVIDER_DEFINITIONS.map((provider) => {
+      {providers.map((provider) => {
         const active = provider.id === activeProvider;
         const validation = view.validations[provider.id] || { message: "", tone: "" };
         const content = `${validation.message || ""}`.trim();

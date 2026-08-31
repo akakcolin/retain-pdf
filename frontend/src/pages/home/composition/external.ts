@@ -32,6 +32,7 @@ export { openDesktopOutputDirectory } from "../../../js/config/desktop-persisten
 export { DEFAULT_MODEL_VERSION } from "../../../js/config/model-constants.js";
 export {
   OCR_PROVIDER_DEFINITIONS,
+  getAvailableOcrProviders,
   TRANSLATION_PROVIDER_DEFINITION,
   TRANSLATION_PROVIDER_DEFINITIONS,
   DEFAULT_OCR_PROVIDER,

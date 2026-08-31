@@ -52,6 +52,8 @@ export function workflowSubmitLabel(workflow, constants) {
   switch (workflow) {
     case constants.WORKFLOW_RENDER:
       return "开始渲染";
+    case constants.WORKFLOW_OCR:
+      return "仅 OCR";
     case constants.WORKFLOW_TRANSLATE:
       return "直接翻译";
     case constants.WORKFLOW_BOOK:
@@ -65,6 +67,8 @@ export function workflowHeadline(workflow, constants) {
   switch (workflow) {
     case constants.WORKFLOW_RENDER:
       return "当前工作流会复用已有任务产物重新生成 PDF。";
+    case constants.WORKFLOW_OCR:
+      return "选择 PDF 后，仅做 OCR 识别并入库，不翻译。";
     default:
       return "选择 PDF 后，可直接翻译或仅收藏到书架。";
   }

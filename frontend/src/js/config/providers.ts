@@ -1,3 +1,5 @@
+import { isDesktopHostAvailable } from "../desktop/host.js";
+
 export const DEFAULT_OCR_PROVIDER = "mineru";
 
 export const OCR_PROVIDER_DEFINITIONS = [
@@ -34,6 +36,15 @@ export const OCR_PROVIDER_DEFINITIONS = [
     supportsValidation: true,
   },
 ];
+
+// 桌面包已剔除 Paddle OCR（仅 dev 环境可用）；桌面端隐藏 paddle 选项，
+// 已存 paddle 配置在 normalizeOcrProvider 归一化时回退到 mineru。
+export function getAvailableOcrProviders() {
+  if (isDesktopHostAvailable()) {
+    return OCR_PROVIDER_DEFINITIONS.filter((item) => item.id !== "paddle");
+  }
+  return OCR_PROVIDER_DEFINITIONS;
+}
 
 export const DEFAULT_TRANSLATION_PROVIDER = "deepseek";
 
@@ -76,11 +87,13 @@ export const TRANSLATION_PROVIDER_DEFINITION = TRANSLATION_PROVIDER_DEFINITIONS[
 
 export function normalizeOcrProvider(value) {
   const provider = `${value || ""}`.trim().toLowerCase();
-  return OCR_PROVIDER_DEFINITIONS.some((item) => item.id === provider) ? provider : DEFAULT_OCR_PROVIDER;
+  const available = getAvailableOcrProviders();
+  return available.some((item) => item.id === provider) ? provider : DEFAULT_OCR_PROVIDER;
 }
 
 export function getOcrProviderDefinition(provider) {
-  return OCR_PROVIDER_DEFINITIONS.find((item) => item.id === normalizeOcrProvider(provider)) || OCR_PROVIDER_DEFINITIONS[0];
+  const available = getAvailableOcrProviders();
+  return available.find((item) => item.id === normalizeOcrProvider(provider)) || available[0];
 }
 
 export function normalizeTranslationProvider(value) {

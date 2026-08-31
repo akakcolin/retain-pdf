@@ -17,6 +17,7 @@ use crate::AppState;
 use super::bundle::create_translation_bundle_job;
 use super::context::{JobSubmitDeps, SnapshotBuildDeps, UploadStoreDeps};
 use super::job_builders::{build_ocr_job_snapshot, build_translation_job_snapshot};
+use super::prepare::prepare_ocr_input;
 use super::submit::create_translation_job;
 use super::upload::{store_pdf_upload, UploadedPdfInput};
 
@@ -607,4 +608,48 @@ fn build_ocr_job_snapshot_supports_source_url_without_upload() {
         job.request_payload.source.source_url,
         "https://example.com/input.pdf"
     );
+}
+
+#[test]
+fn build_translation_job_snapshot_routes_ocr_workflow_to_ocr_builder() {
+    let state = test_state("ocr-via-jobs-endpoint");
+    let upload = seed_upload(&state, "upload-ocr-via-jobs");
+    let mut input = base_translation_input(WorkflowKind::Ocr);
+    input.source.upload_id = upload.upload_id.clone();
+
+    let job = build_translation_job_snapshot(&snapshot_context(&state), &input)
+        .expect("build ocr snapshot via jobs endpoint");
+
+    assert_eq!(job.workflow, WorkflowKind::Ocr);
+    assert_eq!(job.command, vec!["ocr-workflow-pending-provider"]);
+}
+
+#[test]
+fn prepare_ocr_input_resolves_upload_id_without_file_or_source_url() {
+    let state = test_state("ocr-upload-id-only");
+    let upload = seed_upload(&state, "upload-ocr-only");
+    let mut input = base_translation_input(WorkflowKind::Ocr);
+    input.source.upload_id = upload.upload_id.clone();
+
+    let prepared = prepare_ocr_input(&snapshot_context(&state), &input, None)
+        .expect("upload_id-only ocr input should resolve");
+
+    assert_eq!(prepared.spec.workflow, WorkflowKind::Ocr);
+    assert_eq!(prepared.spec.source.upload_id, upload.upload_id);
+}
+
+#[test]
+fn prepare_ocr_input_rejects_without_file_upload_id_or_source_url() {
+    let state = test_state("ocr-no-source");
+    let input = base_translation_input(WorkflowKind::Ocr);
+
+    let err = prepare_ocr_input(&snapshot_context(&state), &input, None)
+        .expect_err("missing source should fail");
+    match err {
+        AppError::BadRequest(message) => assert_eq!(
+            message,
+            "either file, upload_id, or source_url is required"
+        ),
+        other => panic!("unexpected error: {other:?}"),
+    }
 }

@@ -205,7 +205,7 @@ export function HeroUpload() {
         className={`upload-ready-hint${upload.ready ? "" : " hidden"}`}
         aria-live="polite"
       >
-        文件已就绪：可<strong>直接翻译</strong>，或<strong>仅收藏</strong>到书架稍后再翻。
+        文件已就绪：可<strong>直接翻译</strong>、<strong>仅 OCR</strong>识别入库，或<strong>仅收藏</strong>到书架稍后再翻。
       </div>
 
       <div id="upload-action-slot" className={`upload-action-slot${upload.actionSlotVisible ? "" : " hidden"}`}>
@@ -229,6 +229,19 @@ export function HeroUpload() {
             onClick={() => services.library.actions.storeOnly?.()}
           >
             仅收藏
+          </button>
+          <button
+            id="ocr-only-btn"
+            type="button"
+            className={`secondary${upload.ready ? "" : " hidden"}`}
+            disabled={!upload.ready || workflow.submitBusy}
+            title="只做 OCR 识别并入库，不翻译"
+            onClick={() => {
+              services.features.workflowFeature?.setWorkflowMode?.("ocr");
+              (document.getElementById("job-form") as HTMLFormElement | null)?.requestSubmit?.();
+            }}
+          >
+            仅 OCR
           </button>
           <button
             id="submit-btn"

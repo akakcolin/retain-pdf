@@ -32,6 +32,7 @@ const constants = {
   WORKFLOW_BOOK: "book",
   WORKFLOW_TRANSLATE: "translate",
   WORKFLOW_RENDER: "render",
+  WORKFLOW_OCR: "ocr",
   DEFAULT_WORKERS: 4,
   DEFAULT_BATCH_SIZE: 12,
   DEFAULT_CLASSIFY_BATCH_SIZE: 8,
@@ -232,6 +233,88 @@ test("collectRunPayload builds render-only payload from artifact source", () => 
   assert.equal(payload.ocr, undefined);
   assert.equal(payload.translation, undefined);
   assert.equal(payload.render.compile_workers, 7);
+});
+
+test("collectRunPayload builds ocr-only payload without translation or render", () => {
+  const feature = mountWorkflowHarness({
+    developerConfig: developerConfig({
+      workflow: "ocr",
+      timeoutSeconds: 1800,
+    }),
+  });
+
+  const payload = feature.collectRunPayload();
+
+  assert.equal(payload.workflow, "ocr");
+  assert.deepEqual(payload.source, { upload_id: "upload-1" });
+  assert.equal(payload.runtime.timeout_seconds, 1800);
+  assert.equal(payload.ocr.provider, "paddle");
+  assert.equal(payload.ocr.paddle_token, "ocr-token");
+  assert.equal(payload.ocr.page_ranges, "2-4");
+  assert.equal(payload.translation, undefined);
+  assert.equal(payload.render, undefined);
+});
+
+test("setWorkflowMode switches workflow in memory without persisting", () => {
+  let savedConfig = developerConfig({ workflow: "book" });
+  const saved = [];
+  const feature = mountWorkflowHarness({
+    developerConfig: savedConfig,
+    submitValues: null,
+  });
+  const injected = mountWorkflowFeature({
+    configPort: createWorkflowConfigPort({
+      isMock: () => false,
+      search: () => "",
+    }),
+    saveDeveloperStoredConfig: async (config) => {
+      saved.push(config);
+    },
+    getDeepSeekBalanceState: () => ({ balanceCny: 100, balanceChecked: true }),
+    getDeveloperConfig: () => savedConfig,
+    getUploadState: () => ({ uploadId: "upload-1", uploadedPageCount: 12 }),
+    isDesktopMode: () => false,
+    resetDeveloperConfig: () => {},
+    setDeveloperConfig: (next) => {
+      savedConfig = next;
+    },
+    defaultModelName: () => "deepseek-chat",
+    defaultModelBaseUrl: () => "https://api.deepseek.com",
+    defaultPaddleApiUrl: () => "https://paddle.example/v1",
+    defaultPaddleToken: () => "paddle-default",
+    defaultOcrProvider: () => "paddle",
+    defaultModelApiKey: () => "model-default",
+    defaultFileLabel: "选择 PDF",
+    normalizeWorkflow: (value) => value || "book",
+    normalizeMathMode: (value) => value || "direct_typst",
+    constants,
+    currentPageRanges: () => "1-3",
+    renderPageRangeSummary: () => {},
+    hasBrowserCredentials: () => true,
+    updateCredentialGate: () => {},
+    fetchGlossaries: async () => ({ items: [] }),
+    apiPrefix: "/api",
+    setText: () => {},
+    viewPort: {
+      applyMockUpload: () => {},
+      applyWorkflowUpload: () => {},
+      closeDeveloperDialog: () => {},
+      readDeveloperDialog: () => ({}),
+      readDeveloperWorkflow: () => "book",
+      readSubmitValues: () => ({}),
+      renderBudgetNote: () => {},
+      setDeveloperDialog: () => {},
+      setDeveloperGlossaryOptions: () => {},
+      setDeveloperWorkflowFormState: () => {},
+      setSubmitControls: () => {},
+    },
+  });
+
+  injected.setWorkflowMode("ocr");
+
+  assert.equal(injected.currentWorkflow(), "ocr");
+  assert.equal(savedConfig.workflow, "ocr");
+  assert.equal(saved.length, 0);
 });
 
 test("workflow controller routes UI side effects through view port", async () => {
