@@ -170,14 +170,14 @@ docker compose ps
 
 - [后端脚本说明](backend/scripts/README.md)
 - `frontend/`：当前生产使用的前端，也是桌面端 bundle 的输入目录；index/reader/detail 三页均已迁移为 React SPA（`src/pages/` 是新世界入口，esbuild 打包，`src/js/` 保留纯逻辑核心）。
-- `desktop/`：Electron 桌面端打包与运行壳。
+- `desktop/`：Tauri 桌面端打包与运行壳。
 
 ### 当前目录结构
 
 - `frontend/`
   当前生产使用的前端，三页 React SPA（esbuild 打包），源码见 `frontend/src/pages/`。
 - `desktop/`
-  Electron 桌面端打包、运行壳和桌面端前端 bundle。
+  Tauri 桌面端打包、运行壳和桌面端前端 bundle。
 - `backend/`
   Rust API、Python 脚本、嵌入式 Python、历史工作区。
 - `docker/`

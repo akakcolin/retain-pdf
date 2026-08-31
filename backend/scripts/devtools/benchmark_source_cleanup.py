@@ -29,7 +29,7 @@ from services.rendering.source.prewarm_manifest import int_list
 from services.rendering.source.prewarm_manifest import rect_tuple_from_value
 from services.rendering.source.prewarm_manifest_io import bbox_candidates_from_manifest
 from services.rendering.source.prewarm import RenderPrewarmSpec
-from services.rendering.source.prewarm import start_render_source_prewarm
+from services.rendering.source.prewarm import run_render_source_prewarm
 from services.rendering.source.prewarm_payload import build_payload_prewarm
 
 
@@ -82,7 +82,7 @@ def main() -> None:
         if args.full_prewarm:
             if translated_pages is None:
                 raise SystemExit("--full-prewarm requires --translations-dir or --translated-pages-json.")
-            handle = start_render_source_prewarm(
+            manifest_path = run_render_source_prewarm(
                 RenderPrewarmSpec(
                     source_pdf_path=source_pdf,
                     output_pdf_path=output_pdf,
@@ -95,7 +95,6 @@ def main() -> None:
                     source_cleanup_strategy="pikepdf_text_strip",
                 )
             )
-            manifest_path = handle.wait()
             print(
                 json.dumps(
                     {

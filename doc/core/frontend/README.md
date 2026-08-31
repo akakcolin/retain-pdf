@@ -15,4 +15,4 @@
 桌面端同步：
 
 - 修改 `frontend/src/**` 后，运行 `npm --prefix desktop run sync-frontend`，它会重新构建网页前端并同步到 `desktop/app/frontend`。
-- 提交前运行 `npm --prefix desktop run verify-frontend-sync`，它会先同步桌面前端，再跑桌面前端 smoke，避免 Electron 打包继续使用旧页面。
+- 提交前运行 `npm --prefix desktop run verify-frontend-sync`，它会先同步桌面前端，再跑桌面前端 smoke，避免 Tauri 打包继续使用旧页面。

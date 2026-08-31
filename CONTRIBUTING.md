@@ -4,7 +4,7 @@
 
 ## 贡献方向
 
-- 前端与桌面端：任务状态、对照阅读、术语表 UI、下载体验和 Electron bundle 同步。
+- 前端与桌面端：任务状态、对照阅读、术语表 UI、下载体验和桌面端 bundle 同步。
 - Rust API：任务管理、图书馆接口、产物下载、事件流、reader、断点恢复和权限边界。
 - 数据库与持久化：job/artifact/event/glossary 记录、schema 兼容、旧数据恢复和存储路径。
 - Python 流水线：OCR 归一化、翻译一致性、公式保护、渲染、PDF 处理和失败诊断。

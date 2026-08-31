@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from concurrent.futures import Future
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -37,20 +35,6 @@ class RenderPrewarmSpec:
 
 
 @dataclass(frozen=True)
-class RenderPrewarmHandle:
-    manifest_path: Path
-    future: Future[Path | None] | None = None
-    executor: ThreadPoolExecutor | None = None
-
-    def wait(self) -> Path | None:
-        try:
-            return self.future.result() if self.future is not None else self.manifest_path
-        finally:
-            if self.executor is not None:
-                self.executor.shutdown(wait=True, cancel_futures=False)
-
-
-@dataclass(frozen=True)
 class RenderPayloadPrewarm:
     first_line_indent_lookup: dict[str, float]
     effective_inner_bbox_lookup: dict[str, list[float]]
@@ -83,7 +67,6 @@ __all__ = [
     "PAYLOAD_RENDER_ALGORITHM_VERSION",
     "RENDER_PREWARM_SCHEMA",
     "RenderPayloadPrewarm",
-    "RenderPrewarmHandle",
     "RenderPrewarmSpec",
     "prewarm_manifest_path_from_artifacts_dir",
     "prewarm_manifest_path_from_translations_dir",

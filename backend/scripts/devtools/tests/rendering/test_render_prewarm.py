@@ -25,7 +25,7 @@ from services.rendering.source.prewarm import RenderPrewarmSpec
 from services.rendering.source.prewarm import PAYLOAD_RENDER_ALGORITHM_VERSION
 from services.rendering.source.prewarm import build_render_prewarm_fingerprint
 from services.rendering.source.prewarm import prewarm_manifest_path_from_artifacts_dir
-from services.rendering.source.prewarm import start_render_source_prewarm
+from services.rendering.source.prewarm import run_render_source_prewarm
 from services.rendering.source.prewarm import try_load_render_payload_prewarm
 from services.rendering.source.prewarm import try_load_prewarmed_render_source_pdf
 from services.rendering.source.prewarm import _pages_for_prewarm_mode_probe
@@ -187,7 +187,7 @@ def test_render_source_prewarm_manifest_is_reused_without_temp_cleanup() -> None
         translations_dir.mkdir()
         _source_pdf(source_pdf)
 
-        handle = start_render_source_prewarm(
+        manifest_path = run_render_source_prewarm(
             RenderPrewarmSpec(
                 source_pdf_path=source_pdf,
                 output_pdf_path=output_pdf,
@@ -201,7 +201,6 @@ def test_render_source_prewarm_manifest_is_reused_without_temp_cleanup() -> None
                 document_analysis=source_document_analysis(source_pdf),
             )
         )
-        manifest_path = handle.wait()
         assert manifest_path == prewarm_manifest_path_from_artifacts_dir(artifacts_dir)
         assert manifest_path.exists()
 
@@ -260,7 +259,7 @@ def test_render_source_prewarm_accepts_absolute_page_keys_for_partial_ranges() -
             6: [dict(base_item, item_id="p007-b001")],
         }
 
-        handle = start_render_source_prewarm(
+        manifest_path = run_render_source_prewarm(
             RenderPrewarmSpec(
                 source_pdf_path=source_pdf,
                 output_pdf_path=output_pdf,
@@ -274,8 +273,6 @@ def test_render_source_prewarm_accepts_absolute_page_keys_for_partial_ranges() -
                 document_analysis=source_document_analysis(source_pdf),
             )
         )
-
-        manifest_path = handle.wait()
         assert manifest_path == prewarm_manifest_path_from_artifacts_dir(artifacts_dir)
         assert manifest_path.exists()
 
@@ -660,7 +657,7 @@ def test_payload_prewarm_loads_visual_profile_path_from_manifest() -> None:
         output_pdf.parent.mkdir()
         _source_pdf(source_pdf)
 
-        handle = start_render_source_prewarm(
+        manifest_path = run_render_source_prewarm(
             RenderPrewarmSpec(
                 source_pdf_path=source_pdf,
                 output_pdf_path=output_pdf,
@@ -673,7 +670,6 @@ def test_payload_prewarm_loads_visual_profile_path_from_manifest() -> None:
                 source_cleanup_strategy=layout.SOURCE_CLEANUP_TYPST_FILL,
             )
         )
-        manifest_path = handle.wait()
 
         payload_prewarm = try_load_render_payload_prewarm(
             manifest_path=manifest_path,
@@ -713,7 +709,7 @@ def test_second_prewarm_reuses_existing_source_and_refreshes_payload() -> None:
         output_pdf.parent.mkdir()
         _source_pdf(source_pdf)
 
-        first_handle = start_render_source_prewarm(
+        manifest_path = run_render_source_prewarm(
             RenderPrewarmSpec(
                 source_pdf_path=source_pdf,
                 output_pdf_path=output_pdf,
@@ -727,13 +723,12 @@ def test_second_prewarm_reuses_existing_source_and_refreshes_payload() -> None:
                 document_analysis=source_document_analysis(source_pdf),
             )
         )
-        manifest_path = first_handle.wait()
 
         with mock.patch(
             "services.rendering.source.prewarm.build_render_source_pdf",
             side_effect=AssertionError("existing prewarmed source should be reused"),
         ):
-            second_handle = start_render_source_prewarm(
+            second_manifest = run_render_source_prewarm(
                 RenderPrewarmSpec(
                     source_pdf_path=source_pdf,
                     output_pdf_path=output_pdf,
@@ -746,7 +741,7 @@ def test_second_prewarm_reuses_existing_source_and_refreshes_payload() -> None:
                     source_cleanup_strategy="bbox_text_strip",
                 )
             )
-            assert second_handle.wait() == manifest_path
+            assert second_manifest == manifest_path
 
         payload_prewarm = try_load_render_payload_prewarm(
             manifest_path=manifest_path,
@@ -771,7 +766,7 @@ def test_payload_prewarm_manifest_exposes_bbox_candidates() -> None:
         output_pdf.parent.mkdir()
         _source_pdf(source_pdf)
 
-        handle = start_render_source_prewarm(
+        manifest_path = run_render_source_prewarm(
             RenderPrewarmSpec(
                 source_pdf_path=source_pdf,
                 output_pdf_path=output_pdf,
@@ -785,7 +780,6 @@ def test_payload_prewarm_manifest_exposes_bbox_candidates() -> None:
                 document_analysis=source_document_analysis(source_pdf),
             )
         )
-        manifest_path = handle.wait()
 
         payload_prewarm = try_load_render_payload_prewarm(
             manifest_path=manifest_path,
@@ -814,7 +808,7 @@ def test_payload_prewarm_pikepdf_text_strip_exposes_bbox_candidates() -> None:
         output_pdf.parent.mkdir()
         _source_pdf(source_pdf)
 
-        handle = start_render_source_prewarm(
+        manifest_path = run_render_source_prewarm(
             RenderPrewarmSpec(
                 source_pdf_path=source_pdf,
                 output_pdf_path=output_pdf,
@@ -827,7 +821,6 @@ def test_payload_prewarm_pikepdf_text_strip_exposes_bbox_candidates() -> None:
                 source_cleanup_strategy="pikepdf_text_strip",
             )
         )
-        manifest_path = handle.wait()
 
         payload_prewarm = try_load_render_payload_prewarm(
             manifest_path=manifest_path,
@@ -854,7 +847,7 @@ def test_render_source_prewarm_keeps_no_text_overlap_pages_as_precleaned() -> No
         output_pdf.parent.mkdir()
         _source_pdf(source_pdf)
 
-        handle = start_render_source_prewarm(
+        manifest_path = run_render_source_prewarm(
             RenderPrewarmSpec(
                 source_pdf_path=source_pdf,
                 output_pdf_path=output_pdf,
@@ -867,7 +860,6 @@ def test_render_source_prewarm_keeps_no_text_overlap_pages_as_precleaned() -> No
                 source_cleanup_strategy="bbox_text_strip",
             )
         )
-        manifest_path = handle.wait()
 
         prepared = try_load_prewarmed_render_source_pdf(
             manifest_path=manifest_path,
@@ -896,7 +888,7 @@ def test_pseudo_editable_scan_pages_keep_cover_fallback_without_physical_strip()
         output_pdf.parent.mkdir()
         _pseudo_editable_scan_pdf(source_pdf)
 
-        handle = start_render_source_prewarm(
+        manifest_path = run_render_source_prewarm(
             RenderPrewarmSpec(
                 source_pdf_path=source_pdf,
                 output_pdf_path=output_pdf,
@@ -909,7 +901,6 @@ def test_pseudo_editable_scan_pages_keep_cover_fallback_without_physical_strip()
                 source_cleanup_strategy="pikepdf_text_strip",
             )
         )
-        manifest_path = handle.wait()
 
         prepared = try_load_prewarmed_render_source_pdf(
             manifest_path=manifest_path,
@@ -938,7 +929,7 @@ def test_payload_prewarm_default_pikepdf_text_strip_exposes_bbox_candidates() ->
         output_pdf.parent.mkdir()
         _source_pdf(source_pdf)
 
-        handle = start_render_source_prewarm(
+        manifest_path = run_render_source_prewarm(
             RenderPrewarmSpec(
                 source_pdf_path=source_pdf,
                 output_pdf_path=output_pdf,
@@ -950,7 +941,6 @@ def test_payload_prewarm_default_pikepdf_text_strip_exposes_bbox_candidates() ->
                 pdf_compress_dpi=0,
             )
         )
-        manifest_path = handle.wait()
 
         payload_prewarm = try_load_render_payload_prewarm(
             manifest_path=manifest_path,
@@ -1093,7 +1083,7 @@ def test_payload_prewarm_exposes_background_render_page_specs() -> None:
         output_pdf.parent.mkdir()
         _source_pdf(source_pdf)
 
-        handle = start_render_source_prewarm(
+        manifest_path = run_render_source_prewarm(
             RenderPrewarmSpec(
                 source_pdf_path=source_pdf,
                 output_pdf_path=output_pdf,
@@ -1105,7 +1095,6 @@ def test_payload_prewarm_exposes_background_render_page_specs() -> None:
                 pdf_compress_dpi=0,
             )
         )
-        manifest_path = handle.wait()
 
         payload_prewarm = try_load_render_payload_prewarm(
             manifest_path=manifest_path,
@@ -1157,7 +1146,7 @@ def test_execute_typst_visual_uses_prewarmed_background_page_specs() -> None:
         translations_dir.mkdir()
         _source_pdf(source_pdf)
 
-        handle = start_render_source_prewarm(
+        manifest_path = run_render_source_prewarm(
             RenderPrewarmSpec(
                 source_pdf_path=source_pdf,
                 output_pdf_path=output_pdf,
@@ -1169,7 +1158,6 @@ def test_execute_typst_visual_uses_prewarmed_background_page_specs() -> None:
                 pdf_compress_dpi=0,
             )
         )
-        manifest_path = handle.wait()
         render_plan = RenderPlan(
             render_inputs=RenderInputs(
                 source_pdf_path=source_pdf,
@@ -1218,7 +1206,7 @@ def test_payload_prewarm_explicit_typst_fill_skips_bbox_candidates() -> None:
         output_pdf.parent.mkdir()
         _source_pdf(source_pdf)
 
-        handle = start_render_source_prewarm(
+        manifest_path = run_render_source_prewarm(
             RenderPrewarmSpec(
                 source_pdf_path=source_pdf,
                 output_pdf_path=output_pdf,
@@ -1231,7 +1219,6 @@ def test_payload_prewarm_explicit_typst_fill_skips_bbox_candidates() -> None:
                 source_cleanup_strategy="typst_fill",
             )
         )
-        manifest_path = handle.wait()
 
         payload_prewarm = try_load_render_payload_prewarm(
             manifest_path=manifest_path,
@@ -1257,7 +1244,7 @@ def test_payload_prewarm_manifest_exposes_geometry_adjustments() -> None:
         output_pdf.parent.mkdir()
         _source_pdf(source_pdf)
 
-        handle = start_render_source_prewarm(
+        manifest_path = run_render_source_prewarm(
             RenderPrewarmSpec(
                 source_pdf_path=source_pdf,
                 output_pdf_path=output_pdf,
@@ -1269,7 +1256,6 @@ def test_payload_prewarm_manifest_exposes_geometry_adjustments() -> None:
                 pdf_compress_dpi=0,
             )
         )
-        manifest_path = handle.wait()
 
         payload_prewarm = try_load_render_payload_prewarm(
             manifest_path=manifest_path,

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import time
 
@@ -14,7 +13,6 @@ from services.rendering.source.render_source import build_render_source_pdf
 from services.rendering.source.prewarm_manifest import write_json_atomic
 from services.rendering.source.prewarm_contracts import PAYLOAD_RENDER_ALGORITHM_VERSION
 from services.rendering.source.prewarm_contracts import RenderPayloadPrewarm
-from services.rendering.source.prewarm_contracts import RenderPrewarmHandle
 from services.rendering.source.prewarm_contracts import RenderPrewarmSpec
 from services.rendering.source.prewarm_contracts import prewarm_manifest_path_from_artifacts_dir
 from services.rendering.source.prewarm_contracts import prewarm_manifest_path_from_translations_dir
@@ -28,12 +26,13 @@ from services.rendering.source.prewarm_payload import ensure_pdf_structure_profi
 from services.rendering.source_cleanup.protected_blocks import protected_pages_from_document_path
 
 
-def start_render_source_prewarm(spec: RenderPrewarmSpec) -> RenderPrewarmHandle:
+def run_render_source_prewarm(spec: RenderPrewarmSpec) -> Path | None:
     manifest_path = prewarm_manifest_path_from_artifacts_dir(spec.artifacts_dir)
-    event_writer = get_active_pipeline_event_writer()
-    executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="render-prewarm")
-    future = executor.submit(_run_render_source_prewarm_with_events, spec, manifest_path, event_writer)
-    return RenderPrewarmHandle(manifest_path=manifest_path, future=future, executor=executor)
+    return _run_render_source_prewarm_with_events(
+        spec,
+        manifest_path,
+        get_active_pipeline_event_writer(),
+    )
 
 
 def _run_render_source_prewarm_with_events(spec: RenderPrewarmSpec, manifest_path: Path, event_writer) -> Path | None:
@@ -238,12 +237,11 @@ def _protected_pages_for_prewarm(artifacts_dir: Path) -> dict[int, list[dict]]:
 __all__ = [
     "PAYLOAD_RENDER_ALGORITHM_VERSION",
     "RenderPayloadPrewarm",
-    "RenderPrewarmHandle",
     "RenderPrewarmSpec",
     "build_render_prewarm_fingerprint",
     "prewarm_manifest_path_from_artifacts_dir",
     "prewarm_manifest_path_from_translations_dir",
-    "start_render_source_prewarm",
+    "run_render_source_prewarm",
     "try_load_prewarmed_render_source_pdf",
     "try_load_render_payload_prewarm",
 ]

@@ -3,7 +3,7 @@
 ## 目录边界
 
 - `frontend/`：当前生产使用的静态前端源码，也是桌面端 bundle 的输入。
-- `desktop/`：Electron 桌面端打包。
+- `desktop/`：Tauri 桌面端打包。
 - `desktop/app/frontend/**`：桌面端实际读取的前端 bundle，不应该作为主要编辑入口。
 
 ## 本地启动
