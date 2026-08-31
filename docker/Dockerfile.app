@@ -7,6 +7,9 @@ ARG MITEX_VERSION=0.2.6
 WORKDIR /build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    clang \
+    libclang-dev \
     pkg-config \
     libssl-dev \
     ca-certificates \
@@ -17,6 +20,24 @@ COPY backend/rust_api/src ./backend/rust_api/src
 
 WORKDIR /build/backend/rust_api
 RUN cargo build --release
+
+# render_rs orchestrator and its path-dependency crates (rendering_core/reader/
+# writer/output). Each crate is standalone; copy sources + lockfiles so the
+# release bin builds reproducibly. rendering_writer/c/ is compiled by build.rs.
+COPY backend/rendering_core/Cargo.toml backend/rendering_core/Cargo.lock ./backend/rendering_core/
+COPY backend/rendering_core/src ./backend/rendering_core/src
+COPY backend/rendering_reader/Cargo.toml backend/rendering_reader/Cargo.lock ./backend/rendering_reader/
+COPY backend/rendering_reader/src ./backend/rendering_reader/src
+COPY backend/rendering_writer/Cargo.toml backend/rendering_writer/Cargo.lock ./backend/rendering_writer/
+COPY backend/rendering_writer/src ./backend/rendering_writer/src
+COPY backend/rendering_writer/c ./backend/rendering_writer/c
+COPY backend/rendering_output/Cargo.toml backend/rendering_output/Cargo.lock ./backend/rendering_output/
+COPY backend/rendering_output/src ./backend/rendering_output/src
+COPY backend/rendering_orchestrator/Cargo.toml backend/rendering_orchestrator/Cargo.lock ./backend/rendering_orchestrator/
+COPY backend/rendering_orchestrator/src ./backend/rendering_orchestrator/src
+
+WORKDIR /build/backend/rendering_orchestrator
+RUN cargo build --release --bin render_rs
 
 FROM python:3.11-slim-bookworm AS typstsrc
 
@@ -103,6 +124,7 @@ COPY docker/requirements-app.txt /tmp/requirements-app.txt
 RUN pip install --no-cache-dir -r /tmp/requirements-app.txt
 
 COPY --from=builder /build/backend/rust_api/target/release/rust_api /usr/local/bin/rust_api
+COPY --from=builder /build/backend/rendering_orchestrator/target/release/render_rs /usr/local/bin/render_rs
 COPY backend/scripts /app/backend/scripts
 COPY backend/rust_api/auth.local.example.json /app/backend/rust_api/auth.local.example.json
 COPY docker/entrypoint-app.sh /entrypoint.sh
