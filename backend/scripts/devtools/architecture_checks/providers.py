@@ -39,11 +39,11 @@ OCR_PROVIDER_STABLE_ENTRYPOINT = SCRIPTS_ROOT / "services" / "ocr_provider" / "p
 OCR_PROVIDER_PACKAGE_INIT = SCRIPTS_ROOT / "services" / "ocr_provider" / "__init__.py"
 OCR_PROVIDER_DRIVER_REGISTRY = SCRIPTS_ROOT / "services" / "ocr_provider" / "drivers.py"
 MINERU_PROVIDER_FLOW_IMPORT = "from services.mineru.job_flow import run_mineru_to_job_dir"
+# build_paddle_lines/tighten_paddle_text_bbox 已随桌面包剔除 Paddle 而内聚到
+# paddle_normalize.py（包内排除），不再要求 provider_pipeline 保留兼容别名。
 OCR_PROVIDER_COMPAT_SYMBOLS = (
     "adapt_path_to_document_v1_with_report",
     "validate_saved_document_path",
-    "build_paddle_lines",
-    "tighten_paddle_text_bbox",
     "save_normalized_document_for_paddle",
 )
 DOCUMENT_SCHEMA_ADAPTERS_ENTRY = SCRIPTS_ROOT / "services" / "document_schema" / "adapters.py"

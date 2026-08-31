@@ -18,6 +18,7 @@ from foundation.shared.tee_output import enable_job_log_capture
 from services.document_schema import adapt_path_to_document_v1_with_report
 from services.document_schema import DOCUMENT_SCHEMA_REPORT_FILE_NAME
 from services.document_schema import validate_saved_document_path
+from services.document_schema.markdown_serializer import serialize_document_to_markdown
 from services.document_schema.reporting import build_normalization_summary
 from services.network.retry import RetainNetworkError
 from services.network.retry import direct_session
@@ -279,6 +280,11 @@ def _finish_ocr_only_provider_job(
             ),
         },
     )
+    # markdown 交付物:provider 原生(如 paddle/mineru)已写 md/full.md 则不动;
+    # 本地 command provider 缺失时从 normalized JSON 兜底生成。
+    md_full_path = job_dirs.root / "md" / "full.md"
+    if not md_full_path.exists():
+        serialize_document_to_markdown(normalized_json_path, md_full_path)
     emit_artifact_published(
         artifact_key="source_pdf",
         path=source_pdf_path,
@@ -308,6 +314,12 @@ def _finish_ocr_only_provider_job(
         path=summary_path,
         stage="saving",
         message="已写出 OCR provider summary",
+    )
+    emit_artifact_published(
+        artifact_key="markdown",
+        path=md_full_path,
+        stage="saving",
+        message="已写出 markdown 产物",
     )
     emit_artifact_published(
         artifact_key="pipeline_events_jsonl",
