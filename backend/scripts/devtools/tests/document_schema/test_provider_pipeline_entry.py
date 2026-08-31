@@ -11,6 +11,9 @@ sys.path.insert(0, str(REPO_SCRIPTS_ROOT))
 
 from foundation.shared.job_dirs import ensure_job_dirs
 from foundation.shared.job_dirs import resolve_job_dirs
+from runtime.pipeline import book_pipeline
+from services.document_schema.provider_adapters.paddle import content_extract
+from services.ocr_provider import paddle_api
 from services.ocr_provider import provider_pipeline
 
 
@@ -240,8 +243,8 @@ def test_provider_pipeline_dispatches_to_paddle_and_writes_standard_artifacts(
             encoding="utf-8",
         )
 
-    monkeypatch.setattr(provider_pipeline, "get_paddle_token", lambda **_: "paddle-token")
-    monkeypatch.setattr(provider_pipeline, "submit_local_paddle_file", lambda **_: ("job-1", "trace-1"))
+    monkeypatch.setattr(paddle_api, "get_paddle_token", lambda **_: "paddle-token")
+    monkeypatch.setattr(paddle_api, "submit_local_file", lambda **_: ("job-1", "trace-1"))
     def _fake_poll_paddle_until_done(**kwargs: object) -> tuple[dict, str]:
         progress_callback = kwargs.get("progress_callback")
         if callable(progress_callback):
@@ -249,9 +252,9 @@ def test_provider_pipeline_dispatches_to_paddle_and_writes_standard_artifacts(
             progress_callback("done", {"logId": "poll-trace-2"})
         return {}, "https://example.test/result.jsonl"
 
-    monkeypatch.setattr(provider_pipeline, "poll_paddle_until_done", _fake_poll_paddle_until_done)
+    monkeypatch.setattr(paddle_api, "poll_until_done", _fake_poll_paddle_until_done)
     monkeypatch.setattr(
-        provider_pipeline,
+        paddle_api,
         "download_jsonl_result",
         lambda **_: {
             "layoutParsingResults": [
@@ -285,9 +288,9 @@ def test_provider_pipeline_dispatches_to_paddle_and_writes_standard_artifacts(
             "block_count": 1,
         },
     )
-    monkeypatch.setattr(provider_pipeline, "build_paddle_lines", lambda **_: [])
-    monkeypatch.setattr(provider_pipeline, "tighten_paddle_text_bbox", lambda **kwargs: kwargs["bbox"])
-    monkeypatch.setattr(provider_pipeline, "run_book_pipeline", _fake_run_book_pipeline)
+    monkeypatch.setattr(content_extract, "build_lines", lambda **_: [])
+    monkeypatch.setattr(content_extract, "tighten_text_bbox", lambda **kwargs: kwargs["bbox"])
+    monkeypatch.setattr(book_pipeline, "run_book_pipeline", _fake_run_book_pipeline)
     monkeypatch.setattr(provider_pipeline, "write_pipeline_summary", _fake_write_pipeline_summary)
     monkeypatch.setattr(provider_pipeline, "print_pipeline_summary", lambda **_: None)
     monkeypatch.setattr(provider_pipeline, "enable_job_log_capture", lambda *_args, **_kwargs: None)
@@ -511,7 +514,7 @@ target.write_text(json.dumps({
 
     importlib.reload(provider_config)
     importlib.reload(drivers)
-    monkeypatch.setattr(provider_pipeline, "run_book_pipeline", _fake_run_book_pipeline)
+    monkeypatch.setattr(book_pipeline, "run_book_pipeline", _fake_run_book_pipeline)
     monkeypatch.setattr(provider_pipeline, "write_pipeline_summary", _fake_write_pipeline_summary)
     monkeypatch.setattr(provider_pipeline, "print_pipeline_summary", lambda **_: None)
     monkeypatch.setattr(provider_pipeline, "enable_job_log_capture", lambda *_args, **_kwargs: None)
@@ -596,7 +599,7 @@ target.write_text(json.dumps({
     def _unexpected_run_book_pipeline(**_: object) -> dict:
         raise AssertionError("ocr workflow must not run translation/render pipeline")
 
-    monkeypatch.setattr(provider_pipeline, "run_book_pipeline", _unexpected_run_book_pipeline)
+    monkeypatch.setattr(book_pipeline, "run_book_pipeline", _unexpected_run_book_pipeline)
     monkeypatch.setattr(provider_pipeline, "enable_job_log_capture", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sys, "argv", ["run_provider_ocr.py", "--spec", str(spec_path)])
 
@@ -734,7 +737,7 @@ target.write_text(json.dumps({
 
     importlib.reload(provider_config)
     importlib.reload(drivers)
-    monkeypatch.setattr(provider_pipeline, "run_book_pipeline", _unexpected_run_book_pipeline)
+    monkeypatch.setattr(book_pipeline, "run_book_pipeline", _unexpected_run_book_pipeline)
     monkeypatch.setattr(provider_pipeline, "enable_job_log_capture", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sys, "argv", ["run_provider_ocr.py", "--spec", str(spec_path)])
 

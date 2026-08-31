@@ -270,17 +270,6 @@ mod tests {
             payload["params"]["credential_ref"],
             format!("env:{TRANSLATION_API_KEY_ENV_NAME}")
         );
-        assert_eq!(payload["params"]["render_prewarm_mode"], "typst");
-        assert_eq!(
-            payload["params"]["render_prewarm_output_pdf_path"]
-                .as_str()
-                .expect("render prewarm output path"),
-            job_paths.rendered_dir.join("out.pdf").to_string_lossy()
-        );
-        assert_eq!(
-            payload["params"]["render_prewarm_source_cleanup_strategy"],
-            "pikepdf_text_strip"
-        );
         assert!(!spec_json.contains("sk-test"));
     }
 

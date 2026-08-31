@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from foundation.config import fonts
@@ -10,16 +9,6 @@ from runtime.pipeline.render_execution import execute_render_plan
 from services.pipeline_shared.events import emit_stage_progress
 from services.pipeline_shared.events import emit_stage_transition
 from services.pipeline_shared.events import reset_render_page_progress
-from services.rendering.source.prewarm import prewarm_manifest_path_from_translations_dir
-
-
-def render_no_cache_enabled() -> bool:
-    return str(os.environ.get("RETAINPDF_RENDER_NO_CACHE") or "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
 
 
 def build_book_from_translations(
@@ -39,7 +28,6 @@ def build_book_from_translations(
     typst_font_family: str = fonts.TYPST_DEFAULT_FONT_FAMILY,
     pdf_compress_dpi: int = runtime.DEFAULT_PDF_COMPRESS_DPI,
     source_cleanup_strategy: str | None = None,
-    render_prewarm_manifest_path: Path | None = None,
 ) -> int:
     render_plan = build_render_plan(
         source_pdf_path=source_pdf_path,
@@ -49,13 +37,6 @@ def build_book_from_translations(
         start_page=start_page,
         end_page=end_page,
         render_mode=render_mode,
-    )
-    prewarm_manifest_path = (
-        None
-        if render_no_cache_enabled()
-        else render_prewarm_manifest_path or prewarm_manifest_path_from_translations_dir(
-            render_plan.render_inputs.translations_dir
-        )
     )
     pages_rendered = execute_render_plan(
         render_plan=render_plan,
@@ -70,7 +51,6 @@ def build_book_from_translations(
         typst_font_family=typst_font_family,
         pdf_compress_dpi=pdf_compress_dpi,
         source_cleanup_strategy=source_cleanup_strategy,
-        render_prewarm_manifest_path=prewarm_manifest_path,
     )
     build_book_from_translations.last_render_diagnostics = dict(
         getattr(execute_render_plan, "last_render_diagnostics", {}) or {}
@@ -95,7 +75,6 @@ def build_book_pipeline(
     typst_font_family: str = fonts.TYPST_DEFAULT_FONT_FAMILY,
     pdf_compress_dpi: int = runtime.DEFAULT_PDF_COMPRESS_DPI,
     source_cleanup_strategy: str | None = None,
-    render_prewarm_manifest_path: Path | None = None,
 ) -> dict:
     pages_rendered = build_book_from_translations(
         source_pdf_path=source_pdf_path,
@@ -113,7 +92,6 @@ def build_book_pipeline(
         typst_font_family=typst_font_family,
         pdf_compress_dpi=pdf_compress_dpi,
         source_cleanup_strategy=source_cleanup_strategy,
-        render_prewarm_manifest_path=render_prewarm_manifest_path,
     )
     return {
         "output_pdf_path": output_pdf_path,
@@ -141,7 +119,6 @@ def run_render_stage(
     typst_font_family: str = fonts.TYPST_DEFAULT_FONT_FAMILY,
     pdf_compress_dpi: int = runtime.DEFAULT_PDF_COMPRESS_DPI,
     source_cleanup_strategy: str | None = None,
-    render_prewarm_manifest_path: Path | None = None,
 ) -> dict:
     render_plan = build_render_plan(
         source_pdf_path=source_pdf_path,
@@ -161,13 +138,6 @@ def run_render_stage(
         progress_total=render_plan.render_total,
         payload={"effective_render_mode": render_plan.effective_render_mode},
     )
-    prewarm_manifest_path = (
-        None
-        if render_no_cache_enabled()
-        else render_prewarm_manifest_path or prewarm_manifest_path_from_translations_dir(
-            render_plan.render_inputs.translations_dir
-        )
-    )
     pages_rendered = execute_render_plan(
         render_plan=render_plan,
         output_pdf_path=output_pdf_path,
@@ -181,7 +151,6 @@ def run_render_stage(
         typst_font_family=typst_font_family,
         pdf_compress_dpi=pdf_compress_dpi,
         source_cleanup_strategy=source_cleanup_strategy,
-        render_prewarm_manifest_path=prewarm_manifest_path,
     )
     emit_stage_progress(
         stage="rendering",

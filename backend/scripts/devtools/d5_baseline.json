@@ -2,8 +2,8 @@
   "desktop": {
     "max_bytes": 209715200,
     "note": "max=200 MiB 兜底 python/typst 运行时回潮（pythonBundled=false 下回潮即 +100MiB+）",
-    "observed_bytes": 92784419,
-    "observed_source": "本地 buildSizesBytes 语义组件求和（4.1.10 darwin：bin 23.8MiB + fonts 51.6MiB + scripts 5.9MiB + frontend 8.2MiB + ai_service 0.1MiB）",
+    "observed_bytes": 199086356,
+    "observed_source": "bundle-manifest sizesBytes.total=199086356",
     "source": "bundle-manifest.json:sizesBytes.total"
   },
   "native_hit_ratio": {

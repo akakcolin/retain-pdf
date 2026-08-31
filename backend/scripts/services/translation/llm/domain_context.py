@@ -7,8 +7,6 @@ import signal
 import threading
 import time
 
-import fitz
-
 from foundation.shared.prompt_loader import load_prompt
 
 from services.pipeline_shared.events import emit_stage_progress
@@ -72,6 +70,8 @@ def _domain_context_total_timeout() -> int:
 
 
 def extract_pdf_preview_text(source_pdf_path: Path, max_pages: int = 2) -> str:
+    import fitz  # deferred: desktop bundles no pymupdf; callers degrade on ImportError
+
     doc = fitz.open(source_pdf_path)
     try:
         parts: list[str] = []

@@ -6,7 +6,7 @@ use crate::models::api::{
     LibraryBatchDeleteInput, LibraryBatchDeleteResultView, LibraryBookDetailView,
     LibraryBookListView, LibraryDeleteResultView, ListJobsQuery,
 };
-use crate::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
+use crate::models::domain::{JobSnapshot, JobStatusKind};
 use crate::services::book_projection::{
     build_library_book_detail_view, build_library_book_list_view,
 };
@@ -107,13 +107,8 @@ pub fn delete_library_books(
 }
 
 fn load_library_job(db: &Db, job_id: &str) -> Result<JobSnapshot, AppError> {
-    let job = db
-        .get_job(job_id)
-        .map_err(|_| AppError::not_found(format!("book not found: {job_id}")))?;
-    if job.workflow == WorkflowKind::Ocr {
-        return Err(AppError::not_found(format!("book not found: {job_id}")));
-    }
-    Ok(job)
+    db.get_job(job_id)
+        .map_err(|_| AppError::not_found(format!("book not found: {job_id}")))
 }
 
 pub(super) fn ensure_deletable(job: &JobSnapshot, force: bool) -> Result<(), AppError> {

@@ -151,9 +151,6 @@ fn update_document_after_job(deps: &ProcessRuntimeDeps, job: &JobRuntimeState) {
     if job.status != JobStatusKind::Succeeded {
         return;
     }
-    if matches!(job.workflow, WorkflowKind::Ocr) {
-        return;
-    }
     if let Err(error) = deps.db.set_document_active_job(&document_id, &job.job_id, None) {
         error!("library: set active job for {document_id} failed: {error}");
     }

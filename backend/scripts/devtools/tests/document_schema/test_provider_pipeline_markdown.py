@@ -5,7 +5,7 @@ from pathlib import Path
 REPO_SCRIPTS_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_SCRIPTS_ROOT))
 
-from services.ocr_provider import provider_pipeline
+from services.ocr_provider.paddle_markdown import materialize_paddle_markdown_artifacts
 
 
 PNG_1X1_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD3sAAAAASUVORK5CYII="
@@ -30,7 +30,7 @@ def test_materialize_paddle_markdown_artifacts_publishes_markdown_under_md(tmp_p
         ]
     }
 
-    full_md_path = provider_pipeline.materialize_paddle_markdown_artifacts(
+    full_md_path = materialize_paddle_markdown_artifacts(
         payload=payload,
         job_root=job_root,
     )
@@ -66,7 +66,7 @@ def test_materialize_paddle_markdown_artifacts_rewrites_page_prefixed_image_src(
         ]
     }
 
-    full_md_path = provider_pipeline.materialize_paddle_markdown_artifacts(
+    full_md_path = materialize_paddle_markdown_artifacts(
         payload=payload,
         job_root=job_root,
     )
@@ -90,7 +90,7 @@ def test_materialize_paddle_markdown_artifacts_rewrites_page_prefixed_src_with_u
         ]
     }
 
-    full_md_path = provider_pipeline.materialize_paddle_markdown_artifacts(
+    full_md_path = materialize_paddle_markdown_artifacts(
         payload=payload,
         job_root=job_root,
     )

@@ -92,15 +92,22 @@ pub(super) fn prepare_ocr_input(
     upload: Option<&UploadRecord>,
 ) -> Result<PreparedOcrInput, AppError> {
     validate_ocr_provider_request(input)?;
-    if upload.is_none() && input.source.source_url.trim().is_empty() {
+    let resolved_upload = match upload {
+        Some(upload) => Some(upload.clone()),
+        None if !input.source.upload_id.trim().is_empty() => {
+            Some(load_upload_or_404(ctx.db, &input.source.upload_id)?)
+        }
+        None => None,
+    };
+    if resolved_upload.is_none() && input.source.source_url.trim().is_empty() {
         return Err(AppError::bad_request(
-            "either file or source_url is required",
+            "either file, upload_id, or source_url is required",
         ));
     }
 
     let mut resolved = ResolvedJobSpec::from_input(input.clone());
     resolved.workflow = WorkflowKind::Ocr;
-    if let Some(upload) = upload {
+    if let Some(upload) = resolved_upload.as_ref() {
         resolved.source.upload_id = upload.upload_id.clone();
         validate_mineru_upload_limits(input, upload, ctx.config.provider_limits)?;
     }

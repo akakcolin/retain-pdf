@@ -5,8 +5,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Callable
 
-import fitz
-
 from foundation.shared.job_dirs import job_dirs_from_explicit_args
 from services.document_schema import DOCUMENT_SCHEMA_REPORT_FILE_NAME
 from services.ocr_provider.paddle_api import PADDLE_BASE_URL
@@ -38,6 +36,7 @@ BuildOptionalPayloadFn = Callable[[str], dict]
 
 def _pdf_page_count(path: Path) -> int | None:
     try:
+        import fitz  # deferred: desktop bundles no pymupdf; page-count progress degrades to None
         with fitz.open(path) as doc:
             return len(doc)
     except Exception:

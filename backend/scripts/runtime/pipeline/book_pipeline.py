@@ -5,16 +5,10 @@ from pathlib import Path
 from foundation.config import fonts
 from foundation.config import runtime
 from foundation.config.output_layout import ARTIFACTS_DIR_NAME
-from runtime.pipeline.render_mode import resolve_effective_render_mode
 from runtime.pipeline.render_stage import build_book_from_translations
 from runtime.pipeline.render_stage import build_book_pipeline
 from runtime.pipeline.render_stage import run_render_stage
 from runtime.pipeline.translation_stage import translate_book_pipeline
-from services.rendering.analysis.document import build_render_document_analysis
-from services.rendering.source.prewarm import prewarm_manifest_path_from_artifacts_dir
-from services.rendering.source.prewarm import RenderPrewarmHandle
-from services.rendering.source.prewarm import RenderPrewarmSpec
-from services.rendering.source.prewarm import start_render_source_prewarm
 from services.translation.public import resolve_page_range
 from services.translation.public import write_translation_debug_index
 from services.translation.public import write_translation_diagnostics
@@ -57,7 +51,6 @@ def run_book_pipeline(
     pdf_compress_dpi: int = runtime.DEFAULT_PDF_COMPRESS_DPI,
     source_cleanup_strategy: str = "pikepdf_text_strip",
     invocation: dict | None = None,
-    render_visual_prewarm_handle: RenderPrewarmHandle | None = None,
 ) -> dict:
     total_started = time.perf_counter()
     translation_summary = translate_book_pipeline(
@@ -122,42 +115,6 @@ def run_book_pipeline(
         )
     enforce_no_blocking_review_errors(translation_summary.get("translation_review"))
 
-    render_prewarm_manifest_path = prewarm_manifest_path_from_artifacts_dir(output_dir.parent / ARTIFACTS_DIR_NAME)
-    render_preprocess_started = time.perf_counter()
-    render_document_analysis = _try_build_render_document_analysis(
-        source_pdf_path=source_pdf_path,
-        translated_pages=translation_summary["translated_pages_map"],
-        start_page=translation_summary["start_page"],
-        end_page=translation_summary["end_page"],
-    )
-    if render_visual_prewarm_handle is not None:
-        render_visual_prewarm_handle.wait()
-    effective_prewarm_render_mode = resolve_effective_render_mode(
-        render_mode=render_mode,
-        source_pdf_path=source_pdf_path,
-        start_page=translation_summary["start_page"],
-        end_page=translation_summary["end_page"],
-        translated_pages_map=translation_summary["translated_pages_map"],
-        document_analysis=render_document_analysis,
-    )
-    render_preprocess_handle = start_render_source_prewarm(
-        RenderPrewarmSpec(
-            source_pdf_path=source_pdf_path,
-            output_pdf_path=output_pdf_path,
-            artifacts_dir=output_dir.parent / ARTIFACTS_DIR_NAME,
-            translated_pages=translation_summary["translated_pages_map"],
-            render_mode=render_mode,
-            start_page=translation_summary["start_page"],
-            end_page=translation_summary["end_page"],
-            pdf_compress_dpi=pdf_compress_dpi,
-            source_cleanup_strategy=source_cleanup_strategy,
-            document_analysis=render_document_analysis,
-            include_source_cleanup=effective_prewarm_render_mode != "overlay",
-        )
-    )
-    render_preprocess_handle.wait()
-    render_preprocess_elapsed = time.perf_counter() - render_preprocess_started
-
     save_started = time.perf_counter()
     render_summary = run_render_stage(
         source_pdf_path=source_pdf_path,
@@ -175,7 +132,6 @@ def run_book_pipeline(
         typst_font_family=typst_font_family,
         pdf_compress_dpi=pdf_compress_dpi,
         source_cleanup_strategy=source_cleanup_strategy,
-        render_prewarm_manifest_path=render_prewarm_manifest_path,
     )
     save_elapsed = time.perf_counter() - save_started
     total_elapsed = time.perf_counter() - total_started
@@ -189,7 +145,6 @@ def run_book_pipeline(
         "glossary": translation_summary.get("glossary", {}),
         "translate_elapsed": translate_elapsed,
         "save_elapsed": save_elapsed,
-        "render_preprocess_elapsed": render_preprocess_elapsed,
         "render_diagnostics": render_summary.get("render_diagnostics", {}),
         "total_elapsed": total_elapsed,
         "effective_render_mode": render_summary["effective_render_mode"],
@@ -204,22 +159,3 @@ def run_book_pipeline(
         "translation_retrying_items": diagnostics_summary.get("retry_summary", {}).get("retrying_request_labels", 0),
         "invocation": translation_summary.get("invocation", invocation or {}),
     }
-
-
-def _try_build_render_document_analysis(
-    *,
-    source_pdf_path: Path,
-    translated_pages: dict[int, list[dict]],
-    start_page: int,
-    end_page: int,
-):
-    try:
-        return build_render_document_analysis(
-            source_pdf_path=source_pdf_path,
-            translated_pages=translated_pages,
-            start_page=start_page,
-            end_page=end_page,
-        )
-    except Exception as exc:
-        print(f"render document analysis: skipped {type(exc).__name__}: {exc}", flush=True)
-        return None

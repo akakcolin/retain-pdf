@@ -6,7 +6,7 @@ use crate::models::api::{
     build_artifact_links, to_absolute_url, LibraryBookDetailView, LibraryBookListItemView,
     LibraryBookListView, ListJobsQuery,
 };
-use crate::models::domain::{JobSnapshot, WorkflowKind};
+use crate::models::domain::JobSnapshot;
 use crate::storage_paths::resolve_source_pdf;
 
 use crate::services::jobs::job_readiness;
@@ -29,7 +29,6 @@ pub(crate) fn build_library_book_list_view(
     query.workflow = None;
     let items = list_books_filtered(db, &query)?
         .iter()
-        .filter(|job| job.workflow != WorkflowKind::Ocr)
         .map(|job| build_library_book_list_item(db, data_root, job, base_url))
         .collect();
     Ok(LibraryBookListView { items })

@@ -326,7 +326,7 @@ impl Db {
     }
 
     /// 修复悬空的 active_job_id:若它指向的 job 已不存在,重指该文档下最新的
-    /// 成功 book job;没有则置 NULL(降级为干净馆藏)。删 job 后必调,防僵尸卡。
+    /// 成功 job;没有则置 NULL(降级为干净馆藏)。删 job 后必调,防僵尸卡。
     pub fn reconcile_document_active_job(&self, document_id: &str) -> Result<()> {
         let conn = self.connect()?;
         conn.execute(
@@ -334,7 +334,6 @@ impl Db {
             UPDATE documents SET active_job_id = (
                 SELECT j.job_id FROM jobs j
                 WHERE j.document_id = documents.document_id
-                  AND j.workflow <> '"ocr"'
                   AND j.status_json = '"succeeded"'
                 ORDER BY j.finished_at DESC
                 LIMIT 1
@@ -723,7 +722,6 @@ impl Db {
                 SELECT j.job_id FROM jobs j
                 WHERE j.document_id = documents.document_id
                   AND j.status_json = '"succeeded"'
-                  AND j.workflow <> '"ocr"'
                 ORDER BY j.finished_at DESC
                 LIMIT 1
             )

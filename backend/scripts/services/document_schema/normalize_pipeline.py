@@ -14,8 +14,6 @@ from services.document_schema.version import DOCUMENT_SCHEMA_REPORT_FILE_NAME
 from services.document_schema.adapters import adapt_path_to_document_v1_with_report
 from services.document_schema.validator import build_validation_report
 from services.document_schema.reporting import build_normalization_summary
-from services.ocr_provider.paddle_normalize import post_rescale_rebuild_paddle_text_geometry
-from services.ocr_provider.paddle_normalize import rescale_document_geometry_to_pdf
 from services.pipeline_shared.io import save_json
 
 
@@ -55,6 +53,16 @@ def _args_from_spec(spec: NormalizeStageSpec) -> SimpleNamespace:
     )
 
 
+def _import_paddle_normalize():
+    try:
+        import importlib
+        return importlib.import_module("services.ocr_provider.paddle_normalize")
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "Paddle OCR 已从桌面构建中移除；请改用 mineru（或从源码 dev 环境运行）。"
+        ) from exc
+
+
 def _refresh_report_for_final_document(report: dict, document: dict) -> dict:
     refreshed = dict(report)
     pages = document.get("pages", []) or []
@@ -91,8 +99,18 @@ def main() -> None:
         provider=provider,
         provider_version=str(args.provider_version or ""),
     )
-    normalized_document = rescale_document_geometry_to_pdf(normalized_document, source_pdf_path)
-    normalized_document = post_rescale_rebuild_paddle_text_geometry(normalized_document)
+    # Paddle geometry is in OCR image pixels and must be rescaled to PDF points;
+    # other providers (mineru, generic flat OCR) already emit PDF-point geometry.
+    # The rescale requires pymupdf, which the desktop bundle prunes — Paddle OCR
+    # is excluded there, so only the paddle branch touches the paddle modules.
+    if provider == "paddle":
+        paddle_normalize = _import_paddle_normalize()
+        normalized_document = paddle_normalize.rescale_document_geometry_to_pdf(
+            normalized_document, source_pdf_path
+        )
+        normalized_document = paddle_normalize.post_rescale_rebuild_paddle_text_geometry(
+            normalized_document
+        )
     normalization_report = _refresh_report_for_final_document(normalization_report, normalized_document)
     save_json(normalized_json_path, normalized_document, compact=True)
     save_json(normalized_report_json_path, normalization_report)

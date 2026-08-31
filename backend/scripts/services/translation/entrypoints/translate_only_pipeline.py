@@ -40,7 +40,6 @@ from services.translation.llm.shared.provider_runtime import DEFAULT_BASE_URL
 from services.translation.llm.shared.provider_runtime import get_api_key
 from services.translation.llm.shared.provider_runtime import normalize_base_url
 from services.translation.services.terms import parse_glossary_json
-from runtime.pipeline.render_preprocess import run_post_translation_render_prewarm
 from runtime.pipeline.translation_stage import translate_book_pipeline
 
 
@@ -87,10 +86,6 @@ def _args_from_spec(spec: TranslateStageSpec) -> SimpleNamespace:
         api_key=resolve_credential_ref(spec.params.credential_ref),
         model=spec.params.model,
         base_url=spec.params.base_url,
-        render_prewarm_output_pdf_path=spec.params.render_prewarm_output_pdf_path,
-        render_prewarm_mode=spec.params.render_prewarm_mode,
-        render_prewarm_pdf_compress_dpi=spec.params.render_prewarm_pdf_compress_dpi,
-        render_prewarm_source_cleanup_strategy=spec.params.render_prewarm_source_cleanup_strategy,
     )
 
 
@@ -217,20 +212,6 @@ def main() -> None:
                 "translation review: errors recorded in translation_review.json; export continues because artifacts are diagnostic",
                 flush=True,
             )
-        render_prewarm_summary = run_post_translation_render_prewarm(
-            source_pdf_path=source_pdf_path,
-            output_pdf_path=args.render_prewarm_output_pdf_path or (
-                job_dirs.rendered_dir / f"{source_pdf_path.stem}-translated.pdf"
-            ),
-            artifacts_dir=job_dirs.artifacts_dir,
-            translated_pages=result.get("translated_pages_map", {}),
-            render_mode=args.render_prewarm_mode,
-            start_page=result.get("start_page", args.start_page),
-            end_page=result.get("end_page", args.end_page),
-            pdf_compress_dpi=args.render_prewarm_pdf_compress_dpi,
-            source_cleanup_strategy=args.render_prewarm_source_cleanup_strategy,
-        )
-
         schema_validation = build_validation_report_from_path(source_json_path)
         normalization_report = load_normalization_report(normalization_report_path)
         normalization_summary = build_normalization_summary(normalization_report)
@@ -271,7 +252,6 @@ def main() -> None:
                     "retrying_request_labels",
                     0,
                 ),
-                "render_prewarm": render_prewarm_summary,
                 "mode": args.mode,
                 "math_mode": args.math_mode,
                 "model": args.model,

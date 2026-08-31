@@ -162,16 +162,6 @@ pub(crate) fn write_translate_stage_spec(
             "model": request.translation.model,
             "base_url": request.translation.base_url,
             "credential_ref": credential_ref,
-            "render_prewarm_output_pdf_path": job_paths.rendered_dir.join(
-                if request.render.translated_pdf_name.trim().is_empty() {
-                    format!("{}-translated.pdf", source_pdf_path.file_stem().and_then(|value| value.to_str()).unwrap_or("translated"))
-                } else {
-                    request.render.translated_pdf_name.clone()
-                }
-            ),
-            "render_prewarm_mode": request.render.render_mode,
-            "render_prewarm_pdf_compress_dpi": request.render.pdf_compress_dpi,
-            "render_prewarm_source_cleanup_strategy": request.render.source_cleanup_strategy,
         },
     });
     let content = serde_json::to_string_pretty(&payload)?;

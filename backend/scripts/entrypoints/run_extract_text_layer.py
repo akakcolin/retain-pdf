@@ -14,8 +14,6 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-import fitz
-
 from foundation.shared.stage_specs import ExtractTextLayerStageSpec
 from foundation.shared.structured_errors import run_with_structured_failure
 from services.document_schema.providers import PROVIDER_GENERIC_FLAT_OCR
@@ -46,6 +44,12 @@ def _block_text(block: dict) -> str:
 
 
 def build_text_layer_document(source_pdf: Path) -> dict:
+    try:
+        import fitz  # deferred: desktop bundle prunes pymupdf; this worker is native-default (render_rs)
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "文本层提取需要 pymupdf，桌面构建未携带；请使用默认的 render_rs 路径"
+        ) from exc
     pages_out: list[dict] = []
     total_blocks = 0
     with fitz.open(source_pdf) as document:

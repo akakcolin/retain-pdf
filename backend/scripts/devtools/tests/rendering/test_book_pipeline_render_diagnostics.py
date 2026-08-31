@@ -47,11 +47,6 @@ def test_run_book_pipeline_returns_render_diagnostics(monkeypatch, tmp_path: Pat
     monkeypatch.setattr(book_pipeline, "blocking_untranslated_items", lambda _pages: [])
     monkeypatch.setattr(book_pipeline, "enforce_no_blocking_review_errors", lambda _review: None)
 
-    class _FakePrewarmHandle:
-        def wait(self):
-            return tmp_path / "manifest.json"
-
-    monkeypatch.setattr(book_pipeline, "start_render_source_prewarm", lambda _spec: _FakePrewarmHandle())
     monkeypatch.setattr(
         book_pipeline,
         "run_render_stage",

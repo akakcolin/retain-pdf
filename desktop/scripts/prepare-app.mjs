@@ -254,6 +254,32 @@ function pruneBundledMacPythonRuntime(root) {
           removalTargets.push(path.join(sitePackagesRoot, entry));
         }
       }
+      // pymupdf/pikepdf/lxml are unreachable from the desktop's worker flow:
+      // render/normalize/extract run natively (render_rs), and the always-Python
+      // OCR/translate workers lazy-import the rendering tree
+      // (services/ocr_provider/paddle_runner.py + translation/llm/domain_context.py),
+      // degrading page-count progress / sci domain inference instead of importing it.
+      // PIL is not imported by any bundled script. rendering_bridge ships only
+      // for the services/rendering Python tree, which the desktop bundle now
+      // excludes. The fastapi/uvicorn/httpx/pydantic stack is KEPT: retainpdf_ai
+      // imports uvicorn/fastapi/pydantic/httpx and is spawned by backend_startup.rs.
+      const removableSitePackages = [
+        "fitz", "pymupdf", "core", // pymupdf
+        "lxml", // pikepdf dependency
+        "pikepdf",
+        "PIL", // pillow
+        "rendering_bridge",
+      ];
+      const removableDistInfo =
+        /^(pymupdf|lxml|pikepdf|pillow|rendering_bridge)-.+\.dist-info$/;
+      for (const packageName of removableSitePackages) {
+        removalTargets.push(path.join(sitePackagesRoot, packageName));
+      }
+      for (const entry of fs.readdirSync(sitePackagesRoot)) {
+        if (removableDistInfo.test(entry)) {
+          removalTargets.push(path.join(sitePackagesRoot, entry));
+        }
+      }
     }
   }
   for (const target of removalTargets) {
@@ -567,7 +593,7 @@ function verifyBundledPythonRuntime(root) {
       [
         "import importlib, sys",
         "print(f'python_prefix={sys.prefix} python_exec_prefix={sys.exec_prefix}')",
-        "for module_name in ['_socket', 'socket', 'ssl', 'fitz', 'requests', 'pikepdf', 'PIL', 'urllib3']:",
+        "for module_name in ['_socket', 'socket', 'ssl', 'requests', 'urllib3']:",
         "    importlib.import_module(module_name)",
         "print('python_bundle_import_check=ok')",
       ].join("\n"),
@@ -803,13 +829,65 @@ let desktopIndexHtml = fs.readFileSync(desktopIndexPath, "utf8");
 desktopIndexHtml = desktopIndexHtml.replace('\n    <script src="./runtime-config.local.js"></script>', "");
 fs.writeFileSync(desktopIndexPath, desktopIndexHtml, "utf8");
 
+const DEAD_ENTRYPOINTS = new Set([
+  "run_render_only.py", // python render fallback: imports services.rendering
+  "run_document_flow.py", // legacy book flow: imports book_pipeline -> services.rendering
+  "run_book.py", // legacy: from_ocr_pipeline -> book_pipeline
+  "translate_book.py", // legacy wrapper
+  "translate_page.py", // legacy: services.rendering.legacy.*
+  "build_book.py", // legacy: book_pipeline
+  "build_page.py", // legacy: services.rendering.legacy.*
+  "run_translate_from_ocr.py", // legacy: from_ocr_pipeline
+  "diagnose_failure_with_ai.py", // dev diagnostic, never spawned by rust_api
+]);
+
+// Paddle OCR is excluded from the desktop bundle: its normalization rescales
+// OCR geometry to PDF points with pymupdf, which the bundle prunes to fit the
+// size budget. provider_pipeline / normalize_pipeline lazy-import the paddle
+// tree and fail with a clear message on a paddle job. mineru stays the OCR
+// provider. local_paddlex_wrapper is paddle-only and excluded with it.
+const PADDLE_SCRIPT_FILES = new Set([
+  "paddle_api.py",
+  "paddle_runner.py",
+  "paddle_markdown.py",
+  "paddle_normalize.py",
+  "local_paddlex_wrapper.py",
+]);
+
 if (!frontendOnly) {
   fs.cpSync(path.join(backendRoot, "scripts"), path.join(outputBackendRoot, "scripts"), {
     recursive: true,
     force: true,
     filter: (sourcePath) => {
       const basename = path.basename(sourcePath);
-      return basename !== "__pycache__" && !basename.endsWith(".pyc");
+      if (basename === "__pycache__" || basename.endsWith(".pyc")) {
+        return false;
+      }
+      const relParts = path.relative(path.join(backendRoot, "scripts"), sourcePath).split(path.sep);
+      // services/rendering is native-only in the desktop (render_rs); the Python
+      // tree no longer has any live caller, so exclude it from the bundle.
+      if (relParts[0] === "services" && relParts[1] === "rendering") {
+        return false;
+      }
+      // Dead book-flow entrypoints would ImportError on services.rendering;
+      // rust_api never spawns them in the desktop.
+      if (relParts[0] === "entrypoints" && DEAD_ENTRYPOINTS.has(basename)) {
+        return false;
+      }
+      // Paddle OCR files (see PADDLE_SCRIPT_FILES) and the provider_adapters/paddle
+      // subtree are excluded; the worker lazy-imports them and errors clearly.
+      if (relParts[0] === "services" && relParts[1] === "ocr_provider" && PADDLE_SCRIPT_FILES.has(basename)) {
+        return false;
+      }
+      if (
+        relParts[0] === "services" &&
+        relParts[1] === "document_schema" &&
+        relParts[2] === "provider_adapters" &&
+        relParts[3] === "paddle"
+      ) {
+        return false;
+      }
+      return true;
     },
   });
   // retainpdf-ai：桌面端由 main 进程拉起，Rust 反代 41100

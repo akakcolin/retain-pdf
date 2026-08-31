@@ -15,33 +15,16 @@ from foundation.shared.stage_specs import ProviderStageSpec
 from foundation.shared.stage_specs import build_stage_invocation_metadata
 from foundation.shared.stage_specs import resolve_credential_ref
 from foundation.shared.tee_output import enable_job_log_capture
-from runtime.pipeline.book_pipeline import run_book_pipeline
-from runtime.pipeline.render_preprocess import start_ocr_render_preprocess
 from services.document_schema import adapt_path_to_document_v1_with_report
 from services.document_schema import DOCUMENT_SCHEMA_REPORT_FILE_NAME
 from services.document_schema import validate_saved_document_path
-from services.document_schema.provider_adapters.paddle.content_extract import build_lines as build_paddle_lines
-from services.document_schema.provider_adapters.paddle.content_extract import tighten_text_bbox as tighten_paddle_text_bbox
 from services.document_schema.reporting import build_normalization_summary
-from services.document_schema.providers import PROVIDER_PADDLE
 from services.network.retry import RetainNetworkError
 from services.network.retry import direct_session
 from services.network.retry import request_with_retry
 from services.ocr_provider.drivers import normalize_provider_name
 from services.ocr_provider.drivers import run_registered_ocr_provider
-from services.ocr_provider.paddle_api import PADDLE_BASE_URL
-from services.ocr_provider.paddle_api import build_optional_payload as build_paddle_optional_payload
-from services.ocr_provider.paddle_api import download_jsonl_result
-from services.ocr_provider.paddle_api import get_paddle_token
-from services.ocr_provider.paddle_api import normalize_model_name as normalize_paddle_model_name
-from services.ocr_provider.paddle_markdown import materialize_paddle_markdown_artifacts
-from services.ocr_provider.paddle_normalize import save_normalized_document_for_paddle as _save_normalized_document_for_paddle
-from services.ocr_provider.paddle_normalize import rescale_document_geometry_to_pdf
-from services.ocr_provider.paddle_runner import run_paddle_to_job_dir as _run_paddle_to_job_dir
 from services.ocr_provider.types import OcrProviderResult
-from services.ocr_provider.paddle_api import poll_until_done as poll_paddle_until_done
-from services.ocr_provider.paddle_api import submit_local_file as submit_local_paddle_file
-from services.ocr_provider.paddle_api import submit_remote_url as submit_remote_paddle_url
 from services.pipeline_shared.contracts import PIPELINE_SUMMARY_FILE_NAME
 from services.pipeline_shared.contracts import STDOUT_LABEL_EVENTS_JSONL
 from services.pipeline_shared.contracts import STDOUT_LABEL_JOB_ROOT
@@ -188,6 +171,22 @@ def _download_source_pdf(source_url: str, source_dir: Path) -> Path:
     return target_path
 
 
+def _import_paddle_module(module_name: str):
+    """Import a paddle-only module lazily.
+
+    The desktop bundle ships no paddle_* modules (Paddle OCR is excluded), so
+    a paddle job reaches this only to fail with a clear message there; the
+    source/dev tree still carries the modules and keeps paddle working.
+    """
+    try:
+        import importlib
+        return importlib.import_module(module_name)
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "Paddle OCR 已从桌面构建中移除；请改用 mineru（或从源码 dev 环境运行）。"
+        ) from exc
+
+
 def save_normalized_document_for_paddle(
     *,
     provider_result_json_path: Path,
@@ -198,7 +197,11 @@ def save_normalized_document_for_paddle(
     provider_version: str,
     provider_payload: dict | None = None,
 ) -> None:
-    _save_normalized_document_for_paddle(
+    paddle_normalize = _import_paddle_module("services.ocr_provider.paddle_normalize")
+    paddle_content = _import_paddle_module(
+        "services.document_schema.provider_adapters.paddle.content_extract"
+    )
+    paddle_normalize.save_normalized_document_for_paddle(
         provider_result_json_path=provider_result_json_path,
         source_pdf_path=source_pdf_path,
         normalized_json_path=normalized_json_path,
@@ -207,26 +210,29 @@ def save_normalized_document_for_paddle(
         provider_version=provider_version,
         provider_payload=provider_payload,
         adapt_document=adapt_path_to_document_v1_with_report,
-        build_lines=build_paddle_lines,
-        tighten_text_bbox=tighten_paddle_text_bbox,
+        build_lines=paddle_content.build_lines,
+        tighten_text_bbox=paddle_content.tighten_text_bbox,
         save_json_file=save_json,
     )
 
 
 def run_paddle_to_job_dir(args: SimpleNamespace) -> tuple[Path, Path, Path, Path]:
-    return _run_paddle_to_job_dir(
+    paddle_runner = _import_paddle_module("services.ocr_provider.paddle_runner")
+    paddle_api = _import_paddle_module("services.ocr_provider.paddle_api")
+    paddle_markdown = _import_paddle_module("services.ocr_provider.paddle_markdown")
+    return paddle_runner.run_paddle_to_job_dir(
         args,
         download_source_pdf=_download_source_pdf,
-        get_token=get_paddle_token,
-        submit_remote=submit_remote_paddle_url,
-        submit_local=submit_local_paddle_file,
-        poll_until_complete=poll_paddle_until_done,
-        download_jsonl=download_jsonl_result,
-        materialize_markdown=materialize_paddle_markdown_artifacts,
+        get_token=paddle_api.get_paddle_token,
+        submit_remote=paddle_api.submit_remote_url,
+        submit_local=paddle_api.submit_local_file,
+        poll_until_complete=paddle_api.poll_until_done,
+        download_jsonl=paddle_api.download_jsonl_result,
+        materialize_markdown=paddle_markdown.materialize_paddle_markdown_artifacts,
         save_normalized_document=save_normalized_document_for_paddle,
         save_json_file=save_json,
-        normalize_model=normalize_paddle_model_name,
-        build_optional_request_payload=build_paddle_optional_payload,
+        normalize_model=paddle_api.normalize_model_name,
+        build_optional_request_payload=paddle_api.build_optional_payload,
     )
 
 
@@ -390,18 +396,6 @@ def main() -> None:
             message="OCR provider 已完成，标准化文档已就绪",
             provider=provider,
         )
-        render_visual_prewarm_handle = start_ocr_render_preprocess(
-            source_json_path=translation_source_json_path,
-            source_pdf_path=source_pdf_path,
-            output_pdf_path=output_pdf_path,
-            artifacts_dir=job_dirs.artifacts_dir,
-            render_mode=args.render_mode,
-            start_page=args.start_page,
-            end_page=args.end_page,
-            pdf_compress_dpi=args.pdf_compress_dpi,
-            source_cleanup_strategy=args.source_cleanup_strategy,
-            math_mode=args.math_mode,
-        )
         api_key = get_api_key(
             args.api_key,
             required=normalize_base_url(args.base_url) == normalize_base_url(DEFAULT_BASE_URL),
@@ -412,6 +406,10 @@ def main() -> None:
             message="开始准备翻译和渲染阶段",
             provider=provider,
         )
+        # book flow 只走非 ocr 分支；懒加载避免 OCR-only 分支在模块加载时
+        # 拉入 services.rendering（桌面打包已剔除）。
+        from runtime.pipeline.book_pipeline import run_book_pipeline
+
         result = run_book_pipeline(
             source_json_path=translation_source_json_path,
             source_pdf_path=source_pdf_path,
@@ -445,7 +443,6 @@ def main() -> None:
                 stage="provider",
                 stage_spec_schema_version=stage_spec_schema_version,
             ),
-            render_visual_prewarm_handle=render_visual_prewarm_handle,
         )
         summary_path = job_dirs.artifacts_dir / PIPELINE_SUMMARY_FILE_NAME
         write_pipeline_summary(

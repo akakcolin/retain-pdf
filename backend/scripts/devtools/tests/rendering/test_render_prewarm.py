@@ -16,7 +16,6 @@ from devtools.tests.rendering_support.prewarm_fixtures import page_payload as _p
 from devtools.tests.rendering_support.prewarm_fixtures import source_document_analysis
 from devtools.tests.rendering_support.prewarm_fixtures import tight_gap_page_payload as _tight_gap_page_payload
 from devtools.tests.rendering_support.prewarm_fixtures import translated_page_payload as _translated_page_payload
-from devtools.tests.rendering_support.prewarm_fixtures import write_document_v1 as _document_v1
 from devtools.tests.rendering_support.prewarm_fixtures import write_pseudo_editable_scan_pdf as _pseudo_editable_scan_pdf
 from devtools.tests.rendering_support.prewarm_fixtures import write_source_pdf as _source_pdf
 from runtime.pipeline.render_plan import RenderPlan
@@ -38,7 +37,6 @@ from services.rendering.pdf_structure_profile import pdf_structure_profile_path_
 from services.rendering.visual_profile import visual_profile_path_from_prewarm_manifest
 from services.rendering.visual_profile.contracts import VISUAL_PROFILE_ALGORITHM_VERSION
 from services.rendering.workflow.executor import execute_render_plan
-from runtime.pipeline.render_preprocess import run_ocr_render_preprocess
 
 
 def test_first_line_indent_from_item_lines_uses_structured_line_bboxes() -> None:
@@ -590,63 +588,6 @@ def test_sync_source_prewarm_preserves_existing_payload_prewarm() -> None:
         assert payload_prewarm.visual_profile_path is not None
         assert payload_prewarm.visual_profile_path.exists()
         assert seen_colors and seen_colors[0]["p001-b001"]["cover_fill"] == (0.9, 0.9, 0.9)
-
-
-def test_ocr_render_preprocess_manifest_matches_translated_payload() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        root = Path(tmp)
-        source_pdf = root / "source.pdf"
-        source_json = root / "ocr" / "normalized" / "document.v1.json"
-        output_pdf = root / "rendered" / "out.pdf"
-        artifacts_dir = root / "artifacts"
-        output_pdf.parent.mkdir()
-        _source_pdf(source_pdf)
-        _document_v1(source_json)
-
-        manifest_path = run_ocr_render_preprocess(
-            source_json_path=source_json,
-            source_pdf_path=source_pdf,
-            output_pdf_path=output_pdf,
-            artifacts_dir=artifacts_dir,
-            render_mode="overlay",
-            start_page=0,
-            end_page=0,
-            pdf_compress_dpi=0,
-            source_cleanup_strategy="bbox_text_strip",
-            math_mode="direct_typst",
-        )
-
-        translated_payload = _translated_page_payload()
-        translated_payload[0][0]["item_id"] = "p001-b000"
-        translated_payload[0][0]["translation_unit_id"] = "p001-b000"
-        translated_payload[0][0]["translation_unit_member_ids"] = ["p001-b000"]
-        translated_payload[0][0]["raw_block_type"] = "text"
-        translated_payload[0][0]["normalized_sub_type"] = "text"
-
-        assert manifest_path == prewarm_manifest_path_from_artifacts_dir(artifacts_dir)
-        assert try_load_prewarmed_render_source_pdf(
-            manifest_path=manifest_path,
-            source_pdf_path=source_pdf,
-            translated_pages=translated_payload,
-            effective_render_mode="overlay",
-            start_page=0,
-            end_page=0,
-            pdf_compress_dpi=0,
-            source_cleanup_strategy="bbox_text_strip",
-        ) is None
-        payload = try_load_render_payload_prewarm(
-            manifest_path=manifest_path,
-            source_pdf_path=source_pdf,
-            translated_pages=translated_payload,
-            effective_render_mode="overlay",
-            start_page=0,
-            end_page=0,
-            pdf_compress_dpi=0,
-            source_cleanup_strategy=layout.SOURCE_CLEANUP_TYPST_FILL,
-        )
-        assert payload is not None
-        assert payload.render_colors_by_item_id
-        assert payload.document_analysis is not None
 
 
 def test_payload_prewarm_writes_visual_profile_color_manifest() -> None:

@@ -186,7 +186,7 @@ pub fn build_probe_script(include_dependency_imports: bool) -> String {
         "import sys",
         "print(sys.executable, flush=True)",
         "print(f'prefix={sys.prefix} exec_prefix={sys.exec_prefix} base_exec_prefix={sys.base_exec_prefix}', flush=True)",
-        "for module_name in ['_socket', 'socket', 'ssl', 'requests', 'fitz', 'pikepdf', 'PIL', 'urllib3']:",
+        "for module_name in ['_socket', 'socket', 'ssl', 'requests', 'urllib3']:",
         "    print(f'importing:{module_name}', flush=True)",
         "    importlib.import_module(module_name)",
         "    print(f'imported:{module_name}', flush=True)",

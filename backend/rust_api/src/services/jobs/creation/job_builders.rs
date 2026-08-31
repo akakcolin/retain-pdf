@@ -14,11 +14,7 @@ pub(super) fn build_translation_job_snapshot(
     input: &CreateJobInput,
 ) -> Result<JobSnapshot, AppError> {
     match input.workflow {
-        WorkflowKind::Ocr => {
-            return Err(AppError::bad_request(
-                "use /api/v1/ocr/jobs for workflow=ocr",
-            ));
-        }
+        WorkflowKind::Ocr => return build_ocr_job_snapshot(ctx, input, None),
         WorkflowKind::Render => return build_render_job_snapshot(ctx, input),
         WorkflowKind::Translate => return build_translate_only_job_snapshot(ctx, input),
         WorkflowKind::Book => {}
