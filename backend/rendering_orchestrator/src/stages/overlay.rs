@@ -81,11 +81,11 @@ pub fn merge_overlay_onto_base(bundle: &RenderBundle, overlay_pdf_path: &std::pa
     Ok(base_doc)
 }
 
-pub fn run_overlay(bundle: &RenderBundle) -> anyhow::Result<PathBuf> {
+pub fn run_overlay(bundle: &RenderBundle) -> anyhow::Result<(PathBuf, f64)> {
     let compiled = run_overlay_compile(bundle, OVERLAY_COMPILE_STEM, OVERLAY_COMPILE_PHASE)?;
     let mut base_doc = merge_overlay_onto_base(bundle, &compiled)?;
     let source_doc =
         Document::open(bundle.source_pdf.as_path()).map_err(|e| anyhow::anyhow!("open render: {e}"))?;
-    run_save_range(bundle, &source_doc, &mut base_doc)?;
-    Ok(bundle.output_pdf.to_path_buf())
+    let save_elapsed = run_save_range(bundle, &source_doc, &mut base_doc)?;
+    Ok((bundle.output_pdf.to_path_buf(), save_elapsed))
 }

@@ -5,12 +5,13 @@
 
 use std::path::{Path, PathBuf};
 
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::spec::{RenderStageSpec, RENDER_STAGE_SCHEMA_VERSION};
 
 pub const PIPELINE_SUMMARY_FILE_NAME: &str = "pipeline_summary.json";
 
+#[allow(clippy::too_many_arguments)]
 pub fn write_pipeline_summary(
     spec: &RenderStageSpec,
     output_pdf: &Path,
@@ -18,6 +19,8 @@ pub fn write_pipeline_summary(
     mode: &str,
     page_count: usize,
     elapsed_seconds: f64,
+    render_diagnostics: &Value,
+    events_jsonl: &Path,
 ) -> anyhow::Result<PathBuf> {
     let summary_path = spec.job.job_root.join("artifacts").join(PIPELINE_SUMMARY_FILE_NAME);
     if let Some(parent) = summary_path.parent() {
@@ -36,8 +39,8 @@ pub fn write_pipeline_summary(
         "effective_render_mode": mode,
         "renderer": "render_rs",
         "pdf_compress_dpi": spec.params.pdf_compress_dpi(),
-        "render_diagnostics": {},
-        "events_jsonl": "",
+        "render_diagnostics": render_diagnostics,
+        "events_jsonl": events_jsonl.to_string_lossy(),
         "invocation": {
             "stage": "render",
             "stage_spec_schema_version": RENDER_STAGE_SCHEMA_VERSION,
@@ -93,9 +96,24 @@ mod tests {
             },
         };
         let output_pdf = job_root.join("rendered/out.pdf");
+        let diagnostics = serde_json::json!({
+            "typst_cover_fallback_pages": {"count": 1, "head": [0], "tail": []},
+            "typst_cover_fallback_items": {"count": 0, "head": [], "tail": []},
+            "save_elapsed_seconds": 0.25,
+        });
+        let events_path = job_root.join("logs/pipeline_events.jsonl");
 
-        let path = write_pipeline_summary(&spec, &output_pdf, &spec.inputs.source_pdf, "typst", 3, 1.5)
-            .expect("write summary");
+        let path = write_pipeline_summary(
+            &spec,
+            &output_pdf,
+            &spec.inputs.source_pdf,
+            "typst",
+            3,
+            1.5,
+            &diagnostics,
+            &events_path,
+        )
+        .expect("write summary");
 
         assert_eq!(path, job_root.join("artifacts").join(PIPELINE_SUMMARY_FILE_NAME));
         assert!(path.is_file());
@@ -110,6 +128,8 @@ mod tests {
             value["translation_manifest"],
             spec.inputs.translation_manifest.unwrap().to_string_lossy().into_owned()
         );
+        assert_eq!(value["render_diagnostics"], diagnostics);
+        assert_eq!(value["events_jsonl"], events_path.to_string_lossy().into_owned());
         let _ = std::fs::remove_dir_all(&root);
     }
 }

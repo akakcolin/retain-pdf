@@ -6,6 +6,7 @@
 
 pub mod bundle;
 pub mod bundle_builder;
+pub mod events;
 pub mod extract_text_layer;
 pub mod native_stats;
 pub mod normalize;

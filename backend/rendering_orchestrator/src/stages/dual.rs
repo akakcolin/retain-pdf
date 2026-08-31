@@ -16,7 +16,7 @@ use crate::stages::save::run_save_pages;
 pub const DUAL_TRANSLATED_STEM: &str = "book-overlay-dual";
 pub const DUAL_TRANSLATED_PHASE: &str = "overlay_book";
 
-pub fn run_dual(bundle: &RenderBundle) -> anyhow::Result<PathBuf> {
+pub fn run_dual(bundle: &RenderBundle) -> anyhow::Result<(PathBuf, f64)> {
     let compiled = run_overlay_compile(bundle, DUAL_TRANSLATED_STEM, DUAL_TRANSLATED_PHASE)?;
     let translated_side = merge_overlay_onto_base(bundle, &compiled)?;
     let source_doc =
@@ -30,6 +30,6 @@ pub fn run_dual(bundle: &RenderBundle) -> anyhow::Result<PathBuf> {
     .map_err(|e| anyhow::anyhow!("build_dual_doc_pages: {e}"))?;
     let source_read =
         Document::open(bundle.source_pdf.as_path()).map_err(|e| anyhow::anyhow!("open render: {e}"))?;
-    run_save_pages(bundle, &source_read, &mut dual, bundle.start_page, bundle.end_page)?;
-    Ok(bundle.output_pdf.to_path_buf())
+    let save_elapsed = run_save_pages(bundle, &source_read, &mut dual, bundle.start_page, bundle.end_page)?;
+    Ok((bundle.output_pdf.to_path_buf(), save_elapsed))
 }

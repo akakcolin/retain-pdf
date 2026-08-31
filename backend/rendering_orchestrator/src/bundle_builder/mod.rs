@@ -8,6 +8,7 @@
 pub mod analysis;
 pub mod assemble;
 pub mod color_adapt;
+pub mod cover_fallback;
 pub mod overlay;
 pub mod page_specs;
 pub mod prepare;
@@ -38,7 +39,16 @@ const BACKGROUND_BOOK_SUBDIR: &str = "background-book";
 /// pages for every mode (writing `_render_cover_fill` / `_render_text_color`),
 /// and overlay/dual additionally assemble `overlay_page_specs` (page geometry +
 /// RenderBlock DTOs). N11f: `page_specs` is real (full emitter dicts).
-pub fn build_bundle(spec: &RenderStageSpec, stats: &mut NativeStats) -> Result<Value> {
+pub struct BuildBundleOutcome {
+    /// The `render.bundle.v1` hand-off value (unchanged shape — the D3 strict
+    /// gate still validates it against `contract_corpus.json`).
+    pub bundle: Value,
+    /// `render_diagnostics` cover-fallback plan (`typst_cover_fallback_pages` /
+    /// `typst_cover_fallback_items`) the summary merges into its diagnostics.
+    pub cover_fallback_diagnostics: Value,
+}
+
+pub fn build_bundle(spec: &RenderStageSpec, stats: &mut NativeStats) -> Result<BuildBundleOutcome> {
     let mut mode = spec.params.render_mode_str();
 
     // `job_dirs.resolve_job_dirs(root).rendered_dir` — Python `Path.resolve()`
@@ -156,21 +166,31 @@ pub fn build_bundle(spec: &RenderStageSpec, stats: &mut NativeStats) -> Result<V
     )?)?;
     stats.record_hit(sub::VISUAL_PROFILE);
 
-    Ok(assemble::assemble(AssembleInputs {
-        mode,
-        source_pdf: render_source_pdf.path,
-        output_pdf,
-        work_dir,
-        font_family: font_family(spec),
-        start_page: start_page as i32,
-        end_page,
-        page_map_indices: selected_pages.keys().copied().collect(),
-        precleaned_page_indices: render_source_pdf.source_text_precleaned_page_indices,
-        translated_pages: serde_json::to_value(&adapted_pages)?,
-        overlay_page_specs,
-        page_specs,
-        visual_profile_fill_map,
-    }))
+    let cover_fallback_diagnostics = cover_fallback::typst_cover_fallback_diagnostics(
+        &document_analysis,
+        &selected_pages_i64,
+        &render_source_pdf.source_text_precleaned_page_indices,
+        &cleanup_strategy,
+    );
+
+    Ok(BuildBundleOutcome {
+        bundle: assemble::assemble(AssembleInputs {
+            mode,
+            source_pdf: render_source_pdf.path,
+            output_pdf,
+            work_dir,
+            font_family: font_family(spec),
+            start_page: start_page as i32,
+            end_page,
+            page_map_indices: selected_pages.keys().copied().collect(),
+            precleaned_page_indices: render_source_pdf.source_text_precleaned_page_indices,
+            translated_pages: serde_json::to_value(&adapted_pages)?,
+            overlay_page_specs,
+            page_specs,
+            visual_profile_fill_map,
+        }),
+        cover_fallback_diagnostics,
+    })
 }
 
 /// `spec.params.translated_pdf_name.strip() or f"{source.stem}-translated.pdf"`.
