@@ -127,5 +127,5 @@ writer 原语语义等价性（B-F/B-G）：现有 `overlay_page` 是 pikepdf �
 ### 终态判据（阶段 C 续）
 
 - skip-OCR 作业的文本层提取不再 spawn python3（`render_rs --extract-text-layer` 进程内完成）。
-- `_routing.ALLOWLIST` 不新增 routed fn（native 路径是 Rust 而非 Python shim）；`smoke_d1_mandate` 常绿。
+- `_routing.ALLOWLIST` 不新增 routed fn（native 路径是 Rust 而非 Python shim）；D1 门禁常绿（`smoke_d1_mandate` 随 552c1318 退役，由 `test_routing.py` pytest 断言 `NativeMandatoryError` 承接）。
 - 逃逸阀不变：`RETAINPDF_RENDER_ORCHESTRATOR_OFF=1` 逐个 worker 回退 python reference。
