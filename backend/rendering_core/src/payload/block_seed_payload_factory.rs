@@ -10,12 +10,13 @@ use crate::layout::block_seed_body_policy::{
     relax_wide_aspect_body_leading,
 };
 use crate::layout::body_context::page_box_area_ratio;
-use crate::layout::fit_metrics::fit_translated_block_metrics;
+use crate::layout::fit::{fit_translated_block_metrics, solve_title_fit, TitleFitDecision};
 use crate::layout::line_structure::fit_preserved_line_block_metrics;
-use crate::layout::render_item::{get_render_first_line_indent_pt, set_render_inner_bbox};
-use crate::layout::render_text::{get_render_formula_map, get_render_protected_text};
-use crate::layout::title_binary_fit::{solve_title_fit, TitleFitDecision};
-use crate::layout::typography_memory::build_typography_feature;
+use crate::layout::render_item::{
+    get_render_first_line_indent_pt, get_render_formula_map, get_render_protected_text,
+    set_render_inner_bbox,
+};
+use crate::layout::typography_capacity::build_typography_feature;
 use crate::leading_fit::normalize_leading_em_for_font_size;
 use crate::leading_fit::{
     BODY_LEADING_FLOOR_MIN, BODY_LEADING_MAX, BODY_LEADING_MIN, BODY_LEADING_SIZE_ADJUST,

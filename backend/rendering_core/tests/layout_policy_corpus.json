@@ -1,0 +1,3128 @@
+{
+  "cases": [
+    {
+      "expected": {
+        "per_block": [
+          {
+            "_body_font_unified": true,
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.3,
+            "page_body_font_size_pt": 12.0
+          },
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.23,
+              "reason": "underfilled_body",
+              "seed_font_pt": 12.0,
+              "slack_ratio": 0.136,
+              "target_font_pt": 12.23
+            },
+            "_body_font_unified": true,
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.68,
+            "page_body_font_size_pt": 12.0
+          },
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.09,
+              "reason": "underfilled_body",
+              "seed_font_pt": 12.0,
+              "slack_ratio": 0.052,
+              "target_font_pt": 12.09
+            },
+            "_body_font_unified": true,
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.7,
+            "page_body_font_size_pt": 12.0
+          },
+          {
+            "_body_font_unified": true,
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.57,
+            "page_body_font_size_pt": 12.0
+          },
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.64,
+              "reason": "underfilled_body",
+              "seed_font_pt": 12.0,
+              "slack_ratio": 0.44,
+              "target_font_pt": 12.64
+            },
+            "_body_font_unified": true,
+            "_body_leading_decision": {
+              "leading_cap_em": 0.7,
+              "leading_em": 0.7,
+              "refit_after_font_unify": true,
+              "target_density": 0.72
+            },
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.7,
+            "page_body_font_size_pt": 12.0
+          }
+        ]
+      },
+      "input": {
+        "book_body_font_target": null,
+        "font_unify_mode": "role_min",
+        "ordered_payloads": [
+          {
+            "dense_small_box": false,
+            "font_size_pt": 18.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              0.0,
+              250.0,
+              30.0
+            ],
+            "is_body": false,
+            "item": {},
+            "leading_em": 0.3,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "章节标题"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              40.0,
+              250.0,
+              140.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    40.0,
+                    250.0,
+                    65.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    65.0,
+                    250.0,
+                    90.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    90.0,
+                    250.0,
+                    115.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    115.0,
+                    250.0,
+                    140.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+            },
+            "leading_em": 0.44,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 13.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              141.0,
+              250.0,
+              241.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    141.0,
+                    250.0,
+                    166.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    166.0,
+                    250.0,
+                    191.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    191.0,
+                    250.0,
+                    216.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    216.0,
+                    250.0,
+                    241.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。"
+            },
+            "leading_em": 0.58,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.5,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              242.0,
+              250.0,
+              300.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    242.0,
+                    250.0,
+                    271.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    271.0,
+                    250.0,
+                    300.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 11.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              301.0,
+              250.0,
+              401.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    301.0,
+                    250.0,
+                    326.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    326.0,
+                    250.0,
+                    351.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    351.0,
+                    250.0,
+                    376.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    376.0,
+                    250.0,
+                    401.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。"
+            },
+            "leading_em": 0.4,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。"
+          }
+        ],
+        "page_text_width_med": 200.0
+      }
+    },
+    {
+      "expected": {
+        "per_block": [
+          {
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 13.91
+            },
+            "font_size_pt": 13.91,
+            "leading_em": 0.3,
+            "page_body_font_size_pt": 13.91
+          },
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.23,
+              "reason": "underfilled_body",
+              "seed_font_pt": 12.0,
+              "slack_ratio": 0.136,
+              "target_font_pt": 12.23
+            },
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 13.91
+            },
+            "font_size_pt": 13.91,
+            "leading_em": 0.68,
+            "page_body_font_size_pt": 13.91
+          },
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.05,
+              "reason": "underfilled_body",
+              "seed_font_pt": 12.33,
+              "slack_ratio": 0.026,
+              "target_font_pt": 12.38
+            },
+            "_body_leading_decision": {
+              "leading_cap_em": 0.7,
+              "leading_em": 0.7,
+              "refit_after_font_unify": true,
+              "target_density": 0.78
+            },
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 13.91
+            },
+            "font_size_pt": 12.81,
+            "leading_em": 0.7,
+            "page_body_font_size_pt": 13.91
+          },
+          {
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 13.91
+            },
+            "font_size_pt": 12.76,
+            "leading_em": 0.56,
+            "page_body_font_size_pt": 13.91
+          },
+          {
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 13.91
+            },
+            "font_size_pt": 13.1,
+            "leading_em": 0.59,
+            "page_body_font_size_pt": 13.91
+          }
+        ]
+      },
+      "input": {
+        "book_body_font_target": null,
+        "font_unify_mode": "off",
+        "ordered_payloads": [
+          {
+            "dense_small_box": false,
+            "font_size_pt": 18.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              0.0,
+              250.0,
+              30.0
+            ],
+            "is_body": false,
+            "item": {},
+            "leading_em": 0.3,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "章节标题"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              40.0,
+              250.0,
+              140.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    40.0,
+                    250.0,
+                    65.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    65.0,
+                    250.0,
+                    90.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    90.0,
+                    250.0,
+                    115.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    115.0,
+                    250.0,
+                    140.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+            },
+            "leading_em": 0.44,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 13.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              141.0,
+              250.0,
+              241.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    141.0,
+                    250.0,
+                    166.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    166.0,
+                    250.0,
+                    191.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    191.0,
+                    250.0,
+                    216.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    216.0,
+                    250.0,
+                    241.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。"
+            },
+            "leading_em": 0.58,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.5,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              242.0,
+              250.0,
+              300.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    242.0,
+                    250.0,
+                    271.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    271.0,
+                    250.0,
+                    300.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 11.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              301.0,
+              250.0,
+              401.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    301.0,
+                    250.0,
+                    326.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    326.0,
+                    250.0,
+                    351.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    351.0,
+                    250.0,
+                    376.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    376.0,
+                    250.0,
+                    401.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。"
+            },
+            "leading_em": 0.4,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。"
+          }
+        ],
+        "page_text_width_med": 200.0
+      }
+    },
+    {
+      "expected": {
+        "per_block": [
+          {
+            "font_size_pt": 18.0,
+            "leading_em": 0.3
+          }
+        ]
+      },
+      "input": {
+        "book_body_font_target": null,
+        "font_unify_mode": "off",
+        "ordered_payloads": [
+          {
+            "dense_small_box": false,
+            "font_size_pt": 18.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              0.0,
+              250.0,
+              30.0
+            ],
+            "is_body": false,
+            "item": {},
+            "leading_em": 0.3,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "章节标题"
+          }
+        ],
+        "page_text_width_med": 200.0
+      }
+    },
+    {
+      "expected": {
+        "per_block": [
+          {
+            "_body_font_unified": true,
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.3,
+            "page_body_font_size_pt": 12.0
+          },
+          {
+            "_body_font_unified": true,
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.56,
+            "page_body_font_size_pt": 12.0
+          },
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.32,
+              "reason": "underfilled_body",
+              "seed_font_pt": 12.0,
+              "slack_ratio": 0.2,
+              "target_font_pt": 12.32
+            },
+            "_body_font_unified": true,
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.7,
+            "page_body_font_size_pt": 12.0
+          },
+          {
+            "_body_font_unified": true,
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.56,
+            "page_body_font_size_pt": 12.0
+          },
+          {
+            "_body_font_unified": true,
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.56,
+            "page_body_font_size_pt": 12.0
+          }
+        ]
+      },
+      "input": {
+        "book_body_font_target": null,
+        "font_unify_mode": "role_min",
+        "ordered_payloads": [
+          {
+            "dense_small_box": false,
+            "font_size_pt": 18.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              0.0,
+              290.0,
+              30.0
+            ],
+            "is_body": false,
+            "item": {},
+            "leading_em": 0.3,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "章节标题"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              40.0,
+              160.0,
+              190.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    40.0,
+                    160.0,
+                    77.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    77.5,
+                    160.0,
+                    115.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    115.0,
+                    160.0,
+                    152.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    152.5,
+                    160.0,
+                    190.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              170.0,
+              40.0,
+              290.0,
+              190.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    170.0,
+                    40.0,
+                    290.0,
+                    77.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    170.0,
+                    77.5,
+                    290.0,
+                    115.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    170.0,
+                    115.0,
+                    290.0,
+                    152.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    170.0,
+                    152.5,
+                    290.0,
+                    190.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              191.0,
+              160.0,
+              300.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    191.0,
+                    160.0,
+                    218.25
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    218.25,
+                    160.0,
+                    245.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    245.5,
+                    160.0,
+                    272.75
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    272.75,
+                    160.0,
+                    300.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              170.0,
+              191.0,
+              290.0,
+              300.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    170.0,
+                    191.0,
+                    290.0,
+                    218.25
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    170.0,
+                    218.25,
+                    290.0,
+                    245.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    170.0,
+                    245.5,
+                    290.0,
+                    272.75
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    170.0,
+                    272.75,
+                    290.0,
+                    300.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。"
+          }
+        ],
+        "page_text_width_med": 110.0
+      }
+    },
+    {
+      "expected": {
+        "per_block": [
+          {
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.3,
+            "page_body_font_size_pt": 12.0
+          },
+          {
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.56,
+            "page_body_font_size_pt": 12.0
+          },
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.31,
+              "reason": "underfilled_body",
+              "seed_font_pt": 12.08,
+              "slack_ratio": 0.195,
+              "target_font_pt": 12.39
+            },
+            "_body_leading_decision": {
+              "leading_cap_em": 0.7,
+              "leading_em": 0.7,
+              "refit_after_font_unify": true,
+              "target_density": 0.78
+            },
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.7,
+            "page_body_font_size_pt": 12.0
+          },
+          {
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.56,
+            "page_body_font_size_pt": 12.0
+          },
+          {
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.56,
+            "page_body_font_size_pt": 12.0
+          }
+        ]
+      },
+      "input": {
+        "book_body_font_target": null,
+        "font_unify_mode": "off",
+        "ordered_payloads": [
+          {
+            "dense_small_box": false,
+            "font_size_pt": 18.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              0.0,
+              290.0,
+              30.0
+            ],
+            "is_body": false,
+            "item": {},
+            "leading_em": 0.3,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "章节标题"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              40.0,
+              160.0,
+              190.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    40.0,
+                    160.0,
+                    77.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    77.5,
+                    160.0,
+                    115.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    115.0,
+                    160.0,
+                    152.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    152.5,
+                    160.0,
+                    190.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              170.0,
+              40.0,
+              290.0,
+              190.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    170.0,
+                    40.0,
+                    290.0,
+                    77.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    170.0,
+                    77.5,
+                    290.0,
+                    115.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    170.0,
+                    115.0,
+                    290.0,
+                    152.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    170.0,
+                    152.5,
+                    290.0,
+                    190.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              191.0,
+              160.0,
+              300.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    191.0,
+                    160.0,
+                    218.25
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    218.25,
+                    160.0,
+                    245.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    245.5,
+                    160.0,
+                    272.75
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    272.75,
+                    160.0,
+                    300.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              170.0,
+              191.0,
+              290.0,
+              300.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    170.0,
+                    191.0,
+                    290.0,
+                    218.25
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    170.0,
+                    218.25,
+                    290.0,
+                    245.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    170.0,
+                    245.5,
+                    290.0,
+                    272.75
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    170.0,
+                    272.75,
+                    290.0,
+                    300.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。"
+          }
+        ],
+        "page_text_width_med": 110.0
+      }
+    },
+    {
+      "expected": {
+        "per_block": [
+          {
+            "_body_font_unified": true,
+            "font_size_pt": 10.35,
+            "leading_em": 0.3,
+            "page_body_font_size_pt": 10.35
+          },
+          {
+            "_body_font_unified": true,
+            "font_size_pt": 10.35,
+            "leading_em": 0.52,
+            "page_body_font_size_pt": 10.35
+          },
+          {
+            "font_size_pt": 10.2,
+            "leading_em": 0.44,
+            "page_body_font_size_pt": 11.5
+          },
+          {
+            "_body_font_unified": true,
+            "font_size_pt": 10.35,
+            "leading_em": 0.4,
+            "page_body_font_size_pt": 10.35
+          },
+          {
+            "_body_font_unified": true,
+            "font_size_pt": 10.35,
+            "leading_em": 0.7,
+            "page_body_font_size_pt": 10.35
+          }
+        ]
+      },
+      "input": {
+        "book_body_font_target": null,
+        "font_unify_mode": "role_min",
+        "ordered_payloads": [
+          {
+            "dense_small_box": false,
+            "font_size_pt": 18.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              0.0,
+              250.0,
+              30.0
+            ],
+            "is_body": false,
+            "item": {},
+            "leading_em": 0.3,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "章节标题"
+          },
+          {
+            "dense_small_box": true,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              40.0,
+              120.0,
+              130.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    40.0,
+                    120.0,
+                    62.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这一段落在非常狭小的框内塞入了大量密密麻麻的中文文字内容用于触发密集小框的收紧与强制拟合路径执行确保密度压力被正确感知。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    62.5,
+                    120.0,
+                    85.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这一段落在非常狭小的框内塞入了大量密密麻麻的中文文字内容用于触发密集小框的收紧与强制拟合路径执行确保密度压力被正确感知。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    85.0,
+                    120.0,
+                    107.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这一段落在非常狭小的框内塞入了大量密密麻麻的中文文字内容用于触发密集小框的收紧与强制拟合路径执行确保密度压力被正确感知。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    107.5,
+                    120.0,
+                    130.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这一段落在非常狭小的框内塞入了大量密密麻麻的中文文字内容用于触发密集小框的收紧与强制拟合路径执行确保密度压力被正确感知。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这一段落在非常狭小的框内塞入了大量密密麻麻的中文文字内容用于触发密集小框的收紧与强制拟合路径执行确保密度压力被正确感知。"
+            },
+            "leading_em": 0.44,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这一段落在非常狭小的框内塞入了大量密密麻麻的中文文字内容用于触发密集小框的收紧与强制拟合路径执行确保密度压力被正确感知。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": true,
+            "inner_bbox": [
+              130.0,
+              40.0,
+              250.0,
+              130.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    130.0,
+                    40.0,
+                    250.0,
+                    62.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    130.0,
+                    62.5,
+                    250.0,
+                    85.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    130.0,
+                    85.0,
+                    250.0,
+                    107.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    130.0,
+                    107.5,
+                    250.0,
+                    130.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+            },
+            "leading_em": 0.44,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 11.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              131.0,
+              250.0,
+              155.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    131.0,
+                    250.0,
+                    155.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。"
+            },
+            "leading_em": 0.4,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              156.0,
+              250.0,
+              256.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    156.0,
+                    250.0,
+                    181.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    181.0,
+                    250.0,
+                    206.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    206.0,
+                    250.0,
+                    231.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    231.0,
+                    250.0,
+                    256.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。"
+          }
+        ],
+        "page_text_width_med": 200.0
+      }
+    },
+    {
+      "expected": {
+        "per_block": [
+          {
+            "font_size_pt": 18.0,
+            "leading_em": 0.3
+          },
+          {
+            "font_size_pt": 10.35,
+            "leading_em": 0.52,
+            "page_body_font_size_pt": 11.5
+          },
+          {
+            "font_size_pt": 10.2,
+            "leading_em": 0.44,
+            "page_body_font_size_pt": 11.5
+          },
+          {
+            "font_size_pt": 11.0,
+            "leading_em": 0.4,
+            "page_body_font_size_pt": 11.29
+          },
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.62,
+              "reason": "underfilled_body",
+              "seed_font_pt": 11.58,
+              "slack_ratio": 0.421,
+              "target_font_pt": 12.2
+            },
+            "font_size_pt": 13.88,
+            "leading_em": 0.7,
+            "page_body_font_size_pt": 11.5
+          }
+        ]
+      },
+      "input": {
+        "book_body_font_target": null,
+        "font_unify_mode": "off",
+        "ordered_payloads": [
+          {
+            "dense_small_box": false,
+            "font_size_pt": 18.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              0.0,
+              250.0,
+              30.0
+            ],
+            "is_body": false,
+            "item": {},
+            "leading_em": 0.3,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "章节标题"
+          },
+          {
+            "dense_small_box": true,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              40.0,
+              120.0,
+              130.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    40.0,
+                    120.0,
+                    62.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这一段落在非常狭小的框内塞入了大量密密麻麻的中文文字内容用于触发密集小框的收紧与强制拟合路径执行确保密度压力被正确感知。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    62.5,
+                    120.0,
+                    85.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这一段落在非常狭小的框内塞入了大量密密麻麻的中文文字内容用于触发密集小框的收紧与强制拟合路径执行确保密度压力被正确感知。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    85.0,
+                    120.0,
+                    107.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这一段落在非常狭小的框内塞入了大量密密麻麻的中文文字内容用于触发密集小框的收紧与强制拟合路径执行确保密度压力被正确感知。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    107.5,
+                    120.0,
+                    130.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这一段落在非常狭小的框内塞入了大量密密麻麻的中文文字内容用于触发密集小框的收紧与强制拟合路径执行确保密度压力被正确感知。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这一段落在非常狭小的框内塞入了大量密密麻麻的中文文字内容用于触发密集小框的收紧与强制拟合路径执行确保密度压力被正确感知。"
+            },
+            "leading_em": 0.44,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这一段落在非常狭小的框内塞入了大量密密麻麻的中文文字内容用于触发密集小框的收紧与强制拟合路径执行确保密度压力被正确感知。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": true,
+            "inner_bbox": [
+              130.0,
+              40.0,
+              250.0,
+              130.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    130.0,
+                    40.0,
+                    250.0,
+                    62.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    130.0,
+                    62.5,
+                    250.0,
+                    85.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    130.0,
+                    85.0,
+                    250.0,
+                    107.5
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    130.0,
+                    107.5,
+                    250.0,
+                    130.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+            },
+            "leading_em": 0.44,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 11.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              131.0,
+              250.0,
+              155.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    131.0,
+                    250.0,
+                    155.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。"
+            },
+            "leading_em": 0.4,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是较短的第三段正文，用于观察短段落继承与恢复密度的行为是否符合预期。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              156.0,
+              250.0,
+              256.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    156.0,
+                    250.0,
+                    181.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    181.0,
+                    250.0,
+                    206.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    206.0,
+                    250.0,
+                    231.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    231.0,
+                    250.0,
+                    256.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落二，其字号和行距与相邻段落略有差异以便观察相邻平滑的效果变化。"
+          }
+        ],
+        "page_text_width_med": 200.0
+      }
+    },
+    {
+      "expected": {
+        "per_block": [
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.18,
+              "reason": "underfilled_body",
+              "seed_font_pt": 12.0,
+              "slack_ratio": 0.1,
+              "target_font_pt": 12.18
+            },
+            "_body_font_unified": true,
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.18
+            },
+            "font_size_pt": 12.18,
+            "leading_em": 0.68,
+            "page_body_font_size_pt": 12.18
+          },
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.18,
+              "reason": "underfilled_body_harmonized",
+              "seed_font_pt": 12.0,
+              "slack_ratio": 0.0,
+              "target_font_pt": 12.18
+            },
+            "_body_font_unified": true,
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.18
+            },
+            "font_size_pt": 24.24,
+            "leading_em": 0.32,
+            "page_body_font_size_pt": 12.18
+          },
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.18,
+              "reason": "underfilled_body_harmonized",
+              "seed_font_pt": 12.0,
+              "slack_ratio": 0.0,
+              "target_font_pt": 12.18
+            },
+            "_body_font_unified": true,
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.18
+            },
+            "font_size_pt": 12.18,
+            "leading_em": 0.7,
+            "page_body_font_size_pt": 12.18
+          }
+        ]
+      },
+      "input": {
+        "book_body_font_target": null,
+        "font_unify_mode": "role_min",
+        "ordered_payloads": [
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              40.0,
+              250.0,
+              140.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    40.0,
+                    250.0,
+                    65.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    65.0,
+                    250.0,
+                    90.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    90.0,
+                    250.0,
+                    115.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    115.0,
+                    250.0,
+                    140.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              141.0,
+              250.0,
+              241.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    141.0,
+                    250.0,
+                    174.33333333333334
+                  ],
+                  "spans": [
+                    {
+                      "text": "第一行文字内容\n第二行独立文字\n第三行收尾文字内容",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    174.33333333333334,
+                    250.0,
+                    207.66666666666669
+                  ],
+                  "spans": [
+                    {
+                      "text": "第一行文字内容\n第二行独立文字\n第三行收尾文字内容",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    207.66666666666669,
+                    250.0,
+                    241.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "第一行文字内容\n第二行独立文字\n第三行收尾文字内容",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "第一行文字内容\n第二行独立文字\n第三行收尾文字内容"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "preserve_line_breaks": true,
+            "render_kind": "markdown",
+            "translated_text": "第一行文字内容\n第二行独立文字\n第三行收尾文字内容"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              242.0,
+              250.0,
+              342.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    242.0,
+                    250.0,
+                    267.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    267.0,
+                    250.0,
+                    292.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    292.0,
+                    250.0,
+                    317.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    317.0,
+                    250.0,
+                    342.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。"
+          }
+        ],
+        "page_text_width_med": 200.0
+      }
+    },
+    {
+      "expected": {
+        "per_block": [
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.18,
+              "reason": "underfilled_body",
+              "seed_font_pt": 12.0,
+              "slack_ratio": 0.1,
+              "target_font_pt": 12.18
+            },
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 13.86
+            },
+            "font_size_pt": 13.86,
+            "leading_em": 0.68,
+            "page_body_font_size_pt": 13.86
+          },
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.1,
+              "reason": "underfilled_body_harmonized",
+              "seed_font_pt": 12.08,
+              "slack_ratio": 0.0,
+              "target_font_pt": 12.18
+            },
+            "_body_leading_decision": {
+              "leading_cap_em": 0.7,
+              "leading_em": 0.7,
+              "refit_after_font_unify": true,
+              "target_density": 0.72
+            },
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 13.86
+            },
+            "font_size_pt": 24.24,
+            "leading_em": 0.32,
+            "page_body_font_size_pt": 13.86
+          },
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.18,
+              "reason": "underfilled_body_harmonized",
+              "seed_font_pt": 12.0,
+              "slack_ratio": 0.0,
+              "target_font_pt": 12.18
+            },
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 13.86
+            },
+            "font_size_pt": 13.86,
+            "leading_em": 0.68,
+            "page_body_font_size_pt": 13.86
+          }
+        ]
+      },
+      "input": {
+        "book_body_font_target": null,
+        "font_unify_mode": "off",
+        "ordered_payloads": [
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              40.0,
+              250.0,
+              140.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    40.0,
+                    250.0,
+                    65.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    65.0,
+                    250.0,
+                    90.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    90.0,
+                    250.0,
+                    115.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    115.0,
+                    250.0,
+                    140.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              141.0,
+              250.0,
+              241.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    141.0,
+                    250.0,
+                    174.33333333333334
+                  ],
+                  "spans": [
+                    {
+                      "text": "第一行文字内容\n第二行独立文字\n第三行收尾文字内容",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    174.33333333333334,
+                    250.0,
+                    207.66666666666669
+                  ],
+                  "spans": [
+                    {
+                      "text": "第一行文字内容\n第二行独立文字\n第三行收尾文字内容",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    207.66666666666669,
+                    250.0,
+                    241.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "第一行文字内容\n第二行独立文字\n第三行收尾文字内容",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "第一行文字内容\n第二行独立文字\n第三行收尾文字内容"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "preserve_line_breaks": true,
+            "render_kind": "markdown",
+            "translated_text": "第一行文字内容\n第二行独立文字\n第三行收尾文字内容"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              242.0,
+              250.0,
+              342.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    242.0,
+                    250.0,
+                    267.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    267.0,
+                    250.0,
+                    292.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    292.0,
+                    250.0,
+                    317.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    317.0,
+                    250.0,
+                    342.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。"
+          }
+        ],
+        "page_text_width_med": 200.0
+      }
+    },
+    {
+      "expected": {
+        "per_block": [
+          {
+            "_body_font_unified": true,
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.3,
+            "page_body_font_size_pt": 12.0
+          },
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.23,
+              "reason": "underfilled_body",
+              "seed_font_pt": 12.0,
+              "slack_ratio": 0.136,
+              "target_font_pt": 12.23
+            },
+            "_body_font_unified": true,
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.68,
+            "page_body_font_size_pt": 12.0
+          },
+          {
+            "font_size_pt": 9.0,
+            "leading_em": 0.35
+          },
+          {
+            "font_size_pt": 8.5,
+            "leading_em": 0.35
+          },
+          {
+            "_body_font_growth_decision": {
+              "grew_pt": 0.59,
+              "reason": "underfilled_body",
+              "seed_font_pt": 12.0,
+              "slack_ratio": 0.4,
+              "target_font_pt": 12.59
+            },
+            "_body_font_unified": true,
+            "_page_body_anchor_decision": {
+              "applied": true,
+              "target_font_pt": 12.0
+            },
+            "font_size_pt": 12.0,
+            "leading_em": 0.7,
+            "page_body_font_size_pt": 12.0
+          }
+        ]
+      },
+      "input": {
+        "book_body_font_target": null,
+        "font_unify_mode": "role_min",
+        "ordered_payloads": [
+          {
+            "dense_small_box": false,
+            "font_size_pt": 18.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              0.0,
+              250.0,
+              30.0
+            ],
+            "is_body": false,
+            "item": {},
+            "leading_em": 0.3,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "章节标题"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              40.0,
+              250.0,
+              140.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    40.0,
+                    250.0,
+                    65.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    65.0,
+                    250.0,
+                    90.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    90.0,
+                    250.0,
+                    115.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    115.0,
+                    250.0,
+                    140.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+            },
+            "leading_em": 0.44,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落一，包含足够多的文字用于测试正文管道各阶段的平滑与统一效果，避免被过滤跳过。"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 9.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              141.0,
+              250.0,
+              161.0
+            ],
+            "is_body": false,
+            "item": {
+              "layout_role": "caption"
+            },
+            "leading_em": 0.35,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "图注或脚注文字示例"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 8.5,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              162.0,
+              250.0,
+              182.0
+            ],
+            "is_body": false,
+            "item": {
+              "layout_role": "footnote"
+            },
+            "leading_em": 0.35,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "图注或脚注文字示例"
+          },
+          {
+            "dense_small_box": false,
+            "font_size_pt": 12.0,
+            "formula_map": [],
+            "heavy_dense_small_box": false,
+            "inner_bbox": [
+              50.0,
+              183.0,
+              250.0,
+              283.0
+            ],
+            "is_body": true,
+            "item": {
+              "lines": [
+                {
+                  "bbox": [
+                    50.0,
+                    183.0,
+                    250.0,
+                    208.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    208.0,
+                    250.0,
+                    233.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    233.0,
+                    250.0,
+                    258.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "bbox": [
+                    50.0,
+                    258.0,
+                    250.0,
+                    283.0
+                  ],
+                  "spans": [
+                    {
+                      "text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ],
+              "source_text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。"
+            },
+            "leading_em": 0.5,
+            "prefer_typst_fit": false,
+            "render_kind": "markdown",
+            "translated_text": "这是正文段落四，承载足够多文字以确保满足锚点候选的宽度与行数门槛要求。"
+          }
+        ],
+        "page_text_width_med": 200.0
+      }
+    }
+  ],
+  "schema": "retainpdf_diff_corpus_v1",
+  "seed": 0
+}

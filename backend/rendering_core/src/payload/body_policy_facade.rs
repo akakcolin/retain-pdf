@@ -6,15 +6,9 @@
 use serde_json::Value;
 
 use crate::layout::annotation_font_policy as annotation;
-use crate::layout::body_fit_policy;
-use crate::layout::body_font_dense_policy as dense;
-use crate::layout::body_font_harmonize_policy as harmonize;
-use crate::layout::body_font_inheritance_policy as inheritance;
-use crate::layout::body_font_underfill_policy as underfill;
-use crate::layout::body_font_unify_policy as unify;
-use crate::layout::body_leading_policy as leading;
-use crate::layout::body_page_anchor_policy as page_anchor;
-use crate::layout::body_smoothing_policy as smoothing;
+use crate::layout::body_font_policy;
+use crate::layout::body_font_unify;
+use crate::layout::body_leading;
 
 pub fn tighten_body_payloads(
     body_payloads: &mut Vec<Value>,
@@ -24,7 +18,7 @@ pub fn tighten_body_payloads(
     _ordered_payloads: &mut Vec<Value>,
     _page_text_width_med: f64,
 ) {
-    dense::tighten_body_payloads(body_payloads, body_font_median, body_density_target, body_pressure_median);
+    body_font_policy::tighten_body_payloads(body_payloads, body_font_median, body_density_target, body_pressure_median);
 }
 
 pub fn mark_force_fit_dense_outliers(
@@ -35,7 +29,7 @@ pub fn mark_force_fit_dense_outliers(
     _ordered_payloads: &mut Vec<Value>,
     _page_text_width_med: f64,
 ) {
-    dense::mark_force_fit_dense_outliers(body_payloads);
+    body_font_policy::mark_force_fit_dense_outliers(body_payloads);
 }
 
 pub fn grow_underfilled_body_payloads(
@@ -46,7 +40,7 @@ pub fn grow_underfilled_body_payloads(
     _ordered_payloads: &mut Vec<Value>,
     page_text_width_med: f64,
 ) {
-    underfill::grow_underfilled_body_payloads(body_payloads, body_font_median, page_text_width_med);
+    body_font_policy::grow_underfilled_body_payloads(body_payloads, body_font_median, page_text_width_med);
 }
 
 pub fn recover_underfilled_body_density(
@@ -57,7 +51,7 @@ pub fn recover_underfilled_body_density(
     _ordered_payloads: &mut Vec<Value>,
     _page_text_width_med: f64,
 ) {
-    underfill::recover_underfilled_body_density(body_payloads);
+    body_font_policy::recover_underfilled_body_density(body_payloads);
 }
 
 pub fn restore_comfort_body_leading(
@@ -68,7 +62,7 @@ pub fn restore_comfort_body_leading(
     _ordered_payloads: &mut Vec<Value>,
     _page_text_width_med: f64,
 ) {
-    leading::restore_comfort_body_leading(body_payloads);
+    body_leading::restore_comfort_body_leading(body_payloads);
 }
 
 pub fn refit_body_leading_after_font_unify(
@@ -79,7 +73,7 @@ pub fn refit_body_leading_after_font_unify(
     _ordered_payloads: &mut Vec<Value>,
     _page_text_width_med: f64,
 ) {
-    leading::refit_body_leading_after_font_unify(body_payloads);
+    body_leading::refit_body_leading_after_font_unify(body_payloads);
 }
 
 pub fn harmonize_underfilled_body_fonts(
@@ -90,7 +84,7 @@ pub fn harmonize_underfilled_body_fonts(
     ordered_payloads: &mut Vec<Value>,
     page_text_width_med: f64,
 ) {
-    underfill::harmonize_underfilled_body_fonts(body_payloads, ordered_payloads, page_text_width_med);
+    body_font_policy::harmonize_underfilled_body_fonts(body_payloads, ordered_payloads, page_text_width_med);
 }
 
 pub fn apply_page_body_font_anchor(
@@ -101,7 +95,7 @@ pub fn apply_page_body_font_anchor(
     ordered_payloads: &mut Vec<Value>,
     page_text_width_med: f64,
 ) {
-    page_anchor::apply_page_body_font_anchor(body_payloads, ordered_payloads, page_text_width_med);
+    body_font_unify::apply_page_body_font_anchor(body_payloads, ordered_payloads, page_text_width_med);
 }
 
 pub fn inherit_short_body_fonts(
@@ -112,7 +106,7 @@ pub fn inherit_short_body_fonts(
     ordered_payloads: &mut Vec<Value>,
     page_text_width_med: f64,
 ) {
-    inheritance::inherit_short_body_fonts(body_payloads, ordered_payloads, page_text_width_med);
+    body_font_unify::inherit_short_body_fonts(body_payloads, ordered_payloads, page_text_width_med);
 }
 
 pub fn inherit_low_height_body_fonts(
@@ -123,7 +117,7 @@ pub fn inherit_low_height_body_fonts(
     ordered_payloads: &mut Vec<Value>,
     page_text_width_med: f64,
 ) {
-    inheritance::inherit_low_height_body_fonts(body_payloads, ordered_payloads, page_text_width_med);
+    body_font_unify::inherit_low_height_body_fonts(body_payloads, ordered_payloads, page_text_width_med);
 }
 
 pub fn unify_similar_body_fonts(
@@ -135,7 +129,7 @@ pub fn unify_similar_body_fonts(
     page_text_width_med: f64,
     book_body_font_target: Option<f64>,
 ) {
-    unify::unify_similar_body_fonts(body_payloads, ordered_payloads, page_text_width_med, book_body_font_target);
+    body_font_unify::unify_similar_body_fonts(body_payloads, ordered_payloads, page_text_width_med, book_body_font_target);
 }
 
 pub fn relax_short_body_context_heights(
@@ -146,7 +140,7 @@ pub fn relax_short_body_context_heights(
     ordered_payloads: &mut Vec<Value>,
     page_text_width_med: f64,
 ) {
-    body_fit_policy::relax_short_body_context_heights(body_payloads, ordered_payloads, page_text_width_med);
+    body_font_policy::relax_short_body_context_heights(body_payloads, ordered_payloads, page_text_width_med);
 }
 
 pub fn harmonize_long_body_payloads(
@@ -157,7 +151,7 @@ pub fn harmonize_long_body_payloads(
     _ordered_payloads: &mut Vec<Value>,
     page_text_width_med: f64,
 ) {
-    harmonize::harmonize_long_body_payloads(body_payloads, page_text_width_med);
+    body_font_policy::harmonize_long_body_payloads(body_payloads, page_text_width_med);
 }
 
 pub fn smooth_adjacent_body_payloads(
@@ -168,7 +162,7 @@ pub fn smooth_adjacent_body_payloads(
     _ordered_payloads: &mut Vec<Value>,
     page_text_width_med: f64,
 ) {
-    smoothing::smooth_adjacent_body_payloads(body_payloads, page_text_width_med);
+    body_leading::smooth_adjacent_body_payloads(body_payloads, page_text_width_med);
 }
 
 /// `unify_annotation_fonts`: caption/footnote font unify (non-body pipeline).

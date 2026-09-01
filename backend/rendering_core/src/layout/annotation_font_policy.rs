@@ -5,15 +5,16 @@
 use serde_json::Value;
 
 use crate::item::Item;
-use crate::layout::body_common::{is_body_context_text_payload, payload_density};
+use crate::layout::body_context::{is_body_context_text_payload, payload_density};
 use crate::layout::payload_dict::{payload_f64, payload_string};
-use crate::layout::typography_policy as typography;
+use crate::layout::typography_capacity as typography;
 use crate::semantics::{is_caption_like_block, is_footnote_like_block};
 use crate::util::{median_f64, py_round};
 
 /// `unify_annotation_fonts`: pull caption/footnote fonts toward the role target,
 /// capped by the body font reference.
 pub fn unify_annotation_fonts(ordered_payloads: &mut Vec<Value>) {
+    let budget = typography::CapacityBudget::annotation_caption();
     let body_font_cap = body_font_reference(ordered_payloads);
     for role in ["caption", "footnote"] {
         let role_payloads: Vec<usize> = ordered_payloads
@@ -28,23 +29,23 @@ pub fn unify_annotation_fonts(ordered_payloads: &mut Vec<Value>) {
         let role_values: Vec<Value> = role_payloads.iter().map(|&idx| ordered_payloads[idx].clone()).collect();
         let mut target_font = low_role_font_target(&role_values);
         if role == "caption" {
-            target_font = annotation_target_font(&role_values, target_font, typography::CAPTION_FONT_UNIFY_TARGET_BONUS_PT);
+            target_font = annotation_target_font(&role_values, target_font, budget.caption_unify_target_bonus_pt);
             target_font = cap_annotation_font(target_font, role, body_font_cap);
         } else {
-            target_font = annotation_target_font(&role_values, target_font, typography::FOOTNOTE_FONT_UNIFY_TARGET_BONUS_PT);
+            target_font = annotation_target_font(&role_values, target_font, budget.footnote_unify_target_bonus_pt);
             target_font = cap_annotation_font(target_font, role, body_font_cap);
         }
         for idx in role_payloads {
             let current_font = payload_f64(&ordered_payloads[idx], "font_size_pt", 0.0);
-            if (current_font - target_font).abs() <= typography::ANNOTATION_FONT_UNIFY_APPLY_TOLERANCE_PT {
+            if (current_font - target_font).abs() <= budget.annotation_unify_apply_tolerance_pt {
                 continue;
             }
             let new_font = if current_font > target_font {
-                target_font.max(current_font - typography::ANNOTATION_FONT_UNIFY_MAX_SHRINK_PT)
+                target_font.max(current_font - budget.annotation_unify_max_shrink_pt)
             } else if role == "caption" {
-                target_font.min(current_font + typography::CAPTION_FONT_UNIFY_MAX_GROW_PT)
+                target_font.min(current_font + budget.caption_unify_max_grow_pt)
             } else {
-                target_font.min(current_font + typography::FOOTNOTE_FONT_UNIFY_MAX_GROW_PT)
+                target_font.min(current_font + budget.footnote_unify_max_grow_pt)
             };
             let obj = ordered_payloads[idx].as_object_mut().expect("payload is an object");
             obj.insert("font_size_pt".to_string(), Value::from(py_round(new_font, 2)));
@@ -55,6 +56,7 @@ pub fn unify_annotation_fonts(ordered_payloads: &mut Vec<Value>) {
 /// `recover_underfilled_annotation_density`: grow caption/footnote font/leading
 /// toward the recovery target, then clamp to the body-font cap.
 pub fn recover_underfilled_annotation_density(ordered_payloads: &mut Vec<Value>) {
+    let budget = typography::CapacityBudget::annotation_caption();
     let body_font_cap = body_font_reference(ordered_payloads);
     for payload in ordered_payloads {
         let role = annotation_role(payload);
@@ -67,7 +69,7 @@ pub fn recover_underfilled_annotation_density(ordered_payloads: &mut Vec<Value>)
         if payload_f64(payload, "font_size_pt", 0.0) <= 0.0 || payload_f64(payload, "leading_em", 0.0) <= 0.0 {
             continue;
         }
-        if payload_density(payload, None, None) >= typography::ANNOTATION_UNDERFILLED_DENSITY_FLOOR_TRIGGER {
+        if payload_density(payload, None, None) >= budget.annotation_density_floor_trigger {
             clamp_annotation_payload_font(payload, role, body_font_cap);
             continue;
         }
@@ -88,6 +90,7 @@ fn annotation_role(payload: &Value) -> &'static str {
 }
 
 fn low_role_font_target(payloads: &[Value]) -> f64 {
+    let budget = typography::CapacityBudget::annotation_caption();
     let mut fonts: Vec<f64> = payloads
         .iter()
         .map(|p| payload_f64(p, "font_size_pt", 0.0))
@@ -98,7 +101,7 @@ fn low_role_font_target(payloads: &[Value]) -> f64 {
         return 0.0;
     }
     let fonts = without_extreme_small_fonts(fonts);
-    let index = ((fonts.len() - 1) as f64 * typography::ANNOTATION_FONT_UNIFY_TARGET_QUANTILE) as usize;
+    let index = ((fonts.len() - 1) as f64 * budget.annotation_unify_target_quantile) as usize;
     py_round(fonts[index], 2)
 }
 
@@ -118,14 +121,15 @@ fn annotation_target_font(payloads: &[Value], low_target: f64, target_bonus_pt: 
 }
 
 fn without_extreme_small_fonts(fonts: Vec<f64>) -> Vec<f64> {
-    if fonts.len() < typography::ANNOTATION_FONT_UNIFY_MIN_FILTERED_COUNT + 1 {
+    let budget = typography::CapacityBudget::annotation_caption();
+    if fonts.len() < budget.annotation_unify_min_filtered_count + 1 {
         return fonts;
     }
     let median_font = median_f64(&fonts);
-    let floor = (median_font * typography::ANNOTATION_FONT_UNIFY_EXTREME_SMALL_RATIO)
-        .max(median_font - typography::ANNOTATION_FONT_UNIFY_EXTREME_SMALL_DELTA_PT);
+    let floor = (median_font * budget.annotation_unify_extreme_small_ratio)
+        .max(median_font - budget.annotation_unify_extreme_small_delta_pt);
     let filtered: Vec<f64> = fonts.iter().cloned().filter(|f| *f >= floor).collect();
-    if filtered.len() < typography::ANNOTATION_FONT_UNIFY_MIN_FILTERED_COUNT {
+    if filtered.len() < budget.annotation_unify_min_filtered_count {
         return fonts;
     }
     filtered
@@ -145,12 +149,13 @@ fn body_font_reference(payloads: &[Value]) -> Option<f64> {
 }
 
 fn cap_annotation_font(font_size_pt: f64, role: &str, body_font_cap: Option<f64>) -> f64 {
+    let budget = typography::CapacityBudget::annotation_caption();
     match body_font_cap {
         Some(cap) if cap > 0.0 => {
             let ratio = if role == "caption" {
-                typography::CAPTION_BODY_FONT_CAP_RATIO
+                budget.caption_body_font_cap_ratio
             } else {
-                typography::FOOTNOTE_BODY_FONT_CAP_RATIO
+                budget.footnote_body_font_cap_ratio
             };
             font_size_pt.min(cap * ratio)
         }
@@ -170,12 +175,13 @@ fn clamp_annotation_payload_font(payload: &mut Value, role: &str, body_font_cap:
 }
 
 fn recover_annotation_payload_density(payload: &mut Value, role: &str, body_font_cap: Option<f64>) {
-    for _ in 0..typography::ANNOTATION_UNDERFILLED_RECOVERY_MAX_ITERATIONS {
-        if payload_density(payload, None, None) >= typography::ANNOTATION_UNDERFILLED_DENSITY_RECOVERY_TARGET {
+    let budget = typography::CapacityBudget::annotation_caption();
+    for _ in 0..budget.annotation_recovery_max_iterations {
+        if payload_density(payload, None, None) >= budget.annotation_density_recovery_target {
             return;
         }
         recover_annotation_font_step(payload, role, body_font_cap);
-        if payload_density(payload, None, None) >= typography::ANNOTATION_UNDERFILLED_DENSITY_RECOVERY_TARGET {
+        if payload_density(payload, None, None) >= budget.annotation_density_recovery_target {
             return;
         }
         let changed = recover_annotation_leading_step(payload, role);
@@ -186,18 +192,19 @@ fn recover_annotation_payload_density(payload: &mut Value, role: &str, body_font
 }
 
 fn recover_annotation_font_step(payload: &mut Value, role: &str, body_font_cap: Option<f64>) -> bool {
+    let budget = typography::CapacityBudget::annotation_caption();
     let current_font = payload_f64(payload, "font_size_pt", 0.0);
     if current_font <= 0.0 {
         return false;
     }
     let step = if role == "caption" {
-        typography::CAPTION_UNDERFILLED_RECOVERY_FONT_STEP_PT
+        budget.caption_recovery_font_step_pt
     } else {
-        typography::FOOTNOTE_UNDERFILLED_RECOVERY_FONT_STEP_PT
+        budget.footnote_recovery_font_step_pt
     };
     let target_font = cap_annotation_font(font_for_annotation_recovery_density(payload), role, body_font_cap)
         .min(current_font + step);
-    let best = largest_annotation_font_within_density(payload, current_font, target_font, typography::ANNOTATION_UNDERFILLED_DENSITY_SAFE_MAX);
+    let best = largest_annotation_font_within_density(payload, current_font, target_font, budget.annotation_density_safe_max);
     if best <= current_font + 0.02 {
         return false;
     }
@@ -209,17 +216,18 @@ fn recover_annotation_font_step(payload: &mut Value, role: &str, body_font_cap: 
 }
 
 fn recover_annotation_leading_step(payload: &mut Value, role: &str) -> bool {
+    let budget = typography::CapacityBudget::annotation_caption();
     let current_leading = payload_f64(payload, "leading_em", 0.0);
     if current_leading <= 0.0 {
         return false;
     }
     let (cap, step) = if role == "caption" {
-        (typography::CAPTION_UNDERFILLED_RECOVERY_LEADING_CAP_EM, typography::CAPTION_UNDERFILLED_RECOVERY_LEADING_STEP_EM)
+        (budget.caption_recovery_leading_cap_em, budget.caption_recovery_leading_step_em)
     } else {
-        (typography::FOOTNOTE_UNDERFILLED_RECOVERY_LEADING_CAP_EM, typography::FOOTNOTE_UNDERFILLED_RECOVERY_LEADING_STEP_EM)
+        (budget.footnote_recovery_leading_cap_em, budget.footnote_recovery_leading_step_em)
     };
     let target_leading = cap.min(current_leading + step);
-    let best = largest_annotation_leading_within_density(payload, current_leading, target_leading, typography::ANNOTATION_UNDERFILLED_DENSITY_SAFE_MAX);
+    let best = largest_annotation_leading_within_density(payload, current_leading, target_leading, budget.annotation_density_safe_max);
     if best <= current_leading + 0.01 {
         return false;
     }
@@ -231,12 +239,13 @@ fn recover_annotation_leading_step(payload: &mut Value, role: &str) -> bool {
 }
 
 fn font_for_annotation_recovery_density(payload: &Value) -> f64 {
+    let budget = typography::CapacityBudget::annotation_caption();
     let current_font = payload_f64(payload, "font_size_pt", 0.0);
     let density = payload_density(payload, None, None);
     if current_font <= 0.0 || density <= 0.0 {
         return current_font;
     }
-    let scale = (typography::ANNOTATION_UNDERFILLED_DENSITY_RECOVERY_TARGET / density.max(0.01)).sqrt();
+    let scale = (budget.annotation_density_recovery_target / density.max(0.01)).sqrt();
     current_font * scale
 }
 

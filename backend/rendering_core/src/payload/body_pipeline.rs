@@ -6,7 +6,7 @@
 
 use serde_json::Value;
 
-use crate::layout::body_common::resolve_body_targets;
+use crate::layout::body_context::resolve_body_targets;
 use crate::layout::line_structure::fit_preserved_line_block_metrics;
 use crate::layout::payload_dict::{payload_bool, payload_f64, payload_string};
 use crate::payload::body_policy_facade as body_policy;
