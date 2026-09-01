@@ -1,4 +1,5 @@
 mod catalog;
+pub mod local;
 pub mod mineru;
 pub mod paddle;
 mod provider_config;

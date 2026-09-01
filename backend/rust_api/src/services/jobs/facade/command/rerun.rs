@@ -16,7 +16,9 @@ impl<'a> JobsFacade<'a> {
         source_job_id: &str,
     ) -> Result<JobSubmissionView, AppError> {
         let source_job = load_job_or_404(self.command.db, source_job_id)?;
-        if resume_plan(&source_job).resume_workflow == Some(WorkflowKind::Render) {
+        if resume_plan(&source_job, self.command.control.data_root).resume_workflow
+            == Some(WorkflowKind::Render)
+        {
             let job = prepare_in_place_render_job(source_job)?;
             let job = start_job_execution(&self.command.submit.launcher, job)?;
             return Ok(self.build_submission_view(
@@ -26,7 +28,7 @@ impl<'a> JobsFacade<'a> {
                 WorkflowKind::Render,
             ));
         }
-        let request = build_rerun_request(&source_job)?;
+        let request = build_rerun_request(&source_job, self.command.control.data_root)?;
         let workflow = request.workflow.clone();
         let job = create_translation_job(&self.command.submit, &request)?;
         Ok(self.build_submission_view(base_url, &job, JobStatusKind::Queued, workflow))
@@ -80,8 +82,11 @@ fn reset_render_artifacts(job: &mut JobSnapshot) {
     artifacts.total_time_seconds = None;
 }
 
-fn build_rerun_request(source_job: &JobSnapshot) -> Result<CreateJobInput, AppError> {
-    let plan = resume_plan(source_job);
+fn build_rerun_request(
+    source_job: &JobSnapshot,
+    data_root: &std::path::Path,
+) -> Result<CreateJobInput, AppError> {
+    let plan = resume_plan(source_job, data_root);
     let workflow = plan.resume_workflow.ok_or_else(|| {
         AppError::bad_request(
             plan.reason

@@ -1,5 +1,8 @@
+use std::path::{Component, Path};
+
 use crate::models::api::RetryStageKind;
 use crate::models::domain::{JobArtifacts, JobSnapshot, JobStatusKind, WorkflowKind};
+use crate::storage_paths::{resolve_data_path, TRANSLATION_MANIFEST_FILE_NAME};
 
 #[derive(Debug, Clone)]
 pub(crate) struct JobStagePlan {
@@ -23,16 +26,20 @@ pub(crate) struct JobResumePlan {
     pub reason: Option<String>,
 }
 
-pub(crate) fn stage_plans(job: &JobSnapshot) -> Vec<JobStagePlan> {
+pub(crate) fn stage_plans(job: &JobSnapshot, data_root: &Path) -> Vec<JobStagePlan> {
     vec![
-        stage_plan(job, RetryStageKind::Ocr),
-        stage_plan(job, RetryStageKind::Translation),
-        stage_plan(job, RetryStageKind::Render),
+        stage_plan(job, RetryStageKind::Ocr, data_root),
+        stage_plan(job, RetryStageKind::Translation, data_root),
+        stage_plan(job, RetryStageKind::Render, data_root),
     ]
 }
 
-pub(crate) fn stage_plan(job: &JobSnapshot, stage: RetryStageKind) -> JobStagePlan {
-    let availability = StageArtifactAvailability::from_job(job);
+pub(crate) fn stage_plan(
+    job: &JobSnapshot,
+    stage: RetryStageKind,
+    data_root: &Path,
+) -> JobStagePlan {
+    let availability = StageArtifactAvailability::from_job(job, data_root);
     let running = matches!(job.status, JobStatusKind::Queued | JobStatusKind::Running);
     let mut plan = base_stage_plan(stage, &availability);
 
@@ -46,8 +53,8 @@ pub(crate) fn stage_plan(job: &JobSnapshot, stage: RetryStageKind) -> JobStagePl
     plan
 }
 
-pub(crate) fn resume_plan(job: &JobSnapshot) -> JobResumePlan {
-    let availability = StageArtifactAvailability::from_job(job);
+pub(crate) fn resume_plan(job: &JobSnapshot, data_root: &Path) -> JobResumePlan {
+    let availability = StageArtifactAvailability::from_job(job, data_root);
     if availability.translations_available {
         return JobResumePlan {
             can_resume: true,
@@ -182,7 +189,7 @@ struct StageArtifactAvailability {
 }
 
 impl StageArtifactAvailability {
-    fn from_job(job: &JobSnapshot) -> Self {
+    fn from_job(job: &JobSnapshot, data_root: &Path) -> Self {
         let artifacts = job.artifacts.as_ref();
         let has_request_source = has_request_source(job);
         let source_artifact_available = has_artifact(artifacts, |item| &item.source_pdf);
@@ -193,10 +200,66 @@ impl StageArtifactAvailability {
             source_retryable_from_request: source_available && has_request_source,
             ocr_available: source_artifact_available
                 && has_artifact(artifacts, |item| &item.normalized_document_json),
+            // 不仅要求 translations_dir 路径非空，还要求其内容完整（manifest 声明的
+            // 每页文件存在且非空）。断电/中断可能留下半个 translated 目录，若仅按路径
+            // 存在判定可续跑，resume 会信任残缺产物并产出损坏结果——这里校验失败即
+            // 降级到 translate 分支，而不是信任。
             translations_available: source_artifact_available
-                && has_artifact(artifacts, |item| &item.translations_dir),
+                && has_artifact(artifacts, |item| &item.translations_dir)
+                && translations_dir_intact(job, data_root),
         }
     }
+}
+
+/// translations_dir 是否完整：`translation-manifest.json` 存在且可解析，且其中
+/// 声明的每个页文件都存在且非空。任一环节失败都视为不完整（吞错降级，绝不报错）。
+fn translations_dir_intact(job: &JobSnapshot, data_root: &Path) -> bool {
+    let Some(rel) = job
+        .artifacts
+        .as_ref()
+        .and_then(|item| item.translations_dir.as_deref())
+    else {
+        return false;
+    };
+    let rel = rel.trim();
+    if rel.is_empty() {
+        return false;
+    }
+    let Ok(dir) = resolve_data_path(data_root, rel) else {
+        return false;
+    };
+    let manifest_path = dir.join(TRANSLATION_MANIFEST_FILE_NAME);
+    let Ok(text) = std::fs::read_to_string(&manifest_path) else {
+        return false;
+    };
+    let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return false;
+    };
+    let Some(pages) = manifest.get("pages").and_then(serde_json::Value::as_array) else {
+        return false;
+    };
+    if pages.is_empty() {
+        return false;
+    }
+    pages.iter().all(|page| {
+        let Some(path) = page
+            .get("path")
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        else {
+            return false;
+        };
+        let path = Path::new(path);
+        // 拒绝绝对路径与 `..` 逃逸：门禁只应读 translations_dir 内的文件，
+        // 对齐 Python writer 的逃逸防护，防止恶意 manifest 让门禁读取目录外文件。
+        if path.is_absolute() || path.components().any(|c| matches!(c, Component::ParentDir)) {
+            return false;
+        }
+        std::fs::metadata(dir.join(path))
+            .map(|m| m.is_file() && m.len() > 0)
+            .unwrap_or(false)
+    })
 }
 
 fn has_artifact(

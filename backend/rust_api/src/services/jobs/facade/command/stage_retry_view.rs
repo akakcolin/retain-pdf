@@ -7,10 +7,14 @@ use crate::models::api::{
 use crate::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
 use crate::services::jobs::stage_plan::{stage_name, stage_plans, JobStagePlan};
 
-pub(super) fn build_stage_actions_view(base_url: &str, job: &JobSnapshot) -> StageActionsView {
+pub(super) fn build_stage_actions_view(
+    base_url: &str,
+    job: &JobSnapshot,
+    data_root: &std::path::Path,
+) -> StageActionsView {
     StageActionsView {
         job_id: job.job_id.clone(),
-        stages: stage_plans(job)
+        stages: stage_plans(job, data_root)
             .into_iter()
             .map(|plan| build_stage_action(base_url, job, plan))
             .collect(),

@@ -114,7 +114,6 @@ mod tests {
             rust_api_root,
             data_root: data_root.clone(),
             scripts_dir: scripts_dir.clone(),
-            run_normalize_ocr_script: scripts_dir.join("run_normalize_ocr.py"),
             run_translate_only_script: scripts_dir.join("run_translate_only.py"),
             run_failure_ai_diagnosis_script: scripts_dir.join("diagnose_failure_with_ai.py"),
             render_rs_bin: scripts_dir.join("render_rs"),
@@ -136,6 +135,7 @@ mod tests {
             provider_runtime: crate::config::ProviderRuntimeConfig::default(),
             job_runner: crate::config::JobRunnerConfig::default(),
             ai: crate::config::AiRuntimeConfig::default(),
+            offline_mode: false,
         });
 
         let db = Arc::new(Db::new(
@@ -297,6 +297,113 @@ mod tests {
             .log_tail
             .iter()
             .any(|line| line.contains("stderr-before-timeout")));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn render_contract_enforces_hard_timeout_cap() {
+        let state = test_state("render-hard-cap");
+        // 可执行 stub 模拟 render_rs，本应跑 5s；cap=1 应在其自然结束前强制终止。
+        let stub = "#!/usr/bin/env python3\nimport time\nprint('render-start', flush=True)\ntime.sleep(5)\n";
+        fs::write(&state.config.render_rs_bin, stub).expect("write render_rs stub");
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = fs::metadata(&state.config.render_rs_bin)
+                .expect("stub metadata")
+                .permissions();
+            fs::set_permissions(
+                &state.config.render_rs_bin,
+                std::fs::Permissions::from_mode(perms.mode() | 0o755),
+            )
+            .expect("make stub executable");
+        }
+
+        let render_bin = state.config.render_rs_bin.to_string_lossy().into_owned();
+        let mut job = JobSnapshot::new(
+            "job-render-hard-cap".to_string(),
+            CreateJobInput::default(),
+            vec![
+                render_bin,
+                "--spec".to_string(),
+                "/tmp/spec.json".to_string(),
+            ],
+        )
+        .into_runtime();
+        job.request_payload.runtime.job_id = job.job_id.clone();
+        job.request_payload.runtime.timeout_seconds = 60;
+        job.stage = Some("rendering".to_string());
+
+        let mut config = (*state.config).clone();
+        config.job_runner.render_timeout_secs = 1;
+        let started = std::time::Instant::now();
+        let finished = execute_process_job(
+            ProcessRuntimeDeps::new(
+                Arc::new(config),
+                state.db.clone(),
+                state.canceled_jobs.clone(),
+                state.job_slots.clone(),
+            ),
+            job,
+            &[],
+        )
+        .await
+        .expect("execute process job");
+
+        assert_eq!(finished.status, JobStatusKind::Failed);
+        assert_eq!(
+            finished
+                .failure
+                .as_ref()
+                .and_then(|failure| failure.failure_code.as_deref()),
+            Some("process_timeout")
+        );
+        assert!(
+            started.elapsed().as_secs() < 5,
+            "hard cap should terminate the render before its natural 5s sleep ends"
+        );
+        let result = finished.result.as_ref().expect("process result");
+        assert!(result.stdout.contains("render-start"));
+    }
+
+    #[tokio::test]
+    async fn non_render_contract_ignores_render_timeout_cap() {
+        let state = test_state("render-cap-non-render");
+        let mut job = JobSnapshot::new(
+            "job-non-render".to_string(),
+            CreateJobInput::default(),
+            vec![
+                "python3".to_string(),
+                "-c".to_string(),
+                "import time; print('done', flush=True); time.sleep(0.3)".to_string(),
+            ],
+        )
+        .into_runtime();
+        job.request_payload.runtime.job_id = job.job_id.clone();
+        job.request_payload.runtime.timeout_seconds = 60;
+
+        let mut config = (*state.config).clone();
+        config.job_runner.render_timeout_secs = 1;
+        let finished = execute_process_job(
+            ProcessRuntimeDeps::new(
+                Arc::new(config),
+                state.db.clone(),
+                state.canceled_jobs.clone(),
+                state.job_slots.clone(),
+            ),
+            job,
+            &[],
+        )
+        .await
+        .expect("execute process job");
+
+        assert_eq!(
+            finished.status,
+            JobStatusKind::Succeeded,
+            "non-render worker must not be capped"
+        );
+        let result = finished.result.as_ref().expect("process result");
+        assert!(result.success);
+        assert!(result.stdout.contains("done"));
     }
 
     #[test]

@@ -5,8 +5,9 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, Semaphore};
 
 use crate::config::{
-    AppConfig, FailureAiDiagnosisRuntimeConfig, JobRunnerConfig, MineruRuntimeConfig,
-    PaddleRuntimeConfig, WorkerCommandRuntimeConfig, WorkerProcessRuntimeConfig,
+    AppConfig, FailureAiDiagnosisRuntimeConfig, JobRunnerConfig, LocalPaddlexRuntimeConfig,
+    MineruRuntimeConfig, PaddleRuntimeConfig, WorkerCommandRuntimeConfig,
+    WorkerProcessRuntimeConfig,
 };
 use crate::db::Db;
 
@@ -79,5 +80,9 @@ impl ProcessRuntimeDeps {
 
     pub(crate) fn paddle_runtime(&self) -> &PaddleRuntimeConfig {
         &self.config.provider_runtime.paddle
+    }
+
+    pub(crate) fn local_paddlex_runtime(&self) -> &LocalPaddlexRuntimeConfig {
+        &self.config.provider_runtime.local
     }
 }

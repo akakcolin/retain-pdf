@@ -5,8 +5,9 @@ use std::collections::BTreeMap;
 
 use super::provider_config;
 use super::{
-    mineru, paddle, OcrProviderArtifactLayout, OcrProviderCapabilities, OcrProviderCredentialSpec,
-    OcrProviderDiagnostics, OcrProviderKind, OcrProviderOptionSpec, OcrProviderPublicDefinition,
+    local, mineru, paddle, OcrProviderArtifactLayout, OcrProviderCapabilities,
+    OcrProviderCredentialSpec, OcrProviderDiagnostics, OcrProviderKind, OcrProviderOptionSpec,
+    OcrProviderPublicDefinition,
 };
 
 const MINERU_RESULT_FILE_NAME: &str = "mineru_result.json";
@@ -61,15 +62,7 @@ pub fn provider_definition(kind: &OcrProviderKind) -> Option<OcrProviderDefiniti
             display_name: "Local OCR",
             token_field_name: "",
             token_env_name: "",
-            capabilities: OcrProviderCapabilities {
-                supports_remote_url_submit: false,
-                supports_local_file_upload: true,
-                supports_polling: false,
-                supports_download_bundle: false,
-                supports_extra_formats: false,
-                supports_formula_toggle: false,
-                supports_table_toggle: false,
-            },
+            capabilities: local::capabilities(),
             artifact_layout: OcrProviderArtifactLayout::new(
                 "result.json",
                 "bundle.zip",
@@ -388,7 +381,7 @@ mod tests {
 
     #[test]
     fn supported_provider_keys_lists_all_supported_backends() {
-        assert_eq!(supported_provider_keys(), vec!["mineru", "paddle"]);
+        assert_eq!(supported_provider_keys(), vec!["mineru", "paddle", "local"]);
     }
 
     #[test]

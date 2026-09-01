@@ -16,7 +16,7 @@ impl<'a> JobsFacade<'a> {
 
     pub fn resume_plan_view(&self, job_id: &str) -> Result<JobResumePlanView, AppError> {
         let job = load_supported_job(self.query.db, self.query.data_root, job_id)?;
-        Ok(build_resume_plan_view(&job))
+        Ok(build_resume_plan_view(&job, self.query.data_root))
     }
 }
 
@@ -25,7 +25,7 @@ fn build_job_diagnostics_view(
     data_root: &std::path::Path,
 ) -> JobDiagnosticsView {
     let failure = resolved_failure(job);
-    let resume_plan = build_resume_plan_view(job);
+    let resume_plan = build_resume_plan_view(job, data_root);
     let render_diagnostics = load_render_diagnostics(job, data_root);
     match failure {
         Some(failure) => JobDiagnosticsView {
@@ -77,8 +77,8 @@ fn load_render_diagnostics(
     Some(diagnostics.clone())
 }
 
-fn build_resume_plan_view(job: &JobSnapshot) -> JobResumePlanView {
-    let plan = resume_plan(job);
+fn build_resume_plan_view(job: &JobSnapshot, data_root: &std::path::Path) -> JobResumePlanView {
+    let plan = resume_plan(job, data_root);
     JobResumePlanView {
         can_resume: plan.can_resume,
         job_id: job.job_id.clone(),

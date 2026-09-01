@@ -62,7 +62,7 @@ pub(super) async fn recover_remote_source_pdf(
             download_source_pdf(&job.request_payload.source.source_url, source_dir).await
         }
         OcrProviderKind::Local => Err(anyhow!(
-            "local OCR provider requires a local source PDF handled by provider stage script"
+            "local OCR provider requires an uploaded source PDF; source_url submission is not supported"
         )),
         OcrProviderKind::Unknown => Err(anyhow!("unsupported OCR provider")),
     }

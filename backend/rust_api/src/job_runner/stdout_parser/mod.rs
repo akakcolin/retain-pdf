@@ -109,6 +109,27 @@ mod tests {
     }
 
     #[test]
+    fn render_source_pdf_label_does_not_overwrite_original_source_pdf() {
+        // OCR/翻译阶段已直接写入原始上传稿；渲染阶段 render_rs 打印的
+        // `source pdf: <渲染基底>` 不应覆盖原稿（对照阅读依赖原稿）。
+        let mut job = build_job();
+        job_artifacts_mut(&mut job).source_pdf = Some("/original/upload.pdf".to_string());
+        apply_line(
+            &mut job,
+            &format!(
+                "{STDOUT_LABEL_SOURCE_PDF}: /rendered/source-bbox-text-stripped.pdf"
+            ),
+        );
+
+        let artifacts = job.artifacts.as_ref().expect("artifacts");
+        assert_eq!(
+            artifacts.source_pdf.as_deref(),
+            Some("/original/upload.pdf"),
+            "渲染阶段重复上报的 source pdf 不得覆盖真实原稿"
+        );
+    }
+
+    #[test]
     fn apply_line_extracts_artifacts_from_structured_stdout_event() {
         let mut job = build_job();
         apply_line(

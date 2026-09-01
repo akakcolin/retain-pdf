@@ -53,6 +53,17 @@
           }
         }
       }
+    },
+    "local": {
+      "display_name": "本地 PaddleX",
+      "kind": "local",
+      "options": {
+        "local_paddlex_url": {
+          "type": "string",
+          "default": "",
+          "env": "RETAIN_LOCAL_PADDLEX_URL"
+        }
+      }
     }
   },
   "paddle": {

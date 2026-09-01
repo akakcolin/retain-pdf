@@ -1,4 +1,7 @@
-use super::env_vars::{env_bool, env_string, env_u16, env_u32, env_u64, env_usize};
+use super::env_vars::{
+    env_bool, env_optional_string, env_string, env_u16, env_u32, env_u64, env_usize,
+    local_llm_default_base_url, local_llm_default_model, offline_mode,
+};
 
 /// Shared escape hatch for self-hosted/local OCR & LLM endpoints (e.g. Ollama on
 /// localhost). When unset, client-supplied provider `base_url` values pointing at
@@ -18,6 +21,8 @@ pub struct ProviderLimitsConfig {
 pub struct ProviderRuntimeConfig {
     pub mineru: MineruRuntimeConfig,
     pub paddle: PaddleRuntimeConfig,
+    pub local: LocalPaddlexRuntimeConfig,
+    pub local_llm: LocalLlmRuntimeConfig,
     pub deepseek: DeepSeekRuntimeConfig,
 }
 
@@ -52,6 +57,20 @@ pub struct PaddleRuntimeConfig {
 }
 
 #[derive(Clone, Debug)]
+pub struct LocalPaddlexRuntimeConfig {
+    pub default_base_url: String,
+    pub request_timeout_secs: u64,
+    pub allow_private_urls: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct LocalLlmRuntimeConfig {
+    pub default_base_url: String,
+    pub default_model: String,
+    pub allow_private_urls: bool,
+}
+
+#[derive(Clone, Debug)]
 pub struct DeepSeekRuntimeConfig {
     pub default_base_url: String,
     pub balance_url: String,
@@ -81,6 +100,8 @@ impl ProviderRuntimeConfig {
         Self {
             mineru: MineruRuntimeConfig::from_env(),
             paddle: PaddleRuntimeConfig::from_env(),
+            local: LocalPaddlexRuntimeConfig::from_env(),
+            local_llm: LocalLlmRuntimeConfig::from_env(),
             deepseek: DeepSeekRuntimeConfig::from_env(),
         }
     }
@@ -121,7 +142,7 @@ impl MineruRuntimeConfig {
             ),
             bundle_retry_max_delay_secs: env_u64("RUST_API_MINERU_BUNDLE_RETRY_MAX_DELAY_SECS", 12),
             waiting_file_grace_secs: env_u64("RUST_API_MINERU_WAITING_FILE_GRACE_SECS", 90),
-            allow_private_urls: env_bool(ALLOW_PRIVATE_PROVIDER_URLS_ENV, false),
+            allow_private_urls: env_bool(ALLOW_PRIVATE_PROVIDER_URLS_ENV, offline_mode()),
         }
     }
 }
@@ -141,9 +162,41 @@ impl PaddleRuntimeConfig {
                 500,
             ),
             max_input_images: env_u16("RUST_API_PADDLE_MAX_INPUT_IMAGES", 999),
-            allow_private_urls: env_bool(ALLOW_PRIVATE_PROVIDER_URLS_ENV, false),
+            allow_private_urls: env_bool(ALLOW_PRIVATE_PROVIDER_URLS_ENV, offline_mode()),
         }
     }
+}
+
+impl LocalLlmRuntimeConfig {
+    pub fn from_env() -> Self {
+        Self {
+            default_base_url: local_llm_default_base_url(),
+            default_model: local_llm_default_model(),
+            // 本地 LLM 端点按定义私有;未显式关闭时放行。
+            allow_private_urls: env_bool(ALLOW_PRIVATE_PROVIDER_URLS_ENV, true),
+        }
+    }
+}
+
+impl LocalPaddlexRuntimeConfig {
+    pub fn from_env() -> Self {
+        Self {
+            default_base_url: env_optional_string_with_fallback(
+                "RUST_API_LOCAL_PADDLEX_URL",
+                "RETAIN_LOCAL_PADDLEX_URL",
+                "http://localhost:8080",
+            ),
+            request_timeout_secs: env_u64("RUST_API_LOCAL_PADDLEX_REQUEST_TIMEOUT_SECS", 900),
+            // A local PaddleX endpoint is private by definition; allow by default.
+            allow_private_urls: env_bool(ALLOW_PRIVATE_PROVIDER_URLS_ENV, true),
+        }
+    }
+}
+
+fn env_optional_string_with_fallback(primary: &str, fallback: &str, default: &str) -> String {
+    env_optional_string(primary)
+        .or_else(|| env_optional_string(fallback))
+        .unwrap_or_else(|| default.to_string())
 }
 
 impl DeepSeekRuntimeConfig {
@@ -158,7 +211,7 @@ impl DeepSeekRuntimeConfig {
                 "https://api.deepseek.com/user/balance",
             ),
             probe_timeout_secs: env_u64("RUST_API_DEEPSEEK_PROBE_TIMEOUT_SECS", 20),
-            allow_private_urls: env_bool(ALLOW_PRIVATE_PROVIDER_URLS_ENV, false),
+            allow_private_urls: env_bool(ALLOW_PRIVATE_PROVIDER_URLS_ENV, offline_mode()),
         }
     }
 }

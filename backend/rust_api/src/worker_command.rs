@@ -41,7 +41,6 @@ mod tests {
             rust_api_root,
             data_root: data_root.clone(),
             scripts_dir: scripts_dir.clone(),
-            run_normalize_ocr_script: scripts_dir.join("run_normalize_ocr.py"),
             run_translate_only_script: scripts_dir.join("run_translate_only.py"),
             run_failure_ai_diagnosis_script: scripts_dir.join("diagnose_failure_with_ai.py"),
             render_rs_bin: scripts_dir.join("render_rs"),
@@ -63,6 +62,7 @@ mod tests {
             provider_runtime: crate::config::ProviderRuntimeConfig::default(),
             job_runner: crate::config::JobRunnerConfig::default(),
             ai: crate::config::AiRuntimeConfig::default(),
+            offline_mode: false,
         })
     }
 
@@ -330,13 +330,7 @@ mod tests {
         assert!(contains(&cmd, "--normalize-ocr"));
         assert!(contains(&cmd, "--spec"));
         assert!(!contains(&cmd, "--provider"));
-        assert!(!contains(
-            &cmd,
-            &config
-                .run_normalize_ocr_script
-                .to_string_lossy()
-                .to_string()
-        ));
+        assert!(!contains(&cmd, "run_normalize_ocr.py"));
         let spec_path = arg_value(&cmd, "--spec").expect("spec path");
         assert!(spec_path.ends_with("/specs/normalize.spec.json"));
         let spec_json =
@@ -371,13 +365,7 @@ mod tests {
         assert_eq!(cmd[0], config.render_rs_bin.to_string_lossy());
         assert!(contains(&cmd, "--normalize-ocr"));
         assert!(contains(&cmd, "--spec"));
-        assert!(!contains(
-            &cmd,
-            &config
-                .run_normalize_ocr_script
-                .to_string_lossy()
-                .to_string()
-        ));
+        assert!(!contains(&cmd, "run_normalize_ocr.py"));
     }
 
     #[test]

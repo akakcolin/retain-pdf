@@ -50,14 +50,6 @@ pub fn ocr_provider_definitions() -> serde_json::Map<String, Value> {
         .unwrap_or_else(legacy_provider_definitions)
 }
 
-pub fn ocr_provider_definition(provider: &str) -> Option<Value> {
-    let provider_key = provider.trim().to_ascii_lowercase();
-    if provider_key.is_empty() {
-        return None;
-    }
-    ocr_provider_definitions().get(&provider_key).cloned()
-}
-
 fn paddle_config() -> Value {
     let payload = ocr_provider_config();
     let mut legacy = payload.get("paddle").cloned().unwrap_or(Value::Null);

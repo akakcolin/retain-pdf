@@ -47,7 +47,6 @@ mod tests {
         WorkerCommandRuntimeConfig {
             python_bin: "python",
             python_entrypoint_mode: PythonWorkerEntrypointMode::Script,
-            run_normalize_ocr_script: scripts,
             run_translate_only_script: scripts,
             render_rs_bin,
         }
@@ -86,16 +85,8 @@ mod tests {
     }
 
     #[test]
-    fn should_route_normalize_native_covers_known_providers_only() {
-        for provider in ["mineru", "mineru_content_list_v2", "paddle", "generic_flat_ocr"] {
-            assert!(should_route_normalize_native(provider), "provider {provider}");
-        }
-        assert!(!should_route_normalize_native("bogus"));
-    }
-
-    #[test]
-    fn native_normalize_ocr_command_shape() {
-        let cmd = native_normalize_ocr_command(
+    fn normalize_ocr_command_always_routes_native() {
+        let cmd = normalize_ocr_command(
             &test_command_config(Path::new("/opt/bin/render_rs")),
             Path::new("/tmp/normalize.spec.json"),
         );
@@ -159,25 +150,15 @@ fn native_extract_text_layer_command(
     ]
 }
 
+/// C5-N2a..C5-N2d: every registered OCR provider (mineru / paddle) normalizes
+/// through the native `render_rs --normalize-ocr` worker. The python normalize
+/// worker and the `should_route_normalize_native` fallback are retired; a new
+/// provider lands a native adapter in `rendering_orchestrator/src/normalize/`.
 pub(super) fn normalize_ocr_command(
     config: &WorkerCommandRuntimeConfig<'_>,
     spec_path: &Path,
-    provider: &str,
 ) -> Vec<String> {
-    if should_route_normalize_native(provider) {
-        return native_normalize_ocr_command(config, spec_path);
-    }
-    python_normalize_ocr_command(config, spec_path)
-}
-
-/// C5-N2a..C5-N2d routing decision: the mineru, mineru_content_list_v2, paddle
-/// and generic_flat_ocr provider normalize workers run natively by default; other
-/// providers stay on the python worker until their adapters land.
-fn should_route_normalize_native(provider: &str) -> bool {
-    matches!(
-        provider,
-        "mineru" | "mineru_content_list_v2" | "paddle" | "generic_flat_ocr"
-    )
+    native_normalize_ocr_command(config, spec_path)
 }
 
 fn native_normalize_ocr_command(
@@ -190,20 +171,4 @@ fn native_normalize_ocr_command(
         "--spec".to_string(),
         spec_path.to_string_lossy().into_owned(),
     ]
-}
-
-fn python_normalize_ocr_command(
-    config: &WorkerCommandRuntimeConfig<'_>,
-    spec_path: &Path,
-) -> Vec<String> {
-    let mut cmd = CommandBuilder::new(
-        config.python_bin,
-        config.python_entrypoint_mode,
-        &PythonEntrypoint::new(
-            config.run_normalize_ocr_script,
-            "retainpdf-run-normalize-ocr",
-        ),
-    );
-    cmd.path_arg("--spec", spec_path);
-    cmd.finish()
 }

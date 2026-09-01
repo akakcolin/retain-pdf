@@ -5,7 +5,7 @@ use anyhow::{bail, Result};
 
 mod ai;
 mod auth;
-mod env_vars;
+pub(crate) mod env_vars;
 mod job_runner;
 mod paths;
 mod provider;
@@ -17,8 +17,8 @@ use auth::AuthRuntimeConfig;
 pub use job_runner::JobRunnerConfig;
 use paths::{create_runtime_dirs, RuntimePathsConfig};
 pub use provider::{
-    DeepSeekRuntimeConfig, MineruRuntimeConfig, PaddleRuntimeConfig, ProviderLimitsConfig,
-    ProviderRuntimeConfig,
+    DeepSeekRuntimeConfig, LocalLlmRuntimeConfig, LocalPaddlexRuntimeConfig, MineruRuntimeConfig,
+    PaddleRuntimeConfig, ProviderLimitsConfig, ProviderRuntimeConfig,
 };
 use server::ServerRuntimeConfig;
 use upload::UploadRuntimeConfig;
@@ -55,7 +55,6 @@ pub struct AppConfig {
     pub rust_api_root: PathBuf,
     pub data_root: PathBuf,
     pub scripts_dir: PathBuf,
-    pub run_normalize_ocr_script: PathBuf,
     pub run_translate_only_script: PathBuf,
     pub run_failure_ai_diagnosis_script: PathBuf,
     pub render_rs_bin: PathBuf,
@@ -77,13 +76,13 @@ pub struct AppConfig {
     pub provider_runtime: ProviderRuntimeConfig,
     pub job_runner: JobRunnerConfig,
     pub ai: AiRuntimeConfig,
+    pub offline_mode: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct WorkerCommandRuntimeConfig<'a> {
     pub python_bin: &'a str,
     pub python_entrypoint_mode: PythonWorkerEntrypointMode,
-    pub run_normalize_ocr_script: &'a Path,
     pub run_translate_only_script: &'a Path,
     pub render_rs_bin: &'a Path,
 }
@@ -98,6 +97,7 @@ pub struct WorkerProcessRuntimeConfig<'a> {
     pub render_rs_bin: &'a Path,
     pub worker_terminate_grace_secs: u64,
     pub worker_terminate_poll_ms: u64,
+    pub render_timeout_secs: u64,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -106,6 +106,7 @@ pub struct JobSnapshotRuntimeConfig<'a> {
     pub output_root: &'a Path,
     pub worker_command: WorkerCommandRuntimeConfig<'a>,
     pub provider_limits: &'a ProviderLimitsConfig,
+    pub offline_mode: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -134,7 +135,6 @@ impl AppConfig {
         WorkerCommandRuntimeConfig {
             python_bin: &self.python_bin,
             python_entrypoint_mode: self.python_entrypoint_mode,
-            run_normalize_ocr_script: &self.run_normalize_ocr_script,
             run_translate_only_script: &self.run_translate_only_script,
             render_rs_bin: &self.render_rs_bin,
         }
@@ -150,6 +150,7 @@ impl AppConfig {
             render_rs_bin: &self.render_rs_bin,
             worker_terminate_grace_secs: self.job_runner.worker_terminate_grace_secs,
             worker_terminate_poll_ms: self.job_runner.worker_terminate_poll_ms,
+            render_timeout_secs: self.job_runner.render_timeout_secs,
         }
     }
 
@@ -159,6 +160,7 @@ impl AppConfig {
             output_root: &self.output_root,
             worker_command: self.worker_command_runtime(),
             provider_limits: &self.provider_limits,
+            offline_mode: self.offline_mode,
         }
     }
 
@@ -206,7 +208,10 @@ impl AppConfig {
             paths,
             auth,
             server: ServerRuntimeConfig::from_desktop(python_bin, port),
-            upload: UploadRuntimeConfig::unlimited(),
+            // 桌面端同样需要 PDF 炸弹防护：用户完全可能拖入一个从网上
+            // 下载的恶意 PDF。此前这里硬编码 unlimited()，导致
+            // UploadRuntimeConfig::from_env 在桌面端从未被调用过。
+            upload: UploadRuntimeConfig::from_env(),
             provider_limits: ProviderLimitsConfig::from_env(),
             provider_runtime: ProviderRuntimeConfig::from_env(),
             job_runner: JobRunnerConfig::from_env(),
@@ -231,7 +236,6 @@ impl AppConfig {
             rust_api_root: paths.rust_api_root,
             data_root: paths.data_root,
             scripts_dir: paths.scripts_dir,
-            run_normalize_ocr_script: paths.run_normalize_ocr_script,
             run_translate_only_script: paths.run_translate_only_script,
             run_failure_ai_diagnosis_script: paths.run_failure_ai_diagnosis_script,
             render_rs_bin: paths.render_rs_bin,
@@ -253,6 +257,7 @@ impl AppConfig {
             provider_runtime,
             job_runner,
             ai,
+            offline_mode: env_vars::offline_mode(),
         })
     }
 }

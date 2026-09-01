@@ -63,3 +63,20 @@ pub(super) fn env_path(name: &str) -> Option<PathBuf> {
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
 }
+
+/// RETAIN_OFFLINE=1/true/yes 开启离线偏好:配置了本地组件就偏好本地,否则回退云端。
+pub(crate) fn offline_mode() -> bool {
+    env_bool("RETAIN_OFFLINE", false)
+}
+
+pub(crate) fn local_llm_default_model() -> String {
+    env_optional_string("RUST_API_LOCAL_LLM_MODEL")
+        .or_else(|| env_optional_string("RETAIN_LOCAL_LLM_MODEL"))
+        .unwrap_or_else(|| "qwen2.5:7b".to_string())
+}
+
+pub(crate) fn local_llm_default_base_url() -> String {
+    env_optional_string("RUST_API_LOCAL_LLM_BASE_URL")
+        .or_else(|| env_optional_string("RETAIN_LOCAL_LLM_BASE_URL"))
+        .unwrap_or_else(|| "http://localhost:11434/v1".to_string())
+}

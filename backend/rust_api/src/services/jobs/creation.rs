@@ -4,6 +4,8 @@ mod bundle;
 pub(crate) mod context;
 #[path = "creation/job_builders.rs"]
 mod job_builders;
+#[path = "creation/offline_defaults.rs"]
+mod offline_defaults;
 #[path = "creation/prepare.rs"]
 mod prepare;
 #[path = "creation/submit.rs"]

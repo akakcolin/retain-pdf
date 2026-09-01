@@ -8,6 +8,7 @@ use tokio::sync::RwLock;
 use tokio::time::{timeout, Duration};
 
 use crate::config::WorkerProcessRuntimeConfig;
+use crate::job_runner::process_contract::WorkerContract;
 use crate::models::domain::JobRuntimeState;
 
 use super::super::{terminate_job_process_tree, JobPersistDeps};
@@ -39,6 +40,29 @@ pub(super) async fn collect_process_execution(
     let stderr = child.stderr.take().context("missing stderr pipe")?;
     let child_pid = job.pid;
     let timeout_secs = job.request_payload.runtime.timeout_seconds;
+    // Render 专属硬上限：用户 per-request `timeout_seconds` 默认 1800s 且可设
+    // 0（= 无超时），恶意/误配置的 PDF 可能让渲染进程无限挂起。这里用服务端
+    // 配置的 render_timeout_secs 收窄为 effective timeout。判定必须在 `job`
+    // move 进 read_stdout 之前完成。
+    let effective_timeout_secs = match WorkerContract::from_command(&job.command) {
+        WorkerContract::Render => {
+            let cap = worker_runtime.render_timeout_secs as i64;
+            if timeout_secs <= 0 {
+                cap
+            } else {
+                timeout_secs.min(cap)
+            }
+        }
+        _ => timeout_secs,
+    };
+    if effective_timeout_secs > 0 && effective_timeout_secs < timeout_secs {
+        tracing::info!(
+            job_id = %job.job_id,
+            user_timeout_secs = timeout_secs,
+            capped_timeout_secs = effective_timeout_secs,
+            "render worker timeout capped by RUST_API_RENDER_TIMEOUT_SECS"
+        );
+    }
     let stdout_handle = tokio::spawn(read_stdout(
         persist.clone(),
         canceled_jobs.clone(),
@@ -49,8 +73,13 @@ pub(super) async fn collect_process_execution(
     let stderr_handle = tokio::spawn(read_stream(stderr));
     let started = Instant::now();
 
-    let status = if timeout_secs > 0 {
-        match timeout(Duration::from_secs(timeout_secs as u64), child.wait()).await {
+    let status = if effective_timeout_secs > 0 {
+        match timeout(
+            Duration::from_secs(effective_timeout_secs as u64),
+            child.wait(),
+        )
+        .await
+        {
             Ok(result) => result?,
             Err(_) => {
                 if let Some(pid) = child_pid {

@@ -20,12 +20,9 @@ pub struct AiRuntimeConfig {
 impl AiRuntimeConfig {
     pub fn from_env() -> Self {
         Self {
-            llm_base_url: env_string(
-                "RETAIN_AI_LLM_BASE_URL",
-                "https://api.deepseek.com/v1",
-            )
-            .trim_end_matches('/')
-            .to_string(),
+            llm_base_url: env_string("RETAIN_AI_LLM_BASE_URL", "https://api.deepseek.com/v1")
+                .trim_end_matches('/')
+                .to_string(),
             llm_model: env_string("RETAIN_AI_LLM_MODEL", "deepseek-v4-flash"),
             llm_api_key: env_string("RETAIN_AI_LLM_API_KEY", ""),
             llm_timeout_s: env_u64("RETAIN_AI_LLM_TIMEOUT_S", 60),

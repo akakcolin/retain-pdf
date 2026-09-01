@@ -57,7 +57,15 @@ fn apply_structured_artifact_event(job: &mut JobSnapshot, line: &str) -> bool {
 fn apply_artifact_field(job: &mut JobSnapshot, field: ArtifactField, value: &str) {
     match field {
         ArtifactField::JobRoot => job_artifacts_mut(job).job_root = Some(value.to_string()),
-        ArtifactField::SourcePdf => job_artifacts_mut(job).source_pdf = Some(value.to_string()),
+        // source_pdf 的真值由 OCR/翻译阶段直接写入（原始上传稿）。渲染阶段
+        // render_rs 也会打印 `source pdf: <渲染基底>`（bbox-text-stripped 输入），
+        // 这里只应在尚未设置时接收，避免把对照阅读用的原稿覆盖成去字渲染基底。
+        ArtifactField::SourcePdf => {
+            let artifacts = job_artifacts_mut(job);
+            if artifacts.source_pdf.is_none() {
+                artifacts.source_pdf = Some(value.to_string());
+            }
+        }
         ArtifactField::LayoutJson => {
             let value = value.to_string();
             job_artifacts_mut(job).layout_json = Some(value.clone());

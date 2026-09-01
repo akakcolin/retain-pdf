@@ -39,8 +39,23 @@ async fn list_ocr_providers_returns_public_contract() {
         paddle["options"]["paddle_model"]["aliases"]["paddleocr-vl"],
         "PaddleOCR-VL-1.6"
     );
-    assert!(
-        providers.iter().all(|item| item["key"] != "local"),
-        "local command-provider OCR is retired and must not be listed"
+    let local = providers
+        .iter()
+        .find(|item| item["key"] == "local")
+        .expect("local provider");
+    assert_eq!(local["display_name"], "本地 PaddleX");
+    assert_eq!(local["provider_kind"], "local");
+    assert!(local["credential"].is_null());
+    assert_eq!(
+        local["options"]["local_paddlex_url"]["env"],
+        "RETAIN_LOCAL_PADDLEX_URL"
+    );
+    assert_eq!(
+        local["capabilities"]["supports_remote_url_submit"],
+        false
+    );
+    assert_eq!(
+        local["capabilities"]["supports_local_file_upload"],
+        true
     );
 }

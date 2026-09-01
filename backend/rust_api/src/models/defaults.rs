@@ -5,7 +5,17 @@ pub(crate) fn default_math_mode() -> String {
     "direct_typst".to_string()
 }
 pub(crate) fn default_ocr_provider() -> String {
-    "mineru".to_string()
+    default_ocr_provider_with_offline(crate::config::env_vars::offline_mode())
+}
+
+pub(crate) fn default_ocr_provider_with_offline(offline: bool) -> String {
+    // RETAIN_OFFLINE=1 时偏好本地 PaddleX(其端点默认 localhost:8080,视为恒已配置),
+    // 软优先:仅作默认值,客户端显式传 provider 时以请求为准。
+    if offline {
+        "local".to_string()
+    } else {
+        "mineru".to_string()
+    }
 }
 pub(crate) fn default_classify_batch_size() -> i64 {
     12
@@ -80,4 +90,15 @@ pub(crate) fn default_limit() -> u32 {
 }
 pub(crate) fn default_event_limit() -> u32 {
     100
+}
+
+#[cfg(test)]
+mod tests {
+    use super::default_ocr_provider_with_offline;
+
+    #[test]
+    fn ocr_provider_default_prefers_local_when_offline() {
+        assert_eq!(default_ocr_provider_with_offline(true), "local");
+        assert_eq!(default_ocr_provider_with_offline(false), "mineru");
+    }
 }

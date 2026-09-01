@@ -7,7 +7,9 @@ use crate::api_tests::jobs_common::{read_json, test_state};
 use crate::app::build_app;
 use crate::models::{JobArtifacts, JobStatusKind};
 
-use super::common::{seed_ocr_checkpoint_files, source_job_with_artifacts};
+use super::common::{
+    seed_ocr_checkpoint_files, seed_translation_checkpoint_files, source_job_with_artifacts,
+};
 
 #[tokio::test]
 async fn stage_actions_route_reports_retryable_stages() {
@@ -23,6 +25,7 @@ async fn stage_actions_route_reports_retryable_stages() {
     );
     source_job.status = JobStatusKind::Succeeded;
     seed_ocr_checkpoint_files(&state, &source_job);
+    seed_translation_checkpoint_files(&state, &source_job);
     state.db.save_job(&source_job).expect("save source job");
 
     let response = build_app(state)

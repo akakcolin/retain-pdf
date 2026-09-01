@@ -9,6 +9,7 @@ use crate::services::job_validation::{
 use crate::storage_paths::resolve_data_path;
 
 use super::context::SnapshotBuildDeps;
+use super::offline_defaults::apply_offline_defaults;
 use super::upload::load_upload_or_404;
 
 pub(super) struct PreparedTranslationUpload {
@@ -32,10 +33,11 @@ pub(super) fn prepare_full_pipeline_input(
     ctx: &SnapshotBuildDeps<'_>,
     input: &CreateJobInput,
 ) -> Result<PreparedTranslationUpload, AppError> {
-    let input = resolve_task_glossary_request(ctx.db, input)?;
+    let mut input = resolve_task_glossary_request(ctx.db, input)?;
+    apply_offline_defaults(&mut input, ctx.config.offline_mode);
     validate_render_options(&input)?;
     if !input.source.artifact_job_id.trim().is_empty() {
-        validate_translation_credentials(&input)?;
+        validate_translation_credentials(&input, ctx.config.offline_mode)?;
         let source_job = load_artifact_job(ctx, &input.source.artifact_job_id)?;
         ensure_ocr_artifacts_ready_for_translation(ctx, &source_job)?;
         return Ok(PreparedTranslationUpload {
@@ -52,12 +54,13 @@ pub(super) fn prepare_translate_only_input(
     ctx: &SnapshotBuildDeps<'_>,
     input: &CreateJobInput,
 ) -> Result<PreparedTranslateOnlyInput, AppError> {
-    let input = resolve_task_glossary_request(ctx.db, input)?;
+    let mut input = resolve_task_glossary_request(ctx.db, input)?;
+    apply_offline_defaults(&mut input, ctx.config.offline_mode);
     validate_render_options(&input)?;
     if input.source.artifact_job_id.trim().is_empty() {
         let _ = require_translation_upload(ctx, &input)?;
     } else {
-        validate_translation_credentials(&input)?;
+        validate_translation_credentials(&input, ctx.config.offline_mode)?;
         let source_job = load_artifact_job(ctx, &input.source.artifact_job_id)?;
         ensure_ocr_artifacts_ready_for_translation(ctx, &source_job)?;
     }
@@ -92,7 +95,9 @@ pub(super) fn prepare_ocr_input(
     input: &CreateJobInput,
     upload: Option<&UploadRecord>,
 ) -> Result<PreparedOcrInput, AppError> {
-    validate_ocr_provider_request(input)?;
+    let mut input = input.clone();
+    apply_offline_defaults(&mut input, ctx.config.offline_mode);
+    validate_ocr_provider_request(&input)?;
     let resolved_upload = match upload {
         Some(upload) => Some(upload.clone()),
         None if !input.source.upload_id.trim().is_empty() => {
@@ -110,7 +115,7 @@ pub(super) fn prepare_ocr_input(
     resolved.workflow = WorkflowKind::Ocr;
     if let Some(upload) = resolved_upload.as_ref() {
         resolved.source.upload_id = upload.upload_id.clone();
-        validate_mineru_upload_limits(input, upload, ctx.config.provider_limits)?;
+        validate_mineru_upload_limits(&input, upload, ctx.config.provider_limits)?;
     }
     Ok(PreparedOcrInput { spec: resolved })
 }
@@ -122,7 +127,7 @@ fn require_translation_upload(
     if input.source.upload_id.trim().is_empty() {
         return Err(AppError::bad_request("upload_id is required"));
     }
-    validate_provider_credentials(input)?;
+    validate_provider_credentials(input, ctx.config.offline_mode)?;
     validate_render_options(input)?;
     let upload = load_upload_or_404(ctx.db, &input.source.upload_id)?;
     validate_mineru_upload_limits(input, &upload, ctx.config.provider_limits)?;

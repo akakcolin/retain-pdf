@@ -54,6 +54,7 @@ pub(super) fn apply_multipart_request_field(
         "paddle_token" => request.ocr.paddle_token = value.to_string(),
         "paddle_api_url" => request.ocr.paddle_api_url = value.to_string(),
         "paddle_model" => request.ocr.paddle_model = value.to_string(),
+        "local_paddlex_url" => request.ocr.local_paddlex_url = value.to_string(),
         "is_ocr" => request.ocr.is_ocr = parse_bool_like(value),
         "disable_formula" => request.ocr.disable_formula = parse_bool_like(value),
         "disable_table" => request.ocr.disable_table = parse_bool_like(value),

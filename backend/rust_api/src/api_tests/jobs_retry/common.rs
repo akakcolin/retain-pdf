@@ -27,3 +27,25 @@ pub(super) fn seed_ocr_checkpoint_files(state: &crate::AppState, job: &JobSnapsh
         fs::write(path, br#"{"pages":[]}"#).expect("normalized file");
     }
 }
+
+pub(super) fn seed_translation_checkpoint_files(state: &crate::AppState, job: &JobSnapshot) {
+    let artifacts = job.artifacts.as_ref().expect("job artifacts");
+    let Some(rel) = artifacts.translations_dir.as_deref() else {
+        return;
+    };
+    let dir = state.config.data_root.join(rel);
+    fs::create_dir_all(&dir).expect("translations dir");
+    let manifest = br#"{
+  "schema": "translation_manifest_v1",
+  "schema_version": 1,
+  "pages": [
+    { "page_index": 0, "page_number": 1, "path": "page-001.json" }
+  ]
+}"#;
+    fs::write(
+        dir.join(crate::storage_paths::TRANSLATION_MANIFEST_FILE_NAME),
+        manifest,
+    )
+    .expect("translation manifest");
+    fs::write(dir.join("page-001.json"), br#"{"raw_text":"hello"}"#).expect("translation page");
+}

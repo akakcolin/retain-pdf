@@ -12,7 +12,8 @@ use crate::models::domain::{
 
 use super::super::cancel_registry::is_cancel_requested_any;
 use super::super::{
-    sync_runtime_state, terminate_job_process_tree, worker_process::{renderer_label, spawn_worker_process},
+    sync_runtime_state, terminate_job_process_tree,
+    worker_process::{renderer_label, spawn_worker_process},
     JobPersistDeps,
 };
 use crate::config::WorkerProcessRuntimeConfig;

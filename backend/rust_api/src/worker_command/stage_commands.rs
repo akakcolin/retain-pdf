@@ -166,9 +166,5 @@ fn build_normalize_ocr_command(
         provider_zip_path,
         provider_raw_dir,
     )?;
-    Ok(build_normalize_entrypoint(
-        config,
-        &spec_path,
-        request.ocr.provider.trim(),
-    ))
+    Ok(build_normalize_entrypoint(config, &spec_path))
 }

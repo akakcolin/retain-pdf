@@ -12,14 +12,20 @@ use crate::ocr_provider::{
 const RENDER_MODES: &[&str] = &["auto", "overlay", "typst", "typst_visual", "dual"];
 const FONT_UNIFY_MODES: &[&str] = &["role_min", "off"];
 
-pub fn validate_provider_credentials(input: &CreateJobInput) -> Result<(), AppError> {
+pub fn validate_provider_credentials(
+    input: &CreateJobInput,
+    offline_mode: bool,
+) -> Result<(), AppError> {
     let provider_kind = require_supported_provider(input.ocr.provider.trim())
         .map_err(|err| AppError::bad_request(err.to_string()))?;
     validate_provider_token(input, &provider_kind)?;
-    validate_translation_credentials(input)
+    validate_translation_credentials(input, offline_mode)
 }
 
-pub fn validate_translation_credentials(input: &CreateJobInput) -> Result<(), AppError> {
+pub fn validate_translation_credentials(
+    input: &CreateJobInput,
+    offline_mode: bool,
+) -> Result<(), AppError> {
     let base_url = input.translation.base_url.trim();
     if base_url.is_empty() {
         return Err(AppError::bad_request("base_url is required"));
@@ -31,7 +37,7 @@ pub fn validate_translation_credentials(input: &CreateJobInput) -> Result<(), Ap
     }
 
     let api_key = input.translation.api_key.trim();
-    if api_key.is_empty() {
+    if api_key.is_empty() && !offline_mode {
         return Err(AppError::bad_request("api_key is required"));
     }
     if looks_like_url(api_key) {
@@ -246,6 +252,11 @@ fn validate_provider_token(
     provider_kind: &OcrProviderKind,
 ) -> Result<(), AppError> {
     if matches!(provider_kind, OcrProviderKind::Local) {
+        if !input.source.source_url.trim().is_empty() {
+            return Err(AppError::bad_request(
+                "local OCR provider requires an uploaded source PDF; source_url submission is not supported",
+            ));
+        }
         return Ok(());
     }
     let token = provider_token(provider_kind, &input.ocr);
@@ -323,6 +334,23 @@ mod tests {
     }
 
     #[test]
+    fn local_provider_rejects_remote_source_url() {
+        let mut input = local_input();
+        input.source.source_url = "https://example.com/paper.pdf".to_string();
+        let err = validate_ocr_provider_request(&input).expect_err("local + source_url should fail");
+        assert!(err
+            .to_string()
+            .contains("local OCR provider requires an uploaded source PDF"));
+    }
+
+    #[test]
+    fn local_provider_accepts_uploaded_source() {
+        let mut input = local_input();
+        input.source.upload_id = "upload-1".to_string();
+        assert!(validate_ocr_provider_request(&input).is_ok());
+    }
+
+    #[test]
     fn local_provider_does_not_apply_remote_upload_limits() {
         assert!(validate_mineru_upload_limits(
             &local_input(),
@@ -330,6 +358,46 @@ mod tests {
             &default_limits()
         )
         .is_ok());
+    }
+
+    fn translation_input(api_key: &str) -> CreateJobInput {
+        let mut input = CreateJobInput::default();
+        input.translation.model = "qwen2.5:7b".to_string();
+        input.translation.base_url = "http://localhost:11434/v1".to_string();
+        input.translation.api_key = api_key.to_string();
+        input
+    }
+
+    #[test]
+    fn offline_mode_relaxes_api_key_requirement() {
+        let input = translation_input("");
+        assert!(validate_translation_credentials(&input, true).is_ok());
+        let err = validate_translation_credentials(&input, false)
+            .expect_err("non-offline mode should still require api_key");
+        assert!(err.to_string().contains("api_key is required"));
+    }
+
+    #[test]
+    fn offline_mode_still_requires_model_and_base_url() {
+        let mut input = translation_input("");
+        input.translation.model = String::new();
+        let err = validate_translation_credentials(&input, true)
+            .expect_err("offline mode must still require model");
+        assert!(err.to_string().contains("model is required"));
+
+        let mut input = translation_input("");
+        input.translation.base_url = String::new();
+        let err = validate_translation_credentials(&input, true)
+            .expect_err("offline mode must still require base_url");
+        assert!(err.to_string().contains("base_url is required"));
+    }
+
+    #[test]
+    fn offline_mode_still_rejects_url_shaped_api_key() {
+        let input = translation_input("https://example.com/leaked");
+        let err = validate_translation_credentials(&input, true)
+            .expect_err("api_key looking like a URL must still be rejected offline");
+        assert!(err.to_string().contains("api_key looks like a URL"));
     }
 
     #[test]

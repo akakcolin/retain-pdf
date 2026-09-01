@@ -7,6 +7,10 @@ pub struct JobRunnerConfig {
     pub worker_terminate_poll_ms: u64,
     pub failure_ai_diagnosis_timeout_secs: u64,
     pub sync_bundle_wait_interval_ms: u64,
+    /// 渲染子进程服务端强制的 wall-clock 硬上限（秒）。用户 per-request
+    /// `timeout_seconds` 可能设得很大甚至为 0（= 无超时），此上限确保
+    /// 恶意/误配置的 PDF 无法让 render 进程无限挂起。仅作用于 Render worker。
+    pub render_timeout_secs: u64,
 }
 
 impl JobRunnerConfig {
@@ -20,6 +24,7 @@ impl JobRunnerConfig {
                 60,
             ),
             sync_bundle_wait_interval_ms: env_u64("RUST_API_SYNC_BUNDLE_WAIT_INTERVAL_MS", 1500),
+            render_timeout_secs: env_u64("RUST_API_RENDER_TIMEOUT_SECS", 300),
         }
     }
 }

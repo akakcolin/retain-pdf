@@ -3,13 +3,14 @@ use std::future::Future;
 use std::pin::Pin;
 
 use crate::models::domain::JobRuntimeState;
+use crate::ocr_provider::local::LocalPaddlexClient;
 use crate::ocr_provider::mineru::MineruClient;
 use crate::ocr_provider::paddle::PaddleClient;
 use crate::ocr_provider::{provider_definition, OcrProviderKind};
 
 use super::transport::{prepare_local_upload_source, recover_remote_source_pdf};
 use super::workspace::OcrWorkspace;
-use super::{mineru, paddle};
+use super::{local, mineru, paddle};
 use crate::job_runner::cancel_registry::is_cancel_requested_with_registry;
 use crate::job_runner::ProcessRuntimeDeps;
 
@@ -44,6 +45,11 @@ static REGISTERED_TRANSPORTS: &[OcrProviderTransport] = &[
         key: "paddle",
         local: execute_paddle_local_transport,
         remote: execute_paddle_remote_transport,
+    },
+    OcrProviderTransport {
+        key: "local",
+        local: execute_local_local_transport,
+        remote: execute_local_remote_transport,
     },
 ];
 
@@ -184,5 +190,43 @@ fn execute_paddle_remote_transport<'a>(
             parent_job_id,
         )
         .await
+    })
+}
+
+fn execute_local_local_transport<'a>(
+    deps: &'a ProcessRuntimeDeps,
+    job: &'a mut JobRuntimeState,
+    workspace: &'a OcrWorkspace,
+    upload_path: &'a std::path::Path,
+    parent_job_id: Option<&'a str>,
+) -> TransportFuture<'a> {
+    Box::pin(async move {
+        let client = LocalPaddlexClient::with_runtime(
+            job.request_payload.ocr.local_paddlex_url.clone(),
+            deps.local_paddlex_runtime().clone(),
+        );
+        local::run_local_ocr_transport_local(
+            deps,
+            job,
+            &client,
+            upload_path,
+            &workspace.provider_result_json_path,
+            &workspace.job_paths.root,
+            parent_job_id,
+        )
+        .await
+    })
+}
+
+fn execute_local_remote_transport<'a>(
+    _deps: &'a ProcessRuntimeDeps,
+    _job: &'a mut JobRuntimeState,
+    _workspace: &'a OcrWorkspace,
+    _parent_job_id: Option<&'a str>,
+) -> TransportFuture<'a> {
+    Box::pin(async move {
+        Err(anyhow!(
+            "local OCR provider requires an uploaded source PDF; source_url submission is not supported"
+        ))
     })
 }

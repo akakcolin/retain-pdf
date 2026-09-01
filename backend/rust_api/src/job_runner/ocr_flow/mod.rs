@@ -1,5 +1,5 @@
 use crate::models::domain::{now_iso, JobRuntimeState, JobStatusKind};
-use crate::ocr_provider::{parse_provider_kind, OcrProviderKind};
+use crate::ocr_provider::parse_provider_kind;
 use crate::worker_command::{build_worker_stage_command, WorkerStageCommand};
 use anyhow::Result;
 
@@ -14,6 +14,7 @@ mod bundle_download_retry;
 mod bundle_events;
 mod bundle_ready_wait;
 mod bundle_retry_policy;
+mod local;
 mod markdown_bundle;
 mod mineru;
 mod mineru_polling;
@@ -56,15 +57,6 @@ pub async fn execute_ocr_job(
         .await;
     }
     let provider_kind = parse_provider_kind(&job.request_payload.ocr.provider);
-    if provider_kind == OcrProviderKind::Local {
-        // command-provider OCR retired (C3 takeover): hard-error instead of
-        // executing the legacy in-process provider pipeline.
-        fail_ocr_transport(
-            &mut job,
-            &anyhow::anyhow!("local_command/remote_command OCR provider 已退役；请改用 mineru 或 paddle"),
-        );
-        return Ok(job);
-    }
     job.status = JobStatusKind::Running;
     if job.started_at.is_none() {
         job.started_at = Some(now_iso());

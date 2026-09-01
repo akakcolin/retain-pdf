@@ -7,7 +7,9 @@ use crate::api_tests::jobs_common::{read_json, test_state};
 use crate::app::build_app;
 use crate::models::{JobArtifacts, JobStatusKind};
 
-use super::common::{seed_ocr_checkpoint_files, source_job_with_artifacts};
+use super::common::{
+    seed_ocr_checkpoint_files, seed_translation_checkpoint_files, source_job_with_artifacts,
+};
 
 #[tokio::test]
 async fn retry_stage_route_creates_translation_recovery_job_with_overrides() {
@@ -87,6 +89,7 @@ async fn retry_stage_route_creates_render_job_by_default() {
         },
     );
     source_job.status = JobStatusKind::Succeeded;
+    seed_translation_checkpoint_files(&state, &source_job);
     state.db.save_job(&source_job).expect("save source job");
 
     let response = build_app(state.clone())
@@ -130,6 +133,7 @@ async fn retry_stage_route_allows_in_place_render_when_requested() {
         },
     );
     source_job.status = JobStatusKind::Succeeded;
+    seed_translation_checkpoint_files(&state, &source_job);
     state.db.save_job(&source_job).expect("save source job");
 
     let response = build_app(state.clone())
@@ -186,6 +190,7 @@ async fn retry_stage_route_applies_overrides_for_in_place_render() {
     source_job.request_payload.render.compile_workers = 1;
     source_job.request_payload.render.render_mode = "overlay".to_string();
     source_job.request_payload.runtime.timeout_seconds = 10;
+    seed_translation_checkpoint_files(&state, &source_job);
     state.db.save_job(&source_job).expect("save source job");
 
     let response = build_app(state.clone())

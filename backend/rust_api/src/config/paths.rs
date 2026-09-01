@@ -10,7 +10,6 @@ pub struct RuntimePathsConfig {
     pub rust_api_root: PathBuf,
     pub data_root: PathBuf,
     pub scripts_dir: PathBuf,
-    pub run_normalize_ocr_script: PathBuf,
     pub run_translate_only_script: PathBuf,
     pub run_failure_ai_diagnosis_script: PathBuf,
     pub render_rs_bin: PathBuf,
@@ -80,7 +79,6 @@ impl RuntimePathsConfig {
             rust_api_root,
             data_root,
             scripts_dir: scripts_dir.clone(),
-            run_normalize_ocr_script: scripts_dir.join("entrypoints").join("run_normalize_ocr.py"),
             run_translate_only_script: scripts_dir
                 .join("entrypoints")
                 .join("run_translate_only.py"),

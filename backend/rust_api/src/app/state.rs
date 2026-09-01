@@ -106,7 +106,6 @@ mod tests {
                 rust_api_root: self.rust_api_root.clone(),
                 data_root: self.data_root.clone(),
                 scripts_dir: self.scripts_dir.clone(),
-                run_normalize_ocr_script: self.scripts_dir.join("run_normalize_ocr.py"),
                 run_translate_only_script: self.scripts_dir.join("run_translate_only.py"),
                 run_failure_ai_diagnosis_script: self
                     .scripts_dir
@@ -130,6 +129,7 @@ mod tests {
                 provider_runtime: crate::config::ProviderRuntimeConfig::default(),
                 job_runner: crate::config::JobRunnerConfig::default(),
                 ai: crate::config::AiRuntimeConfig::default(),
+                offline_mode: false,
             })
         }
 
@@ -331,31 +331,28 @@ mod tests {
 
         let row = conn
             .query_row(
-                "SELECT status_json, pid, stage, error, failure_json FROM jobs WHERE job_id = ?1",
+                "SELECT status_json, pid, failure_json FROM jobs WHERE job_id = ?1",
                 params!["job-malformed-running"],
                 |row| {
                     Ok((
                         row.get::<_, String>(0)?,
                         row.get::<_, Option<i64>>(1)?,
                         row.get::<_, Option<String>>(2)?,
-                        row.get::<_, Option<String>>(3)?,
-                        row.get::<_, Option<String>>(4)?,
                     ))
                 },
             )
             .expect("query recovered row");
-        assert_eq!(
-            row.0,
-            serde_json::to_string(&JobStatusKind::Failed).expect("failed status json")
-        );
-        assert_eq!(row.1, None);
-        assert_eq!(row.2.as_deref(), Some("failed"));
-        assert!(row
-            .3
-            .as_deref()
+        let state: serde_json::Value =
+            serde_json::from_str(&row.0).expect("recovered status_json is an object");
+        assert_eq!(state["status"], "failed");
+        assert_eq!(state["stage"], "failed");
+        assert_eq!(state["stage_detail"], "startup stale running job recovered");
+        assert!(state["error"]
+            .as_str()
             .is_some_and(|detail| detail.contains("未记录 worker pid")));
+        assert_eq!(row.1, None);
         assert!(row
-            .4
+            .2
             .as_deref()
             .is_some_and(|failure| failure.contains("worker_process_missing")));
     }
