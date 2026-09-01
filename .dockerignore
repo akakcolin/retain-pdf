@@ -16,4 +16,12 @@ output
 uploads
 downloads
 desktop_app/src-tauri/target
+# devtools heavy subdirs are dev-only tooling (~50MB). Top-level devtools
+# scripts must stay: rust_api spawns devtools/replay_translation_item.py.
+# check_pipeline_architecture.py imports the excluded architecture_checks tree,
+# so it cannot run from the image either.
+backend/scripts/devtools/tests
+backend/scripts/devtools/promptfoo
+backend/scripts/devtools/architecture_checks
+backend/scripts/devtools/check_pipeline_architecture.py
 test*.pdf

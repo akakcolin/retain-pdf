@@ -826,6 +826,22 @@ if (!frontendOnly) {
         return false;
       }
       const relParts = path.relative(path.join(backendRoot, "scripts"), sourcePath).split(path.sep);
+      // devtools heavy subdirs (tests, promptfoo, architecture_checks) are
+      // developer tooling that nothing on the desktop runtime path imports or
+      // spawns (~50MB). Top-level devtools scripts stay: rust_api spawns
+      // devtools/replay_translation_item.py for the translation replay feature.
+      if (
+        relParts[0] === "devtools" &&
+        relParts[1] &&
+        ["tests", "promptfoo", "architecture_checks"].includes(relParts[1])
+      ) {
+        return false;
+      }
+      // dev-only gate that imports the excluded architecture_checks tree; it
+      // cannot run from the bundle, so don't ship it either.
+      if (relParts[0] === "devtools" && basename === "check_pipeline_architecture.py") {
+        return false;
+      }
       // services/rendering is native-only in the desktop (render_rs); the Python
       // tree no longer has any live caller, so exclude it from the bundle.
       if (relParts[0] === "services" && relParts[1] === "rendering") {
