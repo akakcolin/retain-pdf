@@ -245,9 +245,7 @@ def request_chat_content(
     request_label: str = "",
     max_attempts: int | None = None,
 ) -> str:
-    # DeepSeek model identifiers are case-sensitive and lowercase-only; a
-    # runtime-supplied model like "Deepseek-v4-flash" would 400 on the API.
-    model = (model or DEFAULT_MODEL).strip().lower()
+    model = (model or DEFAULT_MODEL).strip()
     last_error: Exception | None = None
     request_stage = infer_stage_from_request_label(request_label)
     diagnostics = get_active_translation_run_diagnostics()

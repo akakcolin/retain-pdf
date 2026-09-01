@@ -533,7 +533,7 @@ class TranslationRunDiagnosticsTests(unittest.TestCase):
         self.assertIn("message_chars=5", message)
         self.assertIn("body_bytes=", message)
 
-    def test_request_chat_content_normalizes_model_to_lowercase(self):
+    def test_request_chat_content_preserves_model_case(self):
         deepseek_client = load_deepseek_client()
         session = _RecordingSession()
         with patch.object(deepseek_client, "get_session", return_value=session):
@@ -543,10 +543,10 @@ class TranslationRunDiagnosticsTests(unittest.TestCase):
                 model="Deepseek-v4-flash",
                 base_url="https://api.deepseek.com/v1",
                 timeout=120,
-                request_label="case-normalization-test",
+                request_label="case-preservation-test",
             )
         self.assertEqual(len(session.calls), 1)
-        self.assertEqual(session.calls[0]["model"], "deepseek-v4-flash")
+        self.assertEqual(session.calls[0]["model"], "Deepseek-v4-flash")
 
 
 class StructuredFailureClassificationTests(unittest.TestCase):
