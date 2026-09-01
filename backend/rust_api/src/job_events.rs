@@ -9,6 +9,8 @@ use crate::models::api::JobEventRecord;
 use crate::models::domain::{JobRuntimeState, JobSnapshot};
 mod derivation;
 mod jsonl;
+#[cfg(test)]
+mod replay_corpus;
 
 use derivation::{
     custom_event, derive_events, normalize_user_stage, progress_unit_for_event,

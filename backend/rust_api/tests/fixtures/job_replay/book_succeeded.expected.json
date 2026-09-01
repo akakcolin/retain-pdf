@@ -1,0 +1,10 @@
+{
+  "status": "succeeded",
+  "terminal_stage": "finished",
+  "stage_detail": "任务完成",
+  "error": null,
+  "failure": null,
+  "stage_history": ["queued", "running", "translating", "rendering", "finished"],
+  "terminal_event_seen": true,
+  "event_count": 12
+}

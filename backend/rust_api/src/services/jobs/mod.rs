@@ -10,6 +10,7 @@ mod reader_ai;
 pub(crate) use reader_ai::translate_text;
 mod reader_regions;
 mod readiness;
+pub mod replay;
 mod stage_plan;
 pub(crate) mod stage_view;
 pub(super) mod summary_loaders;

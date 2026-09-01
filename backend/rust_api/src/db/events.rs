@@ -125,4 +125,26 @@ impl Db {
         }
         Ok(events)
     }
+
+    /// Full ordered event stream for a job — the replay audit source of truth.
+    pub fn list_all_job_events(&self, job_id: &str) -> Result<Vec<JobEventRecord>> {
+        let conn = self.connect()?;
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT
+                job_id, seq, ts, level, stage, stage_detail, provider, provider_stage,
+                event, event_type, progress_current, progress_total, payload_json,
+                retry_count, elapsed_ms, message
+            FROM events
+            WHERE job_id = ?1
+            ORDER BY seq ASC
+            "#,
+        )?;
+        let rows = stmt.query_map(params![job_id], row_to_job_event)?;
+        let mut events = Vec::new();
+        for row in rows {
+            events.push(row?);
+        }
+        Ok(events)
+    }
 }

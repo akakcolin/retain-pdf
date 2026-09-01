@@ -43,3 +43,6 @@ jobs:
 
       - name: Route Redaction Smoke Test
         run: cargo test --manifest-path backend/rust_api/Cargo.toml --lib routes::jobs::query::tests::job_detail_and_events_routes_redact_secrets
+
+      - name: Job Replay Corpus Gate
+        run: cargo test --manifest-path backend/rust_api/Cargo.toml --lib services::jobs::replay::tests::replay_corpus_matches_golden

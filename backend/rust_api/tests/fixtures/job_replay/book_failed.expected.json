@@ -1,0 +1,17 @@
+{
+  "status": "failed",
+  "terminal_stage": "failed",
+  "stage_detail": "任务失败",
+  "error": "ReadTimeout",
+  "failure": {
+    "stage": "translation",
+    "category": "upstream_timeout",
+    "failure_code": "upstream_timeout",
+    "failure_category": "timeout",
+    "summary": "外部服务请求超时",
+    "retryable": true
+  },
+  "stage_history": ["queued", "running", "translating", "failed"],
+  "terminal_event_seen": true,
+  "event_count": 12
+}
