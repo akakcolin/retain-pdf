@@ -77,19 +77,20 @@ def test_adaptive_initial_limit_ramps_up_high_worker_counts() -> None:
 
 
 def test_deepseek_adaptive_initial_limit_uses_configured_workers_by_default(monkeypatch) -> None:
+    monkeypatch.delenv("RETAIN_TRANSLATION_HIGH_CAPACITY_INITIAL_CONCURRENCY_LIMIT", raising=False)
     monkeypatch.delenv("RETAIN_TRANSLATION_DEEPSEEK_INITIAL_CONCURRENCY_LIMIT", raising=False)
 
-    assert _provider_adaptive_initial_limit(workers=32, provider_family="deepseek_official") == 32
-    assert _provider_adaptive_initial_limit(workers=100, provider_family="deepseek_official") == 100
-    assert _provider_adaptive_initial_limit(workers=1000, provider_family="deepseek_official") == 1000
-    assert _provider_adaptive_initial_limit(workers=1000, provider_family="openai") == 32
+    assert _provider_adaptive_initial_limit(workers=32, high_capacity=True) == 32
+    assert _provider_adaptive_initial_limit(workers=100, high_capacity=True) == 100
+    assert _provider_adaptive_initial_limit(workers=1000, high_capacity=True) == 1000
+    assert _provider_adaptive_initial_limit(workers=1000, high_capacity=False) == 32
 
 
 def test_deepseek_adaptive_initial_limit_can_be_capped_by_env(monkeypatch) -> None:
-    monkeypatch.setenv("RETAIN_TRANSLATION_DEEPSEEK_INITIAL_CONCURRENCY_LIMIT", "250")
+    monkeypatch.setenv("RETAIN_TRANSLATION_HIGH_CAPACITY_INITIAL_CONCURRENCY_LIMIT", "250")
 
-    assert _provider_adaptive_initial_limit(workers=1000, provider_family="deepseek_official") == 250
-    assert _provider_adaptive_initial_limit(workers=100, provider_family="deepseek_official") == 100
+    assert _provider_adaptive_initial_limit(workers=1000, high_capacity=True) == 250
+    assert _provider_adaptive_initial_limit(workers=100, high_capacity=True) == 100
 
 
 def test_smarter_batches_group_low_risk_items_and_keep_complex_items_single() -> None:

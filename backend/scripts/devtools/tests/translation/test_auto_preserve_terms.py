@@ -251,6 +251,7 @@ def test_aimd_backs_off_on_sustained_connect_timeout_storm() -> None:
 
     diagnostics = TranslationRunDiagnostics(
         provider_family="deepseek_official",
+        high_capacity_provider=True,
         model="deepseek-chat",
         base_url="https://api.deepseek.com/v1",
         configured_workers=100,

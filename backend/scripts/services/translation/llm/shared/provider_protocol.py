@@ -26,6 +26,11 @@ class TranslationProviderCapabilities:
     structured_decision: bool = True
     structured_group_members: bool = True
     batch_once: bool = True
+    # 能力驱动的调度/限流开关。所有上层判断都应读取这些布尔字段，而不是直接
+    # 比较 provider_family == "deepseek_official"。这是消灭语义泄漏的单一映射点。
+    high_capacity: bool = False
+    supports_prefix_cache: bool = False
+    requires_api_key: bool = False
 
 
 class TranslationProviderRuntimeProtocol(Protocol):

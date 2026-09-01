@@ -5,7 +5,7 @@ import json
 from services.translation.artifacts import TranslationDiagnosticsCollector
 from services.translation.llm.result_canonicalizer import canonicalize_batch_result
 from services.translation.llm.result_validator import validate_batch_result
-from services.translation.llm.shared.orchestration.common import is_low_risk_deepseek_batch_item
+from services.translation.llm.shared.orchestration.common import is_low_risk_batch_item
 from services.translation.llm.shared.orchestration.metadata import attach_result_metadata
 from services.translation.llm.shared.orchestration.metadata import restore_runtime_term_tokens
 from services.translation.llm.validation.errors import EmptyTranslationError
@@ -33,7 +33,7 @@ _PARTIAL_RETRY_ERRORS = (
 )
 
 
-def should_use_direct_deepseek_batch(
+def should_use_direct_batch(
     batch: list[dict],
     *,
     model: str,
@@ -46,7 +46,7 @@ def should_use_direct_deepseek_batch(
         return True
     del model, base_url
     return all(
-        is_low_risk_deepseek_batch_item(
+        is_low_risk_batch_item(
             item,
             batch_low_risk_max_placeholders=context.batch_policy.batch_low_risk_max_placeholders,
             batch_low_risk_min_chars=context.batch_policy.batch_low_risk_min_chars,

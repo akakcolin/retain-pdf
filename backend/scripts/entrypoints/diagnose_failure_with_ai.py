@@ -7,10 +7,10 @@ import sys
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
+from services.translation.llm.shared.provider_registry import infer_provider_capabilities
 from services.translation.public import DEFAULT_BASE_URL
 from services.translation.public import DEFAULT_MODEL
 from services.translation.public import get_api_key
-from services.translation.public import normalize_base_url
 from services.translation.public import request_chat_content
 from services.translation.public import extract_json_text
 
@@ -49,7 +49,7 @@ def main() -> None:
 
     api_key = get_api_key(
         explicit_api_key=args.api_key,
-        required=normalize_base_url(base_url) == normalize_base_url(DEFAULT_BASE_URL),
+        required=infer_provider_capabilities(base_url=base_url, model=model).requires_api_key,
     )
     if not api_key:
         print(json.dumps({"status": "skipped", "reason": "missing_api_key"}, ensure_ascii=False))

@@ -151,7 +151,7 @@ def should_prefer_tagged_placeholder_first(item: dict, *, allow_tagged_placehold
     return len(placeholder_sequence(source_text)) >= 8
 
 
-def is_low_risk_deepseek_batch_item(
+def is_low_risk_batch_item(
     item: dict,
     *,
     batch_low_risk_max_placeholders: int,

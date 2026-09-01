@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from services.translation.artifacts import TranslationRunDiagnostics
 from services.translation.artifacts import classify_provider_family
+from services.translation.llm.shared.provider_registry import infer_provider_capabilities
 from services.translation.llm.shared.control_context import TranslationControlContext
 from services.translation.core.ocr.json_extractor import get_page_count
 from services.translation.core.ocr.json_extractor import load_ocr_json
@@ -74,8 +75,10 @@ def build_translation_execution_plan(request: TranslationExecutionRequest) -> Tr
         memory_mode=request.memory_mode,
     )
     provider_family = classify_provider_family(base_url=request.base_url, model=request.model)
+    provider_capabilities = infer_provider_capabilities(base_url=request.base_url, model=request.model)
     run_diagnostics = TranslationRunDiagnostics(
         provider_family=provider_family,
+        high_capacity_provider=provider_capabilities.high_capacity,
         model=request.model,
         base_url=request.base_url,
         configured_workers=max(1, request.workers),
@@ -85,12 +88,12 @@ def build_translation_execution_plan(request: TranslationExecutionRequest) -> Tr
     effective_workers = max(1, request.workers)
     initial_concurrency_limit = provider_adaptive_initial_limit(
         workers=effective_workers,
-        provider_family=provider_family,
+        high_capacity=provider_capabilities.high_capacity,
     )
     run_diagnostics.configure_adaptive_concurrency(
         initial_limit=initial_concurrency_limit,
         floor_limit=adaptive_floor_limit(effective_workers),
-        warmup=prefix_cache_warmup_enabled(provider_family),
+        warmup=prefix_cache_warmup_enabled(supports_prefix_cache=provider_capabilities.supports_prefix_cache),
     )
     run_diagnostics.set_effective_settings(
         translation_workers=effective_workers,

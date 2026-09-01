@@ -4,20 +4,23 @@ import os
 
 
 DEEPSEEK_ADAPTIVE_INITIAL_LIMIT_ENV = "RETAIN_TRANSLATION_DEEPSEEK_INITIAL_CONCURRENCY_LIMIT"
+HIGH_CAPACITY_INITIAL_CONCURRENCY_LIMIT_ENV = "RETAIN_TRANSLATION_HIGH_CAPACITY_INITIAL_CONCURRENCY_LIMIT"
 PREFIX_CACHE_WARMUP_ENV = "RETAIN_TRANSLATION_PREFIX_CACHE_WARMUP"
 
 
-def prefix_cache_warmup_enabled(provider_family: str) -> bool:
+def prefix_cache_warmup_enabled(*, supports_prefix_cache: bool = False) -> bool:
     # 首条请求单独放行,写入 provider 的前缀缓存后再放开全并发。
-    # 仅对支持前缀缓存计价的 deepseek 官方 API 默认开启。
-    if provider_family != "deepseek_official":
+    # 仅对显式声明支持前缀缓存计价(如 deepseek 官方 API)的 provider 默认开启。
+    if not supports_prefix_cache:
         return False
     value = str(os.environ.get(PREFIX_CACHE_WARMUP_ENV, "") or "").strip().lower()
     return value not in {"0", "false", "off", "no"}
 
 
-def _env_int(name: str, default: int, *, minimum: int = 1) -> int:
+def _env_int(name: str, default: int, *, fallback_name: str | None = None, minimum: int = 1) -> int:
     value = str(os.environ.get(name, "") or "").strip()
+    if not value and fallback_name:
+        value = str(os.environ.get(fallback_name, "") or "").strip()
     if not value:
         return max(minimum, int(default))
     try:
@@ -77,10 +80,17 @@ def adaptive_initial_limit(workers: int) -> int:
     return min(worker_count, 32)
 
 
-def provider_adaptive_initial_limit(*, workers: int, provider_family: str = "") -> int:
+def provider_adaptive_initial_limit(*, workers: int, high_capacity: bool = False) -> int:
     worker_count = max(1, int(workers))
-    if provider_family == "deepseek_official":
-        return min(worker_count, _env_int(DEEPSEEK_ADAPTIVE_INITIAL_LIMIT_ENV, worker_count))
+    if high_capacity:
+        return min(
+            worker_count,
+            _env_int(
+                HIGH_CAPACITY_INITIAL_CONCURRENCY_LIMIT_ENV,
+                worker_count,
+                fallback_name=DEEPSEEK_ADAPTIVE_INITIAL_LIMIT_ENV,
+            ),
+        )
     return adaptive_initial_limit(worker_count)
 
 
@@ -92,8 +102,8 @@ def _adaptive_initial_limit(workers: int) -> int:
     return adaptive_initial_limit(workers)
 
 
-def _provider_adaptive_initial_limit(*, workers: int, provider_family: str = "") -> int:
-    return provider_adaptive_initial_limit(workers=workers, provider_family=provider_family)
+def _provider_adaptive_initial_limit(*, workers: int, high_capacity: bool = False) -> int:
+    return provider_adaptive_initial_limit(workers=workers, high_capacity=high_capacity)
 
 
 def _fast_queue_targets(*, batched_fast_count: int, single_fast_count: int) -> list[tuple[str, int]]:
@@ -189,6 +199,7 @@ __all__ = [
     "_adaptive_floor_limit",
     "_adaptive_initial_limit",
     "DEEPSEEK_ADAPTIVE_INITIAL_LIMIT_ENV",
+    "HIGH_CAPACITY_INITIAL_CONCURRENCY_LIMIT_ENV",
     "_provider_adaptive_initial_limit",
     "_allocate_translation_queue_workers",
     "_distribute_extra_workers",

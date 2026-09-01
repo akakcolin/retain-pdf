@@ -36,9 +36,8 @@ from services.pipeline_shared.io import save_json
 from services.translation.artifacts import write_translation_debug_index
 from services.translation.artifacts import write_translation_diagnostics
 from services.translation.artifacts import blocking_untranslated_items
-from services.translation.llm.shared.provider_runtime import DEFAULT_BASE_URL
+from services.translation.llm.shared.provider_registry import infer_provider_capabilities
 from services.translation.llm.shared.provider_runtime import get_api_key
-from services.translation.llm.shared.provider_runtime import normalize_base_url
 from services.translation.services.terms import parse_glossary_json
 from runtime.pipeline.translation_stage import translate_book_pipeline
 
@@ -124,7 +123,7 @@ def main() -> None:
         print(format_stdout_kv(STDOUT_LABEL_EVENTS_JSONL, event_writer.path))
         api_key = get_api_key(
             args.api_key,
-            required=normalize_base_url(args.base_url) == normalize_base_url(DEFAULT_BASE_URL),
+            required=infer_provider_capabilities(base_url=args.base_url, model=args.model).requires_api_key,
         )
         emit_stage_transition(
             stage="translating",

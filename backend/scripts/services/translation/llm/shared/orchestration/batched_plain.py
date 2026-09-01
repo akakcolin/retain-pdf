@@ -10,7 +10,7 @@ from services.translation.llm.shared.orchestration.batched_plain_cache import sp
 from services.translation.llm.shared.orchestration.batched_plain_cache import store_cacheable_batch_result
 from services.translation.llm.shared.orchestration.batched_plain_request import attach_batched_plain_metadata
 from services.translation.llm.shared.orchestration.batched_plain_request import emit_batch_transport_single_retry
-from services.translation.llm.shared.orchestration.batched_plain_request import should_use_direct_deepseek_batch
+from services.translation.llm.shared.orchestration.batched_plain_request import should_use_direct_batch
 from services.translation.llm.shared.orchestration.batched_plain_request import split_batched_plain_result_for_partial_retry
 from services.translation.llm.shared.orchestration.batched_plain_single import enqueue_deferred_transport_items
 from services.translation.llm.shared.orchestration.batched_plain_single import enqueue_deferred_tail_items
@@ -33,7 +33,7 @@ def _try_direct_batched_plain(
     store_cached_batch_fn,
     translate_batch_once_fn,
 ) -> tuple[dict[str, dict[str, str]], list[dict], bool, bool]:
-    if not should_use_direct_deepseek_batch(uncached_batch, model=model, base_url=base_url, context=context):
+    if not should_use_direct_batch(uncached_batch, model=model, base_url=base_url, context=context):
         return {}, uncached_batch, False, False
     try:
         if request_label:

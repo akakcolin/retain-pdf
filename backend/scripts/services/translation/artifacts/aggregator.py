@@ -81,6 +81,7 @@ class TranslationRunDiagnostics:
     configured_workers: int
     configured_batch_size: int
     configured_classify_batch_size: int
+    high_capacity_provider: bool = False
     run_started_at: float = field(default_factory=time.perf_counter)
     _lock: threading.RLock = field(default_factory=threading.RLock, init=False, repr=False)
     _request_seq: int = field(default=0, init=False, repr=False)
@@ -367,7 +368,7 @@ class TranslationRunDiagnostics:
         max_limit = max(1, self.configured_workers)
         timeout_like = error_class in {"ReadTimeout", "ConnectTimeout", "Timeout", "ConnectionError"}
         overloaded_status = status_code in {408, 429, 500, 502, 503, 504}
-        high_capacity_provider = self.provider_family == "deepseek_official"
+        high_capacity_provider = self.high_capacity_provider
         if not success and overloaded_status:
             self._adaptive_recent_failure_count += 1
             ratio = 0.75 if high_capacity_provider else 0.5

@@ -6,13 +6,14 @@ from dataclasses import replace
 from collections.abc import Iterable
 from typing import Any
 
-from services.translation.artifacts import classify_provider_family
 from services.translation.core.terms import AbbreviationEntry
 from services.translation.core.terms import GlossaryEntry
 from services.translation.core.terms import build_terms_guidance
 from services.translation.core.terms import matched_abbreviation_entries
 from services.translation.core.terms import matched_glossary_entries
 from services.translation.core.terms import normalize_glossary_entries
+from services.translation.llm.shared.provider_protocol import TranslationProviderCapabilities
+from services.translation.llm.shared.provider_registry import infer_provider_capabilities
 from services.translation.llm.shared.tail_retry_queue import TranslationTailQueue
 
 
@@ -357,9 +358,14 @@ def _normalize_memory_mode(value: str) -> str:
     return "matched"
 
 
-def resolve_engine_profile(*, model: str = "", base_url: str = "") -> EngineProfile:
+def resolve_engine_profile(
+    *,
+    model: str = "",
+    base_url: str = "",
+    capabilities: TranslationProviderCapabilities | None = None,
+) -> EngineProfile:
     normalized_model = (model or "").strip().lower()
-    provider_family = classify_provider_family(base_url=base_url, model=model)
+    caps = capabilities or infer_provider_capabilities(base_url=base_url, model=model)
     profile = EngineProfile()
     if normalized_model.startswith("qwen35-9b-q4km") or normalized_model.startswith("qwen-35-9b-q4km"):
         return replace(
@@ -375,10 +381,10 @@ def resolve_engine_profile(*, model: str = "", base_url: str = "") -> EngineProf
             ),
             batch_policy=replace(profile.batch_policy, plain_batch_size=1),
         )
-    if provider_family == "deepseek_official":
+    if caps.high_capacity:
         return replace(
             profile,
-            name="deepseek_balanced",
+            name="high_capacity_balanced",
             timeout_policy=replace(
                 profile.timeout_policy,
                 plain_text_seconds=20,

@@ -264,6 +264,7 @@ class TranslationRunDiagnosticsTests(unittest.TestCase):
         deepseek_client = load_deepseek_client()
         run = TranslationRunDiagnostics(
             provider_family="deepseek_official",
+            high_capacity_provider=True,
             model="deepseek-chat",
             base_url="https://api.deepseek.com/v1",
             configured_workers=16,
@@ -432,6 +433,7 @@ class TranslationRunDiagnosticsTests(unittest.TestCase):
     def test_deepseek_official_keeps_limit_on_slow_success_and_timeout(self):
         run = TranslationRunDiagnostics(
             provider_family="deepseek_official",
+            high_capacity_provider=True,
             model="deepseek-chat",
             base_url="https://api.deepseek.com/v1",
             configured_workers=100,

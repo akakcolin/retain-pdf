@@ -1,23 +1,25 @@
 name: Python Pipeline Tests
 
-# Gate for the Python-side OCR/normalize production suites that
+# Gate for the Python-side OCR/normalize/translation production suites that
 # rendering-parity.yml does not cover (it only runs devtools/tests/rendering).
-# Runs document_schema pytest on PR/main.
+# Runs document_schema + translation pytest on PR/main.
 
 "on":
   pull_request:
     paths:
       - "backend/scripts/foundation/**"
       - "backend/scripts/services/document_schema/**"
+      - "backend/rendering_orchestrator/schemas/**"
       - "backend/scripts/services/ocr_provider/**"
       - "backend/scripts/services/mineru/**"
       - "backend/scripts/services/network/**"
       - "backend/scripts/services/pipeline_shared/**"
-      - "backend/scripts/services/translation/core/ocr/**"
-      - "backend/scripts/services/translation/services/policy/**"
+      - "backend/scripts/services/translation/**"
       - "backend/rust_api/src/services/ai/**"
       - "backend/rust_api/src/routes/ai.rs"
       - "backend/scripts/devtools/tests/document_schema/**"
+      - "backend/scripts/devtools/tests/translation/**"
+      - "backend/rendering_orchestrator/tests/fixtures/**"
       - ".github/workflows/python-pipeline-tests.yml"
   push:
     branches:
@@ -26,15 +28,17 @@ name: Python Pipeline Tests
     paths:
       - "backend/scripts/foundation/**"
       - "backend/scripts/services/document_schema/**"
+      - "backend/rendering_orchestrator/schemas/**"
       - "backend/scripts/services/ocr_provider/**"
       - "backend/scripts/services/mineru/**"
       - "backend/scripts/services/network/**"
       - "backend/scripts/services/pipeline_shared/**"
-      - "backend/scripts/services/translation/core/ocr/**"
-      - "backend/scripts/services/translation/services/policy/**"
+      - "backend/scripts/services/translation/**"
       - "backend/rust_api/src/services/ai/**"
       - "backend/rust_api/src/routes/ai.rs"
       - "backend/scripts/devtools/tests/document_schema/**"
+      - "backend/scripts/devtools/tests/translation/**"
+      - "backend/rendering_orchestrator/tests/fixtures/**"
       - ".github/workflows/python-pipeline-tests.yml"
 
 jobs:
@@ -59,4 +63,15 @@ jobs:
         run: |
           export PYTHONPATH="$GITHUB_WORKSPACE/backend/scripts"
           cd backend/scripts
-          python -m pytest devtools/tests/document_schema/ -q
+          python -m pytest devtools/tests/document_schema/ -q -p no:cacheprovider
+
+      # 翻译链路是全项目最复杂、最易回归的部分。此前这 92 个测试文件
+      # 一直不在 CI 内，只在本地跑。已验证：整套用例完全离线
+      # （强制 HTTP(S)_PROXY 指向不可达地址后仍全绿，耗时无变化），
+      # 不依赖任何外部 API 或密钥，可以安全地在 CI 中执行。
+      - name: Run translation suite
+        shell: bash
+        run: |
+          export PYTHONPATH="$GITHUB_WORKSPACE/backend/scripts"
+          cd backend/scripts
+          python -m pytest devtools/tests/translation/ -q -p no:cacheprovider
