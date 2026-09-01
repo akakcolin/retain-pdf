@@ -52,6 +52,75 @@ def test_quality_checks_collect_placeholder_and_english_issues() -> None:
     assert "placeholder_inventory_mismatch" in kinds
 
 
+def test_quality_checks_flag_prompt_echo_output() -> None:
+    item = _body_item(
+        "p001-b002",
+        "The advancement of complex computer programs.",
+    )
+
+    report = review_translation_item(
+        item,
+        {
+            "decision": "translate",
+            "translated_text": (
+                "翻译结果：\n"
+                "将以下文本翻译成适合科研论文排版的简体中文，同时保持原意、术语精度和版面友好性。\n"
+                "复杂计算机程序的发展。"
+            ),
+        },
+    )
+
+    kinds = [issue.kind for issue in report.issues]
+    assert "prompt_echo_output" in kinds
+    issue = next(i for i in report.issues if i.kind == "prompt_echo_output")
+    assert issue.severity == "error"
+    assert issue.retryable
+
+
+def test_quality_checks_flag_source_echo_output() -> None:
+    # 极简兜底路径下弱模型把原文整段回显进译文开头：解析层清理后仍残留时，
+    # 质检必须报协议错误（prompt_echo_output → TranslationProtocolError → 重试/降级）
+    item = _body_item(
+        "p001-b004",
+        "The advancement of complex computer programs improves simulation accuracy.",
+    )
+
+    report = review_translation_item(
+        item,
+        {
+            "decision": "translate",
+            "translated_text": (
+                "The advancement of complex computer programs improves simulation accuracy.\n"
+                "复杂计算机程序的发展提升了模拟精度。"
+            ),
+        },
+    )
+
+    kinds = [issue.kind for issue in report.issues]
+    assert report.has_errors
+    assert "prompt_echo_output" in kinds
+    issue = next(i for i in report.issues if i.kind == "prompt_echo_output")
+    assert issue.severity == "error"
+    assert issue.retryable
+
+
+def test_quality_checks_allow_clean_chinese_body_text() -> None:
+    item = _body_item(
+        "p001-b003",
+        "The advancement of complex computer programs improves simulation accuracy.",
+    )
+
+    report = review_translation_item(
+        item,
+        {
+            "decision": "translate",
+            "translated_text": "复杂计算机程序的发展使得模拟精度显著提升。",
+        },
+    )
+
+    assert "prompt_echo_output" not in {issue.kind for issue in report.issues}
+
+
 def test_quality_checks_collect_glossary_issues() -> None:
     item = _body_item(
         "p002-b003",
@@ -210,3 +279,29 @@ def test_fast_agent_repair_only_runs_with_blocking_items() -> None:
     # 任务干净时不再按篇幅跑警告级候选
     assert _fast_agent_repair_limit(payload_size=5000, blocking_untranslated_count=0) == 0
     assert _fast_agent_repair_limit(payload_size=5000, blocking_untranslated_count=3) == 3
+
+
+def test_quality_flags_guidance_echo_that_escapes_parsing() -> None:
+    # 弱模型回显动态领域指导时,若解析层因改写/换行未能完全回收,
+    # 质检必须按协议错误(prompt_echo_output → 重试/降级)拦截,不进 PDF。
+    item = _body_item(
+        "p001-b009",
+        "The advancement of complex computer programs improves simulation accuracy.",
+    )
+
+    report = review_translation_item(
+        item,
+        {
+            "decision": "translate",
+            "translated_text": (
+                "5. 保持原文意图\n"
+                "复杂计算机程序的发展。"
+            ),
+        },
+    )
+
+    kinds = [issue.kind for issue in report.issues]
+    assert "prompt_echo_output" in kinds
+    issue = next(i for i in report.issues if i.kind == "prompt_echo_output")
+    assert issue.severity == "error"
+    assert issue.retryable

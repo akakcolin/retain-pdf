@@ -270,6 +270,33 @@ def looks_like_mixed_english_residue_output(item: dict, translated_text: str) ->
     return False
 
 
+def looks_like_source_echo_output(item: dict, translated_text: str) -> bool:
+    """译文开头整段复制了原文英文词序列 = 弱模型把 user 消息里的原文回显进译文。
+
+    minimal 兜底提示词无定界符，回显的原文行会留在译文开头；parse 层的
+    _strip_leading_source_echo 能回收其后译文，这里作为兜底识别，供质检抛
+    prompt_echo_output 触发重试/降级。纯英文整段回显交给
+    looks_like_untranslated_english_output 判定，避免重复报错；参考文献类
+    条目（译文本就保留英文）除外。
+    """
+    source_text = unit_source_text(item).strip()
+    translated = str(translated_text or "").strip()
+    if not source_text or not translated:
+        return False
+    if _is_reference_like_item(item):
+        return False
+    source_words = EN_WORD_RE.findall(source_text)
+    if len(source_words) < 5:
+        return False
+    translated_words = EN_WORD_RE.findall(translated)
+    if len(translated_words) < len(source_words):
+        return False
+    if looks_like_untranslated_english_output(item, translated):
+        return False
+    source_folded = [word.casefold() for word in source_words]
+    return [word.casefold() for word in translated_words[: len(source_words)]] == source_folded
+
+
 def looks_like_short_fragment(text: str) -> bool:
     return looks_like_short_fragment_text(text)
 
@@ -319,6 +346,7 @@ __all__ = [
     "looks_like_mixed_english_residue_output",
     "looks_like_predominantly_english_output",
     "looks_like_short_fragment",
+    "looks_like_source_echo_output",
     "looks_like_untranslated_english_output",
     "normalize_inline_whitespace",
     "should_force_translate_body_text",

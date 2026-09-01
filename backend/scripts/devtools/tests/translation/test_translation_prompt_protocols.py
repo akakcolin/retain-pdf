@@ -45,6 +45,107 @@ def test_translate_single_item_plain_text_uses_plain_text_protocol() -> None:
     assert result["p001-b001"]["translated_text"] == "复杂计算机程序的发展。"
 
 
+def test_minimal_single_item_messages_are_marker_free_and_source_last() -> None:
+    messages = translation_client.build_minimal_single_item_messages(
+        {
+            "item_id": "p001-b001",
+            "protected_source_text": "The advancement of complex computer programs.",
+            "translation_unit_protected_source_text": "The advancement of complex computer programs.",
+            "block_type": "text",
+            "metadata": {"structure_role": "body"},
+        },
+        target_language_name="简体中文",
+    )
+    user_content = messages[1]["content"]
+    assert "请把下面的原文翻译成简体中文" in user_content
+    # 源语言不指定（与富提示词"下面的原文"一致），不能把源语言误标成目标语言
+    assert "简体中文原文翻译成" not in user_content
+    assert "只输出译文本身" in user_content
+    assert "【当前原文开始】" not in user_content
+    assert "【当前原文结束】" not in user_content
+    assert "将以下文本翻译成适合科研论文排版的" not in user_content
+    assert user_content.endswith("The advancement of complex computer programs.")
+
+
+def test_translate_single_item_plain_text_unstructured_uses_minimal_prompt() -> None:
+    item = {
+        "item_id": "p001-b001",
+        "protected_source_text": "The advancement of complex computer programs.",
+        "translation_unit_protected_source_text": "The advancement of complex computer programs.",
+        "block_type": "text",
+        "metadata": {"structure_role": "body"},
+    }
+    captured: dict[str, object] = {}
+
+    def _fake_minimal_messages(*args, **kwargs):
+        captured["used_minimal"] = True
+        return [{"role": "system", "content": "stub"}]
+
+    def _fake_request(messages, **kwargs):
+        return "复杂计算机程序的发展。"
+
+    with mock.patch.object(
+        translation_client, "build_minimal_single_item_messages", side_effect=_fake_minimal_messages
+    ), mock.patch.object(translation_client, "request_chat_content", side_effect=_fake_request):
+        result = translation_client.translate_single_item_plain_text_unstructured(item)
+
+    assert captured.get("used_minimal") is True
+    assert result["p001-b001"]["translated_text"] == "复杂计算机程序的发展。"
+
+
+def _minimal_item() -> dict:
+    return {
+        "item_id": "p001-b001",
+        "protected_source_text": "The advancement of complex computer programs.",
+        "translation_unit_protected_source_text": "The advancement of complex computer programs.",
+        "block_type": "text",
+        "metadata": {"structure_role": "body"},
+    }
+
+
+def test_unstructured_path_recovers_translation_from_echoed_guidance_block() -> None:
+    # 弱模型把 system prompt 里动态注入的领域指导整块回显到输出开头:
+    # 客户端 strip_prompt_prefix 先剥离带标签整块,回收其后的真实译文。
+    guidance = (
+        "格式一致性：采用了符合学术论文格式的标题和段落结构。\n"
+        "避免不必要的翻译：对于技术细节和公式，直接保留了原文的术语和格式。"
+    )
+
+    def _fake_request(_messages, **_kwargs):
+        return f"Document-specific translation guidance:\n{guidance}\n\n复杂计算机程序的发展。"
+
+    with mock.patch.object(translation_client, "request_chat_content", side_effect=_fake_request):
+        result = translation_client.translate_single_item_plain_text_unstructured(
+            _minimal_item(),
+            domain_guidance=guidance,
+        )
+
+    assert result["p001-b001"]["translated_text"] == "复杂计算机程序的发展。"
+
+
+def test_unstructured_path_recovers_translation_from_renumbered_guidance_echo() -> None:
+    # 弱模型把领域指导改写成编号列表回显:逐字前缀剥离失效,解析层按行
+    # 片段清理回收译文,最终译文不应带任何提示词/指令词。
+    guidance = "格式一致性：采用了符合学术论文格式的标题和段落结构。避免不必要的翻译。保持原文意图"
+    polluted = (
+        "3. 格式一致性： - 采用了符合学术论文格式的标题和段落结构。 - 数学公式使用 $...$ 标记，并在需要时保留了原样的数学表达式。\n"
+        "4. 避免不必要的翻译： - 对于技术细节和公式，直接保留了原文的术语和格式，没有添加额外的解释。\n"
+        "5. 保持原文意图\n"
+        "复杂计算机程序的发展。"
+    )
+
+    def _fake_request(_messages, **_kwargs):
+        return polluted
+
+    with mock.patch.object(translation_client, "request_chat_content", side_effect=_fake_request):
+        result = translation_client.translate_single_item_plain_text_unstructured(
+            _minimal_item(),
+            domain_guidance=guidance,
+        )
+
+    assert result["p001-b001"]["translated_text"] == "复杂计算机程序的发展。"
+
+
 def test_translate_batch_once_uses_tagged_protocol_without_schema() -> None:
     batch = [
         {

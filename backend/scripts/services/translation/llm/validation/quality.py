@@ -13,12 +13,14 @@ from services.translation.llm.result_payload import normalize_decision
 from services.translation.llm.validation.english_residue import is_direct_math_mode
 from services.translation.llm.validation.english_residue import looks_like_mixed_english_residue_output
 from services.translation.llm.validation.english_residue import looks_like_predominantly_english_output
+from services.translation.llm.validation.english_residue import looks_like_source_echo_output
 from services.translation.llm.validation.english_residue import looks_like_untranslated_english_output
 from services.translation.llm.validation.english_residue import should_force_translate_body_text
 from services.translation.llm.validation.english_residue import unit_source_text
 from services.translation.llm.validation.math_safety import has_balanced_inline_math_delimiters
 from services.translation.llm.validation.placeholder_tokens import placeholder_sequence
 from services.translation.llm.validation.placeholder_tokens import placeholders
+from services.translation.llm.validation.protocol_shell import looks_like_prompt_echo_output
 from services.translation.llm.validation.protocol_shell import looks_like_protocol_shell_output
 from services.translation.core.terms import GlossaryEntry
 from services.translation.core.terms import matched_glossary_entries
@@ -197,6 +199,24 @@ def _review_translated_text(
                 kind="protocol_shell_output",
                 severity="error",
                 message="Translated output still contains JSON/protocol shell",
+            )
+        )
+    if looks_like_prompt_echo_output(translated_text):
+        issues.append(
+            TranslationQualityIssue(
+                item_id=item_id,
+                kind="prompt_echo_output",
+                severity="error",
+                message="Translated output still contains echoed prompt markers/instructions",
+            )
+        )
+    if looks_like_source_echo_output(item, translated_text):
+        issues.append(
+            TranslationQualityIssue(
+                item_id=item_id,
+                kind="prompt_echo_output",
+                severity="error",
+                message="Translated output begins with the source text echoed back by the model",
             )
         )
     truncation = _truncated_translation_issue(item_id, source_text, translated_text)

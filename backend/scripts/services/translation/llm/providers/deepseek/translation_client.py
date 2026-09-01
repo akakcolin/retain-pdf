@@ -10,17 +10,20 @@ from services.translation.llm.providers.deepseek.client import request_chat_cont
 from services.translation.llm.shared.prompt_building import build_messages
 from services.translation.llm.shared.prompt_building import build_single_item_fallback_messages
 from services.translation.llm.shared.prompt_building import build_group_member_messages
+from services.translation.llm.shared.prompt_building import build_minimal_single_item_messages
 from services.translation.llm.result_validator import validate_batch_result
 from services.translation.llm.result_canonicalizer import canonicalize_batch_result
 from services.translation.llm.result_payload import result_entry
 from services.pipeline_shared.direct_typst_math import has_balanced_unescaped_dollars
 from services.translation.llm.shared.response_parsing import extract_json_text
 from services.translation.llm.shared.response_parsing import extract_single_item_translation_text
+from services.translation.llm.shared.response_parsing import strip_prompt_prefix
 from services.translation.llm.shared.response_parsing import unwrap_translation_shell
 from services.translation.llm.shared.structured_output import extract_string_fields
 from services.translation.llm.shared.structured_output import parse_structured_json
 from services.translation.llm.shared.structured_models import TRANSLATION_GROUP_MEMBER_RESPONSE_SCHEMA
 from services.translation.llm.shared.structured_models import TRANSLATION_SINGLE_DECISION_RESPONSE_SCHEMA
+from services.translation.llm.validation.english_residue import unit_source_text
 
 
 TAGGED_ITEM_OPEN_RE = re.compile(
@@ -64,6 +67,19 @@ def parse_translation_payload(content: str) -> dict[str, dict[str, str]]:
     return result
 
 
+def _prompt_echo_prefixes(domain_guidance: str) -> list[str]:
+    """动态领域指导被注入 system prompt 后可能被弱模型回显到输出开头。
+
+    除了逐字回显整条 system/user 消息(由调用方把 message contents 一并
+    作为前缀候选),领域指导还会以"带标签整块"或"裸内容"两种形态被回显,
+    这里补上这两类前缀供 strip_prompt_prefix 做逐字剥离。
+    """
+    guidance = (domain_guidance or "").strip()
+    if not guidance:
+        return []
+    return [f"Document-specific translation guidance:\n{guidance}", guidance]
+
+
 def translate_single_item_plain_text(
     item: dict,
     *,
@@ -78,15 +94,16 @@ def translate_single_item_plain_text(
     timeout_s: int = 120,
     http_retry_attempts: int | None = None,
 ) -> dict[str, dict[str, str]]:
+    messages = build_single_item_fallback_messages(
+        item,
+        domain_guidance=domain_guidance,
+        mode=mode,
+        structured_decision=False,
+        response_style="plain_text",
+        target_language_name=target_language_name,
+    )
     content = request_chat_content(
-        build_single_item_fallback_messages(
-            item,
-            domain_guidance=domain_guidance,
-            mode=mode,
-            structured_decision=False,
-            response_style="plain_text",
-            target_language_name=target_language_name,
-        ),
+        messages,
         api_key=api_key,
         model=model,
         base_url=base_url,
@@ -95,6 +112,11 @@ def translate_single_item_plain_text(
         timeout=timeout_s,
         request_label=request_label,
         max_attempts=http_retry_attempts,
+    )
+    content = strip_prompt_prefix(
+        content,
+        *(str(m.get("content", "") or "") for m in messages),
+        *_prompt_echo_prefixes(domain_guidance),
     )
     translated_text = extract_single_item_translation_text(content, item["item_id"])
     result = {item["item_id"]: result_entry("translate", translated_text)}
@@ -117,15 +139,14 @@ def translate_single_item_plain_text_unstructured(
     timeout_s: int = 120,
     http_retry_attempts: int | None = None,
 ) -> dict[str, dict[str, str]]:
+    messages = build_minimal_single_item_messages(
+        item,
+        domain_guidance=domain_guidance,
+        mode=mode,
+        target_language_name=target_language_name,
+    )
     content = request_chat_content(
-        build_single_item_fallback_messages(
-            item,
-            domain_guidance=domain_guidance,
-            mode=mode,
-            structured_decision=False,
-            response_style="plain_text",
-            target_language_name=target_language_name,
-        ),
+        messages,
         api_key=api_key,
         model=model,
         base_url=base_url,
@@ -135,7 +156,16 @@ def translate_single_item_plain_text_unstructured(
         request_label=request_label,
         max_attempts=http_retry_attempts,
     )
-    translated_text = extract_single_item_translation_text(content, item["item_id"])
+    content = strip_prompt_prefix(
+        content,
+        *(str(m.get("content", "") or "") for m in messages),
+        *_prompt_echo_prefixes(domain_guidance),
+    )
+    translated_text = extract_single_item_translation_text(
+        content,
+        item["item_id"],
+        source_text=unit_source_text(item),
+    )
     result = {item["item_id"]: result_entry("translate", translated_text)}
     result = canonicalize_batch_result([item], result)
     validate_batch_result([item], result, diagnostics=diagnostics)
@@ -297,15 +327,16 @@ def translate_single_item_with_decision(
     timeout_s: int = 120,
     http_retry_attempts: int | None = None,
 ) -> dict[str, dict[str, str]]:
+    messages = build_single_item_fallback_messages(
+        item,
+        domain_guidance=domain_guidance,
+        mode=mode,
+        structured_decision=True,
+        response_style="json",
+        target_language_name=target_language_name,
+    )
     content = request_chat_content(
-        build_single_item_fallback_messages(
-            item,
-            domain_guidance=domain_guidance,
-            mode=mode,
-            structured_decision=True,
-            response_style="json",
-            target_language_name=target_language_name,
-        ),
+        messages,
         api_key=api_key,
         model=model,
         base_url=base_url,
@@ -314,6 +345,11 @@ def translate_single_item_with_decision(
         timeout=timeout_s,
         request_label=request_label,
         max_attempts=http_retry_attempts,
+    )
+    content = strip_prompt_prefix(
+        content,
+        *(str(m.get("content", "") or "") for m in messages),
+        *_prompt_echo_prefixes(domain_guidance),
     )
     try:
         payload = json.loads(extract_json_text(content))

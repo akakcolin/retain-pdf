@@ -38,6 +38,9 @@ _EXPORTS = {
     "ACTIVE_PROVIDER_FAMILY": ("services.translation.llm.shared.provider_runtime", "ACTIVE_PROVIDER_FAMILY"),
     "extract_json_text": ("services.translation.llm.shared.response_parsing", "extract_json_text"),
     "extract_single_item_translation_text": ("services.translation.llm.shared.response_parsing", "extract_single_item_translation_text"),
+    "is_prompt_echo_label_head": ("services.translation.llm.shared.response_parsing", "is_prompt_echo_label_head"),
+    "strip_prompt_echo_markers": ("services.translation.llm.shared.response_parsing", "strip_prompt_echo_markers"),
+    "strip_prompt_prefix": ("services.translation.llm.shared.response_parsing", "strip_prompt_prefix"),
     "unwrap_translation_shell": ("services.translation.llm.shared.response_parsing", "unwrap_translation_shell"),
 }
 

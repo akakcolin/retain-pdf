@@ -206,6 +206,26 @@ def plain_text_single_user_prompt(
     return "\n".join(lines).strip()
 
 
+MINIMAL_TRANSLATION_SYSTEM_PROMPT = "You are a professional translation engine. Output only the translation."
+
+
+def minimal_single_user_prompt(
+    item: TranslationItemContext,
+    *,
+    target_language_name: str = DEFAULT_TARGET_LANGUAGE_NAME,
+) -> str:
+    """弱/MT 模型（如 Hunyuan-MT-7B）回显富提示词时的兜底极简提示词。
+
+    富提示词（多行指令 + 定界符）给可回显面太多；这里只保留一句指令 + 原文，
+    MT 模型训练分布即"短指令+原文"，可回显面大幅缩小。残留的"只输出译文本身"
+    等回显由 strip_prompt_echo_markers 清理。
+    """
+    lang = _target_language_name(target_language_name)
+    source = item.source_for_prompt()
+    # 源语言不指定（与富提示词模板"下面的原文"一致）：写死目标语言会误导弱模型。
+    return f"请把下面的原文翻译成{lang}。只输出译文本身，不要重复指令、不要加标签、不要解释。\n\n{source}"
+
+
 def batch_json_user_prompt(
     batch: list[TranslationItemContext],
     *,
@@ -292,11 +312,13 @@ def group_member_json_user_prompt(
 
 
 __all__ = [
+    "MINIMAL_TRANSLATION_SYSTEM_PROMPT",
     "batch_json_user_prompt",
     "build_translation_system_prompt",
     "direct_math_guidance",
     "direct_typst_batch_user_prompt",
     "direct_typst_single_user_prompt",
     "group_member_json_user_prompt",
+    "minimal_single_user_prompt",
     "plain_text_single_user_prompt",
 ]

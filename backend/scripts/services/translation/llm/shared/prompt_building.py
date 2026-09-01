@@ -6,12 +6,14 @@ from foundation.shared.prompt_loader import load_prompt
 from foundation.shared.prompt_loader import render_prompt
 from services.translation.core.context import TranslationItemContext
 from services.translation.core.context import build_item_context
+from services.translation.llm.shared.prompt_protocols import MINIMAL_TRANSLATION_SYSTEM_PROMPT
 from services.translation.llm.shared.prompt_protocols import batch_json_user_prompt
 from services.translation.llm.shared.prompt_protocols import build_translation_system_prompt as _build_translation_system_prompt
 from services.translation.llm.shared.prompt_protocols import direct_math_guidance as _direct_math_guidance
 from services.translation.llm.shared.prompt_protocols import direct_typst_batch_user_prompt as _direct_typst_batch_user_prompt
 from services.translation.llm.shared.prompt_protocols import direct_typst_single_user_prompt as _direct_typst_single_user_prompt
 from services.translation.llm.shared.prompt_protocols import group_member_json_user_prompt as _group_member_json_user_prompt
+from services.translation.llm.shared.prompt_protocols import minimal_single_user_prompt as _minimal_single_user_prompt
 from services.translation.llm.shared.prompt_protocols import plain_text_single_user_prompt as _plain_text_single_user_prompt
 
 
@@ -152,6 +154,30 @@ def build_single_item_fallback_messages(
     return [
         {"role": "system", "content": fallback_system},
         {"role": "user", "content": user_prompt},
+    ]
+
+
+def build_minimal_single_item_messages(
+    item: dict,
+    domain_guidance: str = "",
+    mode: str = "fast",
+    target_language_name: str = "简体中文",
+) -> list[dict[str, str]]:
+    """弱/MT 模型兜底用的极简 messages：系统一句 + user 一句指令 + 原文。
+
+    用于 translate_single_item_plain_text_unstructured（raw 兜底路径），
+    避免把富提示词的定界符/多行指令再次喂给会回显的模型。
+    """
+    item_context = _item_context(item)
+    system_prompt = MINIMAL_TRANSLATION_SYSTEM_PROMPT
+    if domain_guidance.strip():
+        system_prompt = f"{system_prompt}\n\nDocument-specific translation guidance:\n{domain_guidance.strip()}"
+    return [
+        {"role": "system", "content": system_prompt},
+        {
+            "role": "user",
+            "content": _minimal_single_user_prompt(item_context, target_language_name=target_language_name),
+        },
     ]
 
 
