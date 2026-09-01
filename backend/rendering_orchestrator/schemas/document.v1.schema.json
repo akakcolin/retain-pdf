@@ -30,7 +30,8 @@
       "minLength": 1
     },
     "source": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": true
     },
     "page_count": {
       "type": "integer",
@@ -401,6 +402,7 @@
             "footer",
             "footnote",
             "page_number",
+            "toc",
             "unknown"
           ]
         },
@@ -413,6 +415,7 @@
             "metadata",
             "affiliation",
             "acknowledgement",
+            "table_of_contents",
             "unknown"
           ]
         },

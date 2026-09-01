@@ -1,12 +1,13 @@
-//! Native `normalize_ocr` worker mirroring `entrypoints/run_normalize_ocr.py`
-//! (`services/document_schema/normalize_pipeline.py::main`): load the
-//! `normalize.stage.v1` spec, adapt the raw provider layout JSON into
-//! `document.v1`, apply defaults + contract enrichment, rescale geometry to the
-//! source PDF, rebuild paddle-style line geometry, and persist the compact
-//! document + pretty report with the production stdout labels.
+//! Native `normalize_ocr` worker: load the `normalize.stage.v1` spec, adapt the
+//! raw provider layout JSON into `document.v1`, apply defaults + contract
+//! enrichment, rescale geometry to the source PDF, rebuild paddle-style line
+//! geometry, and persist the compact document + pretty report with the
+//! production stdout labels.
 //!
 //! C5-N2a/C5-N2b/C5-N2c/C5-N2d support the `mineru`, `mineru_content_list_v2`,
-//! `paddle` and `generic_flat_ocr` provider adapters natively.
+//! `paddle` and `generic_flat_ocr` provider adapters natively. `local` (PaddleX)
+//! raw payloads are PP-StructureV3, so `provider="local"` reuses the paddle
+//! adapter and bypasses the detected-provider mismatch guard.
 
 pub mod adapter_content_list_v2;
 pub mod adapter_mineru;
@@ -22,6 +23,11 @@ pub mod rescale;
 pub mod spec;
 pub mod validator;
 pub mod version;
+
+#[cfg(test)]
+mod contract_lock;
+#[cfg(test)]
+mod replay;
 
 use std::path::{Path, PathBuf};
 
@@ -48,6 +54,10 @@ use self::version::{DOCUMENT_SCHEMA_FILE_NAME, DOCUMENT_SCHEMA_REPORT_FILE_NAME}
 /// `foundation/shared/job_dirs.py` directory names (ocr dir under the job root).
 const OCR_DIR_NAME: &str = "ocr";
 const NORMALIZED_DIR_NAME: &str = "normalized";
+
+/// Local PaddleX provider: the raw payload is PP-StructureV3, i.e. the paddle
+/// adapter's input format, so `provider="local"` reuses `build_paddle_document`.
+const PROVIDER_LOCAL: &str = "local";
 
 fn resolve(path: &Path) -> PathBuf {
     std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
@@ -162,6 +172,10 @@ fn adapt_document_with_report(
         build_content_list_v2_document(payload, document_id, source_json, provider_version)
     } else if provider == PROVIDER_PADDLE {
         build_paddle_document(payload, document_id, source_json, provider_version)
+    } else if provider == PROVIDER_LOCAL {
+        // Local PaddleX raw payload is PP-StructureV3, the paddle adapter's
+        // input format, so the two providers share the same builder.
+        build_paddle_document(payload, document_id, source_json, provider_version)
     } else if provider == PROVIDER_GENERIC_FLAT_OCR {
         build_generic_flat_ocr_document(payload, document_id, source_json, provider_version)
     } else {
@@ -176,7 +190,11 @@ fn adapt_document_with_report(
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_string();
-    if !provider.is_empty() && !detected_provider.is_empty() && detected_provider != provider {
+    if !provider.is_empty()
+        && provider != PROVIDER_LOCAL
+        && !detected_provider.is_empty()
+        && detected_provider != provider
+    {
         anyhow::bail!(
             "Explicit OCR provider does not match detected provider: \
              provider={provider} detected={detected_provider}. \
@@ -194,13 +212,13 @@ fn adapt_document_with_report(
         "detected_provider": if detected_provider.is_empty() { provider } else { detected_provider.as_str() },
         "detection": detection,
         "provider_was_explicit": !provider.is_empty(),
-        "provider_mismatch_allowed": false,
+        "provider_mismatch_allowed": provider == PROVIDER_LOCAL,
     });
     Ok((document, report))
 }
 
-/// `_refresh_report_for_final_document` — re-validate and refresh defaults
-/// counts against the final (rescaled/rebuild) document.
+/// Re-validate and refresh defaults counts against the final (rescaled/rebuild)
+/// document.
 fn refresh_report_for_final_document(report: &Value, document: &Value) -> Result<Value> {
     let mut refreshed = report.clone();
     let pages = document.get("pages").and_then(Value::as_array);
@@ -221,7 +239,7 @@ fn refresh_report_for_final_document(report: &Value, document: &Value) -> Result
     Ok(refreshed)
 }
 
-/// `entrypoints/run_normalize_ocr.py::main` — full normalize worker.
+/// Full normalize worker — the single native normalize implementation.
 pub fn normalize_ocr(spec_path: &Path) -> Result<Value> {
     let spec = NormalizeStageSpec::load(spec_path)?;
     let provider = spec.inputs.provider.trim().to_lowercase();
@@ -303,4 +321,71 @@ pub fn normalize_ocr(spec_path: &Path) -> Result<Value> {
     );
     println!("schema version: document.v1");
     Ok(document)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn paddle_payload() -> Value {
+        json!({
+            "layoutParsingResults": [
+                {
+                    "prunedResult": {
+                        "page_count": 1,
+                        "model_settings": {"enable_body_repair": false},
+                        "layout_det_res": {"boxes": []},
+                        "parsing_res_list": [
+                            {"block_label": "doc_title", "block_content": "Doc Title", "block_bbox": [40.0, 40.0, 560.0, 90.0], "group_id": "sec", "block_order": 0},
+                        ],
+                    },
+                },
+            ],
+            "dataInfo": {"pages": [{"width": 595.0, "height": 842.0}]},
+        })
+    }
+
+    #[test]
+    fn local_provider_reuses_paddle_builder_and_allows_mismatch() {
+        let (document, report) = adapt_document_with_report(
+            Path::new("/src/layout.json"),
+            "job-local",
+            PROVIDER_LOCAL,
+            "local",
+            &paddle_payload(),
+        )
+        .expect("local provider adapts via paddle builder");
+        assert_eq!(document["page_count"], 1);
+        assert_eq!(document["source"]["provider"], "paddle");
+        assert_eq!(report["provider"], PROVIDER_LOCAL);
+        assert_eq!(report["detected_provider"], "paddle");
+        assert_eq!(report["provider_mismatch_allowed"], true);
+    }
+
+    #[test]
+    fn paddle_provider_mismatch_guard_still_rejects_wrong_provider() {
+        let err = adapt_document_with_report(
+            Path::new("/src/layout.json"),
+            "job-mismatch",
+            PROVIDER_MINERU,
+            "v1",
+            &paddle_payload(),
+        )
+        .expect_err("mineru provider with paddle payload must bail");
+        assert!(err.to_string().contains("does not match detected provider"));
+    }
+
+    #[test]
+    fn paddle_provider_matches_its_own_payload() {
+        let (_document, report) = adapt_document_with_report(
+            Path::new("/src/layout.json"),
+            "job-paddle",
+            PROVIDER_PADDLE,
+            "2025.11.1",
+            &paddle_payload(),
+        )
+        .expect("paddle provider adapts its own payload");
+        assert_eq!(report["provider_mismatch_allowed"], false);
+        assert_eq!(report["detected_provider"], "paddle");
+    }
 }

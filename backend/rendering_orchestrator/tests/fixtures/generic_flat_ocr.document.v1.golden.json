@@ -1,0 +1,106 @@
+{
+  "schema": "normalized_document_v1",
+  "schema_version": "1.1",
+  "document_id": "golden-generic-flat-ocr",
+  "doc_id": "golden-generic-flat-ocr",
+  "source": {
+    "provider": "generic_flat_ocr",
+    "provider_version": "1.0",
+    "raw_files": {
+      "source_json": "/src/layout.json"
+    }
+  },
+  "page_count": 1,
+  "pages": [
+    {
+      "page_index": 0,
+      "width": 600.0,
+      "height": 800.0,
+      "unit": "pt",
+      "blocks": [
+        {
+          "block_id": "p001-b0000",
+          "page_index": 0,
+          "order": 0,
+          "type": "text",
+          "sub_type": "body",
+          "bbox": [
+            10.0,
+            10.0,
+            200.0,
+            40.0
+          ],
+          "geometry": {
+            "bbox": [
+              10.0,
+              10.0,
+              200.0,
+              40.0
+            ]
+          },
+          "content": {
+            "kind": "text",
+            "text": "Generic OCR sample"
+          },
+          "text": "Generic OCR sample",
+          "lines": [],
+          "segments": [],
+          "tags": [],
+          "derived": {
+            "role": "",
+            "by": "",
+            "confidence": 0.0
+          },
+          "layout_role": "paragraph",
+          "semantic_role": "body",
+          "structure_role": "body",
+          "policy": {
+            "translate": true,
+            "translate_reason": "provider_body_whitelist:body"
+          },
+          "continuation_hint": {
+            "source": "",
+            "group_id": "",
+            "role": "",
+            "scope": "",
+            "reading_order": -1,
+            "confidence": 0.0
+          },
+          "metadata": {},
+          "source": {
+            "provider": "generic_flat_ocr",
+            "raw_page_index": 0,
+            "raw_type": "text",
+            "raw_sub_type": "body",
+            "raw_bbox": [
+              10.0,
+              10.0,
+              200.0,
+              40.0
+            ],
+            "raw_text_excerpt": "Generic OCR sample"
+          },
+          "reading_order": 0,
+          "provenance": {
+            "provider": "generic_flat_ocr",
+            "raw_label": "text",
+            "raw_sub_type": "body",
+            "raw_bbox": [
+              10.0,
+              10.0,
+              200.0,
+              40.0
+            ],
+            "raw_path": ""
+          }
+        }
+      ],
+      "page": 1
+    }
+  ],
+  "assets": {},
+  "derived": {
+    "notes": "Adapted from generic_flat_ocr sample payload."
+  },
+  "markers": {}
+}

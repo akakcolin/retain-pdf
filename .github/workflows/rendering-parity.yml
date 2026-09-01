@@ -44,6 +44,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential clang libclang-dev pkg-config
 
+      - name: Core differential replay
+        run: cargo test --manifest-path backend/rendering_core/Cargo.toml
+
+      - name: Output differential replay
+        run: cargo test --manifest-path backend/rendering_output/Cargo.toml
+
       - name: Writer differential replay
         run: cargo test --manifest-path backend/rendering_writer/Cargo.toml
 

@@ -5,7 +5,9 @@
 
 use serde_json::Value;
 
-use super::version::{DOCUMENT_SCHEMA_NAME, DOCUMENT_SCHEMA_VERSION};
+use super::version::{
+    DOCUMENT_SCHEMA_NAME, DOCUMENT_SCHEMA_VERSION, SUPPORTED_DOCUMENT_SCHEMA_VERSIONS,
+};
 
 type Result<T> = std::result::Result<T, String>;
 
@@ -77,7 +79,7 @@ fn validate_content(path: &str, content: &Value) -> Result<()> {
     }
     expect_type(&format!("{path}.kind"), &obj["kind"], "str")?;
     let kind = obj["kind"].as_str().unwrap();
-    if !["text", "image", "table", "formula", "code", "unknown"].contains(&kind) {
+    if !ALLOWED_CONTENT_KINDS.contains(&kind) {
         return fail(&format!("{path}.kind"), &format!("unexpected content kind '{kind}'"));
     }
     if let Some(text) = obj.get("text") {
@@ -285,25 +287,32 @@ fn validate_line(path: &str, line: &Value) -> Result<()> {
     Ok(())
 }
 
-const ALLOWED_LAYOUT_ROLES: [&str; 11] = [
+pub(crate) const ALLOWED_CONTENT_KINDS: [&str; 6] =
+    ["text", "image", "table", "formula", "code", "unknown"];
+pub(crate) const ALLOWED_LAYOUT_ROLES: [&str; 11] = [
     "title", "heading", "paragraph", "list_item", "caption", "header", "footer",
     "footnote", "page_number", "toc", "unknown",
 ];
-const ALLOWED_SEMANTIC_ROLES: [&str; 8] = [
+pub(crate) const ALLOWED_SEMANTIC_ROLES: [&str; 8] = [
     "body", "abstract", "reference", "metadata", "affiliation", "acknowledgement",
     "table_of_contents", "unknown",
 ];
-const ALLOWED_BLOCK_TYPES: [&str; 6] = ["text", "formula", "image", "table", "code", "unknown"];
+pub(crate) const ALLOWED_BLOCK_TYPES: [&str; 6] = ["text", "formula", "image", "table", "code", "unknown"];
+pub(crate) const DOCUMENT_REQUIRED_KEYS: [&str; 8] = [
+    "schema", "schema_version", "document_id", "source", "page_count", "pages",
+    "derived", "markers",
+];
+pub(crate) const PAGE_REQUIRED_KEYS: [&str; 5] = ["page_index", "width", "height", "unit", "blocks"];
+pub(crate) const BLOCK_REQUIRED_KEYS: [&str; 13] = [
+    "block_id", "page_index", "order", "geometry", "content", "layout_role",
+    "semantic_role", "structure_role", "policy", "provenance", "continuation_hint",
+    "metadata", "source",
+];
 
 fn validate_block(path: &str, block: &Value, page_index: i64) -> Result<()> {
     expect_type(path, block, "dict")?;
     let obj = block.as_object().unwrap();
-    const REQUIRED: [&str; 13] = [
-        "block_id", "page_index", "order", "geometry", "content", "layout_role",
-        "semantic_role", "structure_role", "policy", "provenance", "continuation_hint",
-        "metadata", "source",
-    ];
-    for key in REQUIRED {
+    for key in BLOCK_REQUIRED_KEYS {
         if !obj.contains_key(key) {
             return fail(path, &format!("missing key '{key}'"));
         }
@@ -383,7 +392,7 @@ fn validate_block(path: &str, block: &Value, page_index: i64) -> Result<()> {
 fn validate_page(path: &str, page: &Value, page_index: i64) -> Result<()> {
     expect_type(path, page, "dict")?;
     let obj = page.as_object().unwrap();
-    for key in ["page_index", "width", "height", "unit", "blocks"] {
+    for key in PAGE_REQUIRED_KEYS {
         if !obj.contains_key(key) {
             return fail(path, &format!("missing key '{key}'"));
         }
@@ -419,7 +428,7 @@ fn validate_page(path: &str, page: &Value, page_index: i64) -> Result<()> {
 pub fn validate_document_payload(data: &Value) -> Result<()> {
     expect_type("$", data, "dict")?;
     let obj = data.as_object().unwrap();
-    for key in ["schema", "schema_version", "document_id", "source", "page_count", "pages", "derived", "markers"] {
+    for key in DOCUMENT_REQUIRED_KEYS {
         if !obj.contains_key(key) {
             return fail("$", &format!("missing key '{key}'"));
         }
@@ -427,10 +436,13 @@ pub fn validate_document_payload(data: &Value) -> Result<()> {
     if obj["schema"].as_str() != Some(DOCUMENT_SCHEMA_NAME) {
         return fail("$.schema", &format!("expected '{DOCUMENT_SCHEMA_NAME}', got '{}'", obj["schema"]));
     }
-    if obj["schema_version"].as_str() != Some(DOCUMENT_SCHEMA_VERSION) {
+    let schema_version = obj["schema_version"].as_str().unwrap_or_default();
+    if !SUPPORTED_DOCUMENT_SCHEMA_VERSIONS.contains(&schema_version) {
         return fail(
             "$.schema_version",
-            &format!("expected '{DOCUMENT_SCHEMA_VERSION}', got '{}'", obj["schema_version"]),
+            &format!(
+                "expected one of {SUPPORTED_DOCUMENT_SCHEMA_VERSIONS:?}, got '{schema_version}'"
+            ),
         );
     }
     expect_type("$.document_id", &obj["document_id"], "str")?;

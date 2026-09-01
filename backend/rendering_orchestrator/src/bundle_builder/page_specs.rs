@@ -26,7 +26,7 @@ use std::path::Path;
 use anyhow::{anyhow, Result};
 use mupdf::Document;
 use rendering_core::item::Item;
-use rendering_core::layout::body_font_unify_policy::resolve_book_body_font_target;
+use rendering_core::layout::body_font_unify::resolve_book_body_font_target;
 use rendering_core::layout::collision::mark_adjacent_collision_risk;
 use rendering_core::payload::block_seed::build_block_payloads;
 use rendering_core::payload::body_pipeline::apply_body_payload_pipeline;

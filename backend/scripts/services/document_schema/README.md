@@ -8,7 +8,7 @@
 - schema 版本：`1.1`
 - 默认文件名：`document.v1.json`
 - 默认报告文件名：`document.v1.report.json`
-- 机器可读 schema：`document.v1.schema.json`
+- 机器可读 schema：`backend/rendering_orchestrator/schemas/document.v1.schema.json`（producer-owned，Rust/Python validator 各自 parity-lock 到它）
 - Python 校验器：`validator.py`
 
 这份 JSON 现在已经是翻译/渲染主链路的标准 OCR 输入。

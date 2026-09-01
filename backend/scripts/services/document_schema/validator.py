@@ -360,7 +360,15 @@ def validate_saved_document_path(path: Path) -> dict:
 
 
 def default_schema_json_path() -> Path:
-    return Path(__file__).with_name(DOCUMENT_SCHEMA_FILE_NAME.replace(".json", ".schema.json"))
+    # Schema is producer-owned by the native normalize crate
+    # (rendering_orchestrator/schemas); validator.py lives at
+    # backend/scripts/services/document_schema/, so parents[3] is backend/.
+    return (
+        Path(__file__).resolve().parents[3]
+        / "rendering_orchestrator"
+        / "schemas"
+        / DOCUMENT_SCHEMA_FILE_NAME.replace(".json", ".schema.json")
+    )
 
 
 __all__ = [
