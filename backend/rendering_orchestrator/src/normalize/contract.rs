@@ -71,7 +71,7 @@ fn is_metadata_semantic(block: &Map<String, Value>) -> bool {
     role_str(block.get("sub_type")) == "metadata"
 }
 
-fn build_layout_role(block: &Map<String, Value>) -> String {
+pub fn build_layout_role(block: &Map<String, Value>) -> String {
     let explicit = role_str(block.get("layout_role"));
     if !explicit.is_empty() && explicit != "unknown" {
         return explicit;
@@ -90,7 +90,7 @@ fn build_layout_role(block: &Map<String, Value>) -> String {
     "unknown".to_string()
 }
 
-fn build_semantic_role(block: &Map<String, Value>, layout_role: &str) -> String {
+pub fn build_semantic_role(block: &Map<String, Value>, layout_role: &str) -> String {
     let explicit = role_str(block.get("semantic_role"));
     if !explicit.is_empty() && explicit != "unknown" {
         return explicit;
@@ -124,7 +124,11 @@ fn build_semantic_role(block: &Map<String, Value>, layout_role: &str) -> String 
     "unknown".to_string()
 }
 
-fn build_structure_role(block: &Map<String, Value>, layout_role: &str, semantic_role: &str) -> String {
+pub fn build_structure_role(
+    block: &Map<String, Value>,
+    layout_role: &str,
+    semantic_role: &str,
+) -> String {
     let explicit = role_str(block.get("structure_role"));
     if !explicit.is_empty() && explicit != "unknown" {
         return explicit;

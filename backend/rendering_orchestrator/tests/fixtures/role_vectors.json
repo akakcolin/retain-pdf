@@ -1,0 +1,214 @@
+{
+  "schema": "retainpdf_role_vector_v1",
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "explicit_passthrough",
+      "description": "显式 role 字段全部透传，不经过任何推导",
+      "block": {
+        "type": "text",
+        "sub_type": "body",
+        "tags": [],
+        "derived": { "role": "" },
+        "metadata": {},
+        "layout_role": "toc",
+        "semantic_role": "table_of_contents",
+        "structure_role": "body"
+      },
+      "expected": {
+        "layout_role": "toc",
+        "semantic_role": "table_of_contents",
+        "structure_role": "body"
+      }
+    },
+    {
+      "id": "text_subtype_map_body",
+      "description": "text + sub_type=body 映射为 paragraph → body → body",
+      "block": {
+        "type": "text",
+        "sub_type": "body",
+        "tags": [],
+        "derived": { "role": "" },
+        "metadata": {}
+      },
+      "expected": {
+        "layout_role": "paragraph",
+        "semantic_role": "body",
+        "structure_role": "body"
+      }
+    },
+    {
+      "id": "text_subtype_map_heading",
+      "description": "text + sub_type=heading 映射为 heading；非 body-like 布局 → semantic unknown",
+      "block": {
+        "type": "text",
+        "sub_type": "heading",
+        "tags": [],
+        "derived": { "role": "" },
+        "metadata": {}
+      },
+      "expected": {
+        "layout_role": "heading",
+        "semantic_role": "unknown",
+        "structure_role": "heading"
+      }
+    },
+    {
+      "id": "ancillary_header",
+      "description": "ancillary 布局（header）→ semantic=metadata、structure=metadata",
+      "block": {
+        "type": "text",
+        "sub_type": "header",
+        "tags": [],
+        "derived": { "role": "" },
+        "metadata": {}
+      },
+      "expected": {
+        "layout_role": "header",
+        "semantic_role": "metadata",
+        "structure_role": "metadata"
+      }
+    },
+    {
+      "id": "caption_via_subtype",
+      "description": "figure_caption 命中 ANCILLARY_SUB_TYPES → layout=caption",
+      "block": {
+        "type": "text",
+        "sub_type": "figure_caption",
+        "tags": [],
+        "derived": { "role": "" },
+        "metadata": {}
+      },
+      "expected": {
+        "layout_role": "caption",
+        "semantic_role": "metadata",
+        "structure_role": "metadata"
+      }
+    },
+    {
+      "id": "caption_via_tags",
+      "description": "tags 含 caption（非 map 内 sub_type）→ layout=caption",
+      "block": {
+        "type": "text",
+        "sub_type": "",
+        "tags": ["caption"],
+        "derived": { "role": "" },
+        "metadata": {}
+      },
+      "expected": {
+        "layout_role": "caption",
+        "semantic_role": "metadata",
+        "structure_role": "metadata"
+      }
+    },
+    {
+      "id": "reference_via_tags",
+      "description": "tags 含 reference_entry → semantic=reference、structure=reference_entry",
+      "block": {
+        "type": "text",
+        "sub_type": "",
+        "tags": ["reference_entry"],
+        "derived": { "role": "" },
+        "metadata": {}
+      },
+      "expected": {
+        "layout_role": "paragraph",
+        "semantic_role": "reference",
+        "structure_role": "reference_entry"
+      }
+    },
+    {
+      "id": "abstract_via_derived",
+      "description": "derived.role=abstract → semantic=abstract、structure=body",
+      "block": {
+        "type": "text",
+        "sub_type": "body",
+        "tags": [],
+        "derived": { "role": "abstract" },
+        "metadata": {}
+      },
+      "expected": {
+        "layout_role": "paragraph",
+        "semantic_role": "abstract",
+        "structure_role": "body"
+      }
+    },
+    {
+      "id": "metadata_via_subtype",
+      "description": "sub_type=metadata → semantic=metadata、structure=metadata",
+      "block": {
+        "type": "text",
+        "sub_type": "metadata",
+        "tags": [],
+        "derived": { "role": "" },
+        "metadata": {}
+      },
+      "expected": {
+        "layout_role": "paragraph",
+        "semantic_role": "metadata",
+        "structure_role": "metadata"
+      }
+    },
+    {
+      "id": "structure_override_via_metadata",
+      "description": "metadata.structure_role 覆盖默认推导",
+      "block": {
+        "type": "text",
+        "sub_type": "body",
+        "tags": [],
+        "derived": { "role": "" },
+        "metadata": { "structure_role": "caption" }
+      },
+      "expected": {
+        "layout_role": "paragraph",
+        "semantic_role": "body",
+        "structure_role": "caption"
+      }
+    },
+    {
+      "id": "unknown_non_text",
+      "description": "非 text 块 → layout/semantic=unknown、structure 空串",
+      "block": {
+        "type": "image",
+        "sub_type": "photo",
+        "tags": [],
+        "derived": { "role": "" },
+        "metadata": {}
+      },
+      "expected": {
+        "layout_role": "unknown",
+        "semantic_role": "unknown",
+        "structure_role": ""
+      }
+    },
+    {
+      "id": "empty_block",
+      "description": "空块 → layout/semantic=unknown、structure 空串",
+      "block": {},
+      "expected": {
+        "layout_role": "unknown",
+        "semantic_role": "unknown",
+        "structure_role": ""
+      }
+    },
+    {
+      "id": "explicit_unknown_is_default",
+      "description": "显式 unknown 视为缺省，走正常推导",
+      "block": {
+        "type": "text",
+        "sub_type": "body",
+        "tags": [],
+        "derived": { "role": "abstract" },
+        "metadata": {},
+        "layout_role": "unknown",
+        "semantic_role": "unknown",
+        "structure_role": "unknown"
+      },
+      "expected": {
+        "layout_role": "paragraph",
+        "semantic_role": "abstract",
+        "structure_role": "body"
+      }
+    }
+  ]
+}
