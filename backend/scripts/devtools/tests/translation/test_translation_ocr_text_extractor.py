@@ -7,12 +7,13 @@ sys.path.insert(0, str(REPO_SCRIPTS_ROOT))
 
 
 from services.document_schema.defaults import default_block_continuation_hint
-from services.document_schema.adapters import adapt_payload_to_document_v1
-from services.document_schema.providers import PROVIDER_GENERIC_FLAT_OCR
+from devtools.tests.translation._generic_flat_ocr_fixtures import build_generic_flat_ocr_document
 from services.translation.core.ocr.json_extractor import extract_text_items
 
+PROVIDER_GENERIC_FLAT_OCR = "generic_flat_ocr"
+
 def test_extract_text_items_only_keeps_primary_body_like_text_blocks() -> None:
-    adapted = adapt_payload_to_document_v1(
+    adapted = build_generic_flat_ocr_document(
         payload={
             "provider": PROVIDER_GENERIC_FLAT_OCR,
             "pages": [
@@ -69,7 +70,6 @@ def test_extract_text_items_only_keeps_primary_body_like_text_blocks() -> None:
                 }
             ],
         },
-        provider=PROVIDER_GENERIC_FLAT_OCR,
         document_id="generic-body-only-doc",
         source_json_path=Path("/tmp/generic-body-only.json"),
     )

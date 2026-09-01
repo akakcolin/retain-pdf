@@ -20,36 +20,25 @@
 设计原则：
 
 - `services/*` 负责把单项能力做完整
-- `ocr_provider/` 只定义 provider 接入约定，不承担具体 provider 实现
-- `document_schema/` 负责定义统一中间层，不承载 provider 细节
-- OCR provider 原始 JSON 必须先经过 `document_schema/adapters.py` 转成 `document.v1`
-- 需要排查 raw -> normalized 转化时，优先看 `document.v1.report.json` 或 `validate_document_schema.py --adapt`
+- OCR 归一化由 native `render_rs --normalize-ocr` 完成；`document_schema/` 只消费 `document.v1.json`，不承载归一化实现
+- 需要排查 normalized 转化问题时，优先看 `document.v1.report.json` 或 `validate_document_schema.py`（校验模式）
 - 如果只是消费 provider / defaults / validation 摘要，优先走 `document_schema/reporting.py`
-- `mineru/` 是一个 provider 实现，不是 OCR 总工作流本身
+- `mineru/` 仅保留 `contracts.py`（文件名单），provider 接入已 native 化
 - `pipeline_shared/` 是中性共享层，不应该再放 provider 私有逻辑
 - `translation/ocr` 主线优先读取 normalized document，而不是直接依赖某个 OCR provider 的原始 JSON
 - `runtime/pipeline` 只负责把这些能力串起来
 - 上层入口优先依赖 `runtime/pipeline`，不要直接跨服务拼流程
 - 公共配置和共享工具继续下沉到 `foundation/`
 
-## 新 OCR Provider 最短路径
+## OCR 归一化
 
-新 provider 接入时，推荐最短路径是：
-
-1. 先读 `ocr_provider/README.md`
-2. 再读 `document_schema/README.md`
-3. 准备最小 raw fixture
-4. 写 provider API 接入层和 adapter
-5. 把 fixture 加到 `devtools/tests/document_schema/fixtures/registry.py`
-6. 跑 `devtools/tests/document_schema/regression_check.py`
-
-只有这条链跑通后，provider 才应该进入 translation/rendering 主线。
+新 OCR provider 的 raw JSON → `document.v1` 适配在 native `render_rs --normalize-ocr`（`rendering_orchestrator/src/normalize/`）中新增；Python 侧不再有 adapter / normalize 实现，`document_schema/` 只负责读取、校验和摘要 `document.v1.json`。
 
 ## 协作规矩
 
 现在可以按模块拆分负责人，但边界必须按协议来守：
 
-- OCR / provider 负责人主要维护 `ocr_provider/`、`mineru/`、`document_schema/`
+- OCR / provider 负责人主要维护 native `rendering_orchestrator/src/normalize/`、`mineru/`、`document_schema/`
 - 翻译负责人主要维护 `translation/`
 - 渲染负责人主要维护 `rendering/`
 - 编排负责人主要维护 `runtime/pipeline/`

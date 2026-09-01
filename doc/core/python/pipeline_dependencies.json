@@ -50,7 +50,6 @@
       "foundation/shared/stage_specs.py",
       "foundation/shared/structured_errors.py",
       "runtime/pipeline/translation_stage.py",
-      "services/mineru/mineru_job.py",
       "services/pipeline_shared/direct_typst_math.py",
       "services/translation/artifacts/aggregator.py",
       "services/translation/core/payload/template_contract.py",
@@ -88,16 +87,12 @@
       "package_name": "PyMuPDF",
       "runtime_files": [
         "services/derived_artifacts/side_by_side_pdf.py",
-        "services/ocr_provider/paddle_runner.py",
         "services/translation/llm/domain_context.py"
       ],
       "devtool_files": [
         "devtools/tools/add_retainpdf_footer_typst.py"
       ],
-      "test_files": [
-        "devtools/tests/document_schema/test_local_command_ocr_driver.py",
-        "devtools/tests/document_schema/test_local_paddlex_wrapper_integration.py"
-      ],
+      "test_files": [],
       "runtime_required": true,
       "devtool_required": true
     },
@@ -108,11 +103,7 @@
       "devtool_files": [],
       "test_files": [
         "devtools/tests/d5_baseline/test_d5_baseline.py",
-        "devtools/tests/document_schema/test_adapters_detection.py",
         "devtools/tests/document_schema/test_document_v1_schema_parity.py",
-        "devtools/tests/document_schema/test_local_paddlex_wrapper.py",
-        "devtools/tests/document_schema/test_local_paddlex_wrapper_integration.py",
-        "devtools/tests/document_schema/test_mineru_bundle_zip_guard.py",
         "devtools/tests/document_schema/test_pipeline_shared_io_streaming.py",
         "devtools/tests/translation/test_direct_typst_normalize.py",
         "devtools/tests/translation/test_translation_validation_protocols.py"
@@ -124,10 +115,7 @@
       "import_name": "requests",
       "package_name": "requests",
       "runtime_files": [
-        "services/mineru/mineru_api.py",
         "services/network/retry.py",
-        "services/ocr_provider/local_paddlex_wrapper.py",
-        "services/ocr_provider/paddle_api.py",
         "services/translation/llm/providers/deepseek/client.py",
         "services/translation/llm/providers/deepseek/transport.py",
         "services/translation/llm/shared/provider_protocol.py"
@@ -136,7 +124,6 @@
         "devtools/tools/mineru_api_example.py"
       ],
       "test_files": [
-        "devtools/tests/document_schema/test_local_paddlex_wrapper.py",
         "devtools/tests/translation/test_translation_batch_transport.py",
         "devtools/tests/translation/test_translation_run_diagnostics.py",
         "devtools/tests/translation/test_translation_transport_fallbacks.py"

@@ -4,7 +4,6 @@ import re
 from pathlib import Path
 
 from services.document_schema.defaults import normalize_block_continuation_hint
-from services.document_schema.adapters import adapt_path_to_document_v1
 from services.document_schema.semantics import is_algorithm_semantic
 from services.document_schema.semantics import is_caption_semantic
 from services.document_schema.semantics import is_reference_entry_semantic
@@ -37,13 +36,14 @@ from services.document_schema.validator import validate_document_payload
 def load_ocr_json(json_path: Path) -> dict:
     with json_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
-    if is_normalized_document(data):
-        validate_document_payload(data)
-        return data
-    return adapt_path_to_document_v1(
-        source_json_path=json_path,
-        document_id=json_path.stem,
-    )
+    if not is_normalized_document(data):
+        raise RuntimeError(
+            f"input OCR JSON is not normalized (schema != normalized_document_v1): {json_path}. "
+            "Normalization must be performed by the native worker `render_rs --normalize-ocr`; "
+            "the Python normalize engine is retired."
+        )
+    validate_document_payload(data)
+    return data
 
 
 def get_pages(data: dict) -> list[dict]:

@@ -1,5 +1,7 @@
 # 05 Adapter Checklist
 
+> 注：本文件描述的 Python `document_schema` adapter 归一化树已于 2026-09-01 退役，由 native `render_rs --normalize-ocr` 取代；内容保留为历史记录。
+
 ## 任务定义
 
 安排一个人去适配 Paddle OCR 时，建议直接按下面交付：

@@ -1,5 +1,7 @@
 # 04 Continuation Hint
 
+> 注：本文件描述的 Python `document_schema` adapter 归一化树已于 2026-09-01 退役，由 native `render_rs --normalize-ocr` 取代；内容保留为历史记录。
+
 ## 目标
 
 如果 Paddle 本身已经知道哪些 block 属于同一段，adapter 应该把这类信息映射成统一契约：

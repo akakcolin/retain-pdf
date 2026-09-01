@@ -255,9 +255,9 @@ function pruneBundledMacPythonRuntime(root) {
       }
       // pymupdf/pikepdf/lxml are unreachable from the desktop's worker flow:
       // render/normalize/extract run natively (render_rs), and the always-Python
-      // OCR/translate workers lazy-import fitz
-      // (services/ocr_provider/paddle_runner.py + translation/llm/domain_context.py),
-      // degrading page-count progress / sci domain inference instead of importing it.
+      // translate worker lazy-imports fitz
+      // (translation/llm/domain_context.py),
+      // degrading sci domain inference instead of importing it.
       // PIL is not imported by any bundled script. rendering_bridge is deleted
       // (Python rendering tree retired), so no bridge ships into the bundle.
       const removableSitePackages = [
@@ -816,19 +816,6 @@ const DEAD_ENTRYPOINTS = new Set([
   "diagnose_failure_with_ai.py", // dev diagnostic, never spawned by rust_api
 ]);
 
-// Paddle OCR is excluded from the desktop bundle: its normalization rescales
-// OCR geometry to PDF points with pymupdf, which the bundle prunes to fit the
-// size budget. provider_pipeline / normalize_pipeline lazy-import the paddle
-// tree and fail with a clear message on a paddle job. mineru stays the OCR
-// provider. local_paddlex_wrapper is paddle-only and excluded with it.
-const PADDLE_SCRIPT_FILES = new Set([
-  "paddle_api.py",
-  "paddle_runner.py",
-  "paddle_markdown.py",
-  "paddle_normalize.py",
-  "local_paddlex_wrapper.py",
-]);
-
 if (!frontendOnly) {
   fs.cpSync(path.join(backendRoot, "scripts"), path.join(outputBackendRoot, "scripts"), {
     recursive: true,
@@ -847,19 +834,6 @@ if (!frontendOnly) {
       // Dead book-flow entrypoints would ImportError on services.rendering;
       // rust_api never spawns them in the desktop.
       if (relParts[0] === "entrypoints" && DEAD_ENTRYPOINTS.has(basename)) {
-        return false;
-      }
-      // Paddle OCR files (see PADDLE_SCRIPT_FILES) and the provider_adapters/paddle
-      // subtree are excluded; the worker lazy-imports them and errors clearly.
-      if (relParts[0] === "services" && relParts[1] === "ocr_provider" && PADDLE_SCRIPT_FILES.has(basename)) {
-        return false;
-      }
-      if (
-        relParts[0] === "services" &&
-        relParts[1] === "document_schema" &&
-        relParts[2] === "provider_adapters" &&
-        relParts[3] === "paddle"
-      ) {
         return false;
       }
       return true;

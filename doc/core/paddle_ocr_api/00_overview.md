@@ -1,5 +1,7 @@
 # 00 Overview
 
+> 注：本文件描述的 Python `document_schema` adapter 归一化树已于 2026-09-01 退役，由 native `render_rs --normalize-ocr` 取代；内容保留为历史记录。
+
 ## 目标
 
 Paddle OCR 对接层的目标是：

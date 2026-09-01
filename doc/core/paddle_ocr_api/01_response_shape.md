@@ -1,5 +1,7 @@
 # 01 Response Shape
 
+> 注：本文件描述的 Python `document_schema` adapter 归一化树已于 2026-09-01 退役，由 native `render_rs --normalize-ocr` 取代；内容保留为历史记录。
+
 ## 顶层结构
 
 当前 Paddle adapter 依赖的顶层字段主要有：

@@ -73,7 +73,6 @@ def test_pipeline_main_fails_and_reports_syntax_error(
     for name in (
         "check_service_provider_raw_leaks",
         "check_entrypoint_stable_imports",
-        "check_ocr_provider_boundaries",
         "check_translation_worker_protocol",
         "check_stage_spec_contract_checker",
         "check_translation_pipeline_facade_boundary",

@@ -1,20 +1,30 @@
+"""Test fixture: build a normalized_document_v1 payload from a generic_flat_ocr sample.
+
+Replicates the retired `services/document_schema/provider_adapters/generic_flat_ocr_adapter.py`
+passthrough so translation tests can feed provider-shaped payloads into the Python
+translation engine without depending on the retired Python normalize engine. The
+production normalize path is the native worker `render_rs --normalize-ocr`; the
+shape contract is anchored by
+`backend/rendering_orchestrator/tests/fixtures/generic_flat_ocr.document.v1.golden.json`.
+
+Underscore-prefixed module so pytest does not collect it as a test module.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
 
-from services.document_schema import DOCUMENT_SCHEMA_NAME
-from services.document_schema import DOCUMENT_SCHEMA_VERSION
-from services.document_schema import default_block_derived
-from services.document_schema import normalize_block_continuation_hint
-from services.document_schema.providers import PROVIDER_GENERIC_FLAT_OCR
+from services.document_schema.defaults import normalize_block_continuation_hint
+from services.document_schema.version import DOCUMENT_SCHEMA_NAME
+from services.document_schema.version import DOCUMENT_SCHEMA_VERSION
+
+# The retired providers registry (`services/document_schema/providers.py`) is gone;
+# the generic_flat_ocr provider string is anchored by the native worker contract.
+_PROVIDER_GENERIC_FLAT_OCR = "generic_flat_ocr"
 
 
-def looks_like_generic_flat_ocr(payload: dict) -> bool:
-    return (
-        isinstance(payload, dict)
-        and str(payload.get("provider", "") or "") == PROVIDER_GENERIC_FLAT_OCR
-        and isinstance(payload.get("pages"), list)
-    )
+def _default_block_derived() -> dict:
+    return {"role": "", "by": "", "confidence": 0.0}
 
 
 _TEXT_LAYOUT_ROLE_MAP = {
@@ -86,7 +96,7 @@ def _policy(block: dict) -> dict:
 
 
 def _explicit_sub_type(block: dict) -> str:
-    derived = dict(block.get("derived", {}) or default_block_derived())
+    derived = dict(block.get("derived", {}) or _default_block_derived())
     derived_role = str(derived.get("role", "") or "").strip().lower()
     return derived_role or _block_sub_type(block)
 
@@ -114,9 +124,11 @@ def _is_front_matter_author_gap(blocks: list[dict], index: int) -> bool:
 
 def build_generic_flat_ocr_document(
     payload: dict,
+    *,
     document_id: str,
-    source_json_path: Path,
-    provider_version: str,
+    provider: str = _PROVIDER_GENERIC_FLAT_OCR,
+    source_json_path: Path | None = None,
+    provider_version: str = "",
 ) -> dict:
     pages = []
     for page_index, page in enumerate(payload.get("pages", []) or []):
@@ -150,7 +162,7 @@ def build_generic_flat_ocr_document(
                     "lines": list(block.get("lines", []) or []),
                     "segments": list(block.get("segments", []) or []),
                     "tags": list(block.get("tags", []) or []),
-                    "derived": dict(block.get("derived", {}) or default_block_derived()),
+                    "derived": dict(block.get("derived", {}) or _default_block_derived()),
                     "layout_role": _layout_role(block),
                     "semantic_role": semantic_role,
                     "structure_role": _structure_role(block),
@@ -158,7 +170,7 @@ def build_generic_flat_ocr_document(
                     "continuation_hint": normalize_block_continuation_hint(block.get("continuation_hint")),
                     "metadata": dict(block.get("metadata", {}) or {}),
                     "source": {
-                        "provider": PROVIDER_GENERIC_FLAT_OCR,
+                        "provider": provider,
                         "raw_page_index": page_index,
                         "raw_type": str(block.get("type", "text") or "text"),
                         "raw_sub_type": str(block.get("sub_type", "body") or "body"),
@@ -183,10 +195,10 @@ def build_generic_flat_ocr_document(
         "document_id": document_id,
         "doc_id": document_id,
         "source": {
-            "provider": PROVIDER_GENERIC_FLAT_OCR,
+            "provider": provider,
             "provider_version": provider_version,
             "raw_files": {
-                "source_json": str(source_json_path),
+                "source_json": str(source_json_path or "/tmp/generic-flat-ocr.json"),
             },
         },
         "page_count": len(pages),
@@ -201,5 +213,4 @@ def build_generic_flat_ocr_document(
 
 __all__ = [
     "build_generic_flat_ocr_document",
-    "looks_like_generic_flat_ocr",
 ]

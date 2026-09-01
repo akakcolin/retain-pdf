@@ -63,11 +63,9 @@
 - `scripts/entrypoints/translate_book.py`
   只翻译，不渲染。
 - `scripts/entrypoints/validate_document_schema.py`
-  契约排错入口。只用于检查 `document.v1` 或 adapter 行为，不是日常整链路入口。
+  契约校验入口。只用于检查 `document.v1.json`，不是日常整链路入口。
 - `scripts/entrypoints/diagnose_failure_with_ai.py`
   失败诊断入口。
-- `scripts/devtools/tests/document_schema/regression_check.py`
-  长期回归工具，不是主流程入口。
 
 render 阶段由 native `render_rs --spec render.spec.json` 执行（见下文「Stage Spec 约定」），不再有 Python 渲染入口。不要把测试脚本当主入口；正常整链路走 Rust API 提交 job，让 Rust 通过 spec 驱动各 worker。
 
@@ -77,27 +75,14 @@ render 阶段由 native `render_rs --spec render.spec.json` 执行（见下文�
 2. `services/translation/llm/README.md`
 3. 再按需要进入 `services/translation/llm/providers/` 或 `services/translation/llm/shared/orchestration/`
 
-## 新 Provider 接入顺序
+## OCR 归一化
 
-如果后续要接新的 OCR provider，先按这个顺序走，不要直接改翻译/渲染主线：
-
-1. 先看 `scripts/services/ocr_provider/README.md`
-   先把 provider API 层边界、状态、原始产物职责定义清楚。
-2. 再看 `scripts/services/document_schema/README.md`
-   明确字段应该落到 `geometry/content/layout_role/semantic_role/structure_role/policy/provenance` 的哪一层。
-3. 准备最小 raw fixture
-   放到 `scripts/devtools/tests/document_schema/fixtures/`。
-4. 新增 provider 实现和 adapter
-   通过 `scripts/services/document_schema/adapters.py` 接进统一 schema。
-5. 把 fixture 登记到 `scripts/devtools/tests/document_schema/fixtures/registry.py`
-   不要手改主线去兼容 provider 原始 JSON。
-6. 跑 `scripts/devtools/tests/document_schema/regression_check.py`
-   至少确认 detector、adapt、validation、extractor smoke 全都通过。
+OCR 归一化由 native `render_rs --normalize-ocr` 完成（`rendering_orchestrator/src/normalize/`），Python 侧无归一化实现。新 provider 的 raw JSON 到 `document.v1` 的适配在 Rust 侧新增。Python `services/document_schema/` 只消费 `document.v1.json`（读取/校验/摘要），不接触 provider 原始 JSON。
 
 ## 顶层目录说明
 
 - `services/mineru`
-  MinerU 接入、下载、解包、job 组织。
+  仅保留 `contracts.py`（文件名单），provider 接入已 native 化。
 - `services/pipeline_shared`
   provider / translate / render 共用的阶段协议、summary 和 JSON IO。
 - `services/translation`
@@ -220,12 +205,11 @@ python backend/scripts/devtools/sync_python_requirements.py --repo-root . --chec
 - [foundation/shared/README.md](./foundation/shared/README.md)
 - [runtime/pipeline/README.md](./runtime/pipeline/README.md)
 - [services/README.md](./services/README.md)
-- [services/ocr_provider/README.md](./services/ocr_provider/README.md)
 - [services/translation/README.md](./services/translation/README.md)
-- [services/translation/orchestration/README.md](./services/translation/orchestration/README.md)
-- [services/translation/continuation/README.md](./services/translation/continuation/README.md)
-- [services/translation/policy/README.md](./services/translation/policy/README.md)
-- [services/mineru/README.md](./services/mineru/README.md)
+- [services/translation/llm/README.md](./services/translation/llm/README.md)
+- [services/translation/core/orchestration/README.md](./services/translation/core/orchestration/README.md)
+- [services/translation/services/continuation/README.md](./services/translation/services/continuation/README.md)
+- [services/translation/services/policy/README.md](./services/translation/services/policy/README.md)
 
 ## 设计边界
 
@@ -245,10 +229,9 @@ python backend/scripts/devtools/sync_python_requirements.py --repo-root . --chec
 
 第二条负责卡住 Python 主链最容易回退的边界：
 
-- `runtime/pipeline` 重新直接 import `services.ocr_provider` / `services.mineru`
+- `runtime/pipeline` 重新直接 import `services.mineru` / 已退役的 `services.ocr_provider`
 - `runtime/pipeline` 重新理解 provider raw token，例如 `layoutParsingResults`
-- `services/translation` 重新碰 provider raw adapter
+- `runtime/pipeline` 重新依赖 `document_schema` provider adapters
+- `services/translation` 重新碰 provider raw 结构
 - `entrypoints/*` 绕过稳定入口，直接连深层实现
-- `services/ocr_provider/__init__.py` 丢掉显式公共导出面
-- `services/ocr_provider/provider_pipeline.py` 丢掉稳定 compat symbol 或不再承担主链 handoff
-- `services/ocr_provider/paddle_*` 反向依赖 `runtime/pipeline` / `services/translation`
+- 非 devtools 模块重新 import fitz / 重新出现第二个 normalize 实现

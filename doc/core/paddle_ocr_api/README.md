@@ -1,5 +1,7 @@
 # Paddle OCR 对接文档
 
+> 注：本文件描述的 Python `document_schema` adapter 归一化树已于 2026-09-01 退役，由 native `render_rs --normalize-ocr` 取代；内容保留为历史记录。
+
 这里是 RetainPDF 自己的 OCR adapter 说明，不是 Paddle 官方文档本体。
 如果你要改“Paddle 原始 JSON 怎么进 `document.v1`”，先看这里。
 

@@ -63,6 +63,7 @@ _EXPORTS = {
     "DEFAULT_BASE_URL": ("services.translation.llm.shared.provider_runtime", "DEFAULT_BASE_URL"),
     "DEFAULT_MODEL": ("services.translation.llm.shared.provider_runtime", "DEFAULT_MODEL"),
     "get_api_key": ("services.translation.llm.shared.provider_runtime", "get_api_key"),
+    "infer_provider_capabilities": ("services.translation.llm.shared.provider_registry", "infer_provider_capabilities"),
     "normalize_base_url": ("services.translation.llm.shared.provider_runtime", "normalize_base_url"),
     "request_chat_content": ("services.translation.llm.shared.provider_runtime", "request_chat_content"),
     "extract_json_text": ("services.translation.llm.shared.response_parsing", "extract_json_text"),

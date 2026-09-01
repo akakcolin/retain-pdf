@@ -8,7 +8,6 @@ from devtools.architecture_checks.common import read_text
 from devtools.architecture_checks.common import rel
 from devtools.architecture_checks.common import scan_py_files
 from devtools.architecture_checks.providers import MINERU_ROOT
-from devtools.architecture_checks.providers import OCR_PROVIDER_ROOT
 from devtools.architecture_checks.translation_rules import DEVTOOLS_ROOT
 from devtools.architecture_checks.translation_rules import DEVTOOLS_TRANSLATION_INTERNAL_DIR_ALLOWLIST
 from devtools.architecture_checks.translation_rules import DEVTOOLS_TRANSLATION_INTERNAL_IMPORT_ALLOWLIST
@@ -73,7 +72,6 @@ def check_translation_pipeline_facade_boundary(errors: list[str]) -> None:
 def check_translation_public_surface_usage(errors: list[str]) -> None:
     guarded_roots = (
         PIPELINE_ROOT,
-        OCR_PROVIDER_ROOT,
         MINERU_ROOT,
         DOCUMENT_SCHEMA_ROOT,
     )

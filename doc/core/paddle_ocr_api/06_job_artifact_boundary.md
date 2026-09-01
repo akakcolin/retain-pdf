@@ -1,5 +1,7 @@
 # 06 Paddle Markdown 到 Job Artifact 映射与边界
 
+> 注：本文件描述的 Python `document_schema` adapter / `services/ocr_provider` 归一化树已于 2026-09-01 退役，由 native `render_rs --normalize-ocr` 取代；内容保留为历史记录。
+
 这份文档只回答一件事：
 
 - Paddle provider 输出、`normalized_document`、job artifact 导出、下载接口，这四层各自是什么边界

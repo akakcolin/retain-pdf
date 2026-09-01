@@ -375,10 +375,4 @@ RetainPDF 后续还会检查：
 - 渲染模块
 - Rust job runner 主流程
 
-只有当 `generic_flat_ocr` 表达不了你的 provider 输出时，才需要新增：
-
-```text
-backend/scripts/services/document_schema/provider_adapters/<your_provider>/
-```
-
-新增 adapter 后，把 `raw_provider` 指向你的 adapter 名称即可。主流程仍然只消费 `document.v1.json`。
+只有当 `generic_flat_ocr` 表达不了你的 provider 输出时，才需要新增 raw → `document.v1` 适配，位置在 native `rendering_orchestrator/src/normalize/`（`render_rs --normalize-ocr`）。Python 侧 `provider_adapters/` 已退役。主流程仍然只消费 `document.v1.json`。

@@ -16,8 +16,8 @@ Rust API 创建 job，生成 `specs/*.spec.json` 并依次启动 worker。阶段
 
 - 改人工执行入口：`entrypoints/`（console.py、diagnose_failure_with_ai.py、run_translate_only.py、translate_book.py、validate_document_schema.py）
 - 改翻译阶段编排：`runtime/pipeline/`（仅剩 `translation_stage.py`）
-- 改 OCR provider 接入：`services/ocr_provider/`、`services/mineru/`
-- 改统一 OCR 契约：`services/document_schema/`（`adapters.py`、`reporting.py`）
+- 改 OCR 归一化：native `rendering_orchestrator/src/normalize/`（`render_rs --normalize-ocr`），Python 侧无实现
+- 改统一 OCR 契约：`services/document_schema/`（`consumer_reader.py`、`reporting.py`）
 - 改翻译主链：`services/translation/`
 - 渲染：Rust `rendering_orchestrator/`（render_rs），不在本目录
 
@@ -26,7 +26,7 @@ Rust API 创建 job，生成 `specs/*.spec.json` 并依次启动 worker。阶段
 - “这是入口参数或 worker 启动方式变化吗？” 先看 `entrypoints/`
 - “这是翻译阶段顺序或输入输出协议变化吗？” 先看 `runtime/pipeline/`
 - “这是 raw OCR 适配或 schema 变化吗？” 先看 `services/document_schema/`
-- “这是 provider 接入问题吗？” 先看 `services/ocr_provider/` 或 `services/mineru/`
+- “这是 OCR 归一化或契约问题吗？” 先看 native `rendering_orchestrator/src/normalize/` 或 `services/document_schema/`
 - “这是翻译结果不对吗？” 先看 `services/translation/`
 - “这是 PDF 渲染不对吗？” 改 Rust `rendering_orchestrator/` 或 `rendering_writer/`
 

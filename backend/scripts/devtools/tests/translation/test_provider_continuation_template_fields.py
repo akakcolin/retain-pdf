@@ -10,10 +10,11 @@ sys.path.insert(0, str(REPO_SCRIPTS_ROOT))
 
 
 from services.document_schema.defaults import default_block_continuation_hint
-from services.document_schema.adapters import adapt_payload_to_document_v1
-from services.document_schema.providers import PROVIDER_GENERIC_FLAT_OCR
+from devtools.tests.translation._generic_flat_ocr_fixtures import build_generic_flat_ocr_document
 from services.translation.core.ocr.json_extractor import extract_text_items
 from services.translation.core.ocr.models import TextItem
+
+PROVIDER_GENERIC_FLAT_OCR = "generic_flat_ocr"
 from services.translation.core.payload.translations import export_translation_template
 from services.translation.core.payload.translations import load_translations
 from services.translation.services.continuation.orchestrator import _filter_boundary_candidate_pairs
@@ -96,7 +97,7 @@ def _payload_item(
 
 def test_generic_provider_continuation_hint_flows_through_extractor_and_template() -> None:
     state = _load_state_module()
-    adapted = adapt_payload_to_document_v1(
+    adapted = build_generic_flat_ocr_document(
         payload={
             "provider": PROVIDER_GENERIC_FLAT_OCR,
             "pages": [
@@ -171,7 +172,6 @@ def test_generic_provider_continuation_hint_flows_through_extractor_and_template
                 }
             ],
         },
-        provider=PROVIDER_GENERIC_FLAT_OCR,
         document_id="generic-continuation-doc",
         source_json_path=Path("/tmp/generic-continuation.json"),
     )

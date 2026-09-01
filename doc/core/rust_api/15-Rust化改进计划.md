@@ -1,5 +1,6 @@
 # Rust 化改进计划
 
+> 注：文中涉及的 Python `provider_adapters/*` 归一化模块已于 2026-09-01 退役删除（native `render_rs --normalize-ocr` 单一实现）。
 > 记录时间：2026-08-27。基于 [14-Rust化实施状态.md](./14-Rust化实施状态.md) 的架构诊断提出后续改进。
 
 ## 现状架构诊断

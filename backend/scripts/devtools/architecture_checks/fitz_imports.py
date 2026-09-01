@@ -22,10 +22,6 @@ FITZ_IMPORT_ALLOWLIST: dict[Path, tuple[str, str]] = {
         "non_render_service",
         "fitz.open + get_text('text') preview for LLM domain inference",
     ),
-    Path("services/ocr_provider/paddle_runner.py"): (
-        "non_render_service",
-        "fitz.open + len(doc) page count for progress",
-    ),
     # ---- hard_boundary: Python-only PDF merge (show_pdf_page) for the
     # side-by-side derived-artifact download; no mupdf-rs equivalent ported.
     Path("services/derived_artifacts/side_by_side_pdf.py"): (

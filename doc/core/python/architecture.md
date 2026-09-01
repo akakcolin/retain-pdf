@@ -26,18 +26,17 @@ entrypoints
 
 ```text
 services/document_schema
-services/ocr_provider
 services/mineru
 services/translation
 services/pipeline_shared
 runtime/pipeline
 ```
 
-> 渲染已 native `render_rs` 接管，`services/rendering` 整体退役删除，不在上述稳定子系统之列。
+> 渲染与归一化已 native `render_rs` 接管；`services/rendering`、`services/ocr_provider`、`services/document_schema` 的 adapter/normalize 树均已退役删除。
 
 核心规则：
 
-- OCR provider raw payload 必须先进入 `document_schema`，产出 `document.v1`。
+- OCR raw payload 由 native `render_rs --normalize-ocr` 归一化为 `document.v1.json`，Python 侧无 adapter / normalize 实现。
 - 翻译主链只消费 `document.v1` 和 translation stage spec。
 - 渲染主链只消费源 PDF、translation manifest、逐页翻译 payload 和 render stage spec。
 - `runtime/pipeline` 只负责编排，不吸收 provider、LLM、Typst、redaction 的细节。
@@ -94,26 +93,24 @@ services/translation/workflow
 ## OCR 边界
 
 ```text
-ocr_provider / mineru
-  -> document_schema
-  -> document.v1
+native render_rs --normalize-ocr
+  -> document.v1.json
+  -> document_schema / translation
 ```
 
 禁止方向：
 
-- `ocr_provider` 不 import `services.translation`。
-- `ocr_provider` 不 import 任何渲染模块（渲染已 native `render_rs`，Python 侧无渲染树）。
-- `translation` 不 import `services.ocr_provider` 或 `services.mineru`（native `render_rs` 天然不 import Python 模块）。
+- `document_schema` / `translation` 不消费 provider raw JSON（归一化由 native `render_rs --normalize-ocr` 完成，Python 侧无 `ocr_provider` / normalize 实现）。
+- `translation` 不 import `services.mineru`（native `render_rs` 天然不 import Python 模块）。
 
 ## 公共入口
 
 上层优先只调用这些入口：
 
-- `services.ocr_provider.provider_pipeline`
 - `render_rs --normalize-ocr`（native normalize，单一实现）
-- `services.translation.workflow`
 - `render_rs --spec <render.stage.v1>`（native 渲染，无 Python 渲染入口）
-- `runtime.pipeline.book_pipeline`
+- `services.translation.public`（翻译公共门面）
+- `runtime/pipeline/translation_stage.py`（翻译阶段编排）
 
 如果新增入口，必须同时更新：
 

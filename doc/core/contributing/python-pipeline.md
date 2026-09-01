@@ -10,12 +10,11 @@ entrypoints -> runtime/pipeline -> services/* -> foundation
 
 基本规则：
 
-- OCR provider raw payload 必须先进入 `document_schema`，产出 `document.v1`。
+- OCR raw payload 由 native `render_rs --normalize-ocr` 归一化为 `document.v1.json`，Python 侧无 adapter / normalize 实现。
 - 翻译主链只消费 `document.v1` 和 translation stage spec。
 - 渲染主链只消费源 PDF、translation manifest、逐页翻译 payload 和 render stage spec。
 - `runtime/pipeline` 只负责编排，不吸收 provider、LLM、Typst、redaction 的细节。
 - `translation` 不 import 渲染模块（渲染已 native `render_rs`，Python 侧无渲染树），也不消费 provider raw JSON。
-- `ocr_provider` 不 import `services.translation` 或任何渲染模块。
 
 更细规则见 [Python 后端架构边界](../python/architecture.md)。
 

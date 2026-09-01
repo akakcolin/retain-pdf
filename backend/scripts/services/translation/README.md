@@ -151,7 +151,6 @@ production 代码在 translation 外部引用本模块时，默认只允许：
 以下 production 目录不应直接 import translation 内部实现：
 
 - `runtime/pipeline/**`
-- `services/ocr_provider/**`
 - `services/mineru/**`
 - `services/document_schema/**`
 
@@ -269,7 +268,7 @@ policy 相关 mutation/check/default 已迁到 `services/policy/payload_rules/`�
 ## 主要流程
 
 1. `core/ocr/` 读取统一中间层 `document.v1.json` 并抽取页面块
-2. 如果入口给的是 provider 原始 JSON，则先由 `document_schema/adapters.py` 转成 `document.v1`
+2. 入口输入已由 native `render_rs --normalize-ocr` 归一化为 `document.v1.json`
 3. `workflow/translation_workflow.py` 生成每页翻译模板并加载 payload
 4. `core/orchestration` 补齐布局区和编排元数据
 5. `services/continuation` 先消费上游 `continuation_hint`，再用规则兜底，把连续段落合并成统一 translation unit

@@ -1,5 +1,6 @@
 # Rust 化实施状态
 
+> 注：文中作为 port 源的 Python `services/mineru/document_v1.py`、`provider_adapters/*` 等归一化模块已于 2026-09-01 退役删除。
 > 记录时间：2026-08-28。基于 git 历史 + 代码勘察（含未提交的工作区改动）。
 > 进度远超 [13-Rust化实施计划.md](./13-Rust化实施计划.md)（该文档只写到 Phase 5）。
 

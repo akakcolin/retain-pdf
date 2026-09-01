@@ -6,12 +6,13 @@ REPO_SCRIPTS_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_SCRIPTS_ROOT))
 
 
-from services.document_schema.adapters import adapt_payload_to_document_v1
-from services.document_schema.providers import PROVIDER_GENERIC_FLAT_OCR
+from devtools.tests.translation._generic_flat_ocr_fixtures import build_generic_flat_ocr_document
 from services.translation.core.ocr.json_extractor import extract_text_items
 
+PROVIDER_GENERIC_FLAT_OCR = "generic_flat_ocr"
+
 def test_extract_text_items_keeps_publisher_metadata_tail_run_without_local_metadata_rule() -> None:
-    adapted = adapt_payload_to_document_v1(
+    adapted = build_generic_flat_ocr_document(
         payload={
             "provider": PROVIDER_GENERIC_FLAT_OCR,
             "pages": [
@@ -79,7 +80,6 @@ def test_extract_text_items_keeps_publisher_metadata_tail_run_without_local_meta
                 }
             ],
         },
-        provider=PROVIDER_GENERIC_FLAT_OCR,
         document_id="generic-body-metadata-tail-doc",
         source_json_path=Path("/tmp/generic-body-metadata-tail.json"),
     )
@@ -96,7 +96,7 @@ def test_extract_text_items_keeps_publisher_metadata_tail_run_without_local_meta
 
 
 def test_extract_text_items_keeps_short_publisher_metadata_singleton_without_local_metadata_rule() -> None:
-    adapted = adapt_payload_to_document_v1(
+    adapted = build_generic_flat_ocr_document(
         payload={
             "provider": PROVIDER_GENERIC_FLAT_OCR,
             "pages": [
@@ -131,7 +131,6 @@ def test_extract_text_items_keeps_short_publisher_metadata_singleton_without_loc
                 }
             ],
         },
-        provider=PROVIDER_GENERIC_FLAT_OCR,
         document_id="generic-body-short-metadata-doc",
         source_json_path=Path("/tmp/generic-body-short-metadata.json"),
     )
@@ -142,7 +141,7 @@ def test_extract_text_items_keeps_short_publisher_metadata_singleton_without_loc
 
 
 def test_extract_text_items_skips_all_caps_badge_singleton() -> None:
-    adapted = adapt_payload_to_document_v1(
+    adapted = build_generic_flat_ocr_document(
         payload={
             "provider": PROVIDER_GENERIC_FLAT_OCR,
             "pages": [
@@ -177,7 +176,6 @@ def test_extract_text_items_skips_all_caps_badge_singleton() -> None:
                 }
             ],
         },
-        provider=PROVIDER_GENERIC_FLAT_OCR,
         document_id="generic-body-badge-doc",
         source_json_path=Path("/tmp/generic-body-badge.json"),
     )
@@ -188,7 +186,7 @@ def test_extract_text_items_skips_all_caps_badge_singleton() -> None:
 
 
 def test_extract_text_items_skips_front_matter_author_line_between_title_and_abstract() -> None:
-    adapted = adapt_payload_to_document_v1(
+    adapted = build_generic_flat_ocr_document(
         payload={
             "provider": PROVIDER_GENERIC_FLAT_OCR,
             "pages": [
@@ -245,7 +243,6 @@ def test_extract_text_items_skips_front_matter_author_line_between_title_and_abs
                 }
             ],
         },
-        provider=PROVIDER_GENERIC_FLAT_OCR,
         document_id="generic-front-matter-author-doc",
         source_json_path=Path("/tmp/generic-front-matter-author.json"),
     )
@@ -256,7 +253,7 @@ def test_extract_text_items_skips_front_matter_author_line_between_title_and_abs
 
 
 def test_extract_text_items_skips_keywords_line_singleton() -> None:
-    adapted = adapt_payload_to_document_v1(
+    adapted = build_generic_flat_ocr_document(
         payload={
             "provider": PROVIDER_GENERIC_FLAT_OCR,
             "pages": [
@@ -302,7 +299,6 @@ def test_extract_text_items_skips_keywords_line_singleton() -> None:
                 }
             ],
         },
-        provider=PROVIDER_GENERIC_FLAT_OCR,
         document_id="generic-keywords-singleton-doc",
         source_json_path=Path("/tmp/generic-keywords-singleton.json"),
     )
@@ -317,7 +313,7 @@ def test_extract_text_items_skips_keywords_line_singleton() -> None:
 
 
 def test_extract_text_items_keeps_ancillary_tail_sections_after_body_without_local_metadata_rule() -> None:
-    adapted = adapt_payload_to_document_v1(
+    adapted = build_generic_flat_ocr_document(
         payload={
             "provider": PROVIDER_GENERIC_FLAT_OCR,
             "pages": [
@@ -385,7 +381,6 @@ def test_extract_text_items_keeps_ancillary_tail_sections_after_body_without_loc
                 }
             ],
         },
-        provider=PROVIDER_GENERIC_FLAT_OCR,
         document_id="generic-ancillary-tail-doc",
         source_json_path=Path("/tmp/generic-ancillary-tail.json"),
     )
