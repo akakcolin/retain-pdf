@@ -22,10 +22,6 @@ FITZ_IMPORT_ALLOWLIST: dict[Path, tuple[str, str]] = {
         "non_render_service",
         "fitz.open + get_text('text') preview for LLM domain inference",
     ),
-    Path("services/ocr_provider/paddle_normalize.py"): (
-        "non_render_service",
-        "fitz.open + page.rect rescale of OCR geometry",
-    ),
     Path("services/ocr_provider/paddle_runner.py"): (
         "non_render_service",
         "fitz.open + len(doc) page count for progress",

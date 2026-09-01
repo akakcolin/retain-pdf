@@ -56,10 +56,9 @@
 
 代码主入口：
 
-- [`backend/scripts/entrypoints/run_normalize_ocr.py`](/home/wxyhgk/tmp/Code/backend/scripts/entrypoints/run_normalize_ocr.py)
 - [`backend/scripts/entrypoints/run_translate_only.py`](/home/wxyhgk/tmp/Code/backend/scripts/entrypoints/run_translate_only.py)
 
-render 阶段由 native `render_rs --spec` 执行（prepare/typst/overlay/save 全 native），无 Python 渲染入口。
+normalize 阶段由 native `render_rs --normalize-ocr` 执行（单一实现），render 阶段由 native `render_rs --spec` 执行（prepare/typst/overlay/save 全 native），无 Python normalize/render 入口。
 
 ## 2. 当前正式 workflow
 
@@ -232,7 +231,7 @@ Rust 根据 workflow 选择运行计划：
 
 当前生产主链使用这些 stage worker：
 
-- `run_normalize_ocr.py --spec specs/normalize.spec.json`（非 allowlist OCR provider 的 Python 回退）
+- `render_rs --normalize-ocr --spec specs/normalize.spec.json`（native normalize，单一实现）
 - `run_translate_only.py --spec specs/translate.spec.json`
 - `render_rs --spec specs/render.spec.json`（native 渲染，prepare/typst/overlay/save 全 native）
 

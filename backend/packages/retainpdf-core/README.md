@@ -19,11 +19,7 @@ python -c "import foundation, runtime, services"
 Production worker commands registered by this package:
 
 ```bash
-retainpdf-run-book
-retainpdf-run-normalize-ocr
-retainpdf-run-translate-from-ocr
 retainpdf-run-translate-only
-retainpdf-run-render-only
 retainpdf-validate-document-schema
 ```
 

@@ -1,4 +1,4 @@
-// Port of `ocr_provider/paddle_normalize.py::rescale_document_geometry_to_pdf` —
+// Port of the retired `ocr_provider/paddle_normalize.py::rescale_document_geometry_to_pdf` —
 // scale every bbox to the real PDF page geometry (fitz -> mupdf). Runs
 // unconditionally after the contract enrichment. `round(x, 3)` uses banker's
 // rounding via `rendering_core::util::py_round`, matching CPython exactly.

@@ -142,8 +142,6 @@ provider 层产物一旦落盘，下一步只做一件事：
   这是 Paddle transport / polling / result download
 - `services/ocr_provider/paddle_markdown.py`
   这是 Paddle Markdown 和图片产物落盘
-- `services/ocr_provider/paddle_normalize.py`
-  这是 Paddle normalized document 几何修正等纯实现
 - `services/mineru/`
   这是 MinerU provider 的具体实现，不是“OCR 总入口”
 - `services/document_schema/`
@@ -227,7 +225,7 @@ provider 层产物一旦落盘，下一步只做一件事：
 - `services/ocr_provider/__init__.py` 必须显式导出 `provider_pipeline`
 - `paddle_api.py` 不处理 normalized schema
 - `paddle_markdown.py` 只处理 Markdown/图片产物，不碰翻译和渲染
-- `paddle_normalize.py` 只处理 normalized document 和几何修正，不碰 provider transport
+- normalize 阶段由 native `render_rs --normalize-ocr` 执行（Python normalize 引擎已退役）
 - `local_command_driver.py` 是本地 OCR 模型的最小接入口；它不关心模型实现，只校验落盘契约
 - `services/document_schema/adapters.py` 只做 adapter registry，不直接 import `services/mineru/*`；MinerU 走 `services/document_schema/provider_adapters/mineru/`
 - Paddle 默认模型和 alias 配在 `backend/config/ocr_providers.json`，不要在 Python/Rust 里硬编码版本号

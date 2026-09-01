@@ -15,13 +15,11 @@ ENTRYPOINT_IMPORT_ALLOWLIST: dict[Path, tuple[str, ...]] = {
     Path("console.py"): (
         "from collections.abc import",
         "from foundation.shared.structured_errors import",
-        "from services.document_schema.normalize_pipeline import",
         "from services.translation.entrypoints.translate_only_pipeline import",
     ),
     Path("diagnose_failure_with_ai.py"): (
         "from services.translation.public import",
     ),
-    Path("run_normalize_ocr.py"): ("from services.document_schema.normalize_pipeline import main",),
     Path("run_translate_only.py"): ("from services.translation.entrypoints.translate_only_pipeline import main",),
     Path("translate_book.py"): ("from services.translation.entrypoints.translate_only_pipeline import main",),
     Path("validate_document_schema.py"): ("from services.document_schema import",),

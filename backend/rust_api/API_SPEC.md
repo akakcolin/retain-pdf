@@ -26,10 +26,9 @@ Its backend is now split into two layers:
 
 Current Python entrypoints used by the Rust layer:
 
-- `scripts/entrypoints/run_normalize_ocr.py`
 - `scripts/entrypoints/run_translate_only.py`
 
-Render runs through the native `render_rs --spec` orchestrator; there is no Python render entrypoint.
+Normalize and render run through the native `render_rs` orchestrator (`--normalize-ocr` / `--spec`); there are no Python normalize/render entrypoints.
 
 Current top-level workflow contract:
 

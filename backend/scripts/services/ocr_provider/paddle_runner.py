@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from typing import Callable
 
 from foundation.shared.job_dirs import job_dirs_from_explicit_args
-from services.document_schema import DOCUMENT_SCHEMA_REPORT_FILE_NAME
 from services.ocr_provider.paddle_api import PADDLE_BASE_URL
 from services.ocr_provider.paddle_api import build_optional_payload
 from services.ocr_provider.paddle_api import download_jsonl_result
@@ -16,7 +15,6 @@ from services.ocr_provider.paddle_api import poll_until_done
 from services.ocr_provider.paddle_api import submit_local_file
 from services.ocr_provider.paddle_api import submit_remote_url
 from services.ocr_provider.paddle_markdown import materialize_paddle_markdown_artifacts
-from services.ocr_provider.paddle_normalize import save_normalized_document_for_paddle
 from services.pipeline_shared.events import emit_stage_progress
 from services.pipeline_shared.events import emit_stage_transition
 from services.pipeline_shared.io import save_json
@@ -28,7 +26,6 @@ SubmitLocalFn = Callable[..., tuple[str, str]]
 PollFn = Callable[..., tuple[dict, str]]
 DownloadJsonlFn = Callable[..., dict]
 MaterializeMarkdownFn = Callable[..., Path | None]
-SaveNormalizedFn = Callable[..., None]
 SaveJsonFn = Callable[..., None]
 NormalizeModelNameFn = Callable[[str], str]
 BuildOptionalPayloadFn = Callable[[str], dict]
@@ -108,18 +105,15 @@ def run_paddle_to_job_dir(
     poll_until_complete: PollFn = poll_until_done,
     download_jsonl: DownloadJsonlFn = download_jsonl_result,
     materialize_markdown: MaterializeMarkdownFn = materialize_paddle_markdown_artifacts,
-    save_normalized_document: SaveNormalizedFn = save_normalized_document_for_paddle,
     save_json_file: SaveJsonFn = save_json,
     normalize_model: NormalizeModelNameFn = normalize_model_name,
     build_optional_request_payload: BuildOptionalPayloadFn = build_optional_payload,
-) -> tuple[Path, Path, Path, Path]:
+) -> tuple[Path, Path, Path]:
     paddle_token = get_token(explicit_value=args.paddle_token)
     if not paddle_token:
         raise RuntimeError("Missing Paddle token. Set RETAIN_PADDLE_API_TOKEN or backend/scripts/.env/paddle.env.")
     job_dirs = job_dirs_from_explicit_args(args)
     provider_result_json_path = job_dirs.ocr_dir / "result.json"
-    normalized_json_path = job_dirs.ocr_dir / "normalized" / "document.v1.json"
-    normalized_report_json_path = job_dirs.ocr_dir / "normalized" / DOCUMENT_SCHEMA_REPORT_FILE_NAME
     source_dir = job_dirs.source_dir
     base_url = args.paddle_api_url or PADDLE_BASE_URL
     model_name = normalize_model(args.paddle_model)
@@ -188,19 +182,10 @@ def run_paddle_to_job_dir(
     markdown_path = materialize_markdown(payload=payload, job_root=job_dirs.root)
     if markdown_path is not None:
         print(f"published markdown: {markdown_path}", flush=True)
-    save_normalized_document(
-        provider_result_json_path=provider_result_json_path,
-        source_pdf_path=source_pdf_path,
-        normalized_json_path=normalized_json_path,
-        normalized_report_json_path=normalized_report_json_path,
-        document_id=job_dirs.root.name,
-        provider_version=model_name,
-        provider_payload=payload,
-    )
     print(f"source: {job_dirs.source_dir}", flush=True)
     print(f"ocr: {job_dirs.ocr_dir}", flush=True)
     print(f"translated: {job_dirs.translated_dir}", flush=True)
     print(f"rendered: {job_dirs.rendered_dir}", flush=True)
     print(f"artifacts: {job_dirs.artifacts_dir}", flush=True)
     print(f"logs: {job_dirs.logs_dir}", flush=True)
-    return job_dirs.root, source_pdf_path, provider_result_json_path, normalized_json_path
+    return job_dirs.root, source_pdf_path, provider_result_json_path

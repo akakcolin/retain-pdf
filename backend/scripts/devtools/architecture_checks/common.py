@@ -26,6 +26,8 @@ def scan_py_files(root: Path) -> list[Path]:
         rel_parts = path.relative_to(root).parts
         if "__pycache__" in rel_parts or ".ipynb_checkpoints" in rel_parts:
             continue
+        if path.name.startswith("._"):
+            continue  # macOS AppleDouble resource-fork companions are not Python
         paths.append(path)
     return sorted(paths)
 

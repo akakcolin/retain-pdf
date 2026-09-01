@@ -1,7 +1,7 @@
 // Port of `document_schema/provider_adapters/paddle/content_extract.py` (the
 // `build_segments`/`build_lines`/`tighten_text_bbox` helpers) plus the
-// unconditional `post_rescale_rebuild_paddle_text_geometry` step from
-// `ocr_provider/paddle_normalize.py`. The normalize worker runs the rebuild for
+// `post_rescale_rebuild_paddle_text_geometry` step (formerly in the retired
+// `ocr_provider/paddle_normalize.py`). The normalize worker runs the rebuild for
 // every provider (mineru included), so these helpers drive line structure even
 // when the source adapter is not paddle.
 

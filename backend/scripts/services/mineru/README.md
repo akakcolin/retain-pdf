@@ -26,8 +26,6 @@
 
 ## 推荐入口
 
-- `normalize_pipeline.py`
-  MinerU `layout.json -> document.v1.json` 的 Python 规范化实现（allowlist 之外走 `entrypoints/run_normalize_ocr.py`，allowlist 内由 native `render_rs --normalize-ocr` 执行）。
 - `mineru_job.py`
   只做提交、解析和解包，适合先拿 MinerU 结果再手动接后续流程。
 - `mineru_api.py`

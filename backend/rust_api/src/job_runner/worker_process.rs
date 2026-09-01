@@ -203,7 +203,7 @@ mod tests {
 
     #[test]
     fn renderer_label_none_for_non_render_workers() {
-        let normalize_cmd = vec!["/opt/bin/python3".to_string(), "run_normalize_ocr.py".to_string()];
+        let normalize_cmd = vec!["/opt/bin/python3".to_string(), "run_translate_only.py".to_string()];
         assert_eq!(renderer_label(&normalize_cmd), None);
         let unknown_cmd = vec!["/opt/bin/python3".to_string(), "custom.py".to_string()];
         assert_eq!(renderer_label(&unknown_cmd), None);

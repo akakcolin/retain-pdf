@@ -308,7 +308,7 @@ mod tests {
         fs.save_job(
             vec![
                 "python".to_string(),
-                "run_normalize_ocr.py".to_string(),
+                "run_translate_only.py".to_string(),
                 "--spec".to_string(),
                 "spec.json".to_string(),
             ],

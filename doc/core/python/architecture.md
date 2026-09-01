@@ -110,7 +110,7 @@ ocr_provider / mineru
 上层优先只调用这些入口：
 
 - `services.ocr_provider.provider_pipeline`
-- `services.document_schema.normalize_pipeline`
+- `render_rs --normalize-ocr`（native normalize，单一实现）
 - `services.translation.workflow`
 - `render_rs --spec <render.stage.v1>`（native 渲染，无 Python 渲染入口）
 - `runtime.pipeline.book_pipeline`

@@ -2,8 +2,8 @@
 //! render flow mirroring `render_only.py` (prints the `output pdf`/`source
 //! pdf`/`translations dir` labels, non-zero exit on error); `--extract-text-layer`
 //! runs the skip-OCR text-layer extraction mirroring `run_extract_text_layer.py`;
-//! `--normalize-ocr` runs the OCR payload normalization mirroring
-//! `run_normalize_ocr.py` (C5-N2, mineru provider); `--dump-bundle` is a hidden
+//! `--normalize-ocr` runs the OCR payload normalization (C5-N2, mineru provider);
+//! `--dump-bundle` is a hidden
 //! C3-N11 differential hook.
 
 use std::path::{Path, PathBuf};

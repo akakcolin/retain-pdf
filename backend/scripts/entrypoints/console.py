@@ -17,12 +17,6 @@ def _run_structured(
     return 0
 
 
-def run_normalize_ocr() -> int:
-    from services.document_schema.normalize_pipeline import main
-
-    return _run_structured(main, default_stage="normalization", provider="ocr")
-
-
 def run_translate_only() -> int:
     from services.translation.entrypoints.translate_only_pipeline import main
 

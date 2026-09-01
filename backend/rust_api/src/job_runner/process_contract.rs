@@ -9,7 +9,6 @@ use super::artifact_requirements::{required_existing_dir, required_existing_file
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum WorkerContract {
-    Normalize,
     Translate,
     Render,
     Unknown,
@@ -30,7 +29,6 @@ impl WorkerContract {
             return WorkerContract::Unknown;
         };
         match file_name {
-            "run_normalize_ocr.py" => WorkerContract::Normalize,
             "run_translate_only.py" => WorkerContract::Translate,
             _ => WorkerContract::Unknown,
         }
@@ -42,28 +40,10 @@ pub(super) fn validate_successful_worker_outputs(
     data_root: &Path,
 ) -> Result<()> {
     match WorkerContract::from_command(&job.command) {
-        WorkerContract::Normalize => validate_normalize_outputs(job, data_root),
         WorkerContract::Translate => validate_translation_outputs(job, data_root),
         WorkerContract::Render => validate_render_outputs(job, data_root),
         WorkerContract::Unknown => Ok(()),
     }
-}
-
-fn validate_normalize_outputs(job: &JobRuntimeState, data_root: &Path) -> Result<()> {
-    let artifacts = required_artifacts(job)?;
-    require_worker_file(
-        data_root,
-        artifacts.normalized_document_json.as_deref(),
-        "normalized_document_json",
-        &job.job_id,
-    )?;
-    require_worker_file(
-        data_root,
-        artifacts.normalization_report_json.as_deref(),
-        "normalization_report_json",
-        &job.job_id,
-    )?;
-    Ok(())
 }
 
 fn validate_translation_outputs(job: &JobRuntimeState, data_root: &Path) -> Result<()> {
@@ -184,10 +164,6 @@ mod tests {
         assert_eq!(
             WorkerContract::from_command(&build_job("run_translate_only.py").command),
             WorkerContract::Translate
-        );
-        assert_eq!(
-            WorkerContract::from_command(&build_job("run_normalize_ocr.py").command),
-            WorkerContract::Normalize
         );
         assert_eq!(
             WorkerContract::from_command(&build_job("custom.py").command),

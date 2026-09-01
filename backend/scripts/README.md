@@ -58,8 +58,6 @@
 
 当前存活入口（整条主链路由 Rust API 驱动，本地直跑用 worker 入口）：
 
-- `scripts/entrypoints/run_normalize_ocr.py`
-  顶层 normalize worker。把 raw OCR JSON 收口成 `document.v1.json`（非 allowlist OCR provider 的 Python 回退）。
 - `scripts/entrypoints/run_translate_only.py`
   顶层 translate worker。只接受已经标准化的 `document.v1.json`。
 - `scripts/entrypoints/translate_book.py`
@@ -173,16 +171,16 @@ render 阶段由 native `render_rs --spec render.spec.json` 执行（见下文�
   - 如果 provider 是 `mineru`，对应 token 通过 `credential_ref=env:RETAIN_MINERU_API_TOKEN`
   - 运行时由 Rust 注入环境变量，Python 通过 `stage_specs.resolve_credential_ref(...)` 读取
 - Rust 主工作流和本地入口都已切到 spec-only；存活入口：
-  - `entrypoints/run_normalize_ocr.py` -> `normalize.stage.v1`（非 allowlist OCR provider 的 Python 回退）
   - `entrypoints/run_translate_only.py` -> `translate.stage.v1`
   - `entrypoints/translate_book.py`
   - `entrypoints/validate_document_schema.py`
   - `entrypoints/diagnose_failure_with_ai.py`
+- normalize 阶段由 native `render_rs --normalize-ocr` 执行（单一实现，Python normalize 引擎已退役）
 - render 阶段由 native `render_rs --spec render.spec.json` 执行，不再有 Python 渲染入口
 
 也就是说，当前“最上层整个流程”的真实执行口径是：
 
-- 本地：`translate_book.py` / 直接跑 worker 入口（`run_normalize_ocr.py`、`run_translate_only.py`）
+- 本地：`translate_book.py` / 直接跑 worker 入口（`run_translate_only.py`）
 - Rust API：创建 job，由 Rust 生成 `specs/*.spec.json` 并依次启动 worker
 - 测试脚本：只做回归，不代表主执行路径
 

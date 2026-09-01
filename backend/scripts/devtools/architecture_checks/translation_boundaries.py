@@ -24,8 +24,8 @@ from devtools.architecture_checks.translation_rules import translation_layer_for
 
 def check_translation_internal_boundaries(errors: list[str]) -> None:
     for path in TRANSLATION_ROOT.iterdir():
-        if path.name == "__pycache__":
-            continue
+        if path.name == "__pycache__" or path.name.startswith("._"):
+            continue  # AppleDouble resource-fork companions are not Python
         if path.is_dir() and path.name not in TRANSLATION_ALLOWED_ROOT_DIRS:
             errors.append(
                 f"services/translation/{path.name}: unexpected translation root directory; update architecture rules or move it into a named layer"
@@ -37,6 +37,8 @@ def check_translation_internal_boundaries(errors: list[str]) -> None:
 
     workflow_root = TRANSLATION_ROOT / "workflow"
     for path in workflow_root.iterdir():
+        if path.name.startswith("._"):
+            continue  # AppleDouble resource-fork companions are not Python
         if path.is_dir() and path.name not in TRANSLATION_WORKFLOW_ALLOWED_DIRS:
             errors.append(
                 f"{rel(path)}: unexpected workflow directory; use batching/legacy/phases/scheduling or update architecture rules"

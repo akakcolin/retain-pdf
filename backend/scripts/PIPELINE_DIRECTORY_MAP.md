@@ -8,16 +8,16 @@
 
 Rust API 创建 job，生成 `specs/*.spec.json` 并依次启动 worker。阶段执行：
 
-- normalize：allowlist provider（mineru / mineru_content_list_v2 / paddle / generic_flat_ocr）走 native `render_rs --normalize-ocr`；其余走 `entrypoints/run_normalize_ocr.py -> services/document_schema/normalize_pipeline.py`
+- normalize：全量走 native `render_rs --normalize-ocr`（单一实现，Python normalize 引擎已退役）
 - translate：`entrypoints/run_translate_only.py -> services/translation/entrypoints/translate_only_pipeline.py -> runtime/pipeline/translation_stage.py -> services/translation/*`
 - render：native `render_rs --spec render.spec.json`，Python 侧无渲染实现
 
 ## 最常见入口
 
-- 改人工执行入口：`entrypoints/`（console.py、diagnose_failure_with_ai.py、run_normalize_ocr.py、run_translate_only.py、translate_book.py、validate_document_schema.py）
+- 改人工执行入口：`entrypoints/`（console.py、diagnose_failure_with_ai.py、run_translate_only.py、translate_book.py、validate_document_schema.py）
 - 改翻译阶段编排：`runtime/pipeline/`（仅剩 `translation_stage.py`）
 - 改 OCR provider 接入：`services/ocr_provider/`、`services/mineru/`
-- 改统一 OCR 契约：`services/document_schema/`（`normalize_pipeline.py`、`adapters.py`、`reporting.py`）
+- 改统一 OCR 契约：`services/document_schema/`（`adapters.py`、`reporting.py`）
 - 改翻译主链：`services/translation/`
 - 渲染：Rust `rendering_orchestrator/`（render_rs），不在本目录
 
