@@ -63,7 +63,7 @@
 - OCR 统一结构说明文档：
   `/home/wxyhgk/tmp/Code/backend/scripts/services/document_schema/README.md`
 - OCR 统一结构机器 schema：
-  `/home/wxyhgk/tmp/Code/backend/scripts/services/document_schema/document.v1.schema.json`
+  `/home/wxyhgk/tmp/Code/backend/rendering_orchestrator/schemas/document.v1.schema.json`
 - OCR 原始 provider 结果摘要：
   `/home/wxyhgk/tmp/Code/data/jobs/{job_id}/ocr/mineru_result.json`
 - OCR 原始 unpacked 内容：
