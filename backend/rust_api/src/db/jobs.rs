@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use rusqlite::params;
 
 use crate::models::domain::{
-    JobFailureInfo, JobRuntimeInfo, JobSnapshot, JobStatusKind, JobStatusState, WorkflowKind,
+    CreateJobInput, JobFailureInfo, JobSnapshot, JobStatusKind, JobStatusState, WorkflowKind,
 };
 
 use super::rows::{parse_status_kind, row_to_job_snapshot, JOB_SELECT_SQL, STATUS_JSON_STATUS_EXPR};
@@ -141,28 +141,35 @@ impl Db {
         Ok(jobs)
     }
 
+    /// Raw-DB recovery for a stale `Running` job whose row cannot be parsed
+    /// into a `JobSnapshot` (malformed `workflow`/`request_json`). Applies a
+    /// surgical UPDATE (status/runtime/failure/pid/finished_at only) and
+    /// returns the recovered terminal snapshot so the caller can emit events
+    /// on top — closing the replay audit's known-gap for recovery paths.
     pub fn recover_stale_running_job(
         &self,
         job_id: &str,
         detail: &str,
         timestamp: &str,
-    ) -> Result<()> {
+        failure_category: &str,
+        failure_code: &str,
+    ) -> Result<JobSnapshot> {
         let conn = self.connect()?;
-        let failed_state = JobStatusState {
-            status: JobStatusKind::Failed,
-            stage: Some("failed".to_string()),
-            stage_detail: Some("startup stale running job recovered".to_string()),
-            error: Some(detail.to_string()),
-            progress_current: None,
-            progress_total: None,
-        };
-        let failed_status_json = serde_json::to_string(&failed_state)?;
-        let failure = JobFailureInfo {
+        let mut current = JobSnapshot::new(job_id.to_string(), CreateJobInput::default(), vec![]);
+        current.updated_at = timestamp.to_string();
+        current.status = JobStatusKind::Failed;
+        current.stage = Some("failed".to_string());
+        current.stage_detail = Some("startup stale running job recovered".to_string());
+        current.error = Some(detail.to_string());
+        current.finished_at = Some(timestamp.to_string());
+        current.pid = None;
+        current.append_log(&format!("ERROR: {detail}"));
+        current.replace_failure_info(Some(JobFailureInfo {
             stage: "startup_recovery".to_string(),
-            category: "worker_process_missing".to_string(),
+            category: failure_category.to_string(),
             code: None,
             failed_stage: Some("startup_recovery".to_string()),
-            failure_code: Some("worker_process_missing".to_string()),
+            failure_code: Some(failure_code.to_string()),
             failure_category: Some("internal".to_string()),
             provider_stage: None,
             provider_code: None,
@@ -177,17 +184,19 @@ impl Db {
             raw_error_excerpt: Some(detail.to_string()),
             raw_diagnostic: None,
             ai_diagnostic: None,
-        };
-        let runtime = JobRuntimeInfo {
-            current_stage: Some("failed".to_string()),
-            stage_started_at: Some(timestamp.to_string()),
-            last_stage_transition_at: Some(timestamp.to_string()),
-            terminal_reason: Some("failed".to_string()),
-            last_error_at: Some(timestamp.to_string()),
-            final_failure_category: Some(failure.category.clone()),
-            final_failure_summary: Some(failure.summary.clone()),
-            ..JobRuntimeInfo::default()
-        };
+        }));
+        current.sync_runtime_state();
+        let status_json = serde_json::to_string(&JobStatusState::from_job_record(&current.record))?;
+        let runtime_json = current
+            .runtime
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
+        let failure_json = current
+            .failure
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
         conn.execute(
             r#"
             UPDATE jobs
@@ -200,15 +209,15 @@ impl Db {
             WHERE job_id = ?6
             "#,
             params![
-                failed_status_json,
+                status_json,
                 timestamp,
                 timestamp,
-                serde_json::to_string(&runtime)?,
-                serde_json::to_string(&failure)?,
+                runtime_json,
+                failure_json,
                 job_id,
             ],
         )?;
-        Ok(())
+        Ok(current)
     }
 
     pub fn count_jobs_with_status(&self, status: &JobStatusKind) -> Result<i64> {

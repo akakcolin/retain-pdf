@@ -355,6 +355,26 @@ mod tests {
             .2
             .as_deref()
             .is_some_and(|failure| failure.contains("worker_process_missing")));
+
+        // The raw-DB fallback must still emit terminal events so the replay
+        // audit sees a real terminal transition instead of a known-gap.
+        let events = fs
+            .db()
+            .list_all_job_events("job-malformed-running")
+            .expect("list recovery events");
+        let event_names: Vec<&str> = events.iter().map(|event| event.event.as_str()).collect();
+        assert!(
+            event_names.contains(&"status_changed"),
+            "fallback recovery must emit status_changed, got {event_names:?}"
+        );
+        assert!(
+            event_names.contains(&"job_terminal"),
+            "fallback recovery must emit job_terminal, got {event_names:?}"
+        );
+        assert!(
+            event_names.contains(&"failure_classified"),
+            "fallback recovery must emit failure_classified, got {event_names:?}"
+        );
     }
 
     #[test]

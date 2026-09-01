@@ -3,7 +3,7 @@ use tracing::warn;
 
 use crate::config::AppConfig;
 use crate::db::Db;
-use crate::job_events::persist_job_with_resources;
+use crate::job_events::{emit_job_events_with_previous, persist_job_with_resources};
 use crate::job_runner::{terminate_job_process_tree_blocking, worker_process_exists};
 use crate::models::domain::{now_iso, JobFailureInfo, JobStatusKind};
 
@@ -118,7 +118,32 @@ pub(super) fn reconcile_stale_running_jobs(config: &AppConfig, db: &Db) -> Resul
                     "startup reconciliation fell back to raw DB recovery for {}: {}",
                     job_record.job_id, error
                 );
-                db.recover_stale_running_job(&job_record.job_id, &detail, &timestamp)?;
+                let recovered = db.recover_stale_running_job(
+                    &job_record.job_id,
+                    &detail,
+                    &timestamp,
+                    failure_category,
+                    failure_code,
+                )?;
+                // The stored row was unparseable, so emit events from a
+                // synthetic running→failed transition instead of the real
+                // previous snapshot. This keeps the replay audit consistent
+                // (terminal event present) rather than a known-gap.
+                let mut previous = recovered.clone();
+                previous.status = JobStatusKind::Running;
+                previous.stage = job_record.stage.clone();
+                previous.stage_detail = None;
+                previous.error = None;
+                previous.failure = None;
+                previous.finished_at = None;
+                previous.pid = job_record.pid;
+                emit_job_events_with_previous(
+                    db,
+                    &config.data_root,
+                    &config.output_root,
+                    &previous,
+                    &recovered,
+                );
             }
         }
         reconciled += 1;

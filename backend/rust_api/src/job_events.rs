@@ -42,6 +42,21 @@ pub fn persist_runtime_job_with_resources(
     persist_job_with_resources(db, data_root, output_root, &snapshot)
 }
 
+/// Emit derived events for `current` against an explicit `previous`, without
+/// saving `current` to the DB. Used by startup recovery's raw-DB fallback,
+/// which already applied a surgical UPDATE and only needs the terminal events
+/// on top (so the replay audit sees a real terminal event instead of a
+/// known-gap).
+pub fn emit_job_events_with_previous(
+    db: &Db,
+    data_root: &Path,
+    output_root: &Path,
+    previous: &JobSnapshot,
+    current: &JobSnapshot,
+) {
+    emit_job_events_best_effort(db, data_root, output_root, Some(previous), current);
+}
+
 pub fn record_custom_job_event_with_resources(
     db: &Db,
     data_root: &Path,

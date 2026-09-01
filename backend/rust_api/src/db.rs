@@ -761,8 +761,18 @@ mod tests {
         .expect("insert running row");
         drop(conn);
 
-        db.recover_stale_running_job("job-recover-read", "未记录 worker pid", &now_iso())
+        let recovered = db
+            .recover_stale_running_job(
+                "job-recover-read",
+                "未记录 worker pid",
+                &now_iso(),
+                "worker_process_missing",
+                "worker_process_missing",
+            )
             .expect("recover job");
+        assert_eq!(recovered.status, JobStatusKind::Failed);
+        assert_eq!(recovered.stage.as_deref(), Some("failed"));
+        assert!(recovered.failure.is_some());
 
         let failed = db
             .list_job_process_records_with_status(&JobStatusKind::Failed)
