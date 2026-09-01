@@ -590,4 +590,193 @@ mod tests {
         assert_eq!(jobs.len(), 1);
         assert_eq!(jobs[0].job_id, "job-valid");
     }
+
+    #[test]
+    fn save_job_writes_status_blob_and_leaves_top_level_columns_null() {
+        let fs = TestDbFs::new();
+        let db = fs.db();
+        db.init().expect("init db");
+
+        let mut job = sample_job("job-blob", &fs.data_root);
+        job.status = JobStatusKind::Running;
+        job.stage = Some("translation".to_string());
+        job.stage_detail = Some("正在翻译".to_string());
+        job.error = Some("ReadTimeout".to_string());
+        job.progress_current = Some(3);
+        job.progress_total = Some(10);
+        db.save_job(&job).expect("save job");
+
+        let conn = Connection::open(&fs.db_path).expect("open sqlite");
+        let (status_json, error, stage, stage_detail, progress_current, progress_total): (
+            String,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<i64>,
+            Option<i64>,
+        ) = conn
+            .query_row(
+                "SELECT status_json, error, stage, stage_detail, progress_current, progress_total \
+                 FROM jobs WHERE job_id = ?1",
+                params![job.job_id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                    ))
+                },
+            )
+            .expect("query stored row");
+
+        let state: serde_json::Value =
+            serde_json::from_str(&status_json).expect("status blob json");
+        assert_eq!(state["status"], "running");
+        assert_eq!(state["stage"], "translation");
+        assert_eq!(state["stage_detail"], "正在翻译");
+        assert_eq!(state["error"], "ReadTimeout");
+        assert_eq!(state["progress_current"], 3);
+        assert_eq!(state["progress_total"], 10);
+        assert_eq!(error, None);
+        assert_eq!(stage, None);
+        assert_eq!(stage_detail, None);
+        assert_eq!(progress_current, None);
+        assert_eq!(progress_total, None);
+
+        let loaded = db.get_job("job-blob").expect("load job");
+        assert_eq!(loaded.status, JobStatusKind::Running);
+        assert_eq!(loaded.stage.as_deref(), Some("translation"));
+        assert_eq!(loaded.stage_detail.as_deref(), Some("正在翻译"));
+        assert_eq!(loaded.error.as_deref(), Some("ReadTimeout"));
+        assert_eq!(loaded.progress_current, Some(3));
+        assert_eq!(loaded.progress_total, Some(10));
+    }
+
+    #[test]
+    fn legacy_status_string_rows_still_read_via_list_and_get() {
+        let fs = TestDbFs::new();
+        let db = fs.db();
+        db.init().expect("init db");
+
+        let template = sample_job("job-legacy-read", &fs.data_root);
+        let request_json = serde_json::to_string(&template.request_payload).expect("request json");
+        let conn = Connection::open(&fs.db_path).expect("open sqlite");
+        conn.execute(
+            r#"
+            INSERT INTO jobs (
+                job_id, workflow, status_json, created_at, updated_at, started_at, finished_at,
+                upload_id, pid, command_json, request_json, error, stage, stage_detail,
+                progress_current, progress_total, log_tail_json, result_json, runtime_json, failure_json
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)
+            "#,
+            params![
+                "job-legacy-read",
+                serde_json::to_string(&WorkflowKind::Book).expect("workflow json"),
+                serde_json::to_string(&JobStatusKind::Succeeded).expect("status json"),
+                "2026-04-02T00:00:00Z",
+                "2026-04-02T00:10:00Z",
+                Option::<String>::None,
+                Some("2026-04-02T00:10:00Z".to_string()),
+                Option::<String>::None,
+                Option::<i64>::None,
+                "[]",
+                request_json,
+                Some("legacy error".to_string()),
+                Some("finished".to_string()),
+                Some("历史任务".to_string()),
+                Some(42),
+                Some(100),
+                "[]",
+                Option::<String>::None,
+                Option::<String>::None,
+                Option::<String>::None,
+            ],
+        )
+        .expect("insert legacy row");
+        drop(conn);
+
+        let loaded = db.get_job("job-legacy-read").expect("load job");
+        assert_eq!(loaded.status, JobStatusKind::Succeeded);
+        assert_eq!(loaded.error.as_deref(), Some("legacy error"));
+        assert_eq!(loaded.stage.as_deref(), Some("finished"));
+        assert_eq!(loaded.stage_detail.as_deref(), Some("历史任务"));
+        assert_eq!(loaded.progress_current, Some(42));
+        assert_eq!(loaded.progress_total, Some(100));
+
+        let succeeded = db
+            .list_jobs(10, 0, Some(&JobStatusKind::Succeeded), None)
+            .expect("list succeeded");
+        assert_eq!(succeeded.len(), 1);
+        assert_eq!(succeeded[0].job_id, "job-legacy-read");
+        assert_eq!(
+            db.count_jobs_with_status(&JobStatusKind::Succeeded)
+                .expect("count succeeded"),
+            1
+        );
+    }
+
+    #[test]
+    fn recovered_running_job_blob_is_readable_as_process_record() {
+        let fs = TestDbFs::new();
+        let db = fs.db();
+        db.init().expect("init db");
+
+        let template = sample_job("job-recover-read", &fs.data_root);
+        let request_json = serde_json::to_string(&template.request_payload).expect("request json");
+        let conn = Connection::open(&fs.db_path).expect("open sqlite");
+        conn.execute(
+            r#"
+            INSERT INTO jobs (
+                job_id, workflow, status_json, created_at, updated_at, started_at, finished_at,
+                upload_id, pid, command_json, request_json, error, stage, stage_detail,
+                progress_current, progress_total, log_tail_json, result_json, runtime_json, failure_json
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)
+            "#,
+            params![
+                "job-recover-read",
+                serde_json::to_string(&WorkflowKind::Book).expect("workflow json"),
+                serde_json::to_string(&JobStatusKind::Running).expect("status json"),
+                "2026-04-02T00:00:00Z",
+                "2026-04-02T00:10:00Z",
+                "2026-04-02T00:00:00Z",
+                Option::<String>::None,
+                Option::<String>::None,
+                Option::<i64>::None,
+                "[]",
+                request_json,
+                Option::<String>::None,
+                "mineru_upload",
+                "正在运行",
+                Option::<i64>::None,
+                Option::<i64>::None,
+                "[]",
+                Option::<String>::None,
+                Option::<String>::None,
+                Option::<String>::None,
+            ],
+        )
+        .expect("insert running row");
+        drop(conn);
+
+        db.recover_stale_running_job("job-recover-read", "未记录 worker pid", &now_iso())
+            .expect("recover job");
+
+        let failed = db
+            .list_job_process_records_with_status(&JobStatusKind::Failed)
+            .expect("list failed process records");
+        assert_eq!(failed.len(), 1);
+        assert_eq!(failed[0].job_id, "job-recover-read");
+        assert_eq!(failed[0].stage.as_deref(), Some("failed"));
+        assert_eq!(failed[0].pid, None);
+
+        let loaded = db.get_job("job-recover-read").expect("load job");
+        assert_eq!(loaded.status, JobStatusKind::Failed);
+        assert!(loaded
+            .error
+            .as_deref()
+            .is_some_and(|detail| detail.contains("未记录 worker pid")));
+    }
 }

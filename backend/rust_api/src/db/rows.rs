@@ -3,24 +3,52 @@ use std::io::{Error as IoError, ErrorKind};
 use anyhow::{Context, Result};
 use rusqlite::types::Type;
 use rusqlite::Row;
+use serde::Deserialize;
 
 use crate::models::api::JobEventRecord;
 use crate::models::domain::{
     event_progress_unit, job_user_stage, GlossaryRecord, JobArtifactRecord, JobFailureInfo,
-    JobRecord, JobRuntimeInfo, JobSnapshot, ResolvedJobSpec,
+    JobRecord, JobRuntimeInfo, JobSnapshot, JobStatusKind, JobStatusState, ResolvedJobSpec,
 };
 
 pub(super) const JOB_SELECT_SQL: &str = r#"
     SELECT
         jobs.job_id, jobs.workflow, jobs.status_json, jobs.created_at, jobs.updated_at,
         jobs.started_at, jobs.finished_at, jobs.upload_id, jobs.pid, jobs.command_json,
-        jobs.request_json, jobs.error, jobs.stage, jobs.stage_detail,
-        jobs.progress_current, jobs.progress_total, jobs.log_tail_json, jobs.result_json,
+        jobs.request_json,
+        CASE WHEN json_type(status_json) = 'object' THEN json_extract(status_json, '$.error') ELSE jobs.error END AS error,
+        CASE WHEN json_type(status_json) = 'object' THEN json_extract(status_json, '$.stage') ELSE jobs.stage END AS stage,
+        CASE WHEN json_type(status_json) = 'object' THEN json_extract(status_json, '$.stage_detail') ELSE jobs.stage_detail END AS stage_detail,
+        CASE WHEN json_type(status_json) = 'object' THEN json_extract(status_json, '$.progress_current') ELSE jobs.progress_current END AS progress_current,
+        CASE WHEN json_type(status_json) = 'object' THEN json_extract(status_json, '$.progress_total') ELSE jobs.progress_total END AS progress_total,
+        jobs.log_tail_json, jobs.result_json,
         jobs.runtime_json, jobs.failure_json,
         artifacts.artifacts_json
     FROM jobs
     LEFT JOIN artifacts ON artifacts.job_id = jobs.job_id
 "#;
+
+/// WHERE filter that matches both on-disk status_json shapes on the bare status
+/// string (`succeeded`/`failed`/...): the new-format object's `$.status` first,
+/// then the legacy bare `"succeeded"`-style enum string.
+pub(super) const STATUS_JSON_STATUS_EXPR: &str =
+    "COALESCE(json_extract(status_json, '$.status'), json_extract(status_json, '$'))";
+
+/// Compatible decode of `status_json` — either the legacy bare
+/// `"succeeded"`-style enum string or the new-format `JobStatusState` object.
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum JobStatusJson {
+    Kind(JobStatusKind),
+    State(JobStatusState),
+}
+
+pub(super) fn parse_status_kind(status_json: &str) -> serde_json::Result<JobStatusKind> {
+    match serde_json::from_str::<JobStatusJson>(status_json)? {
+        JobStatusJson::Kind(kind) => Ok(kind),
+        JobStatusJson::State(state) => Ok(state.status),
+    }
+}
 
 pub(super) fn row_to_job_snapshot(row: &Row<'_>) -> rusqlite::Result<JobSnapshot> {
     let result_json: Option<String> = row.get(17)?;
@@ -34,7 +62,8 @@ pub(super) fn row_to_job_snapshot(row: &Row<'_>) -> rusqlite::Result<JobSnapshot
         record: JobRecord {
             job_id: row.get(0)?,
             workflow: parse_json_column(1, "workflow", &workflow_json)?,
-            status: parse_json_column(2, "status_json", &status_json)?,
+            status: parse_status_kind(&status_json)
+                .map_err(|error| json_column_decode_error(2, "status_json", error))?,
             created_at: row.get(3)?,
             updated_at: row.get(4)?,
             started_at: row.get(5)?,

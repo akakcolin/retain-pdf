@@ -5,6 +5,7 @@ use rusqlite::params;
 use crate::models::domain::{JobStatusKind, UploadRecord};
 use crate::storage_paths::resolve_data_path;
 
+use super::jobs::status_str;
 use super::Db;
 
 impl Db {
@@ -22,16 +23,17 @@ impl Db {
             return Ok(0);
         }
         let cutoff = cutoff_iso(ChronoDuration::days(retention_days as i64));
-        let succeeded = serde_json::to_string(&JobStatusKind::Succeeded)?;
-        let failed = serde_json::to_string(&JobStatusKind::Failed)?;
-        let canceled = serde_json::to_string(&JobStatusKind::Canceled)?;
+        let succeeded = status_str(JobStatusKind::Succeeded);
+        let failed = status_str(JobStatusKind::Failed);
+        let canceled = status_str(JobStatusKind::Canceled);
         let conn = self.connect()?;
         let deleted = conn.execute(
             r#"
             DELETE FROM events
             WHERE ts < ?1
               AND job_id IN (
-                  SELECT job_id FROM jobs WHERE status_json IN (?2, ?3, ?4)
+                  SELECT job_id FROM jobs
+                  WHERE COALESCE(json_extract(status_json, '$.status'), json_extract(status_json, '$')) IN (?2, ?3, ?4)
               )
             "#,
             params![cutoff, succeeded, failed, canceled],

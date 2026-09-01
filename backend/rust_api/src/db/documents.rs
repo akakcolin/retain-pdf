@@ -334,7 +334,7 @@ impl Db {
             UPDATE documents SET active_job_id = (
                 SELECT j.job_id FROM jobs j
                 WHERE j.document_id = documents.document_id
-                  AND j.status_json = '"succeeded"'
+                  AND COALESCE(json_extract(j.status_json, '$.status'), json_extract(j.status_json, '$')) = 'succeeded'
                 ORDER BY j.finished_at DESC
                 LIMIT 1
             ), updated_at = ?2
@@ -721,7 +721,7 @@ impl Db {
             UPDATE documents SET active_job_id = (
                 SELECT j.job_id FROM jobs j
                 WHERE j.document_id = documents.document_id
-                  AND j.status_json = '"succeeded"'
+                  AND COALESCE(json_extract(j.status_json, '$.status'), json_extract(j.status_json, '$')) = 'succeeded'
                 ORDER BY j.finished_at DESC
                 LIMIT 1
             )

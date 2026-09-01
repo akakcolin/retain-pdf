@@ -2,10 +2,10 @@ use anyhow::{Context, Result};
 use rusqlite::params;
 
 use crate::models::domain::{
-    JobFailureInfo, JobRuntimeInfo, JobSnapshot, JobStatusKind, WorkflowKind,
+    JobFailureInfo, JobRuntimeInfo, JobSnapshot, JobStatusKind, JobStatusState, WorkflowKind,
 };
 
-use super::rows::{row_to_job_snapshot, JOB_SELECT_SQL};
+use super::rows::{parse_status_kind, row_to_job_snapshot, JOB_SELECT_SQL, STATUS_JSON_STATUS_EXPR};
 use super::{Db, JobProcessRecord};
 
 /// One job row shaped for the /metrics aggregation (see `metrics.rs`).
@@ -41,23 +41,23 @@ impl Db {
         workflow: Option<&WorkflowKind>,
     ) -> Result<Vec<JobSnapshot>> {
         let conn = self.connect()?;
-        let status_json = status.map(serde_json::to_string).transpose()?;
+        let status_filter = status.map(|s| status_str(s.clone()));
         let workflow_json = workflow.map(serde_json::to_string).transpose()?;
         let base_sql = JOB_SELECT_SQL;
-        let query = match (status_json.as_ref(), workflow_json.as_ref()) {
-            (Some(_), Some(_)) => format!("{base_sql} WHERE jobs.status_json = ?1 AND jobs.workflow = ?2 ORDER BY jobs.updated_at DESC LIMIT ?3 OFFSET ?4"),
-            (Some(_), None) => format!("{base_sql} WHERE jobs.status_json = ?1 ORDER BY jobs.updated_at DESC LIMIT ?2 OFFSET ?3"),
+        let query = match (status_filter.as_ref(), workflow_json.as_ref()) {
+            (Some(_), Some(_)) => format!("{base_sql} WHERE {STATUS_JSON_STATUS_EXPR} = ?1 AND jobs.workflow = ?2 ORDER BY jobs.updated_at DESC LIMIT ?3 OFFSET ?4"),
+            (Some(_), None) => format!("{base_sql} WHERE {STATUS_JSON_STATUS_EXPR} = ?1 ORDER BY jobs.updated_at DESC LIMIT ?2 OFFSET ?3"),
             (None, Some(_)) => format!("{base_sql} WHERE jobs.workflow = ?1 ORDER BY jobs.updated_at DESC LIMIT ?2 OFFSET ?3"),
             (None, None) => format!("{base_sql} ORDER BY jobs.updated_at DESC LIMIT ?1 OFFSET ?2"),
         };
         let mut stmt = conn.prepare(&query)?;
-        let rows = match (status_json.as_ref(), workflow_json.as_ref()) {
-            (Some(status_json), Some(workflow_json)) => stmt.query_map(
-                params![status_json, workflow_json, limit as i64, offset as i64],
+        let rows = match (status_filter.as_ref(), workflow_json.as_ref()) {
+            (Some(status_filter), Some(workflow_json)) => stmt.query_map(
+                params![status_filter, workflow_json, limit as i64, offset as i64],
                 row_to_job_snapshot,
             )?,
-            (Some(status_json), None) => stmt.query_map(
-                params![status_json, limit as i64, offset as i64],
+            (Some(status_filter), None) => stmt.query_map(
+                params![status_filter, limit as i64, offset as i64],
                 row_to_job_snapshot,
             )?,
             (None, Some(workflow_json)) => stmt.query_map(
@@ -82,11 +82,12 @@ impl Db {
 
     pub fn list_jobs_with_status(&self, status: &JobStatusKind) -> Result<Vec<JobSnapshot>> {
         let conn = self.connect()?;
-        let status_json = serde_json::to_string(status)?;
-        let query =
-            format!("{JOB_SELECT_SQL} WHERE jobs.status_json = ?1 ORDER BY jobs.updated_at DESC");
+        let status_filter = status_str(status.clone());
+        let query = format!(
+            "{JOB_SELECT_SQL} WHERE {STATUS_JSON_STATUS_EXPR} = ?1 ORDER BY jobs.updated_at DESC"
+        );
         let mut stmt = conn.prepare(&query)?;
-        let rows = stmt.query_map(params![status_json], row_to_job_snapshot)?;
+        let rows = stmt.query_map(params![status_filter], row_to_job_snapshot)?;
         let mut jobs = Vec::new();
         for row in rows {
             match row {
@@ -113,16 +114,19 @@ impl Db {
         status: &JobStatusKind,
     ) -> Result<Vec<JobProcessRecord>> {
         let conn = self.connect()?;
-        let status_json = serde_json::to_string(status)?;
+        let status_filter = status_str(status.clone());
         let mut stmt = conn.prepare(
             r#"
-            SELECT job_id, pid, stage, updated_at
+            SELECT job_id, pid,
+                   CASE WHEN json_type(status_json) = 'object'
+                        THEN json_extract(status_json, '$.stage') ELSE stage END AS stage,
+                   updated_at
             FROM jobs
-            WHERE status_json = ?1
+            WHERE COALESCE(json_extract(status_json, '$.status'), json_extract(status_json, '$')) = ?1
             ORDER BY updated_at DESC
             "#,
         )?;
-        let rows = stmt.query_map(params![status_json], |row| {
+        let rows = stmt.query_map(params![status_filter], |row| {
             Ok(JobProcessRecord {
                 job_id: row.get(0)?,
                 pid: row.get::<_, Option<i64>>(1)?.map(|value| value as u32),
@@ -144,7 +148,15 @@ impl Db {
         timestamp: &str,
     ) -> Result<()> {
         let conn = self.connect()?;
-        let failed_status_json = serde_json::to_string(&JobStatusKind::Failed)?;
+        let failed_state = JobStatusState {
+            status: JobStatusKind::Failed,
+            stage: Some("failed".to_string()),
+            stage_detail: Some("startup stale running job recovered".to_string()),
+            error: Some(detail.to_string()),
+            progress_current: None,
+            progress_total: None,
+        };
+        let failed_status_json = serde_json::to_string(&failed_state)?;
         let failure = JobFailureInfo {
             stage: "startup_recovery".to_string(),
             category: "worker_process_missing".to_string(),
@@ -183,18 +195,14 @@ impl Db {
                 updated_at = ?2,
                 finished_at = ?3,
                 pid = NULL,
-                error = ?4,
-                stage = 'failed',
-                stage_detail = 'startup stale running job recovered',
-                runtime_json = ?5,
-                failure_json = ?6
-            WHERE job_id = ?7
+                runtime_json = ?4,
+                failure_json = ?5
+            WHERE job_id = ?6
             "#,
             params![
                 failed_status_json,
                 timestamp,
                 timestamp,
-                detail,
                 serde_json::to_string(&runtime)?,
                 serde_json::to_string(&failure)?,
                 job_id,
@@ -205,10 +213,10 @@ impl Db {
 
     pub fn count_jobs_with_status(&self, status: &JobStatusKind) -> Result<i64> {
         let conn = self.connect()?;
-        let status_json = serde_json::to_string(status)?;
+        let status_filter = status_str(status.clone());
         let count = conn.query_row(
-            "SELECT COUNT(*) FROM jobs WHERE status_json = ?1",
-            params![status_json],
+            &format!("SELECT COUNT(*) FROM jobs WHERE {STATUS_JSON_STATUS_EXPR} = ?1"),
+            params![status_filter],
             |row| row.get::<_, i64>(0),
         )?;
         Ok(count)
@@ -225,7 +233,7 @@ impl Db {
             let status_json: String = row.get(1)?;
             let command_json: String = row.get(2)?;
             let runtime_json: Option<String> = row.get(3)?;
-            let status = serde_json::from_str::<JobStatusKind>(&status_json)
+            let status = parse_status_kind(&status_json)
                 .map(status_str)
                 .unwrap_or_else(|_| "unknown".to_string());
             let renderer = runtime_json
@@ -246,7 +254,7 @@ impl Db {
     }
 }
 
-fn status_str(status: JobStatusKind) -> String {
+pub(super) fn status_str(status: JobStatusKind) -> String {
     match status {
         JobStatusKind::Queued => "queued",
         JobStatusKind::Running => "running",

@@ -26,8 +26,8 @@ pub mod request;
 mod view;
 
 pub use common::{
-    build_job_id, now_iso, ApiResponse, JobStatusKind, UploadRecord, UploadView, WorkflowKind,
-    LOG_TAIL_LIMIT,
+    build_job_id, now_iso, ApiResponse, JobStatusKind, JobStatusState, UploadRecord, UploadView,
+    WorkflowKind, LOG_TAIL_LIMIT,
 };
 pub use glossary::{
     build_glossary_id, glossary_to_csv_export, glossary_to_detail, glossary_to_summary,
