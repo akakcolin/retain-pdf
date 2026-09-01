@@ -14,8 +14,8 @@ entrypoints -> runtime/pipeline -> services/* -> foundation
 - 翻译主链只消费 `document.v1` 和 translation stage spec。
 - 渲染主链只消费源 PDF、translation manifest、逐页翻译 payload 和 render stage spec。
 - `runtime/pipeline` 只负责编排，不吸收 provider、LLM、Typst、redaction 的细节。
-- `translation` 不 import `services.rendering`，也不消费 provider raw JSON。
-- `ocr_provider` 不 import `services.translation` 或 `services.rendering`。
+- `translation` 不 import 渲染模块（渲染已 native `render_rs`，Python 侧无渲染树），也不消费 provider raw JSON。
+- `ocr_provider` 不 import `services.translation` 或任何渲染模块。
 
 更细规则见 [Python 后端架构边界](../python/architecture.md)。
 
@@ -44,10 +44,10 @@ PYTHONPATH=backend/scripts python3 -m pytest backend/scripts/devtools/tests/docu
 python3 backend/scripts/devtools/check_pipeline_architecture.py
 ```
 
-渲染相关：
+渲染相关（native `render_rs`，无 Python 渲染测试套件）：
 
 ```bash
-PYTHONPATH=backend/scripts python3 -m pytest backend/scripts/devtools/tests/rendering -q
+cargo test -p rendering_core -p rendering_output -p rendering_reader -p rendering_writer -p rendering_orchestrator
 python3 backend/scripts/devtools/check_pipeline_architecture.py
 ```
 

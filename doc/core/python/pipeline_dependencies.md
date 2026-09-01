@@ -6,9 +6,7 @@ Regenerate with:
 
 ## Runtime Python Packages
 
-- `Pillow`
 - `PyMuPDF`
-- `pikepdf`
 - `requests`
 - `urllib3`
 
@@ -19,20 +17,16 @@ Regenerate with:
 ## External Commands
 
 - `typst`
-  refs: `devtools/check_pipeline_architecture.py`, `devtools/experiments/mineru_content_v2/render_translated.py`, `devtools/job_debug_runner.py`, `devtools/replay_translation_item.py`, `devtools/tests/document_schema/test_normalize_stage_spec.py`, `devtools/tests/document_schema/test_provider_pipeline_entry.py`
-- `gs`
-  refs: `services/rendering/source/compression/ghostscript.py`
+  refs: `devtools/architecture_checks/translation_field_writers.py`, `devtools/d5_baseline.py`, `devtools/job_debug_runner.py`, `devtools/replay_translation_item.py`, `devtools/tests/d5_baseline/test_d5_baseline.py`, `devtools/tests/document_schema/test_stage_spec_book.py`
 
 ## Package Map
 
 | Import | Package | Runtime | Test | Example refs |
 | --- | --- | --- | --- | --- |
-| `PIL` | `Pillow` | yes | yes | `services/rendering/source/background/extract.py`, `services/rendering/source/background/patch.py`, `services/rendering/source/compression/image_ops.py` |
-| `fitz` | `PyMuPDF` | yes | yes | `runtime/pipeline/render_mode.py`, `runtime/pipeline/render_stage.py`, `services/document_schema/normalize_pipeline.py` |
-| `pikepdf` | `pikepdf` | yes | no | `services/rendering/source/compression/image_ops.py`, `services/rendering/source/compression/image_pipeline.py`, `services/rendering/source/preparation/hidden_text_strip.py` |
-| `pytest` | `pytest` | no | yes | `devtools/tests/rendering/test_typst_render_refactor.py`, `devtools/tests/translation/test_formula_math_markers.py` |
-| `requests` | `requests` | yes | yes | `services/mineru/artifacts.py`, `services/mineru/mineru_api.py`, `services/mineru/mineru_job.py` |
-| `urllib3` | `urllib3` | yes | no | `services/translation/llm/providers/deepseek/client.py` |
+| `fitz` | `PyMuPDF` | yes | yes | `services/derived_artifacts/side_by_side_pdf.py`, `services/ocr_provider/paddle_normalize.py`, `services/ocr_provider/paddle_runner.py` |
+| `pytest` | `pytest` | no | yes | `devtools/tests/d5_baseline/test_d5_baseline.py`, `devtools/tests/document_schema/test_adapters_detection.py`, `devtools/tests/document_schema/test_local_paddlex_wrapper.py` |
+| `requests` | `requests` | yes | yes | `services/mineru/mineru_api.py`, `services/network/retry.py`, `services/ocr_provider/local_paddlex_wrapper.py` |
+| `urllib3` | `urllib3` | yes | no | `services/network/retry.py`, `services/translation/llm/providers/deepseek/transport.py` |
 
 ## Existing Requirement Files
 
@@ -43,7 +37,7 @@ Regenerate with:
 
 ## Generated Outputs
 
-- `doc/core/python/pipeline_dependencies.json`
-- `doc/core/python/pipeline_dependencies.md`
-- `doc/core/python/pipeline_runtime_requirements.in`
-- `doc/core/python/pipeline_test_requirements.in`
+- `doc/python/pipeline_dependencies.json`
+- `doc/python/pipeline_dependencies.md`
+- `doc/python/pipeline_runtime_requirements.in`
+- `doc/python/pipeline_test_requirements.in`

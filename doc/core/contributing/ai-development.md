@@ -137,8 +137,8 @@ npm --prefix desktop run verify-frontend-sync
 针对 Python：
 
 ```text
-检查 translation、rendering、ocr_provider 是否存在跨层 import。
-不要让 translation import services.rendering。
+检查 translation、ocr_provider 是否存在跨层 import。
+渲染已 native `render_rs`，Python 侧无渲染树，不存在 Python 渲染 import。
 如果需要共享数据，通过 manifest/spec/document.v1 传递。
 ```
 

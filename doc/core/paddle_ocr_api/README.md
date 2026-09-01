@@ -21,7 +21,7 @@
 明确不负责：
 
 1. 不改翻译层 `services/translation/*`
-2. 不改渲染层 `services/rendering/*`
+2. 不改渲染（渲染已 native `render_rs`，Python 侧无渲染树）
 3. 不在 `runtime/pipeline/*` 里写 Paddle 私有特判
 4. 不让下游直接读取 Paddle raw JSON
 

@@ -7,7 +7,8 @@
 1. [字体随页面变化的算法](./字体随页面变化的算法.md)
 2. [密度算法说明](./密度.md)
 
-相关代码主要在：
+相关代码主要（渲染已 native `render_rs`）：
 
-- `backend/scripts/services/rendering/layout/payload/`
-- `backend/scripts/services/rendering/layout/typography/`
+- `backend/rendering_core/src/layout/`
+- `backend/rendering_core/src/typography/`
+- `backend/rendering_core/src/payload/`

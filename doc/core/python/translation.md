@@ -199,9 +199,8 @@ python3 backend/scripts/devtools/check_stage_specs_contract.py data/jobs
 
 翻译层禁止反向依赖：
 
-- `services.rendering`
+- 渲染模块（渲染已 native `render_rs`，Python 侧无渲染树）
 - provider 私有 raw 结构
-- `runtime.pipeline.book_translation_*`
 
 新增代码应优先放进已有分层目录。架构边界以：
 

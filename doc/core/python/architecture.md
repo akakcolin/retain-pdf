@@ -29,10 +29,11 @@ services/document_schema
 services/ocr_provider
 services/mineru
 services/translation
-services/rendering
 services/pipeline_shared
 runtime/pipeline
 ```
+
+> 渲染已 native `render_rs` 接管，`services/rendering` 整体退役删除，不在上述稳定子系统之列。
 
 核心规则：
 
@@ -43,41 +44,20 @@ runtime/pipeline
 
 ## 渲染层边界
 
-```text
-services/rendering/workflow
-  -> document / analysis
-  -> source
-  -> layout
-  -> output
-```
+渲染由 native `render_rs` 全量接管（prepare / page_specs / typst / overlay / save 全 native），
+Python 侧不存在渲染树（`backend/scripts/services/rendering` 已整体退役删除）。
 
-职责：
+渲染主链只消费：
 
-- `workflow/`
-  串联渲染模式，选择 overlay、dual、background typst 等路径。
-- `analysis/`
-  页面画像、页面分类和页面渲染路线决策。
-- `document/`
-  页码映射、目录/书签复制和文档级辅助。
-- `source/background/`
-  生成 cleaned background PDF。
-- `source/cleanup/`
-  直接操作 PDF page，负责删除或覆盖原文区域。
-- `layout/`
-  把 translated items 转成 `RenderBlock` / page specs。
-- `output/typst/`
-  生成 Typst source，编译 overlay PDF，执行 overlay merge。
-- `source/compression/`
-  PDF 压缩。
-- `layout/model/`
-  渲染公共数据模型。
+- 源 PDF
+- `translation-manifest.json` 与逐页翻译 payload
+- `render.stage.v1` spec
 
-禁止方向：
+渲染库代码：
 
-- `output/typst` 不 import `source/cleanup`。
-- `layout` 不 import `output/typst`、`source/cleanup`、`source/prepare`。
-- `source/cleanup` 不 import `output/typst` 或高层 layout 逻辑。
-- `runtime/pipeline` 不直接 import `services.rendering.output.typst`、`services.rendering.source.cleanup`、`services.rendering.layout`。
+- `backend/rendering_core`：layout / typography / payload 逻辑
+- `backend/rendering_output`：Typst source 生成
+- `backend/rendering_orchestrator`：stage 编排（`render_rs --spec`）
 
 ## 翻译层边界
 
@@ -108,7 +88,7 @@ services/translation/workflow
 禁止方向：
 
 - `runtime/pipeline/translation_stage.py` 不直接 import `policy`、`llm`、`diagnostics` 内部细节。
-- `translation` 不 import `services.rendering`。
+- `translation` 不 import 任何渲染模块（渲染已 native `render_rs`，Python 侧无渲染树）。
 - `translation` 不消费 provider raw JSON。
 
 ## OCR 边界
@@ -122,8 +102,8 @@ ocr_provider / mineru
 禁止方向：
 
 - `ocr_provider` 不 import `services.translation`。
-- `ocr_provider` 不 import `services.rendering`。
-- `translation` 和 `rendering` 不 import `services.ocr_provider` 或 `services.mineru`。
+- `ocr_provider` 不 import 任何渲染模块（渲染已 native `render_rs`，Python 侧无渲染树）。
+- `translation` 不 import `services.ocr_provider` 或 `services.mineru`（native `render_rs` 天然不 import Python 模块）。
 
 ## 公共入口
 
@@ -132,7 +112,7 @@ ocr_provider / mineru
 - `services.ocr_provider.provider_pipeline`
 - `services.document_schema.normalize_pipeline`
 - `services.translation.workflow`
-- `services.rendering.workflow.execute_render_plan`
+- `render_rs --spec <render.stage.v1>`（native 渲染，无 Python 渲染入口）
 - `runtime.pipeline.book_pipeline`
 
 如果新增入口，必须同时更新：

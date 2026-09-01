@@ -31,7 +31,7 @@
 不要修改：
 
 - `backend/scripts/services/translation/*`
-- `backend/scripts/services/rendering/*`
+- 渲染（已 native `render_rs`，Python 侧无渲染树；不要引入 Python 渲染路径）
 - `backend/scripts/runtime/pipeline/*`
 
 例外：
