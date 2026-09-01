@@ -88,11 +88,14 @@ export function buildOcrPayload({
   const definition = getOcrProviderDefinition(provider);
   const payload: Record<string, unknown> = {
     provider,
-    [definition.tokenField]: ocrToken || "",
     model_version: constants.DEFAULT_MODEL_VERSION,
     language: constants.DEFAULT_LANGUAGE,
     page_ranges: pageRanges,
   };
+  // 本地 PaddleX 无 tokenField：不往请求里塞空键，后端走本地端点默认。
+  if (definition.tokenField) {
+    payload[definition.tokenField] = ocrToken || "";
+  }
   if (skipOcr) {
     payload.skip_ocr = true;
   }

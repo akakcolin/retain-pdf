@@ -291,6 +291,65 @@ test("secondary resource state port owns cache in-flight and reset without legac
   assert.equal(port.isInFlight("stageActions"), false);
 });
 
+test("clearInFlightForCurrentJob reads current job id from current-job sub-store", () => {
+  // 生产环境扁平字段 currentJobId 从不写入;当前任务身份在 current-job 子 store。
+  // 此前 gate 只比对扁平字段 → inFlight 永不清除 → manifest 只拉取一次、md 包按钮常灰。
+  const state = createInitialState();
+  assert.equal(state.currentJobId, "");
+  syncCurrentJobSnapshot(state, { job_id: "job-live" }, "job-live", {});
+  const port = secondaryResourceCacheModule.createSecondaryResourceStatePort(state);
+
+  port.setInFlight("manifest", true);
+  assert.equal(port.isInFlight("manifest"), true);
+
+  port.clearInFlightForCurrentJob("manifest", "job-other");
+  assert.equal(port.isInFlight("manifest"), true);
+
+  port.clearInFlightForCurrentJob("manifest", "job-live");
+  assert.equal(port.isInFlight("manifest"), false);
+});
+
+test("manifest refreshes on terminal after in-flight cleared even with empty flat currentJobId", async () => {
+  const runtimeState = createInitialState();
+  const jobId = "job-md-refresh";
+  // 生产:扁平 currentJobId 为空;当前任务身份在 current-job 子 store,
+  // 轮询身份在 runtime-polling 子 store(startJob 写入)。
+  assert.equal(runtimeState.currentJobId, "");
+  syncCurrentJobSnapshot(runtimeState, { job_id: jobId, status: "running" }, jobId);
+  const { generation } = runtimePollingStateModule.startRuntimeJob(runtimeState, jobId);
+
+  let manifestFetches = 0;
+  async function fetchJobArtifactsManifest() {
+    manifestFetches += 1;
+    // 首次拉取时 md 包尚未生成,终态重拉后才有 full.md → ready=true
+    return { artifacts: [], md: manifestFetches > 1 ? { full: "md" } : null };
+  }
+  function runSchedule(terminal) {
+    return scheduleSecondaryResourceFetches({
+      state: runtimeState,
+      apiPrefix: "/api/v1",
+      jobId,
+      payload: { job_id: jobId, status: terminal ? "succeeded" : "running" },
+      generation,
+      terminal,
+      fetchJobEvents: async () => ({ items: [] }),
+      fetchJobArtifactsManifest,
+      fetchJobStageActions: async () => ({ actions: [] }),
+      renderJobSecondaryPatch() {},
+      notifyLibraryJobUpdated() {},
+      jobPresentationPort: { buildJobPatchWithDisplayState },
+    });
+  }
+
+  runSchedule(false);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(manifestFetches, 1);
+
+  runSchedule(true);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(manifestFetches, 2, "终态应重拉 manifest;修复前 inFlight 卡死只拉一次");
+});
+
 test("secondary resource state port batches resource updates into one notification", () => {
   let nowValue = 2000;
   const state = createInitialState();

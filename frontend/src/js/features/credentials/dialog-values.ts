@@ -94,5 +94,8 @@ export function ocrTokenFromDialogValues(
   provider = "",
 ) {
   const normalized = normalizeOcrProvider(provider);
+  if (normalized === "local") {
+    return "";
+  }
   return normalized === "paddle" ? values.paddleToken : values.mineruToken;
 }

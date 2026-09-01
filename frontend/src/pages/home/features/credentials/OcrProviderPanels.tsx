@@ -85,24 +85,30 @@ export function OcrProviderPanels() {
             role="tabpanel"
             hidden={!active}
           >
-            <label>
-              <span className="credential-input-row">
-                <span className="credential-secret-field">
-                  <input
-                    id={credentialTokenInputId(provider.id)}
-                    type="password"
-                    autoComplete="off"
-                    placeholder={provider.tokenPlaceholder}
-                    defaultValue=""
-                    ref={tokenInputRef(provider.id)}
-                    onInput={() => resetHandlerFor(handlers)?.()}
-                  />
+            {provider.tokenField ? (
+              <label>
+                <span className="credential-input-row">
+                  <span className="credential-secret-field">
+                    <input
+                      id={credentialTokenInputId(provider.id)}
+                      type="password"
+                      autoComplete="off"
+                      placeholder={provider.tokenPlaceholder}
+                      defaultValue=""
+                      ref={tokenInputRef(provider.id)}
+                      onInput={() => resetHandlerFor(handlers)?.()}
+                    />
+                  </span>
+                  <a className="credential-card-link" href={provider.docsUrl} target="_blank" rel="noopener noreferrer">
+                    {provider.docsLabel}
+                  </a>
                 </span>
-                <a className="credential-card-link" href={provider.docsUrl} target="_blank" rel="noopener noreferrer">
-                  {provider.docsLabel}
-                </a>
-              </span>
-            </label>
+              </label>
+            ) : (
+              <div className="credential-provider-hint">
+                本地 OCR：上传 PDF 后由本地 PaddleX 服务解析，无需 Token。
+              </div>
+            )}
             <div className="credential-card-actions">
               {provider.supportsValidation ? (
                 <button

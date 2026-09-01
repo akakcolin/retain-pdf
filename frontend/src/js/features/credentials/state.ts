@@ -223,6 +223,10 @@ export function ocrTokenFromCredentials(
   { defaultPaddleToken }: OcrTokenOptions = {},
 ): string {
   const provider = normalizeOcrProvider(credentials.ocrProvider);
+  // 本地 PaddleX 无 token；返回空串，不借用 mineru/paddle 的存量 key。
+  if (provider === "local") {
+    return "";
+  }
   const token = provider === "paddle" ? credentials.paddleToken : credentials.mineruToken;
   if (token) {
     return token;
@@ -237,8 +241,11 @@ export function hasCompleteCredentials(
   credentials: Partial<CredentialsFields> = {},
   options: OcrTokenOptions = {},
 ): boolean {
-  const hasOcrReady = options.skipOcr || Boolean(ocrTokenFromCredentials(credentials, options));
-  return Boolean(hasOcrReady && credentials.modelApiKey);
+  // 本地 PaddleX 无 token，OCR 凭证视为就绪；仍要求模型 API Key。
+  const ocrReady = options.skipOcr
+    || normalizeOcrProvider(credentials.ocrProvider) === "local"
+    || Boolean(ocrTokenFromCredentials(credentials, options));
+  return Boolean(ocrReady && credentials.modelApiKey);
 }
 
 export function createCredentialsStatePort({

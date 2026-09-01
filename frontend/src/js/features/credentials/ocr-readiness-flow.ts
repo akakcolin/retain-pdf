@@ -17,6 +17,16 @@ export async function ensureOcrCredentialValidationReady({
   credentialsStatePort = defaultCredentialsStatePort,
 }: any) {
   const definition = getOcrProviderDefinition(providerId);
+  // 本地 PaddleX 无 token，无校验动作，直接视为就绪（status 复用 "skipped" 语义）。
+  if (!definition.tokenField) {
+    return {
+      ok: true,
+      status: "skipped",
+      definition,
+      token: "",
+      result: null,
+    };
+  }
   const token = credentialOcrToken(credentials, {
     providerId: definition.id,
     defaultPaddleToken,

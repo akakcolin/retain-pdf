@@ -118,6 +118,10 @@ export interface SecondaryResourceStatePort {
 
 const SECONDARY_RESOURCE_STORE_KEY = Symbol.for("retainpdf.secondaryResourceStore");
 
+// 经全局 Symbol 读 current-job store(直接 import current-job-state.js 会循环依赖);
+// 该 store 记录当前选中任务的真实 jobId,而扁平字段 state.currentJobId 从未被写入。
+const CURRENT_JOB_STORE_KEY = Symbol.for("retainpdf.currentJobStore");
+
 const SECONDARY_RESOURCE_FIELDS = Object.freeze({
   events: {
     payload: "currentJobEvents",
@@ -251,6 +255,22 @@ function asHostBag(state: object): SecondaryResourceHostState {
   return state as SecondaryResourceHostState;
 }
 
+type CurrentJobStoreLike = {
+  getSnapshot: () => { jobId?: string | null };
+};
+
+/** 当前选中任务的 jobId,优先读 current-job 子 store(扁平字段从不写入)。 */
+function currentJobIdForState(state: object): string {
+  const currentJobStore = (state as Record<PropertyKey, unknown>)[CURRENT_JOB_STORE_KEY] as
+    | CurrentJobStoreLike
+    | undefined;
+  const snapshot = currentJobStore?.getSnapshot?.();
+  if (snapshot) {
+    return `${snapshot.jobId || ""}`.trim();
+  }
+  return `${asHostBag(state).currentJobId || ""}`.trim();
+}
+
 function storeSlot(state: object): SecondaryResourceStore | undefined {
   return (state as Record<PropertyKey, unknown>)[SECONDARY_RESOURCE_STORE_KEY] as
     | SecondaryResourceStore
@@ -289,7 +309,6 @@ export function createSecondaryResourceStatePort(
     now = () => Date.now(),
   }: SecondaryResourceStatePortOptions = {},
 ): SecondaryResourceStatePort {
-  const host = asHostBag(state);
   const store = secondaryResourceStoreFor(state);
   function applyBatch(callback?: (api: SecondaryResourceBatchApi) => unknown) {
     if (typeof callback !== "function") {
@@ -326,7 +345,7 @@ export function createSecondaryResourceStatePort(
       );
     },
     clearInFlightForCurrentJob(type, jobId) {
-      if (host?.currentJobId === jobId) {
+      if (currentJobIdForState(state) === `${jobId || ""}`.trim()) {
         return this.setInFlight(type, false);
       }
       return store.getSnapshot();

@@ -35,10 +35,27 @@ export const OCR_PROVIDER_DEFINITIONS = [
     docsLabel: "获取 Token",
     supportsValidation: true,
   },
+  {
+    id: "local",
+    label: "本地 PaddleX",
+    description: "本地 OCR，需上传 PDF。",
+    tokenField: "",
+    runtimeConfigKey: "",
+    tokenLabel: "",
+    tokenPlaceholder: "",
+    validationButtonLabel: "",
+    validationIdleMessage: "",
+    validationMissingMessage: "",
+    validationUnavailableMessage: "",
+    docsUrl: "",
+    docsLabel: "",
+    supportsValidation: false,
+  },
 ];
 
 // 桌面包已剔除 Paddle OCR（仅 dev 环境可用）；桌面端隐藏 paddle 选项，
 // 已存 paddle 配置在 normalizeOcrProvider 归一化时回退到 mineru。
+// 本地 PaddleX 离线场景两端都保留。
 export function getAvailableOcrProviders() {
   if (isDesktopHostAvailable()) {
     return OCR_PROVIDER_DEFINITIONS.filter((item) => item.id !== "paddle");

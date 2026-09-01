@@ -392,16 +392,21 @@ export function mountBrowserCredentialsFeature({
       paddleToken: `${raw.paddleToken || ""}`.trim() || `${existing.paddleToken || ""}`.trim(),
       modelApiKey: `${raw.modelApiKey || ""}`.trim() || `${existing.modelApiKey || ""}`.trim(),
     };
+    // 本地 PaddleX 无 token：token 缺失只对带 tokenField 的 provider 报错。
     const ocrToken = ocrTokenFromDialogValues(values, currentOcrProvider());
     const modelApiKey = `${values.modelApiKey || ""}`.trim();
-    if (!ocrToken || !modelApiKey) {
-      if (!ocrToken) {
+    const ocrTokenMissing = Boolean(definition.tokenField) && !ocrToken;
+    if (ocrTokenMissing || !modelApiKey) {
+      if (ocrTokenMissing) {
         viewPort.setOcrValidationMessage(definition.validationMissingMessage, "error", definition.id);
       }
       if (!modelApiKey) {
         viewPort.setDeepSeekValidationMessage(translationDefinition.validationMissingMessage, "error");
       }
-      viewPort.setDialogStatus("请填写 OCR Token 与模型 API Key 后再保存", "error");
+      viewPort.setDialogStatus(
+        ocrTokenMissing ? "请填写 OCR Token 与模型 API Key 后再保存" : "请填写模型 API Key 后再保存",
+        "error",
+      );
       return;
     }
 

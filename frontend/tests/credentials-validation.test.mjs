@@ -21,6 +21,10 @@ import {
   hasCompleteCredentials,
   ocrTokenFromCredentials,
 } from "../src/js/features/credentials/state.js";
+import {
+  getAvailableOcrProviders,
+  getOcrProviderDefinition,
+} from "../src/js/config/providers.js";
 import { createUploadStatePort } from "../src/js/features/upload/state.js";
 import { createInitialState } from "../src/js/state/slices.js";
 
@@ -239,6 +243,35 @@ test("credentials state port owns credential source of truth and token helpers",
   assert.equal(port.getCredentials().ocrProvider, "mineru");
   assert.equal(port.getCredentials().paddleToken, "");
   assert.equal(mirrored.length, 1);
+});
+
+test("local OCR provider is token-less but counts as complete with model key", () => {
+  assert.equal(ocrTokenFromCredentials({ ocrProvider: "local", mineruToken: "stale", paddleToken: "stale" }), "");
+  assert.equal(ocrTokenFromCredentials({ ocrProvider: "local" }, {
+    defaultPaddleToken: () => "paddle-default",
+  }), "");
+  assert.equal(hasCompleteCredentials({ ocrProvider: "local", modelApiKey: "sk" }), true);
+  assert.equal(hasCompleteCredentials({ ocrProvider: "local", modelApiKey: "" }), false);
+
+  const port = createCredentialsStatePort({
+    initialState: {
+      ocrProvider: "local",
+      mineruToken: "stale",
+      modelApiKey: "sk",
+    },
+  });
+  assert.equal(port.getOcrToken(), "");
+  assert.equal(port.hasComplete(), true);
+  assert.equal(port.getCredentials().ocrProvider, "local");
+});
+
+test("local OCR provider is registered token-less in the provider list", () => {
+  const available = getAvailableOcrProviders();
+  const local = available.find((item) => item.id === "local");
+  assert.equal(Boolean(local), true, "provider list must include local");
+  assert.equal(local.tokenField, "");
+  assert.equal(local.supportsValidation, false);
+  assert.equal(getOcrProviderDefinition("local").id, "local");
 });
 
 test("credentials state port owns validation and balance runtime state", () => {

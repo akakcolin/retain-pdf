@@ -584,6 +584,55 @@ test("React 新世界禁止 import 旧视图层(防回弹)", () => {
   );
 });
 
+// ===== 反向门禁:逻辑层不得依赖呈现层 =====
+// 与上面的防回弹门禁对称:React 新世界不 import 旧视图层,旧视图层/纯逻辑层也
+// 不得 import React —— 双向隔离,React 只属于 src/pages 与 src/js/islands。
+
+const REACT_FAMILY_IMPORT_PATTERN = /from\s+["']react(?:-dom(?:\/client)?|(?:\/jsx-runtime))?["']/;
+
+test("src/js 逻辑层禁止依赖 React(islands/ 是唯一合法 React 岛)", () => {
+  const ISLANDS_ROOT = join(JS_ROOT, "islands");
+  const offenders = walkFiles(JS_ROOT)
+    .filter((file) => !file.startsWith(`${ISLANDS_ROOT}/`))
+    .filter((file) => REACT_FAMILY_IMPORT_PATTERN.test(sourceWithoutTypeImports(readSource(file))))
+    .map((file) => relativeToProject(file));
+
+  assert.deepEqual(
+    offenders,
+    [],
+    "src/js 逻辑层不得 import react/react-dom,React 只属于 src/pages 与 src/js/islands",
+  );
+});
+
+test("纯逻辑核心(src/js/{api,contracts,config,job,state,status-detail,utils})禁止 import 呈现层", () => {
+  const LOGIC_CORE_ROOTS = ["api", "contracts", "config", "job", "state", "statusDetail", "utils"]
+    .map((name) => SOURCE_ROOTS[name])
+    .filter((root) => existsSync(root));
+  const FORBIDDEN_PRESENTATION_PATTERNS = [
+    [/from\s+["'][^"']*\.\.\/dom\//, "src/js/dom/(旧 DOM 工具)"],
+    [/from\s+["'][^"']*\.\.\/components\//, "src/js/components/(旧视图组件)"],
+    [/from\s+["'][^"']*\.\.\/ui\//, "src/js/ui/(旧 UI 适配层)"],
+    [REACT_FAMILY_IMPORT_PATTERN, "react/react-dom"],
+  ];
+
+  const violations = [];
+  for (const root of LOGIC_CORE_ROOTS) {
+    for (const file of walkFiles(root)) {
+      const source = sourceWithoutTypeImports(readSource(file));
+      for (const [pattern, label] of FORBIDDEN_PRESENTATION_PATTERNS) {
+        if (pattern.test(source)) {
+          violations.push(`${relativeToProject(file)} → ${label}`);
+        }
+      }
+    }
+  }
+  assert.deepEqual(
+    violations,
+    [],
+    `纯逻辑核心引用了呈现层,请经外部注入或迁到呈现层:\n  ${violations.join("\n  ")}`,
+  );
+});
+
 
 const HOME_FEATURES_ROOT = join(PROJECT_ROOT, "src/pages/home/features");
 /** Any import whose module path reaches src/js (…/js/…); composition/external is the only gate. */

@@ -1,4 +1,8 @@
-import { $ } from "../dom/query.js";
+// 下载进度 toast 的单一契约边界。React 新世界由
+// src/shared/react/DownloadToastHost.tsx 渲染 <download-toast> 占位元素(实际
+// 呈现走 Sonner),旧逻辑层只经本模块导出的函数间接驱动它。本模块因此是纯逻辑层
+// 唯一直触 DOM 的例外:禁止 import 呈现层(dom/components/ui),仅直查占位元素。
+
 import { formatTransferSize } from "./downloads.js";
 
 export interface DownloadToastState {
@@ -33,7 +37,7 @@ export interface UpdateDownloadProgressOptions {
 let hideTimer = 0;
 
 function toastElement(): DownloadToastElement | null {
-  return (document.querySelector("download-toast") || $("download-toast")) as DownloadToastElement | null;
+  return (document.querySelector("download-toast") || document.getElementById("download-toast")) as DownloadToastElement | null;
 }
 
 function clearHideTimer() {

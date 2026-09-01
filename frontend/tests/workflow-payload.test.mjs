@@ -100,6 +100,23 @@ test("buildOcrPayload maps provider token field and paddle api url", () => {
   assert.equal(payload.page_ranges, "1-3");
 });
 
+test("buildOcrPayload omits token key for token-less local provider", () => {
+  const payload = buildOcrPayload({
+    pageRanges: "1-3",
+    ocrProvider: "local",
+    ocrToken: "",
+    defaultPaddleApiUrl: () => "https://paddle.example/v1",
+    constants,
+  });
+
+  assert.equal(payload.provider, "local");
+  assert.equal(payload.mineru_token, undefined);
+  assert.equal(payload.paddle_token, undefined);
+  assert.equal(payload.paddle_api_url, undefined);
+  assert.equal(payload.page_ranges, "1-3");
+  assert.equal(Object.keys(payload).includes(""), false);
+});
+
 test("buildSourcePayload and buildRenderPayload preserve render-only inputs", () => {
   const source = buildSourcePayload({
     workflow: "render",
