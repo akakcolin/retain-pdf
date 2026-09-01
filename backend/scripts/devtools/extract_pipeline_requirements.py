@@ -31,7 +31,7 @@ class ImportHit:
 
 
 def parse_args() -> argparse.Namespace:
-    default_output_dir = Path("doc") / "python"
+    default_output_dir = Path("doc") / "core" / "python"
     parser = argparse.ArgumentParser(
         description="Extract Python/runtime dependency signals from backend/scripts.",
     )
@@ -220,8 +220,7 @@ def _build_report(repo_root: Path) -> dict[str, object]:
     }
 
 
-def _render_markdown(report: dict[str, object]) -> str:
-    output_dir = Path("doc") / "python"
+def _render_markdown(report: dict[str, object], output_dir: Path) -> str:
     lines = [
         "# Python Pipeline Dependencies",
         "",
@@ -312,7 +311,7 @@ def main() -> None:
         args.json_out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     if args.markdown_out:
         args.markdown_out.parent.mkdir(parents=True, exist_ok=True)
-        args.markdown_out.write_text(_render_markdown(report), encoding="utf-8")
+        args.markdown_out.write_text(_render_markdown(report, args.json_out.parent), encoding="utf-8")
     if args.runtime_req_out:
         args.runtime_req_out.parent.mkdir(parents=True, exist_ok=True)
         args.runtime_req_out.write_text(

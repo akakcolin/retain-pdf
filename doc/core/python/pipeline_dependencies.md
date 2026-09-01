@@ -37,7 +37,7 @@ Regenerate with:
 
 ## Generated Outputs
 
-- `doc/python/pipeline_dependencies.json`
-- `doc/python/pipeline_dependencies.md`
-- `doc/python/pipeline_runtime_requirements.in`
-- `doc/python/pipeline_test_requirements.in`
+- `doc/core/python/pipeline_dependencies.json`
+- `doc/core/python/pipeline_dependencies.md`
+- `doc/core/python/pipeline_runtime_requirements.in`
+- `doc/core/python/pipeline_test_requirements.in`
