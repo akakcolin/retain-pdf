@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use crate::models::{
     JobFailureInfo, JobRuntimeInfo, JobStatusKind, OcrProviderDiagnostics, PublicResolvedJobSpec,
-    WorkflowKind,
+    TranslationLanguageMeta, WorkflowKind,
 };
 
 use super::super::common::{
@@ -125,6 +125,16 @@ pub struct ReaderJobLanguageView {
     pub source_lang: Option<String>,
     pub target_lang: Option<String>,
     pub target_language_name: Option<String>,
+}
+
+impl From<TranslationLanguageMeta> for ReaderJobLanguageView {
+    fn from(meta: TranslationLanguageMeta) -> Self {
+        Self {
+            source_lang: meta.source_lang,
+            target_lang: meta.target_lang,
+            target_language_name: meta.target_language_name,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]

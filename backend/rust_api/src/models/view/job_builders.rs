@@ -1,8 +1,7 @@
 use std::path::Path;
 
 use crate::models::{
-    translation_language_meta, JobArtifactRecord, JobSnapshot, JobStatusKind, UploadRecord,
-    UploadView, WorkflowKind,
+    JobArtifactRecord, JobSnapshot, JobStatusKind, UploadRecord, UploadView, WorkflowKind,
 };
 use crate::storage_paths::{
     resolve_markdown_path, resolve_normalization_report, resolve_normalized_document,
@@ -27,6 +26,8 @@ use crate::job_failure::classify_job_failure;
 use crate::models::public_request_payload;
 #[cfg(test)]
 use crate::models::JobFailureInfo;
+#[cfg(test)]
+use crate::models::TranslationLanguageMeta;
 
 pub fn build_job_links(job_id: &str, base_url: &str) -> JobLinksView {
     build_job_links_with_workflow(job_id, &WorkflowKind::Book, base_url)
@@ -296,6 +297,25 @@ pub fn job_to_detail(
         .clone()
         .map(JobFailureInfo::with_formal_fields)
         .or_else(|| classify_job_failure(job).map(JobFailureInfo::with_formal_fields));
+    let TranslationLanguageMeta {
+        source_lang,
+        target_lang,
+        target_language_name,
+    } = job.request_payload.translation.language_meta();
+    let book_summary = BookSummaryView {
+        title: job.job_id.clone(),
+        authors: None,
+        page_count: None,
+        source_language: Some(job.request_payload.ocr.language.clone())
+            .filter(|value| !value.trim().is_empty()),
+        target_language: None,
+        source_lang,
+        target_lang,
+        target_language_name,
+        source_file_name: None,
+        cover_url: None,
+        file_size_bytes: None,
+    };
     JobDetailView {
         job_id: job.job_id.clone(),
         workflow: job.workflow.clone(),
@@ -330,28 +350,7 @@ pub fn job_to_detail(
             bundle_ready,
         ),
         artifacts_display: Vec::new(),
-        book_summary: {
-            let (source_lang, target_lang, target_language_name) = translation_language_meta(
-                &job.request_payload.translation.source_lang,
-                &job.request_payload.translation.target_lang,
-                &job.request_payload.translation.target_language_name,
-            );
-            BookSummaryView {
-                title: job.job_id.clone(),
-                authors: None,
-                page_count: None,
-                source_language: Some(job.request_payload.ocr.language.clone())
-                    .filter(|value| !value.trim().is_empty()),
-                target_language: None,
-                source_lang,
-                target_lang,
-                target_language_name,
-                source_file_name: None,
-                cover_url: None,
-                file_size_bytes: None,
-            }
-        },
-
+        book_summary,
         contracts: JobContractsView {
             schema_version: "job_stage_contracts.v1".to_string(),
             stages: Vec::new(),

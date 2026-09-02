@@ -106,23 +106,31 @@ impl Default for TranslationInput {
     }
 }
 
-/// 从请求三元组产出视图用的 Option 元组：auto/空的 source 归一为 None
-/// （客户端回落 OCR 语种/默认展示名），空 target 也归一为 None。
-pub fn translation_language_meta(
-    source_lang: &str,
-    target_lang: &str,
-    target_language_name: &str,
-) -> (Option<String>, Option<String>, Option<String>) {
-    let non_empty = |value: &str| -> Option<String> {
-        let trimmed = value.trim();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed.to_string())
+/// 归一化后的翻译语言元数据，供视图层消费。source=auto 或空白归一为 None
+/// （客户端回落 OCR 语种/默认展示名）；空白 target 也归一为 None。
+#[derive(Debug, Clone, PartialEq)]
+pub struct TranslationLanguageMeta {
+    pub source_lang: Option<String>,
+    pub target_lang: Option<String>,
+    pub target_language_name: Option<String>,
+}
+
+impl TranslationInput {
+    pub fn language_meta(&self) -> TranslationLanguageMeta {
+        let non_empty = |value: &str| {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        };
+        TranslationLanguageMeta {
+            source_lang: non_empty(&self.source_lang).filter(|value| value != "auto"),
+            target_lang: non_empty(&self.target_lang),
+            target_language_name: non_empty(&self.target_language_name),
         }
-    };
-    let source = non_empty(source_lang).filter(|value| value != "auto");
-    (source, non_empty(target_lang), non_empty(target_language_name))
+    }
 }
 
 pub fn default_translation_context_mode() -> String {
@@ -158,26 +166,50 @@ mod tests {
             "target_lang": "en",
             "target_language_name": "English"
         });
-        let input: TranslationInput =
-            serde_json::from_value(value).expect("language fields parse");
+        let input: TranslationInput = serde_json::from_value(value).expect("language fields parse");
         assert_eq!(input.source_lang, "ja");
         assert_eq!(input.target_lang, "en");
         assert_eq!(input.target_language_name, "English");
     }
 
+    fn language_input(
+        source_lang: &str,
+        target_lang: &str,
+        target_language_name: &str,
+    ) -> TranslationInput {
+        TranslationInput {
+            source_lang: source_lang.to_string(),
+            target_lang: target_lang.to_string(),
+            target_language_name: target_language_name.to_string(),
+            ..TranslationInput::default()
+        }
+    }
+
     #[test]
-    fn translation_language_meta_normalizes_auto_source_to_none() {
+    fn language_meta_normalizes_auto_source_to_none() {
         assert_eq!(
-            translation_language_meta("auto", "zh-CN", "简体中文"),
-            (None, Some("zh-CN".to_string()), Some("简体中文".to_string()))
+            language_input("auto", "zh-CN", "简体中文").language_meta(),
+            TranslationLanguageMeta {
+                source_lang: None,
+                target_lang: Some("zh-CN".to_string()),
+                target_language_name: Some("简体中文".to_string()),
+            }
         );
         assert_eq!(
-            translation_language_meta("", "en", "English"),
-            (None, Some("en".to_string()), Some("English".to_string()))
+            language_input("", "en", "English").language_meta(),
+            TranslationLanguageMeta {
+                source_lang: None,
+                target_lang: Some("en".to_string()),
+                target_language_name: Some("English".to_string()),
+            }
         );
         assert_eq!(
-            translation_language_meta("fr", "", ""),
-            (Some("fr".to_string()), None, None)
+            language_input("fr", "", "").language_meta(),
+            TranslationLanguageMeta {
+                source_lang: Some("fr".to_string()),
+                target_lang: None,
+                target_language_name: None,
+            }
         );
     }
 }

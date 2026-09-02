@@ -36,8 +36,8 @@ pub use glossary::{
 };
 pub use input::{
     CreateJobInput, GlossaryEntryInput, JobSourceInput, OcrInput, RenderInput, ResolvedJobSpec,
-    ResolvedSourceSpec, RuntimeInput, TranslationInput, DEFAULT_SOURCE_CLEANUP_STRATEGY,
-    SOURCE_CLEANUP_STRATEGIES, translation_language_meta,
+    ResolvedSourceSpec, RuntimeInput, TranslationInput, TranslationLanguageMeta,
+    DEFAULT_SOURCE_CLEANUP_STRATEGY, SOURCE_CLEANUP_STRATEGIES,
 };
 pub use job::{
     event_progress_unit, job_progress_unit, job_stage_detail, job_stage_rank, job_stage_str,

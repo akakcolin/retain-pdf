@@ -166,4 +166,4 @@ pub use request::CreateJobInput;
 pub use resolved::ResolvedJobSpec;
 pub use runtime::RuntimeInput;
 pub use source::{JobSourceInput, ResolvedSourceSpec};
-pub use translation::{translation_language_meta, GlossaryEntryInput, TranslationInput};
+pub use translation::{GlossaryEntryInput, TranslationInput, TranslationLanguageMeta};

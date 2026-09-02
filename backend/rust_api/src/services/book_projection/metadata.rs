@@ -2,8 +2,8 @@ use std::path::Path;
 
 use crate::db::Db;
 use crate::models::api::BookSummaryView;
-use crate::models::translation_language_meta;
 use crate::models::domain::JobSnapshot;
+use crate::models::TranslationLanguageMeta;
 use crate::services::jobs::summary_loaders::load_normalization_summary;
 
 pub(super) fn derive_display_name(db: &Db, job: &JobSnapshot) -> String {
@@ -41,11 +41,11 @@ pub(super) fn build_book_summary(
     display_name: &str,
 ) -> BookSummaryView {
     let (upload_page_count, upload_size) = upload_book_stats(db, job);
-    let (source_lang, target_lang, target_language_name) = translation_language_meta(
-        &job.request_payload.translation.source_lang,
-        &job.request_payload.translation.target_lang,
-        &job.request_payload.translation.target_language_name,
-    );
+    let TranslationLanguageMeta {
+        source_lang,
+        target_lang,
+        target_language_name,
+    } = job.request_payload.translation.language_meta();
     BookSummaryView {
         title: display_name.to_string(),
         authors: None,

@@ -201,11 +201,13 @@ pub fn layout_density_ratio(
     let zh_chars = translated_zh_char_count(protected_text);
     if zh_chars > 0 {
         // EXACT legacy zh arithmetic — golden zh/kanji parity must be preserved.
-        let approx_char_width = (font_size_pt * 0.92).max(1.0);
-        let chars_per_line = (width / approx_char_width).max(4.0);
-        let required_lines = (zh_chars as f64 / chars_per_line).max(1.0);
-        let occupied_height = required_lines * line_step_pt;
-        occupied_height / height
+        occupied_height_ratio(
+            zh_chars as f64,
+            width,
+            height,
+            (font_size_pt * 0.92).max(1.0),
+            line_step_pt,
+        )
     } else {
         let narrow_chars = translated_narrow_glyph_count(protected_text);
         if narrow_chars == 0 {
@@ -213,12 +215,29 @@ pub fn layout_density_ratio(
         }
         // Narrow glyphs advance ~half an ideograph (~0.46em), so roughly twice
         // as many fit per line as the zh model assumes per em.
-        let approx_char_width = (font_size_pt * 0.46).max(1.0);
-        let chars_per_line = (width / approx_char_width).max(4.0);
-        let required_lines = (narrow_chars as f64 / chars_per_line).max(1.0);
-        let occupied_height = required_lines * line_step_pt;
-        occupied_height / height
+        occupied_height_ratio(
+            narrow_chars as f64,
+            width,
+            height,
+            (font_size_pt * 0.46).max(1.0),
+            line_step_pt,
+        )
     }
+}
+
+/// `occupied_height / height` for `glyph_count` glyphs at the given advance
+/// width per line. Shared by the zh and narrow branches of `layout_density_ratio`.
+fn occupied_height_ratio(
+    glyph_count: f64,
+    width: f64,
+    height: f64,
+    approx_char_width: f64,
+    line_step_pt: f64,
+) -> f64 {
+    let chars_per_line = (width / approx_char_width).max(4.0);
+    let required_lines = (glyph_count / chars_per_line).max(1.0);
+    let occupied_height = required_lines * line_step_pt;
+    occupied_height / height
 }
 
 pub fn trim_joined_tokens(tokens: &[String]) -> String {
