@@ -82,7 +82,9 @@ function OverviewMarkdownBundleLink() {
   const ready = Boolean(cardSnapshot.snapshot?.markdownBundleReady);
   const url = cardSnapshot.snapshot?.markdownBundleUrl || "";
   const enabled = ready && Boolean(url) && !busyState.busy;
-  const label = busyState.busy ? (busyState.label || "下载中...") : "下载 Markdown ZIP";
+  const label = busyState.busy
+    ? (busyState.label || "下载中...")
+    : (cardSnapshot.snapshot?.markdownBundleTranslated ? "下载译文 Markdown ZIP" : "下载 Markdown ZIP");
   return (
     <a
       id={STATUS_DETAIL_MARKDOWN_BUNDLE_ID}

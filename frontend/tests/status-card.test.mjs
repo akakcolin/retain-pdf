@@ -898,6 +898,7 @@ test("status card primary actions are visible only for selected done stage", () 
     pdfUrl: "/api/v1/jobs/job-1/pdf",
     markdownBundleReady: true,
     markdownBundleUrl: "/api/v1/jobs/job-1/artifacts/markdown_zip",
+    markdownBundleTranslated: false,
     readerReady: true,
     readerUrl: "/reader.html?job_id=job-1",
     sourcePdfReady: true,
@@ -914,6 +915,7 @@ test("status card primary actions are visible only for selected done stage", () 
       pdfUrl: "/api/v1/jobs/job-1/pdf",
       markdownBundleReady: true,
       markdownBundleUrl: "/api/v1/jobs/job-1/artifacts/markdown_zip",
+      markdownBundleTranslated: false,
       readerReady: true,
       readerUrl: "/reader.html?job_id=job-1",
       sourcePdfReady: true,
@@ -930,6 +932,7 @@ test("status card primary actions are visible only for selected done stage", () 
       pdfUrl: "/api/v1/jobs/job-1/pdf",
       markdownBundleReady: false,
       markdownBundleUrl: "/api/v1/jobs/job-1/artifacts/markdown_zip",
+      markdownBundleTranslated: false,
       readerReady: false,
       readerUrl: "/reader.html?job_id=job-1",
       sourcePdfReady: false,
@@ -972,6 +975,7 @@ test("status card result actions view model owns artifact readiness", () => {
   assert.equal(succeeded.readerReady, true);
   assert.equal(succeeded.sourcePdfReady, true);
   assert.equal(succeeded.markdownBundleReady, true);
+  assert.equal(succeeded.markdownBundleTranslated, false);
   assert.match(succeeded.markdownBundleUrl, /include_job_dir=true/);
   assert.equal(succeeded.pdfReady, true);
 
@@ -987,7 +991,9 @@ test("status card result actions view model owns artifact readiness", () => {
   });
   assert.equal(activeStageSucceeded.readerReady, false);
   assert.equal(activeStageSucceeded.sourcePdfReady, false);
-  assert.equal(activeStageSucceeded.markdownBundleReady, false);
+  // markdown 下载不再受终态门槛限制：md/full.md 就绪即可下载原文 zip。
+  assert.equal(activeStageSucceeded.markdownBundleReady, true);
+  assert.equal(activeStageSucceeded.markdownBundleTranslated, false);
   assert.equal(activeStageSucceeded.pdfReady, false);
 
   const running = buildStatusCardResultActions({
@@ -1005,8 +1011,39 @@ test("status card result actions view model owns artifact readiness", () => {
   });
   assert.equal(running.readerReady, false);
   assert.equal(running.sourcePdfReady, false);
-  assert.equal(running.markdownBundleReady, false);
+  assert.equal(running.markdownBundleReady, true);
+  assert.equal(running.markdownBundleTranslated, false);
   assert.equal(running.pdfReady, false);
+});
+
+test("status card result actions switch to translated markdown when ready", () => {
+  const manifest = {
+    items: [
+      {
+        artifact_key: "markdown_bundle_zip",
+        ready: true,
+        resource_path: "/api/v1/jobs/job-translated-actions/artifacts/markdown_bundle_zip",
+      },
+      {
+        artifact_key: "translated_markdown_bundle_zip",
+        ready: true,
+        resource_path: "/api/v1/jobs/job-translated-actions/artifacts/translated_markdown_bundle_zip",
+      },
+    ],
+  };
+
+  const translated = buildStatusCardResultActions({
+    job: {
+      job_id: "job-translated-actions",
+      status: "succeeded",
+      display_stage: "done",
+    },
+    manifest,
+  });
+  assert.equal(translated.markdownBundleReady, true);
+  assert.equal(translated.markdownBundleTranslated, true);
+  assert.match(translated.markdownBundleUrl, /translated_markdown_bundle_zip/);
+  assert.match(translated.markdownBundleUrl, /include_job_dir=true/);
 });
 
 test("status card task actions view model owns cancel readiness", () => {

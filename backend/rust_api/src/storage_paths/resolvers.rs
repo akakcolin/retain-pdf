@@ -5,7 +5,7 @@ use crate::models::domain::{JobArtifactRecord, JobSnapshot};
 use super::constants::{
     OUTPUT_ARTIFACTS_DIR_NAME, OUTPUT_LOGS_DIR_NAME, OUTPUT_MARKDOWN_DIR_NAME,
     OUTPUT_RENDERED_DIR_NAME, OUTPUT_TYPST_BOOK_OVERLAYS_DIR_NAME, OUTPUT_TYPST_DIR_NAME,
-    TRANSLATION_MANIFEST_FILE_NAME,
+    TRANSLATED_MARKDOWN_FILE_NAME, TRANSLATION_MANIFEST_FILE_NAME,
 };
 use super::path_ops::resolve_data_path;
 
@@ -24,6 +24,14 @@ pub fn resolve_markdown_images_dir(job: &JobSnapshot, data_root: &Path) -> Optio
     published.exists().then_some(published)
 }
 
+pub fn resolve_translated_markdown_path(job: &JobSnapshot, data_root: &Path) -> Option<PathBuf> {
+    let root = resolve_job_root(job, data_root)?;
+    let published = root
+        .join(OUTPUT_MARKDOWN_DIR_NAME)
+        .join(TRANSLATED_MARKDOWN_FILE_NAME);
+    published.exists().then_some(published)
+}
+
 pub fn resolve_job_root(job: &JobSnapshot, data_root: &Path) -> Option<PathBuf> {
     let job_root = job.artifacts.as_ref()?.job_root.as_ref()?;
     resolve_data_path(data_root, job_root).ok()
@@ -35,6 +43,18 @@ pub fn resolve_markdown_bundle_zip(job: &JobSnapshot, data_root: &Path) -> Optio
         job_root
             .join(OUTPUT_ARTIFACTS_DIR_NAME)
             .join(format!("{}-markdown.zip", job.job_id)),
+    )
+}
+
+pub fn resolve_translated_markdown_bundle_zip(
+    job: &JobSnapshot,
+    data_root: &Path,
+) -> Option<PathBuf> {
+    let job_root = resolve_job_root(job, data_root)?;
+    Some(
+        job_root
+            .join(OUTPUT_ARTIFACTS_DIR_NAME)
+            .join(format!("{}-translated-markdown.zip", job.job_id)),
     )
 }
 

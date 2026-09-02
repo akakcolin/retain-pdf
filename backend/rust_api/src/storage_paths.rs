@@ -17,6 +17,7 @@ pub use constants::{
     ARTIFACT_KEY_NORMALIZATION_REPORT_JSON, ARTIFACT_KEY_NORMALIZED_DOCUMENT_JSON,
     ARTIFACT_KEY_PIPELINE_SUMMARY, ARTIFACT_KEY_PROVIDER_BUNDLE_ZIP, ARTIFACT_KEY_PROVIDER_RAW_DIR,
     ARTIFACT_KEY_PROVIDER_RESULT_JSON, ARTIFACT_KEY_RENDER_CONFIG_JSON, ARTIFACT_KEY_SOURCE_PDF,
+    ARTIFACT_KEY_TRANSLATED_MARKDOWN_BUNDLE_ZIP, ARTIFACT_KEY_TRANSLATED_MARKDOWN_RAW,
     ARTIFACT_KEY_TRANSLATED_PDF, ARTIFACT_KEY_TRANSLATIONS_DIR,
     ARTIFACT_KEY_TRANSLATION_DEBUG_INDEX_JSON, ARTIFACT_KEY_TRANSLATION_DIAGNOSTICS_JSON,
     ARTIFACT_KEY_TRANSLATION_MANIFEST_JSON, ARTIFACT_KEY_TYPST_PDF, ARTIFACT_KEY_TYPST_SOURCE,
@@ -34,7 +35,8 @@ pub use resolvers::{
     resolve_events_jsonl, resolve_job_root, resolve_markdown_bundle_zip,
     resolve_markdown_images_dir, resolve_markdown_path, resolve_normalization_report,
     resolve_normalized_document, resolve_output_pdf, resolve_pipeline_summary,
-    resolve_registered_artifact_path, resolve_source_pdf, resolve_translation_debug_index,
+    resolve_registered_artifact_path, resolve_source_pdf, resolve_translated_markdown_bundle_zip,
+    resolve_translated_markdown_path, resolve_translation_debug_index,
     resolve_translation_diagnostics, resolve_translation_manifest, resolve_typst_pdf,
     resolve_typst_source,
 };
@@ -177,6 +179,7 @@ mod tests {
         )
         .expect("typst source");
         fs::write(job_root.join("md/full.md"), b"# doc").expect("markdown");
+        fs::write(job_root.join("md/translated.md"), "# doc 译文").expect("translated markdown");
         fs::write(job_root.join("ocr/normalized/document.v1.json"), b"{}").expect("json");
         fs::write(job_root.join("artifacts/render_config.json"), b"{}").expect("render config");
         fs::write(
@@ -227,6 +230,15 @@ mod tests {
         assert!(items
             .iter()
             .any(|item| item.artifact_key == ARTIFACT_KEY_MARKDOWN_RAW));
+        assert!(items
+            .iter()
+            .any(|item| item.artifact_key == ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP && item.ready));
+        assert!(items
+            .iter()
+            .any(|item| item.artifact_key == ARTIFACT_KEY_TRANSLATED_MARKDOWN_RAW && item.ready));
+        assert!(items.iter().any(|item| {
+            item.artifact_key == ARTIFACT_KEY_TRANSLATED_MARKDOWN_BUNDLE_ZIP && item.ready
+        }));
         assert!(items
             .iter()
             .any(|item| item.artifact_key == ARTIFACT_KEY_NORMALIZED_DOCUMENT_JSON));

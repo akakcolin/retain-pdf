@@ -1,6 +1,7 @@
 use std::fs;
+use std::io::Read;
 
-use axum::body::Body;
+use axum::body::{to_bytes, Body};
 use axum::http::{Request, StatusCode};
 use tower::util::ServiceExt;
 
@@ -137,4 +138,106 @@ async fn markdown_document_rewrites_html_img_and_titled_markdown_links() {
     assert!(abs.contains(expected), "html img rewritten: {abs}");
     assert!(abs.contains(&format!("![cap]({expected})")), "titled md rewritten: {abs}");
     assert!(!abs.contains("/markdown/images/images/"));
+}
+
+#[tokio::test]
+async fn translated_markdown_bundle_zip_is_registered_and_downloadable() {
+    let state = test_state("translated-markdown-bundle");
+    let job_root = state.config.output_root.join("translated-markdown-bundle-job");
+    let markdown_dir = job_root.join("md");
+    let images_dir = markdown_dir.join("images/page-1/imgs");
+    fs::create_dir_all(&images_dir).expect("create markdown images");
+    fs::write(images_dir.join("chart.png"), b"fake png").expect("write image");
+    fs::write(
+        markdown_dir.join("full.md"),
+        "hello\n\n![Image](images/page-1/imgs/chart.png)\n",
+    )
+    .expect("write markdown");
+    fs::write(
+        markdown_dir.join("translated.md"),
+        "你好\n\n![Image](images/page-1/imgs/chart.png)\n",
+    )
+    .expect("write translated markdown");
+
+    let mut input = CreateJobInput::default();
+    input.runtime.job_id = "translated-markdown-bundle-job".to_string();
+    let mut job = JobSnapshot::new(
+        "translated-markdown-bundle-job".to_string(),
+        input,
+        vec!["python".to_string()],
+    );
+    job.artifacts = Some(JobArtifacts {
+        job_root: Some("jobs/translated-markdown-bundle-job".to_string()),
+        ..JobArtifacts::default()
+    });
+    state.db.save_job(&job).expect("save job");
+
+    // artifacts-manifest 同时注册原文与译文两个 bundle artifact。
+    let manifest = build_app(state.clone())
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/jobs/translated-markdown-bundle-job/artifacts-manifest")
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("manifest request"),
+        )
+        .await
+        .expect("manifest response");
+    assert_eq!(manifest.status(), StatusCode::OK);
+    let manifest_payload = read_json(manifest).await;
+    let items = manifest_payload["data"]["items"]
+        .as_array()
+        .expect("manifest items");
+    let original_bundle = items
+        .iter()
+        .find(|item| item["artifact_key"] == "markdown_bundle_zip")
+        .expect("markdown_bundle_zip item");
+    assert_eq!(original_bundle["ready"], true);
+    let translated_bundle = items
+        .iter()
+        .find(|item| item["artifact_key"] == "translated_markdown_bundle_zip")
+        .expect("translated_markdown_bundle_zip item");
+    assert_eq!(translated_bundle["ready"], true);
+    assert_eq!(
+        translated_bundle["file_name"],
+        "translated-markdown-bundle-job-translated-markdown.zip"
+    );
+
+    // 下载译文 markdown zip。
+    let response = build_app(state)
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(
+                    "/api/v1/jobs/translated-markdown-bundle-job/artifacts/translated_markdown_bundle_zip?include_job_dir=true",
+                )
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("bundle request"),
+        )
+        .await
+        .expect("bundle response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read body");
+    assert_eq!(&body[..2], b"PK", "zip magic");
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(body.to_vec())).expect("open zip");
+    let names: Vec<String> = archive.file_names().map(str::to_string).collect();
+    let full_name = names
+        .iter()
+        .find(|name| name.ends_with("/full.md"))
+        .unwrap_or_else(|| panic!("zip contains full.md: {names:?}"));
+    let mut full = archive.by_name(full_name).expect("read full.md entry");
+    let mut text = String::new();
+    full.read_to_string(&mut text).expect("read full.md text");
+    assert!(text.contains("你好"), "translated markdown text: {text:?}");
+    assert!(
+        text.contains("images/page-1/imgs/chart.png"),
+        "translated markdown images preserved: {text:?}"
+    );
+    assert!(names
+        .iter()
+        .any(|name| name.contains("images/page-1/imgs/chart.png")));
 }

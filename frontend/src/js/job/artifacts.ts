@@ -230,8 +230,9 @@ export function resolveManifestArtifactUrl(
   if (!raw) {
     return "";
   }
+  const jobDirKeys = ["markdown_bundle_zip", "translated_markdown_bundle_zip"];
   return resolveResourceUrl(raw, {
-    query: includeJobDir && artifactKey === "markdown_bundle_zip"
+    query: includeJobDir && jobDirKeys.includes(artifactKey)
       ? { include_job_dir: "true" }
       : null,
   });

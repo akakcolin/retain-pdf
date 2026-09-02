@@ -14,6 +14,7 @@ use crate::native_stats::{self, NativeStats};
 use crate::spec::RenderStageSpec;
 use crate::stages;
 use crate::summary;
+use crate::translated_markdown;
 
 pub struct RenderOutcome {
     pub output_pdf: PathBuf,
@@ -98,6 +99,33 @@ pub fn run(spec_path: &Path) -> Result<RenderOutcome> {
         "step",
         &json!({"user_stage": "render", "progress_unit": "step"}),
     )?;
+    // R-2: rebuild the translated full-book markdown (best-effort; a failure
+    // must not fail the render that already produced the PDF).
+    let translated_markdown_path = spec
+        .job
+        .job_root
+        .join("md")
+        .join(translated_markdown::TRANSLATED_MARKDOWN_FILE_NAME);
+    match translated_markdown::write_translated_markdown(
+        &spec.inputs.translations_dir,
+        spec.inputs.translation_manifest.as_deref(),
+        &translated_markdown_path,
+    ) {
+        Ok(()) => {
+            events.emit_transition(
+                "render_preprocess",
+                "translated_markdown",
+                "译文 markdown 已生成",
+            )?;
+        }
+        Err(err) => {
+            events.emit_transition(
+                "render_preprocess",
+                "translated_markdown",
+                &format!("译文 markdown 生成失败（不影响渲染结果）: {err}"),
+            )?;
+        }
+    }
     events.emit_transition("finished", "", "render_rs 阶段完成")?;
 
     let render_diagnostics = {

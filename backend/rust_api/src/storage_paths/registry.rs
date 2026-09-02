@@ -12,6 +12,7 @@ use super::constants::{
     ARTIFACT_KEY_NORMALIZATION_REPORT_JSON, ARTIFACT_KEY_NORMALIZED_DOCUMENT_JSON,
     ARTIFACT_KEY_PIPELINE_SUMMARY, ARTIFACT_KEY_PROVIDER_BUNDLE_ZIP, ARTIFACT_KEY_PROVIDER_RAW_DIR,
     ARTIFACT_KEY_PROVIDER_RESULT_JSON, ARTIFACT_KEY_RENDER_CONFIG_JSON, ARTIFACT_KEY_SOURCE_PDF,
+    ARTIFACT_KEY_TRANSLATED_MARKDOWN_BUNDLE_ZIP, ARTIFACT_KEY_TRANSLATED_MARKDOWN_RAW,
     ARTIFACT_KEY_TRANSLATED_PDF, ARTIFACT_KEY_TRANSLATIONS_DIR,
     ARTIFACT_KEY_TRANSLATION_MANIFEST_JSON, ARTIFACT_KEY_TYPST_PDF, ARTIFACT_KEY_TYPST_SOURCE,
     ARTIFACT_KIND_DIR, ARTIFACT_KIND_FILE,
@@ -19,7 +20,8 @@ use super::constants::{
 use super::path_ops::{resolve_data_path, to_relative_data_path};
 use super::resolvers::{
     resolve_events_jsonl, resolve_markdown_bundle_zip, resolve_markdown_images_dir,
-    resolve_markdown_path, resolve_translation_manifest, resolve_typst_pdf, resolve_typst_source,
+    resolve_markdown_path, resolve_translated_markdown_bundle_zip, resolve_translated_markdown_path,
+    resolve_translation_manifest, resolve_typst_pdf, resolve_typst_source,
 };
 
 pub fn collect_job_artifact_entries(
@@ -128,6 +130,32 @@ pub fn collect_job_artifact_entries(
         resolve_markdown_path(job, data_root).is_some(),
         Some("ocr".to_string()),
         Some(format!("{}-markdown.zip", job.job_id)),
+        &now,
+    )?;
+    push_optional_artifact(
+        &mut items,
+        data_root,
+        &job.job_id,
+        resolve_translated_markdown_path(job, data_root).as_deref(),
+        ARTIFACT_KEY_TRANSLATED_MARKDOWN_RAW,
+        ARTIFACT_GROUP_MARKDOWN,
+        ARTIFACT_KIND_FILE,
+        "text/markdown; charset=utf-8",
+        Some("rendering".to_string()),
+        &now,
+    )?;
+    push_virtual_artifact(
+        &mut items,
+        data_root,
+        &job.job_id,
+        resolve_translated_markdown_bundle_zip(job, data_root).as_deref(),
+        ARTIFACT_KEY_TRANSLATED_MARKDOWN_BUNDLE_ZIP,
+        ARTIFACT_GROUP_MARKDOWN,
+        ARTIFACT_KIND_FILE,
+        "application/zip",
+        resolve_translated_markdown_path(job, data_root).is_some(),
+        Some("rendering".to_string()),
+        Some(format!("{}-translated-markdown.zip", job.job_id)),
         &now,
     )?;
     push_optional_artifact(

@@ -15,6 +15,7 @@ pub mod run;
 pub mod spec;
 pub mod stages;
 pub mod summary;
+pub mod translated_markdown;
 pub mod translations;
 
 pub use run::{run, RenderOutcome};

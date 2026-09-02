@@ -2,10 +2,11 @@ use crate::error::AppError;
 use crate::models::domain::{JobSnapshot, JobStatusKind};
 use crate::services::artifacts::{
     artifact_is_direct_downloadable, build_bundle_for_job, build_markdown_bundle_for_job,
-    resolve_registry_artifact,
+    build_translated_markdown_bundle_for_job, resolve_registry_artifact,
 };
 use crate::storage_paths::{
-    ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP, ARTIFACT_KEY_SOURCE_PDF, ARTIFACT_KEY_TRANSLATED_PDF,
+    ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP, ARTIFACT_KEY_SOURCE_PDF,
+    ARTIFACT_KEY_TRANSLATED_MARKDOWN_BUNDLE_ZIP, ARTIFACT_KEY_TRANSLATED_PDF,
 };
 
 use super::super::query::load_supported_job;
@@ -36,6 +37,11 @@ pub(crate) fn registered_artifact_download(
     if artifact_key == ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP {
         let (item, path) =
             build_markdown_bundle_for_job(deps.db, deps.data_root, job, include_job_dir)?;
+        return Ok(FileDownload::new(path, item.content_type, item.file_name));
+    }
+    if artifact_key == ARTIFACT_KEY_TRANSLATED_MARKDOWN_BUNDLE_ZIP {
+        let (item, path) =
+            build_translated_markdown_bundle_for_job(deps.db, deps.data_root, job, include_job_dir)?;
         return Ok(FileDownload::new(path, item.content_type, item.file_name));
     }
     let Some((item, path)) = resolve_registry_artifact(deps.db, deps.data_root, job, artifact_key)?

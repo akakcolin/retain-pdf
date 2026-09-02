@@ -29,6 +29,7 @@ export type StatusCardPrimaryActions = {
   pdfUrl: string;
   markdownBundleReady: boolean;
   markdownBundleUrl: string;
+  markdownBundleTranslated: boolean;
   readerReady: boolean;
   readerUrl: string;
   sourcePdfReady: boolean;

@@ -127,53 +127,65 @@ export function resolveJobActions(job) {
 }
 
 export function resolveJobMarkdownBundleAction(job, manifestPayload = null) {
+  return resolveMarkdownBundleAction(job, manifestPayload, "markdown");
+}
+
+export function resolveJobTranslatedMarkdownBundleAction(job, manifestPayload = null) {
+  return resolveMarkdownBundleAction(job, manifestPayload, "translated_markdown");
+}
+
+// 原文（markdown）与译文（translated_markdown）两种 markdown zip 共用同一套
+// 解析形状，只有 artifact key / 字段前缀不同；manifest 优先，job 载荷兜底。
+function resolveMarkdownBundleAction(job, manifestPayload, prefix) {
   const artifacts = job?.artifacts || {};
   const actions = job?.actions || {};
   const artifactActions = artifacts.actions || {};
-  const manifestUrl = resolveManifestArtifactUrl(manifestPayload, "markdown_bundle_zip", {
+  const zipKey = `${prefix}_bundle_zip`;
+  const bundleKey = `${prefix}_bundle`;
+  const manifestUrl = resolveManifestArtifactUrl(manifestPayload, zipKey, {
     includeJobDir: true,
   });
   const url = withIncludeJobDir(resolveResourceUrl(firstNonEmpty(
     manifestUrl,
-    actions.download_markdown_bundle?.url,
-    actions.download_markdown_bundle?.path,
-    actions.download_markdown_zip?.url,
-    actions.download_markdown_zip?.path,
-    artifactActions.download_markdown_bundle?.url,
-    artifactActions.download_markdown_bundle?.path,
-    artifactActions.download_markdown_zip?.url,
-    artifactActions.download_markdown_zip?.path,
-    artifacts.markdown_bundle_zip?.url,
-    artifacts.markdown_bundle_zip?.path,
-    artifacts.markdown_bundle?.url,
-    artifacts.markdown_bundle?.path,
-    artifacts.markdown_zip?.url,
-    artifacts.markdown_zip?.path,
-    artifacts.markdown_bundle_zip_url,
-    artifacts.markdown_bundle_zip_path,
-    artifacts.markdown_bundle_url,
-    artifacts.markdown_bundle_path,
-    job?.markdown_bundle_zip_url,
-    job?.markdown_bundle_zip_path,
-    job?.markdown_bundle_url,
-    job?.markdown_bundle_path,
-    artifactDisplayUrl(job, "markdown_bundle_zip", "markdown_bundle", "markdown_zip"),
+    actions[`download_${prefix}_bundle`]?.url,
+    actions[`download_${prefix}_bundle`]?.path,
+    actions[`download_${prefix}_zip`]?.url,
+    actions[`download_${prefix}_zip`]?.path,
+    artifactActions[`download_${prefix}_bundle`]?.url,
+    artifactActions[`download_${prefix}_bundle`]?.path,
+    artifactActions[`download_${prefix}_zip`]?.url,
+    artifactActions[`download_${prefix}_zip`]?.path,
+    artifacts[zipKey]?.url,
+    artifacts[zipKey]?.path,
+    artifacts[bundleKey]?.url,
+    artifacts[bundleKey]?.path,
+    artifacts[`${prefix}_zip`]?.url,
+    artifacts[`${prefix}_zip`]?.path,
+    artifacts[`${zipKey}_url`],
+    artifacts[`${zipKey}_path`],
+    artifacts[`${bundleKey}_url`],
+    artifacts[`${bundleKey}_path`],
+    job?.[`${zipKey}_url`],
+    job?.[`${zipKey}_path`],
+    job?.[`${bundleKey}_url`],
+    job?.[`${bundleKey}_path`],
+    artifactDisplayUrl(job, zipKey, bundleKey, `${prefix}_zip`),
   )));
   const ready = Boolean(
-    hasReadyManifestArtifact(manifestPayload, "markdown_bundle_zip")
-    || actions.download_markdown_bundle?.enabled
-    || actions.download_markdown_zip?.enabled
-    || artifactActions.download_markdown_bundle?.enabled
-    || artifactActions.download_markdown_zip?.enabled
-    || artifacts.markdown_bundle_zip?.ready
-    || artifacts.markdown_bundle?.ready
-    || artifacts.markdown_zip?.ready
-    || artifacts.markdown_bundle_zip_ready
-    || artifacts.markdown_bundle_ready
-    || artifacts.markdown_zip_ready
-    || job?.markdown_bundle_zip_ready
-    || job?.markdown_bundle_ready
-    || artifactDisplayReady(job, "markdown_bundle_zip", "markdown_bundle", "markdown_zip")
+    hasReadyManifestArtifact(manifestPayload, zipKey)
+    || actions[`download_${prefix}_bundle`]?.enabled
+    || actions[`download_${prefix}_zip`]?.enabled
+    || artifactActions[`download_${prefix}_bundle`]?.enabled
+    || artifactActions[`download_${prefix}_zip`]?.enabled
+    || artifacts[zipKey]?.ready
+    || artifacts[bundleKey]?.ready
+    || artifacts[`${prefix}_zip`]?.ready
+    || artifacts[`${zipKey}_ready`]
+    || artifacts[`${bundleKey}_ready`]
+    || artifacts[`${prefix}_zip_ready`]
+    || job?.[`${zipKey}_ready`]
+    || job?.[`${bundleKey}_ready`]
+    || artifactDisplayReady(job, zipKey, bundleKey, `${prefix}_zip`)
     || url
   );
   return {

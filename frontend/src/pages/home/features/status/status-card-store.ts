@@ -118,6 +118,8 @@ export type StatusCardSnapshot = {
   pdfUrl: string;
   markdownBundleReady: boolean;
   markdownBundleUrl: string;
+  /** 译文 markdown zip 就绪时（任务完成后）为 true；否则指向原文 markdown zip */
+  markdownBundleTranslated: boolean;
   readerReady: boolean;
   readerUrl: string;
   sourcePdfReady: boolean;
@@ -196,6 +198,7 @@ const EMPTY_STATUS_CARD_SNAPSHOT: StatusCardSnapshot = Object.freeze({
   pdfUrl: "",
   markdownBundleReady: false,
   markdownBundleUrl: "",
+  markdownBundleTranslated: false,
   readerReady: false,
   readerUrl: "",
   sourcePdfReady: false,

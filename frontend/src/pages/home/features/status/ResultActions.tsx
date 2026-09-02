@@ -63,6 +63,7 @@ function ActionLink({ id, label, ready, url, onClick }: ActionLinkProps) {
 type ResultActionsProps = {
   markdownBundleReady?: boolean;
   markdownBundleUrl?: string;
+  markdownBundleTranslated?: boolean;
   sourcePdfReady?: boolean;
   sourcePdfUrl?: string;
   readerReady?: boolean;
@@ -75,6 +76,7 @@ type ResultActionsProps = {
 export function ResultActions({
   markdownBundleReady = false,
   markdownBundleUrl = "",
+  markdownBundleTranslated = false,
   sourcePdfReady = false,
   sourcePdfUrl = "",
   readerReady = false,
@@ -84,10 +86,11 @@ export function ResultActions({
   onReaderClick,
 }: ResultActionsProps) {
   const hasActions = markdownBundleReady || pdfReady || readerReady || sourcePdfReady;
+  const markdownBundleLabel = markdownBundleTranslated ? "下载译文 Markdown" : "下载 Markdown";
 
   return (
     <div className={`status-result-actions${hasActions ? "" : " hidden"}`}>
-      <ActionLink id={STATUS_CARD_ACTION_IDS.markdownBundle} label="下载 Markdown" ready={markdownBundleReady} url={markdownBundleUrl} />
+      <ActionLink id={STATUS_CARD_ACTION_IDS.markdownBundle} label={markdownBundleLabel} ready={markdownBundleReady} url={markdownBundleUrl} />
       <ActionLink id={STATUS_CARD_ACTION_IDS.sourcePdf} label="下载原始 PDF" ready={sourcePdfReady} url={sourcePdfUrl} />
       <ActionLink id={STATUS_CARD_ACTION_IDS.reader} label="对照阅读" ready={readerReady} url={readerUrl} onClick={onReaderClick} />
       <ActionLink id={STATUS_CARD_ACTION_IDS.pdf} label="下载 PDF" ready={pdfReady} url={pdfUrl} />

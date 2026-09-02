@@ -1,6 +1,7 @@
 pub(crate) const OUTPUT_SOURCE_DIR_NAME: &str = "source";
 pub(crate) const OUTPUT_OCR_DIR_NAME: &str = "ocr";
 pub(crate) const OUTPUT_MARKDOWN_DIR_NAME: &str = "md";
+pub(crate) const TRANSLATED_MARKDOWN_FILE_NAME: &str = "translated.md";
 pub(crate) const OUTPUT_TRANSLATED_DIR_NAME: &str = "translated";
 pub(crate) const OUTPUT_RENDERED_DIR_NAME: &str = "rendered";
 pub(crate) const OUTPUT_ARTIFACTS_DIR_NAME: &str = "artifacts";
@@ -30,6 +31,8 @@ pub const ARTIFACT_KEY_TYPST_PDF: &str = "typst_render_pdf";
 pub const ARTIFACT_KEY_MARKDOWN_RAW: &str = "markdown_raw";
 pub const ARTIFACT_KEY_MARKDOWN_IMAGES_DIR: &str = "markdown_images_dir";
 pub const ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP: &str = "markdown_bundle_zip";
+pub const ARTIFACT_KEY_TRANSLATED_MARKDOWN_RAW: &str = "translated_markdown_raw";
+pub const ARTIFACT_KEY_TRANSLATED_MARKDOWN_BUNDLE_ZIP: &str = "translated_markdown_bundle_zip";
 pub const ARTIFACT_KEY_NORMALIZED_DOCUMENT_JSON: &str = "normalized_document_json";
 pub const ARTIFACT_KEY_NORMALIZATION_REPORT_JSON: &str = "normalization_report_json";
 pub const ARTIFACT_KEY_LAYOUT_JSON: &str = "layout_json";

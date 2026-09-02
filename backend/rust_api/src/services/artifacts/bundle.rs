@@ -9,7 +9,9 @@ use crate::error::AppError;
 use crate::models::domain::{JobArtifactRecord, JobSnapshot};
 use crate::storage_paths::{
     resolve_output_pdf, resolve_registered_artifact_path, ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP,
-    ARTIFACT_KEY_MARKDOWN_IMAGES_DIR, ARTIFACT_KEY_MARKDOWN_RAW, ARTIFACT_KEY_TRANSLATED_PDF,
+    ARTIFACT_KEY_MARKDOWN_IMAGES_DIR, ARTIFACT_KEY_MARKDOWN_RAW,
+    ARTIFACT_KEY_TRANSLATED_MARKDOWN_BUNDLE_ZIP, ARTIFACT_KEY_TRANSLATED_MARKDOWN_RAW,
+    ARTIFACT_KEY_TRANSLATED_PDF,
 };
 
 use super::registry::find_registry_artifact;
@@ -44,7 +46,45 @@ pub fn build_markdown_bundle_for_job(
     job: &JobSnapshot,
     include_job_dir: bool,
 ) -> Result<(JobArtifactRecord, PathBuf), AppError> {
-    let markdown_item = find_registry_artifact(db, data_root, job, ARTIFACT_KEY_MARKDOWN_RAW)?
+    build_markdown_bundle_for_keys(
+        db,
+        data_root,
+        job,
+        include_job_dir,
+        ARTIFACT_KEY_MARKDOWN_RAW,
+        ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP,
+        markdown_zip_root,
+    )
+}
+
+pub fn build_translated_markdown_bundle_for_job(
+    db: &Db,
+    data_root: &Path,
+    job: &JobSnapshot,
+    include_job_dir: bool,
+) -> Result<(JobArtifactRecord, PathBuf), AppError> {
+    build_markdown_bundle_for_keys(
+        db,
+        data_root,
+        job,
+        include_job_dir,
+        ARTIFACT_KEY_TRANSLATED_MARKDOWN_RAW,
+        ARTIFACT_KEY_TRANSLATED_MARKDOWN_BUNDLE_ZIP,
+        translated_markdown_zip_root,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_markdown_bundle_for_keys(
+    db: &Db,
+    data_root: &Path,
+    job: &JobSnapshot,
+    include_job_dir: bool,
+    raw_key: &str,
+    bundle_key: &str,
+    archive_root: fn(&JobSnapshot, bool) -> String,
+) -> Result<(JobArtifactRecord, PathBuf), AppError> {
+    let markdown_item = find_registry_artifact(db, data_root, job, raw_key)?
         .ok_or_else(|| AppError::not_found(format!("markdown not found: {}", job.job_id)))?;
     if !markdown_item.ready {
         return Err(AppError::not_found(format!(
@@ -52,7 +92,7 @@ pub fn build_markdown_bundle_for_job(
             job.job_id
         )));
     }
-    let bundle_item = find_registry_artifact(db, data_root, job, ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP)?
+    let bundle_item = find_registry_artifact(db, data_root, job, bundle_key)?
         .ok_or_else(|| AppError::not_found(format!("markdown bundle not found: {}", job.job_id)))?;
     let zip_path = resolve_registered_artifact_path(data_root, &bundle_item)
         .map_err(|err| AppError::internal(err.to_string()))?;
@@ -68,7 +108,7 @@ pub fn build_markdown_bundle_for_job(
         &zip_path,
         &markdown_path,
         markdown_images_dir.as_deref(),
-        markdown_zip_root(job, include_job_dir),
+        archive_root(job, include_job_dir),
     )?;
     Ok((bundle_item, zip_path))
 }
@@ -201,5 +241,13 @@ fn markdown_zip_root(job: &JobSnapshot, include_job_dir: bool) -> String {
         format!("{}-markdown", job.job_id)
     } else {
         "markdown".to_string()
+    }
+}
+
+fn translated_markdown_zip_root(job: &JobSnapshot, include_job_dir: bool) -> String {
+    if include_job_dir {
+        format!("{}-translated-markdown", job.job_id)
+    } else {
+        "translated-markdown".to_string()
     }
 }

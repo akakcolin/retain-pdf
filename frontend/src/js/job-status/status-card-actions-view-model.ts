@@ -9,6 +9,7 @@ export function buildStatusCardPrimaryActions({
     pdfUrl: snapshot?.pdfUrl || "",
     markdownBundleReady: showResultActions && Boolean(snapshot?.markdownBundleReady),
     markdownBundleUrl: snapshot?.markdownBundleUrl || "",
+    markdownBundleTranslated: showResultActions && Boolean(snapshot?.markdownBundleTranslated),
     readerReady: showResultActions && Boolean(snapshot?.readerReady),
     readerUrl: snapshot?.readerUrl || "",
     sourcePdfReady: showResultActions && Boolean(snapshot?.sourcePdfReady),
