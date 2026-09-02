@@ -28,6 +28,7 @@ import { APP_SETTINGS_DIALOG_IDS } from "../credentials/credentials-dom-ids.js";
 import { AppUpdateBanner } from "../app-update/AppUpdateBanner.jsx";
 import { CredentialsWorkbench } from "../credentials/CredentialsWorkbench.jsx";
 import { ThemeAppearancePanel } from "./ThemeAppearancePanel.jsx";
+import { LanguageDefaultsPanel } from "./LanguageDefaultsPanel.jsx";
 import { Button as ButtonBase } from "../../../../components/Button.jsx";
 
 // Button.size 在未注解源文件里被推断为必填;unstyled 路径运行时不用 size。
@@ -67,11 +68,20 @@ function IconUpdate(props) {
     </svg>
   );
 }
+function IconLanguage(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M3.5 12h17M12 3.5c2.2 2.3 3.4 5.1 3.4 8.5s-1.2 6.2-3.4 8.5c-2.2-2.3-3.4-5.1-3.4-8.5S9.8 5.8 12 3.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 const TABS = [
   { id: "api", label: "API 设置", Icon: IconKey },
   { id: "glossary", label: "词表", Icon: IconBook },
   { id: "appearance", label: "外观", Icon: IconPalette },
+  { id: "language", label: "语言", Icon: IconLanguage },
   { id: "update", label: "更新", Icon: IconUpdate },
 ];
 
@@ -79,6 +89,7 @@ const PANE_HEADS = {
   api: { title: "API 设置", desc: "配置 OCR Token、DeepSeek Key、模型地址和任务选项，保存后立即生效。" },
   glossary: { title: "术语表", desc: "维护固定译法、保留词和专业术语偏好。" },
   appearance: { title: "外观", desc: "选择界面配色，立即生效并记住本机选择。" },
+  language: { title: "语言", desc: "设置整本翻译默认的原文与译文语言，任务发起时生效。" },
   update: { title: "更新", desc: "查看当前版本，并从 GitHub Releases 重新检查更新。" },
 };
 
@@ -220,6 +231,17 @@ export function SettingsHubDialog() {
                 >
                   <PaneHead tab="appearance" />
                   <ThemeAppearancePanel />
+                </TabsPrimitive.Content>
+
+                <TabsPrimitive.Content
+                  value="language"
+                  forceMount
+                  hidden={activeTab !== "language"}
+                  className={panelClass("language")}
+                  data-settings-panel="language"
+                >
+                  <PaneHead tab="language" />
+                  <LanguageDefaultsPanel />
                 </TabsPrimitive.Content>
 
                 <TabsPrimitive.Content

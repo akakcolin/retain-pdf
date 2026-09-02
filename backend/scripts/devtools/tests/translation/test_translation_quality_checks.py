@@ -305,3 +305,119 @@ def test_quality_flags_guidance_echo_that_escapes_parsing() -> None:
     issue = next(i for i in report.issues if i.kind == "prompt_echo_output")
     assert issue.severity == "error"
     assert issue.retryable
+
+
+def test_quality_latin_target_allows_english_output() -> None:
+    # target=en(拉丁字母书写系统):输出本就是英文,英文散文输出不得被判残留。
+    item = _body_item(
+        "p001-b010",
+        "The advancement of complex computer programs improves simulation accuracy.",
+    )
+
+    report = review_translation_item(
+        item,
+        {
+            "decision": "translate",
+            "translated_text": (
+                "The advancement of complex computer programs improves the accuracy of simulation."
+            ),
+        },
+        target_lang="en",
+    )
+
+    assert not report.has_errors
+    assert report.issues == []
+
+
+def test_quality_default_zh_still_flags_english_copy() -> None:
+    # 回归:默认目标(None→zh)时,整段照抄英文仍是英文残留硬错误。
+    source = (
+        "The advancement of complex computer programs significantly improves the overall "
+        "accuracy of physics simulation across many application domains."
+    )
+    item = _body_item("p001-b011", source)
+
+    report = review_translation_item(
+        item,
+        {"decision": "translate", "translated_text": source},
+    )
+
+    assert report.has_errors
+    assert [issue.kind for issue in report.issues] == ["english_residue"]
+
+
+def test_quality_item_stamp_target_lang_disables_residue_for_latin() -> None:
+    # 编排入口把真实目标语打到 item 戳;深层质检无显式 target_lang 时按戳门控,
+    # latin 目标(fr)不再误报英文残留。
+    item = _body_item(
+        "p001-b012",
+        "The advancement of complex computer programs improves simulation accuracy.",
+        _translation_target_lang="fr",
+    )
+
+    report = review_translation_item(
+        item,
+        {
+            "decision": "translate",
+            "translated_text": (
+                "The advancement of complex computer programs improves simulation accuracy."
+            ),
+        },
+    )
+
+    assert not report.has_errors
+    assert report.issues == []
+
+
+def test_quality_cjk_target_allows_kanji_translation() -> None:
+    # target=ja(cjk):含汉字/假名的日文译文是合法输出,不报英文残留。
+    item = _body_item(
+        "p001-b013",
+        "The advancement of complex computer programs improves simulation accuracy.",
+    )
+
+    report = review_translation_item(
+        item,
+        {
+            "decision": "translate",
+            "translated_text": "複雑なコンピュータプログラムの進歩は、シミュレーションの精度を向上させる。",
+        },
+        target_lang="ja",
+    )
+
+    assert not report.has_errors
+    residue_kinds = {"english_residue", "mixed_english_residue", "english_residue_warning"}
+    assert not (residue_kinds & {issue.kind for issue in report.issues})
+
+
+def test_quality_cjk_target_still_flags_zero_cjk_english_copy() -> None:
+    # cjk 目标(ja)下保留"通篇零汉字且整段照抄英文"的粗判据,照样报残留。
+    source = (
+        "The advancement of complex computer programs significantly improves the overall "
+        "accuracy of physics simulation across many application domains."
+    )
+    item = _body_item("p001-b014", source)
+
+    report = review_translation_item(
+        item,
+        {"decision": "translate", "translated_text": source},
+        target_lang="ja",
+    )
+
+    assert report.has_errors
+    assert [issue.kind for issue in report.issues] == ["english_residue"]
+
+
+def test_quality_latin_keep_origin_not_degraded_but_zh_is() -> None:
+    # en→en 目标保留原文是合法行为,不再判 keep_origin_degraded;zh 默认照旧。
+    item = _body_item(
+        "p001-b015",
+        "The advancement of complex computer programs improves simulation accuracy.",
+    )
+    payload = {"decision": "keep_origin", "translated_text": "", "final_status": "kept_origin"}
+
+    latin_report = review_translation_item(item, payload, target_lang="en")
+    assert "keep_origin_degraded" not in {issue.kind for issue in latin_report.issues}
+
+    zh_report = review_translation_item(item, payload, target_lang="zh-CN")
+    assert "keep_origin_degraded" in {issue.kind for issue in zh_report.issues}

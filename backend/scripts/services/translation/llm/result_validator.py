@@ -71,8 +71,14 @@ def _allow_same_text_output(state: _ValidationItemState) -> bool:
 def _validate_translated_item(
     state: _ValidationItemState,
     diagnostics: TranslationDiagnosticsCollector | None,
+    *,
+    target_lang: str | None = None,
 ) -> None:
-    report = review_translation_item(state.item, state.translated_result)
+    report = review_translation_item(
+        state.item,
+        state.translated_result,
+        target_lang=target_lang,
+    )
     for issue in report.issues:
         _handle_quality_issue(state, issue, diagnostics)
     if state.translated_text.strip() == state.source_text.strip() and _allow_same_text_output(state):
@@ -200,6 +206,7 @@ def validate_batch_result(
     result: dict[str, dict[str, str]],
     *,
     diagnostics: TranslationDiagnosticsCollector | None = None,
+    target_lang: str | None = None,
 ) -> None:
     expected_ids = {item["item_id"] for item in batch}
     actual_ids = set(result)
@@ -214,7 +221,7 @@ def validate_batch_result(
         translated_result = result.get(item_id, {})
         translated_text = translated_result.get("translated_text", "")
         decision = normalize_decision(translated_result.get("decision", "translate"))
-        if should_reject_keep_origin(item, decision, translated_result):
+        if should_reject_keep_origin(item, decision, translated_result, target_lang=target_lang):
             if diagnostics is not None:
                 diagnostics.emit(
                     kind="keep_origin_degraded",
@@ -237,6 +244,7 @@ def validate_batch_result(
                 decision=decision,
             ),
             diagnostics,
+            target_lang=target_lang,
         )
 
 

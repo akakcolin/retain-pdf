@@ -1,14 +1,22 @@
 use std::path::Path;
 
 use crate::error::AppError;
-use crate::models::api::{ReaderDocumentMetadataView, ReaderMetadataView, ReaderPageMetadataView};
+use crate::models::api::{
+    ReaderDocumentMetadataView, ReaderJobLanguageView, ReaderMetadataView, ReaderPageMetadataView,
+};
 use crate::models::domain::JobSnapshot;
+use crate::models::translation_language_meta;
 use crate::storage_paths::{resolve_output_pdf, resolve_source_pdf};
 
 pub(crate) fn load_reader_metadata_view(
     data_root: &Path,
     job: &JobSnapshot,
 ) -> Result<ReaderMetadataView, AppError> {
+    let (source_lang, target_lang, target_language_name) = translation_language_meta(
+        &job.request_payload.translation.source_lang,
+        &job.request_payload.translation.target_lang,
+        &job.request_payload.translation.target_language_name,
+    );
     Ok(ReaderMetadataView {
         source: resolve_source_pdf(job, data_root)
             .filter(|path| path.exists() && path.is_file())
@@ -18,6 +26,11 @@ pub(crate) fn load_reader_metadata_view(
             .filter(|path| path.exists() && path.is_file())
             .map(|path| load_pdf_metadata(&path))
             .transpose()?,
+        language: ReaderJobLanguageView {
+            source_lang,
+            target_lang,
+            target_language_name,
+        },
     })
 }
 

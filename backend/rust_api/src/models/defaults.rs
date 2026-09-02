@@ -49,6 +49,15 @@ pub(crate) fn default_paddle_model() -> String {
 pub(crate) fn default_language() -> String {
     "ch".to_string()
 }
+pub(crate) fn default_source_lang() -> String {
+    "auto".to_string()
+}
+pub(crate) fn default_target_lang() -> String {
+    "zh-CN".to_string()
+}
+pub(crate) fn default_target_language_name() -> String {
+    "简体中文".to_string()
+}
 pub(crate) fn default_cache_tolerance() -> i64 {
     900
 }

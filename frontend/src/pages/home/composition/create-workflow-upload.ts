@@ -39,6 +39,8 @@ import type {
 
 type WorkflowViewPort = {
   readSkipOcr: () => boolean;
+  readSourceLang: () => string;
+  readTargetLang: () => string;
   selectedGlossaryId: () => string;
   viewPort: unknown;
 };
@@ -101,6 +103,8 @@ export function createWorkflowAndUpload({
       translationProvider: credentials?.translationProvider || "deepseek",
       selectedGlossaryId: workflowView.selectedGlossaryId(),
       skipOcr: workflowView.readSkipOcr(),
+      sourceLang: workflowView.readSourceLang(),
+      targetLang: workflowView.readTargetLang(),
     };
   }
 

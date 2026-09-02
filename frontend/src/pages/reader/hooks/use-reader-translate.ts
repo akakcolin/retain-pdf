@@ -1,11 +1,13 @@
-// 阅读器「选中文字翻译」：浮窗状态 + 发起翻译。目标语言跟随选中栏自动选
-// （原文栏→简体中文，译文栏→English），不暴露手动切换。
+// 阅读器「选中文字翻译」：浮窗状态 + 发起翻译。目标语言跟随选中栏与任务
+// 元数据自动选（原文栏→该任务译文语言，译文栏→译回原文语言）；无元数据时
+// 回退静态映射（原文→简体中文，译文→English）。不暴露手动切换。
 
 import { useCallback, useRef, useState } from "react";
 import {
   hasModelApiKey,
   MISSING_MODEL_API_KEY_MESSAGE,
   resolveReaderAiConfig,
+  sourceLanguageName,
   translateText,
 } from "../external.js";
 import type { ReaderTextSelection } from "./use-reader-text-selection.js";
@@ -16,6 +18,28 @@ const TARGET_BY_PANE: Record<string, string> = {
   source: "简体中文",
   translated: "English",
 };
+
+/** 选中文字翻译的候选目标语言。source 栏是「译文语言」本身，translated 栏要译回原文语言。 */
+export type ReaderTranslateLanguage = {
+  source_lang?: string | null;
+  target_lang?: string | null;
+  target_language_name?: string | null;
+};
+
+function resolvePaneTargetLanguage(
+  pane: string,
+  language?: ReaderTranslateLanguage | null,
+): string {
+  if (language?.target_language_name) {
+    if (pane === "source") {
+      return language.target_language_name;
+    }
+    if (pane === "translated") {
+      return sourceLanguageName(language.source_lang) || "English";
+    }
+  }
+  return TARGET_BY_PANE[pane] || "简体中文";
+}
 
 function clipQuoteText(text = "", maxLength = QUOTE_MAX_LENGTH) {
   const normalized = `${text}`.replace(/\s+/g, " ").trim();
@@ -30,11 +54,13 @@ function clipQuoteText(text = "", maxLength = QUOTE_MAX_LENGTH) {
  * @param {typeof translateText} [options.translate] 测试可注入
  * @param {typeof hasModelApiKey} [options.hasKey] 测试可注入
  * @param {typeof resolveReaderAiConfig} [options.resolveConfig] 测试可注入
+ * @param {ReaderTranslateLanguage|null} [options.language] 任务元数据语言（缺省回退静态映射）
  */
 export function useReaderTranslate({
   translate = translateText,
   hasKey = hasModelApiKey,
   resolveConfig = resolveReaderAiConfig,
+  language = null,
 }: any = {}) {
   const [open, setOpen] = useState(false);
   const [quote, setQuote] = useState("");
@@ -53,8 +79,8 @@ export function useReaderTranslate({
     setResult("");
     setError("");
     setOpen(true);
-    const language = TARGET_BY_PANE[selection.pane] || "简体中文";
-    setTargetLanguage(language);
+    const target = resolvePaneTargetLanguage(selection.pane, language);
+    setTargetLanguage(target);
     if (!hasKey()) {
       setLoading(false);
       setError(MISSING_MODEL_API_KEY_MESSAGE);
@@ -65,7 +91,7 @@ export function useReaderTranslate({
       const config = resolveConfig();
       const res = await translate({
         text: selection.quote,
-        targetLanguage: language,
+        targetLanguage: target,
         provider: config?.provider,
         model: config?.model,
         apiKey: config?.apiKey,
@@ -83,7 +109,7 @@ export function useReaderTranslate({
       setError(err instanceof Error ? err.message : "翻译失败，请重试。");
       setLoading(false);
     }
-  }, [translate, hasKey, resolveConfig]);
+  }, [translate, hasKey, resolveConfig, language]);
 
   const close = useCallback(() => {
     seqRef.current += 1;

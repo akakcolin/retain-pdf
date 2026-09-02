@@ -1,4 +1,4 @@
-import { createStore } from "../../composition/external.js";
+import { createStore, normalizeSourceLang, normalizeTargetLang } from "../../composition/external.js";
 import type { Store } from "../../composition/external.js";
 
 // workflow 域视图 store + React viewPort。
@@ -42,6 +42,8 @@ export type WorkflowDeveloperDialog = {
   model?: unknown;
   baseUrl?: unknown;
   glossaryId?: string;
+  sourceLang?: string;
+  targetLang?: string;
   workers?: unknown;
   batchSize?: unknown;
   classifyBatchSize?: unknown;
@@ -60,6 +62,9 @@ export type WorkflowViewState = {
   jobWarningVisible: boolean;
   glossaries: WorkflowGlossaryOption[];
   selectedGlossaryId: string;
+  /** 任务级语言覆盖（专业翻译对话框内设置；null = 未覆盖，回退开发者默认） */
+  taskSourceLang: string | null;
+  taskTargetLang: string | null;
   developerDialog: WorkflowDeveloperDialog;
   developerFormState: Record<string, unknown>;
 };
@@ -107,6 +112,8 @@ export function createWorkflowViewStore(): WorkflowViewStore {
       jobWarningVisible: false,
       glossaries: [],
       selectedGlossaryId: "",
+      taskSourceLang: null,
+      taskTargetLang: null,
       developerDialog: {},
       developerFormState: {},
     },
@@ -141,6 +148,28 @@ export function createWorkflowViewFeature({
 
   function setSelectedGlossaryId(value = "") {
     patch({ selectedGlossaryId: `${value || ""}`.trim() });
+  }
+
+  function setTaskSourceLang(value = "") {
+    patch({ taskSourceLang: `${value || ""}`.trim() || null });
+  }
+
+  function setTaskTargetLang(value = "") {
+    patch({ taskTargetLang: `${value || ""}`.trim() || null });
+  }
+
+  // 语言默认合并：任务级覆盖 → developerDialog 默认 → 注册表硬默认。
+  // 与 readDeveloperDialog 的 glossaryId 合并模式一致（override 优先于默认）。
+  function readSourceLang() {
+    const task = `${store.getSnapshot().taskSourceLang || ""}`.trim();
+    const saved = store.getSnapshot().developerDialog?.sourceLang;
+    return normalizeSourceLang(task || saved);
+  }
+
+  function readTargetLang() {
+    const task = `${store.getSnapshot().taskTargetLang || ""}`.trim();
+    const saved = store.getSnapshot().developerDialog?.targetLang;
+    return normalizeTargetLang(task || saved);
   }
 
   function setJobWarningVisible(visible: boolean) {
@@ -272,6 +301,8 @@ export function createWorkflowViewFeature({
       model: saved.model || defaults.model,
       baseUrl: saved.baseUrl || defaults.baseUrl,
       glossaryId: selectedGlossaryId() || `${saved.glossaryId || ""}`.trim(),
+      sourceLang: readSourceLang(),
+      targetLang: readTargetLang(),
       workers: saved.workers ?? defaults.workers,
       batchSize: saved.batchSize ?? defaults.batchSize,
       classifyBatchSize: saved.classifyBatchSize ?? defaults.classifyBatchSize,
@@ -304,12 +335,16 @@ export function createWorkflowViewFeature({
   return {
     patch,
     readSkipOcr,
+    readSourceLang,
+    readTargetLang,
     selectedGlossaryId,
     setJobWarningVisible,
     setSelectedGlossaryId,
     setSkipOcr,
     setSubmitBusy,
     setSubmitDisabled,
+    setTaskSourceLang,
+    setTaskTargetLang,
     store,
     viewPort,
   };

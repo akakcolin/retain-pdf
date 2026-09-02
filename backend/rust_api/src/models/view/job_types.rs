@@ -119,10 +119,19 @@ pub struct ReaderDocumentMetadataView {
     pub pages: Vec<ReaderPageMetadataView>,
 }
 
+/// job 的翻译语言元数据（source=auto 时 source_lang 记 None）。
+#[derive(Debug, Serialize, Clone, PartialEq)]
+pub struct ReaderJobLanguageView {
+    pub source_lang: Option<String>,
+    pub target_lang: Option<String>,
+    pub target_language_name: Option<String>,
+}
+
 #[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct ReaderMetadataView {
     pub source: Option<ReaderDocumentMetadataView>,
     pub translated: Option<ReaderDocumentMetadataView>,
+    pub language: ReaderJobLanguageView,
 }
 
 #[derive(Debug, Serialize)]
@@ -205,6 +214,9 @@ pub struct BookSummaryView {
     pub page_count: Option<i64>,
     pub source_language: Option<String>,
     pub target_language: Option<String>,
+    pub source_lang: Option<String>,
+    pub target_lang: Option<String>,
+    pub target_language_name: Option<String>,
     pub source_file_name: Option<String>,
     pub cover_url: Option<String>,
     pub file_size_bytes: Option<u64>,
@@ -454,6 +466,9 @@ pub struct LibraryBookDetailView {
     pub page_count: Option<i64>,
     pub source_language: Option<String>,
     pub target_language: Option<String>,
+    pub source_lang: Option<String>,
+    pub target_lang: Option<String>,
+    pub target_language_name: Option<String>,
     pub file_size_bytes: Option<u64>,
     pub status: JobStatusKind,
     pub stage: Option<String>,

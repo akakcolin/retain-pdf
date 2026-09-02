@@ -10,6 +10,8 @@ export function buildDeveloperConfigFromDialog({
     model: values.model,
     baseUrl: values.baseUrl,
     glossaryId: values.glossaryId,
+    sourceLang: values.sourceLang ?? currentConfig.sourceLang,
+    targetLang: values.targetLang ?? currentConfig.targetLang,
     workers: values.workers,
     batchSize: values.batchSize,
     classifyBatchSize: values.classifyBatchSize,

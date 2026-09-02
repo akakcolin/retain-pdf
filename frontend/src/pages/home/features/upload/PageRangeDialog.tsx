@@ -34,6 +34,7 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import { useStoreSnapshot } from "../../../../shared/react/use-store.js";
 import { useHomeServices } from "../../home-services-context.js";
 import { useDialogReturnFocus } from "../../../../shared/react/use-dialog-return-focus.js";
+import { sourceOptions, targetOptions } from "../../composition/external.js";
 
 export function PageRangeDialog() {
   const services = useHomeServices();
@@ -53,6 +54,8 @@ export function PageRangeDialog() {
   const selectedId = `${workflow.selectedGlossaryId || ""}`.trim();
   const hasSelected = !selectedId
     || workflow.glossaries.some((glossary) => glossary.glossaryId === selectedId);
+  const sourceLang = services.workflowViewActions.readSourceLang?.() ?? "";
+  const targetLang = services.workflowViewActions.readTargetLang?.() ?? "";
 
   return (
     <page-range-dialog data-hydrated="1">
@@ -92,6 +95,34 @@ export function PageRangeDialog() {
                     {!hasSelected ? (
                       <option value={selectedId}>{`已删除或不可用: ${selectedId}`}</option>
                     ) : null}
+                  </select>
+                </label>
+                <label className="professional-glossary-field">
+                  <span>原文语言</span>
+                  <select
+                    id="job-source-lang"
+                    value={sourceLang}
+                    onChange={(event) => services.workflowViewActions.setTaskSourceLang(event.target.value)}
+                  >
+                    {sourceOptions().map((option) => (
+                      <option key={option.code} value={option.code}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="professional-glossary-field">
+                  <span>译文语言</span>
+                  <select
+                    id="job-target-lang"
+                    value={targetLang}
+                    onChange={(event) => services.workflowViewActions.setTaskTargetLang(event.target.value)}
+                  >
+                    {targetOptions().map((option) => (
+                      <option key={option.code} value={option.code}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <label className="professional-skip-ocr-field">

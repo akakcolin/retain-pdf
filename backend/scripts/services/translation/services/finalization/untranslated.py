@@ -46,6 +46,7 @@ def recover_blocking_untranslated_items(
     model: str,
     base_url: str,
     target_language_name: str = "简体中文",
+    target_lang: str | None = None,
     max_items: int = DEFAULT_MAX_ITEMS,
     workers: int = DEFAULT_MAX_WORKERS,
     request_chat_content_fn=request_chat_content,
@@ -93,6 +94,7 @@ def recover_blocking_untranslated_items(
                 model=model,
                 base_url=base_url,
                 target_language_name=target_language_name,
+                target_lang=target_lang,
                 request_chat_content_fn=request_chat_content_fn,
             )
             for item in candidates
@@ -107,6 +109,7 @@ def recover_blocking_untranslated_items(
                     model=model,
                     base_url=base_url,
                     target_language_name=target_language_name,
+                    target_lang=target_lang,
                     request_chat_content_fn=request_chat_content_fn,
                 )
                 for item in candidates
@@ -165,6 +168,7 @@ def _recover_one(
     model: str,
     base_url: str,
     target_language_name: str,
+    target_lang: str | None = None,
     request_chat_content_fn,
 ):
     try:
@@ -187,7 +191,7 @@ def _recover_one(
         }
         issues = [
             issue
-            for issue in review_translation_item(item, payload).issues
+            for issue in review_translation_item(item, payload, target_lang=target_lang).issues
             if issue.severity == "error"
         ]
         if issues:

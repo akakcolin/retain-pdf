@@ -181,6 +181,48 @@ test("artifact runtime port supplies uploaded file name for download naming", ()
   );
 });
 
+test("translated pdf download name prefixes from job translation target_lang", () => {
+  function stateFor(targetLang) {
+    return {
+      currentJobId: "job-lang-prefix",
+      currentJobSnapshot: {
+        job_id: "job-lang-prefix",
+        request_payload: {
+          translation: { mode: "full", target_lang: targetLang },
+        },
+      },
+      currentJobManifestJobId: "job-lang-prefix",
+      currentJobManifest: {
+        items: [
+          {
+            artifact_key: "source_pdf",
+            file_name: "Book.pdf",
+            ready: true,
+          },
+        ],
+      },
+    };
+  }
+
+  assert.equal(
+    artifacts.resolveTranslatedPdfDownloadName(stateFor("en"), "fallback.pdf"),
+    "en_Book.pdf",
+  );
+  assert.equal(
+    artifacts.resolveTranslatedPdfDownloadName(stateFor("ja"), "fallback.pdf"),
+    "ja_Book.pdf",
+  );
+  assert.equal(
+    artifacts.resolveTranslatedPdfDownloadName(stateFor("zh-TW"), "fallback.pdf"),
+    "zh-Hant_Book.pdf",
+  );
+  // 无 target_lang → 旧默认 zh 前缀
+  assert.equal(
+    artifacts.resolveTranslatedPdfDownloadName(stateFor(""), "fallback.pdf"),
+    "zh_Book.pdf",
+  );
+});
+
 test("job source pdf fallback is encoded and absolute", () => {
   const action = jobActions.resolveJobSourcePdfAction({
     job_id: "job 1/2",

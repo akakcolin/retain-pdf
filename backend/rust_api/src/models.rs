@@ -37,7 +37,7 @@ pub use glossary::{
 pub use input::{
     CreateJobInput, GlossaryEntryInput, JobSourceInput, OcrInput, RenderInput, ResolvedJobSpec,
     ResolvedSourceSpec, RuntimeInput, TranslationInput, DEFAULT_SOURCE_CLEANUP_STRATEGY,
-    SOURCE_CLEANUP_STRATEGIES,
+    SOURCE_CLEANUP_STRATEGIES, translation_language_meta,
 };
 pub use job::{
     event_progress_unit, job_progress_unit, job_stage_detail, job_stage_rank, job_stage_str,
@@ -73,9 +73,10 @@ pub use view::{
     MarkdownDocumentView, MarkdownImageView, MarkdownQuery, MarkdownView, NormalizationSummaryView,
     OcrJobSummaryView, PagePreviewQuery, ReaderAiChatRequest, ReaderAiChatView,
     ReaderAiCitationView, ReaderAiContextView, ReaderAiHistoryMessageView, ReaderAiRectView,
-    ReaderAiSelectionView, ReaderAiUsedContextView, ReaderDocumentMetadataView, ReaderMetadataView,
-    ReaderPageMetadataView, ReaderRegionBoxView, ReaderRegionItemView, ReaderRegionsView,
-    ResourceLinkView, RetryStageKind, RetryStageRequest, RetryStageSubmissionView,
+    ReaderAiSelectionView, ReaderAiUsedContextView, ReaderDocumentMetadataView,
+    ReaderJobLanguageView, ReaderMetadataView, ReaderPageMetadataView, ReaderRegionBoxView,
+    ReaderRegionItemView, ReaderRegionsView, ResourceLinkView, RetryStageKind, RetryStageRequest,
+    RetryStageSubmissionView,
     StageActionsView, StageRetryActionLinkView, StageRetryActionView, TranslationDebugIndexView,
     TranslationDebugItemView, TranslationDebugListItemView, TranslationDebugListView,
     TranslationDiagnosticsView, TranslationReplayView,

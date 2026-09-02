@@ -110,6 +110,7 @@ def translate_book_with_global_continuations(
         model=model,
         base_url=base_url,
         workers=workers,
+        translation_context=translation_context,
         run_diagnostics=run_diagnostics,
     )
 

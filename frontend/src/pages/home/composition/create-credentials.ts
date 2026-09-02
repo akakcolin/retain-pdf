@@ -58,6 +58,7 @@ export function createCredentials({
   credentialsView: CredentialsViewBag;
   credentialsDialogStore: DialogStore;
   settingsHubDialogStore: DialogStore;
+  saveLanguageDefaults: (options: { sourceLang?: string; targetLang?: string }) => unknown;
 } {
   const credentialsDialogStore = createCredentialsDialogStore();
   const settingsHubDialogStore = createSettingsHubDialogStore();
@@ -66,6 +67,20 @@ export function createCredentials({
   function saveCredentialTaskOptions(options: Record<string, unknown> = {}) {
     setDeveloperConfig(legacyState, { ...getDeveloperConfig(legacyState), ...options });
     void savePersistedDeveloperStoredConfig(getDeveloperConfig(legacyState));
+  }
+
+  // 设置中心「语言」默认：写入与 workflow developer dialog 同一 developer
+  // config（内存 + 持久层），随后同步 store 的 developerDialog 默认副本，
+  // 让「专业翻译」对话框的下拉与 readSubmitValues 读到的默认一致。
+  function saveLanguageDefaults(options: { sourceLang?: string; targetLang?: string } = {}) {
+    const next = {
+      ...getDeveloperConfig(legacyState),
+      ...options,
+    };
+    setDeveloperConfig(legacyState, next);
+    void savePersistedDeveloperStoredConfig(next);
+    features.workflowFeature?.syncDeveloperDialogFromState?.();
+    return next;
   }
 
   async function saveDesktopCredentialConfig(
@@ -145,5 +160,6 @@ export function createCredentials({
     credentialsView: credentialsView as CredentialsViewBag,
     credentialsDialogStore,
     settingsHubDialogStore,
+    saveLanguageDefaults,
   };
 }

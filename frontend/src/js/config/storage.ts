@@ -18,6 +18,9 @@ export interface BrowserStoredConfig {
 export interface DeveloperStoredConfig {
   model?: string;
   baseUrl?: string;
+  /** 源/目标翻译语言默认值（代码值，见 config/languages 注册表）。 */
+  sourceLang?: string;
+  targetLang?: string;
   [key: string]: unknown;
 }
 

@@ -192,6 +192,7 @@ export type HomeCredentials = {
 
 export type HomeSettingsHub = {
   dialogStore: DialogStore<{ tab?: string } | null>;
+  saveLanguageDefaults?: (options: { sourceLang?: string; targetLang?: string }) => unknown;
 };
 
 export type GlossariesViewBag = {
@@ -369,6 +370,10 @@ export type UploadViewActions = {
 export type WorkflowViewActions = {
   setSelectedGlossaryId: (id: string) => unknown;
   setSkipOcr: (value?: boolean) => unknown;
+  setTaskSourceLang: (value?: string) => unknown;
+  setTaskTargetLang: (value?: string) => unknown;
+  readSourceLang?: () => string;
+  readTargetLang?: () => string;
 };
 
 export type WorkflowDialogRuntime = {
@@ -449,6 +454,10 @@ export type HomeServicesViews = {
     store: AppStore;
     setSelectedGlossaryId: (id: string) => unknown;
     setSkipOcr: (value?: boolean) => unknown;
+    setTaskSourceLang: (value?: string) => unknown;
+    setTaskTargetLang: (value?: string) => unknown;
+    readSourceLang: () => string;
+    readTargetLang: () => string;
   };
   statusArea: StatusAreaBag;
   workflowDialog: WorkflowDialogRuntime;
@@ -461,6 +470,7 @@ export type HomeServicesDomains = {
     credentialsView: CredentialsViewBag;
     credentialsDialogStore: DialogStore;
     settingsHubDialogStore: DialogStore;
+    saveLanguageDefaults: (options: { sourceLang?: string; targetLang?: string }) => unknown;
   };
   glossaries: {
     glossariesFeature: GlossariesFeature;

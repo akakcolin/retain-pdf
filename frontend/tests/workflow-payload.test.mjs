@@ -73,6 +73,44 @@ test("buildTranslationPayload uses injected glossary and model key without DOM",
   assert.equal(payload.skip_title_translation, false);
 });
 
+test("buildTranslationPayload resolves language defaults when not overridden", () => {
+  const payload = buildTranslationPayload({
+    developerConfig: developerConfig(),
+    modelApiKey: "model-key",
+    selectedGlossaryId: "",
+    constants,
+  });
+
+  assert.equal(payload.source_lang, "auto");
+  assert.equal(payload.target_lang, "zh-CN");
+  assert.equal(payload.target_language_name, "简体中文");
+});
+
+test("buildTranslationPayload task-level language override wins over developer default", () => {
+  const payload = buildTranslationPayload({
+    developerConfig: developerConfig({ sourceLang: "en", targetLang: "zh-TW" }),
+    modelApiKey: "model-key",
+    selectedGlossaryId: "",
+    sourceLang: "ja",
+    targetLang: "zh-CN",
+    constants,
+  });
+
+  assert.equal(payload.source_lang, "ja");
+  assert.equal(payload.target_lang, "zh-CN");
+  assert.equal(payload.target_language_name, "简体中文");
+
+  const devOnly = buildTranslationPayload({
+    developerConfig: developerConfig({ sourceLang: "en", targetLang: "zh-TW" }),
+    modelApiKey: "model-key",
+    selectedGlossaryId: "",
+    constants,
+  });
+  assert.equal(devOnly.source_lang, "en");
+  assert.equal(devOnly.target_lang, "zh-TW");
+  assert.equal(devOnly.target_language_name, "繁體中文");
+});
+
 test("buildTranslationPayload falls back to developer glossary id", () => {
   const payload = buildTranslationPayload({
     developerConfig: developerConfig({ glossaryId: "glossary-fallback", translateTitles: false }),
@@ -98,6 +136,8 @@ test("buildOcrPayload maps provider token field and paddle api url", () => {
   assert.equal(payload.paddle_token, "ocr-token");
   assert.equal(payload.paddle_api_url, "https://paddle.example/v1");
   assert.equal(payload.page_ranges, "1-3");
+  // OCR 语言仍是固定 "ch"，不做源语言重映射
+  assert.equal(payload.language, "ch");
 });
 
 test("buildOcrPayload omits token key for token-less local provider", () => {

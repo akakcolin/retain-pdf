@@ -22,6 +22,7 @@ from services.translation.llm.validation.placeholder_tokens import placeholder_s
 from services.translation.llm.validation.placeholder_tokens import placeholders
 from services.translation.llm.validation.protocol_shell import looks_like_prompt_echo_output
 from services.translation.llm.validation.protocol_shell import looks_like_protocol_shell_output
+from services.translation.core.languages import script_family
 from services.translation.core.terms import GlossaryEntry
 from services.translation.core.terms import matched_glossary_entries
 from services.translation.core.terms import normalize_glossary_entries
@@ -75,7 +76,27 @@ class TranslationQualityReport:
         }
 
 
-def should_reject_keep_origin(item: dict, decision: str, payload: dict[str, str] | None = None) -> bool:
+def _resolve_target_lang(item: dict, target_lang: str | None) -> str | None:
+    # 显式传入优先;否则回落到编排入口给 item 打的运行时戳
+    # (key=_translation_target_lang),让深层翻译客户端/校验无需逐层透传。
+    if target_lang is not None:
+        return target_lang
+    stamp = item.get("_translation_target_lang")
+    return stamp if isinstance(stamp, str) and stamp else None
+
+
+def should_reject_keep_origin(
+    item: dict,
+    decision: str,
+    payload: dict[str, str] | None = None,
+    *,
+    target_lang: str | None = None,
+) -> bool:
+    target_lang = _resolve_target_lang(item, target_lang)
+    # 目标为拉丁字母书写系统时保留原文可能是合法行为(尤其 en→en),
+    # 不再把"长英文正文 keep_origin"当作需要重试的降级。
+    if script_family(target_lang) == "latin":
+        return False
     if decision != KEEP_ORIGIN_LABEL:
         return False
     if payload and is_internal_placeholder_degraded(payload):
@@ -91,6 +112,7 @@ def review_translation_batch(
     result: dict[str, dict[str, str]],
     *,
     glossary_entries: list[GlossaryEntry | dict] | None = None,
+    target_lang: str | None = None,
 ) -> TranslationQualityReport:
     normalized_glossary = normalize_glossary_entries(glossary_entries)
     issues: list[TranslationQualityIssue] = []
@@ -125,6 +147,7 @@ def review_translation_batch(
                 item,
                 result.get(item_id, {}),
                 glossary_entries=normalized_glossary,
+                target_lang=target_lang,
             ).issues
         )
     return TranslationQualityReport(issues=issues, reviewed_item_count=len(batch))
@@ -135,7 +158,9 @@ def review_translation_item(
     translated_result: dict[str, str],
     *,
     glossary_entries: list[GlossaryEntry | dict] | None = None,
+    target_lang: str | None = None,
 ) -> TranslationQualityReport:
+    target_lang = _resolve_target_lang(item, target_lang)
     normalized_glossary = normalize_glossary_entries(glossary_entries)
     item_id = str(item.get("item_id", "") or "")
     source_text = unit_source_text(item)
@@ -144,7 +169,7 @@ def review_translation_item(
     issues: list[TranslationQualityIssue] = []
     diagnostics = dict(translated_result.get("translation_diagnostics") or {})
 
-    if should_reject_keep_origin(item, decision, translated_result):
+    if should_reject_keep_origin(item, decision, translated_result, target_lang=target_lang):
         issues.append(
             TranslationQualityIssue(
                 item_id=item_id,
@@ -159,7 +184,7 @@ def review_translation_item(
     if decision == KEEP_ORIGIN_LABEL:
         return TranslationQualityReport(issues=issues, reviewed_item_count=1)
 
-    issues.extend(_review_translated_text(item, item_id, source_text, translated_text))
+    issues.extend(_review_translated_text(item, item_id, source_text, translated_text, target_lang=target_lang))
     if not is_direct_math_mode(item):
         issues.extend(review_placeholders(item_id, source_text, translated_text))
     issues.extend(_review_glossary_terms(item_id, source_text, translated_text, normalized_glossary))
@@ -171,6 +196,8 @@ def _review_translated_text(
     item_id: str,
     source_text: str,
     translated_text: str,
+    *,
+    target_lang: str | None = None,
 ) -> list[TranslationQualityIssue]:
     issues: list[TranslationQualityIssue] = []
     if not translated_text.strip():
@@ -210,7 +237,7 @@ def _review_translated_text(
                 message="Translated output still contains echoed prompt markers/instructions",
             )
         )
-    if looks_like_source_echo_output(item, translated_text):
+    if looks_like_source_echo_output(item, translated_text, target_lang=target_lang):
         issues.append(
             TranslationQualityIssue(
                 item_id=item_id,
@@ -237,7 +264,7 @@ def _review_translated_text(
                 details={"leaked_math": context_bleed[:5]},
             )
         )
-    if looks_like_untranslated_english_output(item, translated_text):
+    if looks_like_untranslated_english_output(item, translated_text, target_lang=target_lang):
         issues.append(
             TranslationQualityIssue(
                 item_id=item_id,
@@ -246,7 +273,7 @@ def _review_translated_text(
                 message="Translated output still looks predominantly English",
             )
         )
-    elif looks_like_mixed_english_residue_output(item, translated_text):
+    elif looks_like_mixed_english_residue_output(item, translated_text, target_lang=target_lang):
         issues.append(
             TranslationQualityIssue(
                 item_id=item_id,
@@ -255,7 +282,7 @@ def _review_translated_text(
                 message="Translated output still contains long copied English residue spans",
             )
         )
-    elif looks_like_predominantly_english_output(item, translated_text):
+    elif looks_like_predominantly_english_output(item, translated_text, target_lang=target_lang):
         issues.append(
             TranslationQualityIssue(
                 item_id=item_id,

@@ -1,3 +1,8 @@
+import {
+  normalizeSourceLang,
+  normalizeTargetLang,
+} from "../../config/languages.js";
+
 export function positiveInteger(value, fallback) {
   const fallbackNumber = Number(fallback);
   const normalizedFallback = Number.isFinite(fallbackNumber) && fallbackNumber > 0
@@ -26,6 +31,8 @@ export function buildDeveloperConfigWithDefaults({
     model: source.model || defaultModelName(),
     baseUrl: source.baseUrl || defaultModelBaseUrl(),
     glossaryId: `${source.glossaryId || source.glossary_id || ""}`.trim(),
+    sourceLang: normalizeSourceLang(source.sourceLang),
+    targetLang: normalizeTargetLang(source.targetLang),
     workers: positiveInteger(source.workers, defaults.workers),
     batchSize: positiveInteger(source.batchSize, defaults.batchSize),
     classifyBatchSize: positiveInteger(source.classifyBatchSize, defaults.classifyBatchSize),

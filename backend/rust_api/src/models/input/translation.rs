@@ -66,6 +66,12 @@ pub struct TranslationInput {
     pub batch_size: i64,
     #[serde(default)]
     pub workers: i64,
+    #[serde(default = "default_source_lang")]
+    pub source_lang: String,
+    #[serde(default = "default_target_lang")]
+    pub target_lang: String,
+    #[serde(default = "default_target_language_name")]
+    pub target_language_name: String,
 }
 
 impl Default for TranslationInput {
@@ -93,8 +99,30 @@ impl Default for TranslationInput {
             end_page: default_end_page(),
             batch_size: default_batch_size(),
             workers: 0,
+            source_lang: default_source_lang(),
+            target_lang: default_target_lang(),
+            target_language_name: default_target_language_name(),
         }
     }
+}
+
+/// 从请求三元组产出视图用的 Option 元组：auto/空的 source 归一为 None
+/// （客户端回落 OCR 语种/默认展示名），空 target 也归一为 None。
+pub fn translation_language_meta(
+    source_lang: &str,
+    target_lang: &str,
+    target_language_name: &str,
+) -> (Option<String>, Option<String>, Option<String>) {
+    let non_empty = |value: &str| -> Option<String> {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    };
+    let source = non_empty(source_lang).filter(|value| value != "auto");
+    (source, non_empty(target_lang), non_empty(target_language_name))
 }
 
 pub fn default_translation_context_mode() -> String {
@@ -107,4 +135,49 @@ pub fn default_translation_glossary_mode() -> String {
 
 pub fn default_translation_memory_mode() -> String {
     "matched".to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_translation_defaults_to_zh_cn() {
+        let value = serde_json::json!({});
+        let input: TranslationInput =
+            serde_json::from_value(value).expect("empty translation group parses");
+        assert_eq!(input.source_lang, "auto");
+        assert_eq!(input.target_lang, "zh-CN");
+        assert_eq!(input.target_language_name, "简体中文");
+    }
+
+    #[test]
+    fn translation_keeps_explicit_language_values() {
+        let value = serde_json::json!({
+            "source_lang": "ja",
+            "target_lang": "en",
+            "target_language_name": "English"
+        });
+        let input: TranslationInput =
+            serde_json::from_value(value).expect("language fields parse");
+        assert_eq!(input.source_lang, "ja");
+        assert_eq!(input.target_lang, "en");
+        assert_eq!(input.target_language_name, "English");
+    }
+
+    #[test]
+    fn translation_language_meta_normalizes_auto_source_to_none() {
+        assert_eq!(
+            translation_language_meta("auto", "zh-CN", "简体中文"),
+            (None, Some("zh-CN".to_string()), Some("简体中文".to_string()))
+        );
+        assert_eq!(
+            translation_language_meta("", "en", "English"),
+            (None, Some("en".to_string()), Some("English".to_string()))
+        );
+        assert_eq!(
+            translation_language_meta("fr", "", ""),
+            (Some("fr".to_string()), None, None)
+        );
+    }
 }

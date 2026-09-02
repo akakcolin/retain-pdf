@@ -6,15 +6,15 @@ from services.translation.llm.shared.orchestration.segment_plan import segment_c
 from services.translation.llm.shared.orchestration.segment_plan import segment_structure_outline
 
 
-def segment_translation_system_prompt(domain_guidance: str = "") -> str:
+def segment_translation_system_prompt(domain_guidance: str = "", *, target_language_name: str = "简体中文") -> str:
     prompt = (
         "You are translating fixed text segments extracted from one scientific OCR item.\n"
         "Each segment is a natural-language span that sits between protected formulas or literal tokens.\n"
         "Those protected formulas/literals are omitted from the request and will be reinserted automatically by software after translation.\n"
         "You are NOT translating the whole item as one sentence. You are translating each provided segment independently while respecting the original segment order.\n"
-        "Use concise publication-style Simplified Chinese suitable for scientific writing.\n"
+        f"Use concise publication-style {target_language_name} suitable for scientific writing.\n"
         "Keep abbreviations, symbols, and standard model names in their normal technical form.\n"
-        "If a segment is only a connector or incomplete phrase, keep it equally short and incomplete in Chinese.\n"
+        f"If a segment is only a connector or incomplete phrase, keep it equally short and incomplete in {target_language_name}.\n"
         "Do not repair truncated grammar by pulling content from neighboring segments.\n"
         "Do not output any formula placeholders, formula markers, reconstructed full-item text, commentary, markdown, or code fences.\n"
         'Return only JSON matching {"segments":[{"segment_id":"1","translated_text":"..."}]}.\n'
@@ -29,12 +29,12 @@ def segment_translation_system_prompt(domain_guidance: str = "") -> str:
     return prompt
 
 
-def segment_translation_tagged_prompt(domain_guidance: str = "") -> str:
+def segment_translation_tagged_prompt(domain_guidance: str = "", *, target_language_name: str = "简体中文") -> str:
     prompt = (
         "You are translating fixed text segments extracted from one scientific OCR item.\n"
         "Each segment is an independent natural-language span between protected formulas or literals.\n"
         "Protected formulas are omitted and will be reinserted by software after translation.\n"
-        "Translate each segment independently into concise publication-style Simplified Chinese.\n"
+        f"Translate each segment independently into concise publication-style {target_language_name}.\n"
         "Do not merge, split, omit, reorder, or renumber segments.\n"
         "Do not output formulas, markdown, commentary, code fences, or reconstructed full-item text.\n"
         "Return one tagged block per segment using this exact format:\n"
@@ -85,10 +85,19 @@ def build_formula_segment_messages(
         user_payload["context_after"] = resolved_context_after
     if item.get("continuation_group"):
         user_payload["continuation_group"] = item["continuation_group"]
+    resolved_target_language_name = str(
+        item.get("_translation_target_language_name") or ""
+    ).strip() or "简体中文"
     system_prompt = (
-        segment_translation_system_prompt(domain_guidance=domain_guidance)
+        segment_translation_system_prompt(
+            domain_guidance=domain_guidance,
+            target_language_name=resolved_target_language_name,
+        )
         if response_style == "json"
-        else segment_translation_tagged_prompt(domain_guidance=domain_guidance)
+        else segment_translation_tagged_prompt(
+            domain_guidance=domain_guidance,
+            target_language_name=resolved_target_language_name,
+        )
     )
     return [
         {"role": "system", "content": system_prompt},

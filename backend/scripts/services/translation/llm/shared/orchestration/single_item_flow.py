@@ -126,6 +126,10 @@ def translate_single_item_plain_text_with_retries(
 ) -> dict[str, dict[str, str]]:
     context = context.scoped_to_item(item)
     item = item_with_runtime_hard_glossary(item, context.glossary_entries)
+    # 运行时目标语戳:deepseek client 的 validate 按 item 戳门控英文残留族,
+    # 使单条/句子级/分段/公式等所有子路由共享同一目标脚本判定。
+    item["_translation_target_lang"] = context.target_lang
+    item["_translation_target_language_name"] = context.target_language_name
     # 逐条匹配的术语指引经 item 注入 user 消息(见 prompt_protocols),
     # 不进 system 消息——否则每条请求前缀都不同,前缀缓存全部失效。
     scoped_terms_guidance = context.terms_guidance

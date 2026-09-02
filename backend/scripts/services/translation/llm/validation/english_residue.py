@@ -19,6 +19,7 @@ from services.translation.llm.validation.text_features import zh_char_count
 from services.translation.core.text_rules import looks_like_code_literal_text_value
 from services.translation.core.text_rules import looks_like_reference_entry_text
 from services.translation.core.text_rules import looks_like_url_fragment
+from services.translation.core.languages import script_family
 
 
 def normalize_inline_whitespace(text: str) -> str:
@@ -205,7 +206,31 @@ def _looks_like_term_preserving_mixed_output(item: dict, translated_text: str) -
     )
 
 
-def looks_like_predominantly_english_output(item: dict, translated_text: str) -> bool:
+def _english_residue_family_enabled(target_lang: str | None) -> bool:
+    # 译文目标若是拉丁字母书写系统(en/fr/de/es/ru),输出本应含英文词/拉丁字符,
+    # 基于"仍像英文"的残留判定整族禁用。ja/ko(cjk)输出含汉字但假名/谚文多,
+    # 基于汉字占比的判定不可靠,只保留"通篇无汉字且整段照抄英文"的粗判据。
+    return script_family(target_lang) == "zh"
+
+
+def _coarse_untranslated_enabled(target_lang: str | None) -> bool:
+    return script_family(target_lang) != "latin"
+
+
+def _source_echo_enabled(target_lang: str | None) -> bool:
+    # 源文回显对 cjk/zh 是模型失败的信号;但 en→en 目标时"译文以英文原文开头"
+    # 恰好是合法输出,无法与回显区分,故 latin 目标禁用。
+    return script_family(target_lang) != "latin"
+
+
+def looks_like_predominantly_english_output(
+    item: dict,
+    translated_text: str,
+    *,
+    target_lang: str | None = None,
+) -> bool:
+    if not _english_residue_family_enabled(target_lang):
+        return False
     source_text = unit_source_text(item).strip()
     translated = str(translated_text or "").strip()
     if not translated:
@@ -235,8 +260,17 @@ def looks_like_predominantly_english_output(item: dict, translated_text: str) ->
     return english_words >= max(12, zh_chars // 2)
 
 
-def looks_like_untranslated_english_output(item: dict, translated_text: str) -> bool:
+def looks_like_untranslated_english_output(
+    item: dict,
+    translated_text: str,
+    *,
+    target_lang: str | None = None,
+) -> bool:
+    if not _coarse_untranslated_enabled(target_lang):
+        return False
     translated = str(translated_text or "").strip()
+    # 保留"通篇无汉字且整段照抄英文"的粗判据;内部沿用 zh 语义判定
+    # (该判据只对零汉字文本生效,不依赖汉字占比),供 cjk 目标复用。
     if not looks_like_predominantly_english_output(item, translated):
         return False
     if _zh_char_count(translated) > 0:
@@ -245,7 +279,14 @@ def looks_like_untranslated_english_output(item: dict, translated_text: str) -> 
     return _looks_like_copy_dominant_english_output(source_text, translated)
 
 
-def looks_like_mixed_english_residue_output(item: dict, translated_text: str) -> bool:
+def looks_like_mixed_english_residue_output(
+    item: dict,
+    translated_text: str,
+    *,
+    target_lang: str | None = None,
+) -> bool:
+    if not _english_residue_family_enabled(target_lang):
+        return False
     translated = str(translated_text or "").strip()
     if not translated:
         return False
@@ -270,7 +311,12 @@ def looks_like_mixed_english_residue_output(item: dict, translated_text: str) ->
     return False
 
 
-def looks_like_source_echo_output(item: dict, translated_text: str) -> bool:
+def looks_like_source_echo_output(
+    item: dict,
+    translated_text: str,
+    *,
+    target_lang: str | None = None,
+) -> bool:
     """译文开头整段复制了原文英文词序列 = 弱模型把 user 消息里的原文回显进译文。
 
     minimal 兜底提示词无定界符，回显的原文行会留在译文开头；parse 层的
@@ -279,6 +325,8 @@ def looks_like_source_echo_output(item: dict, translated_text: str) -> bool:
     looks_like_untranslated_english_output 判定，避免重复报错；参考文献类
     条目（译文本就保留英文）除外。
     """
+    if not _source_echo_enabled(target_lang):
+        return False
     source_text = unit_source_text(item).strip()
     translated = str(translated_text or "").strip()
     if not source_text or not translated:

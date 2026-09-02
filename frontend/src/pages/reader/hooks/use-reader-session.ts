@@ -37,6 +37,13 @@ export type ReaderDownloadContext = {
   sourceOnly: boolean;
 };
 
+/** 任务翻译语言（/reader/metadata → language，snake_case）；缺省 null。 */
+export type ReaderSessionLanguage = {
+  source_lang?: string | null;
+  target_lang?: string | null;
+  target_language_name?: string | null;
+} | null;
+
 export type ReaderSessionState = {
   jobId: string;
   documentId: string;
@@ -59,6 +66,8 @@ export type ReaderSessionState = {
   };
   // display title; react chrome currently does not render it
   title: string;
+  /** 任务翻译语言元数据（驱动选中文字翻译的目标语言）。 */
+  language: ReaderSessionLanguage;
   download: ReaderDownloadContext;
 };
 
@@ -154,6 +163,7 @@ export function useReaderSession(): ReaderSessionState {
   const [translatedFile, setTranslatedFile] = useState<ProtectedPdfFile | null>(null);
   const [assetsReady, setAssetsReady] = useState(false);
   const [title, setTitle] = useState("");
+  const [language, setLanguage] = useState<ReaderSessionLanguage>(null);
   const [jobPayload, setJobPayload] = useState<Record<string, unknown> | null>(null);
   const [manifestPayload, setManifestPayload] = useState<Record<string, unknown> | null>(null);
   const [boot, setBoot] = useState<ReaderSessionState["boot"]>({
@@ -218,6 +228,7 @@ export function useReaderSession(): ReaderSessionState {
           setSourceUrl(url);
           setTranslatedUrl("");
           setTitle("");
+          setLanguage(null);
           setJobPayload(null);
           setManifestPayload(null);
           const file = await downloadOne(url, "正在下载原文 PDF…", 30, 85);
@@ -278,6 +289,9 @@ export function useReaderSession(): ReaderSessionState {
         setTitle(pickDisplayTitle(payload.jobPayload as Record<string, unknown>, jobId));
         setJobPayload((payload.jobPayload as Record<string, unknown>) || null);
         setManifestPayload((payload.manifestPayload as Record<string, unknown>) || null);
+        setLanguage(
+          ((payload.readerMetadata as { language?: ReaderSessionLanguage } | null)?.language) || null,
+        );
 
         if (!sourceFinal && !translatedFinal) {
           setBoot({
@@ -386,6 +400,7 @@ export function useReaderSession(): ReaderSessionState {
     assetsReady,
     boot,
     title,
+    language,
     download,
   };
 }

@@ -40,7 +40,8 @@ def run_garbled_reconstruction_stage(
     model: str,
     base_url: str,
     workers: int,
-    run_diagnostics: TranslationRunDiagnostics | None,
+    translation_context: TranslationControlContext | None = None,
+    run_diagnostics: TranslationRunDiagnostics | None = None,
 ) -> None:
     if not _garbled_reconstruction_enabled():
         print("book: garbled reconstruction skipped by repair profile", flush=True)
@@ -73,6 +74,16 @@ def run_garbled_reconstruction_stage(
             api_key=api_key,
             model=model,
             base_url=base_url,
+            target_language_name=(
+                str(getattr(translation_context, "target_language_name", "") or "简体中文")
+                if translation_context is not None
+                else "简体中文"
+            ),
+            target_lang=(
+                str(getattr(translation_context, "target_lang", "") or "")
+                if translation_context is not None
+                else ""
+            ),
         ),
         progress_callback=lambda current, total, dirty_pages: emit_stage_progress(
             stage="garbled_repair",
@@ -130,6 +141,8 @@ def _garbled_reconstruction_runtime(
     api_key: str,
     model: str,
     base_url: str,
+    target_language_name: str = "简体中文",
+    target_lang: str = "",
 ) -> GarbledReconstructionRuntime:
     if _is_deepseek_provider(model=model, base_url=base_url):
         return GarbledReconstructionRuntime(
@@ -139,6 +152,8 @@ def _garbled_reconstruction_runtime(
             provider_reason="job_provider",
             request_chat_content_fn=request_chat_content,
             normalize_base_url_fn=normalize_base_url,
+            target_language_name=target_language_name,
+            target_lang=target_lang or None,
         )
 
     deepseek_key = get_api_key(required=False)
@@ -150,6 +165,8 @@ def _garbled_reconstruction_runtime(
             provider_reason="prefer_deepseek_api",
             request_chat_content_fn=request_chat_content,
             normalize_base_url_fn=normalize_base_url,
+            target_language_name=target_language_name,
+            target_lang=target_lang or None,
         )
 
     return GarbledReconstructionRuntime(
@@ -159,6 +176,8 @@ def _garbled_reconstruction_runtime(
         provider_reason="job_provider_fallback",
         request_chat_content_fn=request_chat_content,
         normalize_base_url_fn=normalize_base_url,
+        target_language_name=target_language_name,
+        target_lang=target_lang or None,
     )
 
 
@@ -283,6 +302,9 @@ def run_final_untranslated_recovery_stage(
     target_language_name = str(
         getattr(translation_context, "target_language_name", "") if translation_context is not None else ""
     ) or "简体中文"
+    target_lang = (
+        str(getattr(translation_context, "target_lang", "") or "") if translation_context is not None else ""
+    ) or "zh-CN"
     blocking_before = len(blocking_untranslated_items(page_payloads))
     if blocking_before <= 0:
         return {
@@ -310,6 +332,7 @@ def run_final_untranslated_recovery_stage(
         model=model,
         base_url=base_url,
         target_language_name=target_language_name,
+        target_lang=target_lang,
         workers=max(1, min(32, int(workers or 1))),
         request_chat_content_fn=request_chat_content,
     ).as_dict()

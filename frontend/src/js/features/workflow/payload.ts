@@ -1,4 +1,9 @@
 import { getOcrProviderDefinition, normalizeOcrProvider } from "../../config/providers.js";
+import {
+  normalizeSourceLang,
+  normalizeTargetLang,
+  targetLanguageName,
+} from "../../config/languages.js";
 
 /** Developer/workflow config fields consumed by payload builders. */
 export interface WorkflowDeveloperConfig {
@@ -8,6 +13,9 @@ export interface WorkflowDeveloperConfig {
   model?: string;
   baseUrl?: string;
   glossaryId?: string;
+  /** 翻译语言默认（任务级覆盖缺省时的后备）。 */
+  sourceLang?: string;
+  targetLang?: string;
   workers?: number;
   batchSize?: number;
   classifyBatchSize?: number;
@@ -57,6 +65,9 @@ export interface BuildTranslationPayloadOptions {
   developerConfig: WorkflowDeveloperConfig;
   modelApiKey?: string;
   selectedGlossaryId?: string;
+  /** 任务级语言覆盖（不传则退回 developerConfig 默认 / 硬默认）。 */
+  sourceLang?: string;
+  targetLang?: string;
   constants: WorkflowPayloadConstants;
 }
 
@@ -109,8 +120,12 @@ export function buildTranslationPayload({
   developerConfig,
   modelApiKey,
   selectedGlossaryId,
+  sourceLang,
+  targetLang,
   constants,
 }: BuildTranslationPayloadOptions) {
+  const resolvedSourceLang = normalizeSourceLang(sourceLang ?? developerConfig.sourceLang);
+  const resolvedTargetLang = normalizeTargetLang(targetLang ?? developerConfig.targetLang);
   return {
     mode: constants.DEFAULT_MODE,
     math_mode: developerConfig.mathMode,
@@ -124,6 +139,9 @@ export function buildTranslationPayload({
     custom_rules_text: "",
     glossary_id: selectedGlossaryId || developerConfig.glossaryId || "",
     glossary_entries: [],
+    source_lang: resolvedSourceLang,
+    target_lang: resolvedTargetLang,
+    target_language_name: targetLanguageName(resolvedTargetLang),
     skip_title_translation: !developerConfig.translateTitles,
   };
 }

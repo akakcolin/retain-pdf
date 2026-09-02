@@ -73,7 +73,7 @@ function mountTranslateHarness(options = {}) {
   let tr;
   act(() => {
     root.render(createElement(function Harness() {
-      tr = useReaderTranslate({ translate: translateMock, hasKey, resolveConfig });
+      tr = useReaderTranslate({ translate: translateMock, hasKey, resolveConfig, language: options.language });
       return null;
     }));
   });
@@ -141,6 +141,42 @@ test("useReaderTranslate：原文栏选中 → 简体中文并展示译文", asy
 
 test("useReaderTranslate：译文栏选中 → English", async () => {
   const { calls, getTr, unmount } = mountTranslateHarness();
+  await act(async () => {
+    await getTr().translateSelection(makeSelection({ quote: "你好", pane: "translated" }));
+  });
+  assert.equal(calls[0].targetLanguage, "English");
+  assert.equal(getTr().targetLanguage, "English");
+  unmount();
+});
+
+test("useReaderTranslate：有任务语言元数据时原文栏译成该任务译文语言", async () => {
+  const { calls, getTr, unmount } = mountTranslateHarness({
+    language: { source_lang: "en", target_lang: "ja", target_language_name: "日本語" },
+  });
+  await act(async () => {
+    await getTr().translateSelection(makeSelection({ quote: "hello", pane: "source" }));
+  });
+  assert.equal(calls[0].targetLanguage, "日本語");
+  assert.equal(getTr().targetLanguage, "日本語");
+  unmount();
+});
+
+test("useReaderTranslate：有任务语言元数据时译文栏译回原文语言", async () => {
+  const { calls, getTr, unmount } = mountTranslateHarness({
+    language: { source_lang: "zh-CN", target_lang: "ja", target_language_name: "日本語" },
+  });
+  await act(async () => {
+    await getTr().translateSelection(makeSelection({ quote: "日本語のテキスト", pane: "translated" }));
+  });
+  assert.equal(calls[0].targetLanguage, "简体中文");
+  assert.equal(getTr().targetLanguage, "简体中文");
+  unmount();
+});
+
+test("useReaderTranslate：译文栏原文语言未知(auto/空)时回退 English", async () => {
+  const { calls, getTr, unmount } = mountTranslateHarness({
+    language: { source_lang: "auto", target_lang: "zh-CN", target_language_name: "简体中文" },
+  });
   await act(async () => {
     await getTr().translateSelection(makeSelection({ quote: "你好", pane: "translated" }));
   });

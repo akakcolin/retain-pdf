@@ -90,6 +90,7 @@ def translate_single_item_plain_text(
     domain_guidance: str = "",
     mode: str = "fast",
     target_language_name: str = "简体中文",
+    target_lang: str | None = None,
     diagnostics: TranslationDiagnosticsCollector | None = None,
     timeout_s: int = 120,
     http_retry_attempts: int | None = None,
@@ -121,7 +122,7 @@ def translate_single_item_plain_text(
     translated_text = extract_single_item_translation_text(content, item["item_id"])
     result = {item["item_id"]: result_entry("translate", translated_text)}
     result = canonicalize_batch_result([item], result)
-    validate_batch_result([item], result, diagnostics=diagnostics)
+    validate_batch_result([item], result, diagnostics=diagnostics, target_lang=target_lang)
     return result
 
 
@@ -135,6 +136,7 @@ def translate_single_item_plain_text_unstructured(
     domain_guidance: str = "",
     mode: str = "fast",
     target_language_name: str = "简体中文",
+    target_lang: str | None = None,
     diagnostics: TranslationDiagnosticsCollector | None = None,
     timeout_s: int = 120,
     http_retry_attempts: int | None = None,
@@ -168,7 +170,7 @@ def translate_single_item_plain_text_unstructured(
     )
     result = {item["item_id"]: result_entry("translate", translated_text)}
     result = canonicalize_batch_result([item], result)
-    validate_batch_result([item], result, diagnostics=diagnostics)
+    validate_batch_result([item], result, diagnostics=diagnostics, target_lang=target_lang)
     return result
 
 
@@ -208,6 +210,7 @@ def translate_continuation_group_members(
     domain_guidance: str = "",
     mode: str = "fast",
     target_language_name: str = "简体中文",
+    target_lang: str | None = None,
     diagnostics: TranslationDiagnosticsCollector | None = None,
     timeout_s: int = 120,
     http_retry_attempts: int | None = None,
@@ -273,7 +276,7 @@ def translate_continuation_group_members(
     result_payload["member_translations"] = member_translations
     result = {item["item_id"]: result_payload}
     result = canonicalize_batch_result([item], result)
-    validate_batch_result([item], result, diagnostics=diagnostics)
+    validate_batch_result([item], result, diagnostics=diagnostics, target_lang=target_lang)
     return result
 
 
@@ -286,6 +289,7 @@ def translate_single_item_tagged_text(
     request_label: str = "",
     domain_guidance: str = "",
     target_language_name: str = "简体中文",
+    target_lang: str | None = None,
     diagnostics: TranslationDiagnosticsCollector | None = None,
     timeout_s: int = 120,
     http_retry_attempts: int | None = None,
@@ -309,7 +313,7 @@ def translate_single_item_tagged_text(
     )
     result = parse_translation_payload(content)
     result = canonicalize_batch_result([item], result)
-    validate_batch_result([item], result, diagnostics=diagnostics)
+    validate_batch_result([item], result, diagnostics=diagnostics, target_lang=target_lang)
     return result
 
 
@@ -323,6 +327,7 @@ def translate_single_item_with_decision(
     domain_guidance: str = "",
     mode: str = "fast",
     target_language_name: str = "简体中文",
+    target_lang: str | None = None,
     diagnostics: TranslationDiagnosticsCollector | None = None,
     timeout_s: int = 120,
     http_retry_attempts: int | None = None,
@@ -362,7 +367,7 @@ def translate_single_item_with_decision(
     except Exception:
         result = parse_translation_payload(content)
     result = canonicalize_batch_result([item], result)
-    validate_batch_result([item], result, diagnostics=diagnostics)
+    validate_batch_result([item], result, diagnostics=diagnostics, target_lang=target_lang)
     return result
 
 
@@ -376,6 +381,7 @@ def translate_batch_once(
     domain_guidance: str = "",
     mode: str = "fast",
     target_language_name: str = "简体中文",
+    target_lang: str | None = None,
     diagnostics: TranslationDiagnosticsCollector | None = None,
     timeout_s: int = 120,
     http_retry_attempts: int | None = None,
@@ -399,5 +405,5 @@ def translate_batch_once(
     )
     result = parse_translation_payload(content)
     result = canonicalize_batch_result(batch, result)
-    validate_batch_result(batch, result, diagnostics=diagnostics)
+    validate_batch_result(batch, result, diagnostics=diagnostics, target_lang=target_lang)
     return result

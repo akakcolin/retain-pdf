@@ -42,6 +42,8 @@ class GarbledReconstructionRuntime:
     provider_reason: str
     request_chat_content_fn: Callable[..., str]
     normalize_base_url_fn: Callable[[str], str] | None = None
+    target_language_name: str = "简体中文"
+    target_lang: str | None = None
 
     def display_base_url(self) -> str:
         if self.normalize_base_url_fn is None:
@@ -167,16 +169,17 @@ def _build_formula_hints(item: dict) -> list[str]:
 def _repair_item_translation(item: dict, *, runtime: GarbledReconstructionRuntime) -> str:
     source_text = _source_text(item)
     formula_hints = _build_formula_hints(item)
+    target_language_name = str(runtime.target_language_name or "") or "简体中文"
     messages = [
         {
             "role": "system",
             "content": (
-                "You repair corrupted OCR scientific text blocks and translate them into fluent Simplified Chinese.\n"
+                f"You repair corrupted OCR scientific text blocks and translate them into fluent {target_language_name}.\n"
                 "The input may contain duplicated fragments, broken line wraps, and fake LaTeX formula noise.\n"
                 "Reconstruct the intended meaning conservatively.\n"
                 "Do not mention that the OCR is corrupted.\n"
                 "Return one JSON object with key translated_text only.\n"
-                "Output plain Chinese text only inside translated_text.\n"
+                f"Output plain {target_language_name} text only inside translated_text.\n"
                 "Do not emit LaTeX commands like \\\\bf, \\\\mathbf, \\\\mathrm.\n"
                 "If a material or symbol is obvious, keep it in natural scientific notation such as alpha-Al2O3 or α-Al2O3.\n"
             ),

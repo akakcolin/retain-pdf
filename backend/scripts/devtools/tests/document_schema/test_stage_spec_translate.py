@@ -121,5 +121,54 @@ def test_translate_stage_spec_defaults_math_mode_to_direct_typst(tmp_path: Path)
     spec = TranslateStageSpec.load(spec_path)
 
     assert spec.params.math_mode == "direct_typst"
+    assert spec.params.source_lang == "auto"
+    assert spec.params.target_lang == "zh-CN"
+    assert spec.params.target_language_name == "简体中文"
+
+
+def test_translate_stage_spec_reads_explicit_language_keys(tmp_path: Path) -> None:
+    job_root = tmp_path / "20260414-translatejob-lang"
+    ensure_job_dirs(resolve_job_dirs(job_root))
+    source_json = tmp_path / "document.v1.json"
+    source_pdf = tmp_path / "source.pdf"
+    source_json.write_text("{}", encoding="utf-8")
+    source_pdf.write_bytes(b"%PDF-1.4\n")
+    spec_path = job_root / "specs" / "translate.spec.json"
+    spec_path.parent.mkdir(parents=True, exist_ok=True)
+    spec_path.write_text(
+        json.dumps(
+            {
+                "schema_version": TRANSLATE_STAGE_SCHEMA_VERSION,
+                "stage": "translate",
+                "job": {
+                    "job_id": "20260414-translatejob-lang",
+                    "job_root": str(job_root),
+                    "workflow": "translate",
+                },
+                "inputs": {
+                    "source_json": str(source_json),
+                    "source_pdf": str(source_pdf),
+                    "layout_json": "",
+                },
+                "params": {
+                    "model": "deepseek-v4-flash",
+                    "base_url": "https://api.deepseek.com/v1",
+                    "credential_ref": "",
+                    "source_lang": "en",
+                    "target_lang": "fr",
+                    "target_language_name": "Français",
+                },
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    spec = TranslateStageSpec.load(spec_path)
+
+    assert spec.params.source_lang == "en"
+    assert spec.params.target_lang == "fr"
+    assert spec.params.target_language_name == "Français"
 
 

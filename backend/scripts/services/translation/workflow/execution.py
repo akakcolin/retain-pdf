@@ -39,6 +39,9 @@ class TranslationExecutionRequest:
     context_mode: str = "needed"
     glossary_mode: str = "matched"
     memory_mode: str = "matched"
+    source_lang: str = "auto"
+    target_lang: str = "zh-CN"
+    target_language_name: str = "简体中文"
     invocation: dict[str, Any] | None = None
 
 

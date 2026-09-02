@@ -1,3 +1,11 @@
+import {
+  DEFAULT_SOURCE_LANG,
+  DEFAULT_TARGET_LANG,
+  DEFAULT_TARGET_LANGUAGE_NAME,
+} from "./languages.js";
+
+export { DEFAULT_SOURCE_LANG, DEFAULT_TARGET_LANG, DEFAULT_TARGET_LANGUAGE_NAME };
+
 export const DEFAULT_MODE = "sci";
 export const DEFAULT_LANGUAGE = "ch";
 export const DEFAULT_RULE_PROFILE = "general_sci";

@@ -9,6 +9,7 @@
 
 // —— config / mock / messaging ——
 export { isMockMode } from "../../js/config/runtime.js";
+export { sourceLanguageName } from "../../js/config/languages.js";
 export { MOCK_DOCUMENT_SOURCE_PDF_URL } from "../../js/mock/documents.js";
 export { READER_DIALOG_MESSAGES } from "../../js/features/reader-dialog/contract.js";
 

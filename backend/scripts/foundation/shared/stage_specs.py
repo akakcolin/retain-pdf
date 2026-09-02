@@ -235,6 +235,9 @@ class TranslateStageParams:
     model: str
     base_url: str
     credential_ref: str
+    source_lang: str = "auto"
+    target_lang: str = "zh-CN"
+    target_language_name: str = "简体中文"
 
 
 @dataclass(frozen=True)
@@ -302,6 +305,11 @@ class TranslateStageSpec:
             model=str(params_payload.get("model", "") or ""),
             base_url=str(params_payload.get("base_url", "") or ""),
             credential_ref=str(params_payload.get("credential_ref", "") or ""),
+            source_lang=str(params_payload.get("source_lang", "auto") or "auto"),
+            target_lang=str(params_payload.get("target_lang", "zh-CN") or "zh-CN"),
+            target_language_name=str(
+                params_payload.get("target_language_name", "简体中文") or "简体中文"
+            ),
         )
         return cls(
             schema_version=schema_version,

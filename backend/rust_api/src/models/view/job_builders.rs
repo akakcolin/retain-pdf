@@ -1,7 +1,8 @@
 use std::path::Path;
 
 use crate::models::{
-    JobArtifactRecord, JobSnapshot, JobStatusKind, UploadRecord, UploadView, WorkflowKind,
+    translation_language_meta, JobArtifactRecord, JobSnapshot, JobStatusKind, UploadRecord,
+    UploadView, WorkflowKind,
 };
 use crate::storage_paths::{
     resolve_markdown_path, resolve_normalization_report, resolve_normalized_document,
@@ -329,17 +330,28 @@ pub fn job_to_detail(
             bundle_ready,
         ),
         artifacts_display: Vec::new(),
-        book_summary: BookSummaryView {
-            title: job.job_id.clone(),
-            authors: None,
-            page_count: None,
-            source_language: Some(job.request_payload.ocr.language.clone())
-                .filter(|value| !value.trim().is_empty()),
-            target_language: None,
-            source_file_name: None,
-            cover_url: None,
-            file_size_bytes: None,
+        book_summary: {
+            let (source_lang, target_lang, target_language_name) = translation_language_meta(
+                &job.request_payload.translation.source_lang,
+                &job.request_payload.translation.target_lang,
+                &job.request_payload.translation.target_language_name,
+            );
+            BookSummaryView {
+                title: job.job_id.clone(),
+                authors: None,
+                page_count: None,
+                source_language: Some(job.request_payload.ocr.language.clone())
+                    .filter(|value| !value.trim().is_empty()),
+                target_language: None,
+                source_lang,
+                target_lang,
+                target_language_name,
+                source_file_name: None,
+                cover_url: None,
+                file_size_bytes: None,
+            }
         },
+
         contracts: JobContractsView {
             schema_version: "job_stage_contracts.v1".to_string(),
             stages: Vec::new(),

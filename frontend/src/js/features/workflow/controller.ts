@@ -30,6 +30,9 @@ export interface WorkflowSubmitValues {
   selectedGlossaryId?: string;
   skipOcr?: boolean;
   translationProvider?: string;
+  /** 任务级翻译语言（已合并开发者默认后的最终值）。 */
+  sourceLang?: string;
+  targetLang?: string;
 }
 
 export interface LoadGlossaryOptionsParams {
@@ -306,6 +309,9 @@ export function mountWorkflowFeature({
 
   function applyWorkflowMode() {
     const workflow = currentWorkflow();
+    // 开发者默认(含 sourceLang/targetLang)同步进 store.developerDialog,
+    // 供 PageRangeDialog 的任务级覆盖下拉读取合并默认值。
+    viewPort.setDeveloperDialog(developerConfigWithDefaults());
     const needsUpload = workflowNeedsUpload(workflow);
     const showPageRangeButton = workflowNeedsUpload(workflow);
     if (configPort.isMock()) {
@@ -394,6 +400,8 @@ export function mountWorkflowFeature({
       developerConfig,
       modelApiKey: submitValues.modelApiKey,
       selectedGlossaryId: submitValues.selectedGlossaryId,
+      sourceLang: submitValues.sourceLang,
+      targetLang: submitValues.targetLang,
       constants,
     });
   }

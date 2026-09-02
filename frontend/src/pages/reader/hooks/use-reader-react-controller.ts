@@ -151,7 +151,7 @@ export function useReaderReactController(): ReaderReactController {
     !session.boot.loading && !session.boot.failed,
   );
 
-  const translate = useReaderTranslate();
+  const translate = useReaderTranslate({ language: session.language });
 
   const addNoteFromSelection = useCallback((sel: ReaderTextSelection) => {
     notes.addFromQuote({

@@ -56,6 +56,7 @@ export function buildHomeServices({
     },
     settingsHub: {
       dialogStore: credentials.settingsHubDialogStore,
+      saveLanguageDefaults: credentials.saveLanguageDefaults,
     },
     glossaries: {
       feature: features.glossariesFeature,
@@ -127,6 +128,10 @@ export function buildHomeServices({
     workflowViewActions: {
       setSelectedGlossaryId: views.workflowView.setSelectedGlossaryId,
       setSkipOcr: views.workflowView.setSkipOcr,
+      setTaskSourceLang: views.workflowView.setTaskSourceLang,
+      setTaskTargetLang: views.workflowView.setTaskTargetLang,
+      readSourceLang: views.workflowView.readSourceLang,
+      readTargetLang: views.workflowView.readTargetLang,
     },
     workflowDialog: views.workflowDialog,
   };

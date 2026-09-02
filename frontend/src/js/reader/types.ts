@@ -230,9 +230,17 @@ export interface ReaderMetadataSide {
   page_count?: number;
 }
 
+/** 任务翻译语言（/reader/metadata → language，snake_case）。 */
+export interface ReaderJobLanguageView {
+  source_lang?: string | null;
+  target_lang?: string | null;
+  target_language_name?: string | null;
+}
+
 export interface ReaderMetadata {
   source?: ReaderMetadataSide;
   translated?: ReaderMetadataSide;
+  language?: ReaderJobLanguageView | null;
 }
 
 export interface RegionsPayload {

@@ -1,5 +1,6 @@
 import { defaultArtifactRuntimePort } from "./artifact-runtime-port.js";
 import { defaultArtifactUrlConfigPort } from "./artifact-url-config.js";
+import { targetFilePrefix } from "../config/languages.js";
 import type {
   ArtifactRuntimeState,
   ArtifactUrlQuery,
@@ -108,12 +109,37 @@ export function resolveOriginalPdfBaseName(state: ArtifactRuntimeState = {}): st
   return sanitizeFilenamePart(stripExtension(originalName));
 }
 
+/** 从 job 快照解析译文目标语言代码；缺省空串（沿用旧 zh 前缀命名）。 */
+function readTranslatedTargetLang(state: ArtifactRuntimeState = {}): string {
+  const snapshot = (defaultArtifactRuntimePort.currentJobSnapshot(state) || {}) as JobLike;
+  const requestPayload = (snapshot.request_payload || {}) as JobRequestPayload & Record<string, unknown>;
+  const translation = (requestPayload.translation || {}) as Record<string, unknown>;
+  const rawResponse = (snapshot.raw_response || {}) as JobLike & Record<string, unknown>;
+  const rawRequestPayload = (rawResponse.request_payload || {}) as Record<string, unknown>;
+  const rawTranslation = (rawRequestPayload.translation || {}) as Record<string, unknown>;
+  const bookSummary = (rawResponse.book_summary || {}) as Record<string, unknown>;
+  const candidates = [
+    translation.target_lang,
+    requestPayload.target_lang,
+    rawTranslation.target_lang,
+    rawRequestPayload.target_lang,
+    rawResponse.target_lang,
+    bookSummary.target_lang,
+  ];
+  const found = candidates.find((value) => typeof value === "string" && value.trim());
+  return `${found || ""}`.trim();
+}
+
 export function resolveTranslatedPdfDownloadName(
   state: ArtifactRuntimeState = {},
   fallbackName = "",
 ): string {
   const originalName = resolveOriginalPdfBaseName(state);
-  return originalName ? `zh_${originalName}.pdf` : fallbackName;
+  if (!originalName) {
+    return fallbackName;
+  }
+  const prefix = targetFilePrefix(readTranslatedTargetLang(state));
+  return `${prefix}_${originalName}.pdf`;
 }
 
 export function resolveSourcePdfDownloadName(

@@ -58,6 +58,17 @@ export {
   DEFAULT_TYPST_FONT_FAMILY,
   DEFAULT_WORKERS,
 } from "../../../js/config/workflow-defaults.js";
+export {
+  DEFAULT_SOURCE_LANG,
+  DEFAULT_TARGET_LANG,
+  normalizeSourceLang,
+  normalizeTargetLang,
+  sourceLanguageName,
+  sourceOptions,
+  targetFilePrefix,
+  targetLanguageName,
+  targetOptions,
+} from "../../../js/config/languages.js";
 
 // —— state ——
 export {

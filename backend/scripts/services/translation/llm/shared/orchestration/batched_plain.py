@@ -108,6 +108,11 @@ def translate_items_plain_text(
 ) -> dict[str, dict[str, str]]:
     context = context.scoped_to_batch(batch)
     batch = [item_with_runtime_hard_glossary(item, context.glossary_entries) for item in batch]
+    # 打运行时目标语戳,让深层校验(quality/result_validator)按真实目标脚本
+    # 门控英文残留等检查,无需在 *_fn 依赖链上逐层透传 target_lang。
+    for _stamped_item in batch:
+        _stamped_item["_translation_target_lang"] = context.target_lang
+        _stamped_item["_translation_target_language_name"] = context.target_language_name
     merged, uncached_batch = split_and_validate_cached_batch(
         batch,
         model=model,
