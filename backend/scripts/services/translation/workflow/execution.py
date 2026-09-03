@@ -27,6 +27,9 @@ class TranslationExecutionRequest:
     skip_title_translation: bool = False
     model: str = DEFAULT_MODEL
     base_url: str = DEFAULT_BASE_URL
+    # 显式声明的 provider 家族（如 deepseek_official/deepseek_compatible/other）；
+    # 空串时由执行计划按 base_url/model 嗅探兜底
+    provider_family: str = ""
     source_pdf_path: Path | None = None
     rule_profile_name: str = "general_sci"
     custom_rules_text: str = ""

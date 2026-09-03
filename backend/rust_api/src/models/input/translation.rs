@@ -58,6 +58,10 @@ pub struct TranslationInput {
     pub model: String,
     #[serde(default)]
     pub base_url: String,
+    /// 显式声明的翻译 provider 家族（如 deepseek_official / deepseek_compatible /
+    /// other）。留空时由 Python 侧按 base_url/model 嗅探兜底。
+    #[serde(default)]
+    pub provider_family: String,
     #[serde(default)]
     pub start_page: i64,
     #[serde(default = "default_end_page")]
@@ -95,6 +99,7 @@ impl Default for TranslationInput {
             api_key: String::new(),
             model: String::new(),
             base_url: String::new(),
+            provider_family: String::new(),
             start_page: 0,
             end_page: default_end_page(),
             batch_size: default_batch_size(),

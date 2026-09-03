@@ -17,6 +17,12 @@ _REQUEST_REQ_SUFFIX_RE = re.compile(r"\s+req#\d+\b")
 
 
 def classify_provider_family(*, base_url: str, model: str) -> str:
+    """按 base_url/model 嗅探 provider 家族。
+
+    这只是兜底路径：请求能显式携带 ``provider_family`` 时（stage spec /
+    TranslationExecutionRequest），应优先使用显式值，不要依赖 URL 子串匹配——
+    代理/网关/镜像地址会让嗅探失效。
+    """
     normalized_base = (base_url or "").strip().lower()
     normalized_model = (model or "").strip().lower()
     if "api.deepseek.com" in normalized_base:

@@ -138,15 +138,23 @@ def resolve_active_provider_runtime() -> TranslationProviderRuntimeProtocol:
     return DEEPSEEK_RUNTIME
 
 
-def infer_provider_capabilities(*, base_url: str, model: str) -> TranslationProviderCapabilities:
+def infer_provider_capabilities(
+    *,
+    base_url: str,
+    model: str,
+    provider_family: str = "",
+) -> TranslationProviderCapabilities:
     """将请求级 provider 标识映射为能力集合。
 
     这是整条代码库里唯一允许出现 ``"deepseek_official"`` 字符串比较、并据此
     推导能力的地方。所有上层调度/限流/鉴权决策都应读取返回的
     ``TranslationProviderCapabilities`` 布尔字段,而不是直接比较
     ``provider_family == "deepseek_official"``。
+
+    ``provider_family`` 为请求显式声明的家族标识,非空时直接使用;
+    空串时回退到 ``classify_provider_family`` 按 base_url/model 嗅探。
     """
-    family = classify_provider_family(base_url=base_url, model=model)
+    family = provider_family.strip() or classify_provider_family(base_url=base_url, model=model)
     if family == "deepseek_official":
         return TranslationProviderCapabilities(
             high_capacity=True,

@@ -238,6 +238,8 @@ class TranslateStageParams:
     source_lang: str = "auto"
     target_lang: str = "zh-CN"
     target_language_name: str = "简体中文"
+    # 显式声明的翻译 provider 家族；空串表示由执行计划按 base_url/model 嗅探兜底
+    provider_family: str = ""
 
 
 @dataclass(frozen=True)
@@ -310,6 +312,7 @@ class TranslateStageSpec:
             target_language_name=str(
                 params_payload.get("target_language_name", "简体中文") or "简体中文"
             ),
+            provider_family=str(params_payload.get("provider_family", "") or "").strip(),
         )
         return cls(
             schema_version=schema_version,

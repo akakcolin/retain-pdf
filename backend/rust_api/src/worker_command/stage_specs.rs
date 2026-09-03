@@ -151,6 +151,7 @@ pub(crate) fn write_translate_stage_spec(
             "memory_mode": request.translation.memory_mode,
             "model": request.translation.model,
             "base_url": request.translation.base_url,
+            "provider_family": request.translation.provider_family,
             "source_lang": request.translation.source_lang,
             "target_lang": request.translation.target_lang,
             "target_language_name": request.translation.target_language_name,

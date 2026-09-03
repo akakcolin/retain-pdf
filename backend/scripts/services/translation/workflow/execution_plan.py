@@ -77,8 +77,15 @@ def build_translation_execution_plan(request: TranslationExecutionRequest) -> Tr
         target_lang=request.target_lang,
         target_language_name=request.target_language_name,
     )
-    provider_family = classify_provider_family(base_url=request.base_url, model=request.model)
-    provider_capabilities = infer_provider_capabilities(base_url=request.base_url, model=request.model)
+    # 请求显式携带的 provider_family 优先；空串时按 base_url/model 嗅探兜底
+    provider_family = request.provider_family.strip() or classify_provider_family(
+        base_url=request.base_url, model=request.model
+    )
+    provider_capabilities = infer_provider_capabilities(
+        base_url=request.base_url,
+        model=request.model,
+        provider_family=provider_family,
+    )
     run_diagnostics = TranslationRunDiagnostics(
         provider_family=provider_family,
         high_capacity_provider=provider_capabilities.high_capacity,

@@ -172,3 +172,52 @@ def test_translate_stage_spec_reads_explicit_language_keys(tmp_path: Path) -> No
     assert spec.params.target_language_name == "Français"
 
 
+def test_translate_stage_spec_reads_provider_family_with_empty_default(tmp_path: Path) -> None:
+    job_root = tmp_path / "20260414-translatejob-family"
+    ensure_job_dirs(resolve_job_dirs(job_root))
+    source_json = tmp_path / "document.v1.json"
+    source_pdf = tmp_path / "source.pdf"
+    source_json.write_text("{}", encoding="utf-8")
+    source_pdf.write_bytes(b"%PDF-1.4\n")
+
+    def write_spec(params: dict) -> Path:
+        spec_path = job_root / "specs" / "translate.spec.json"
+        spec_path.parent.mkdir(parents=True, exist_ok=True)
+        spec_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": TRANSLATE_STAGE_SCHEMA_VERSION,
+                    "stage": "translate",
+                    "job": {
+                        "job_id": "20260414-translatejob-family",
+                        "job_root": str(job_root),
+                        "workflow": "translate",
+                    },
+                    "inputs": {
+                        "source_json": str(source_json),
+                        "source_pdf": str(source_pdf),
+                        "layout_json": "",
+                    },
+                    "params": {
+                        "model": "deepseek-v4-flash",
+                        "base_url": "https://api.deepseek.com/v1",
+                        "credential_ref": "",
+                        **params,
+                    },
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        return spec_path
+
+    # 缺省(旧版 Rust 写出的 spec 没有该字段)必须兼容为空串
+    assert TranslateStageSpec.load(write_spec({})).params.provider_family == ""
+    # 显式声明时原样透传
+    assert (
+        TranslateStageSpec.load(write_spec({"provider_family": "deepseek_official"})).params.provider_family
+        == "deepseek_official"
+    )
+
+

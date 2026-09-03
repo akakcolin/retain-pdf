@@ -243,6 +243,37 @@ mod tests {
     }
 
     #[test]
+    fn translate_stage_spec_carries_provider_family() {
+        let config = test_config();
+        let mut request = build_request(WorkflowKind::Translate);
+        request.translation.provider_family = "deepseek_official".to_string();
+        let job_paths = build_paths(config.as_ref());
+        let cmd = translate_command(
+            config.as_ref(),
+            &request,
+            &job_paths,
+            Path::new("/tmp/document.v1.json"),
+            Path::new("/tmp/source.pdf"),
+            None,
+        );
+        let payload = read_spec_from_command(&cmd);
+        assert_eq!(payload["params"]["provider_family"], "deepseek_official");
+
+        // 默认空串:未显式声明时写出空字符串,由 Python 侧按 base_url/model 嗅探兜底
+        let request_default = build_request(WorkflowKind::Translate);
+        let cmd = translate_command(
+            config.as_ref(),
+            &request_default,
+            &job_paths,
+            Path::new("/tmp/document.v1.json"),
+            Path::new("/tmp/source.pdf"),
+            None,
+        );
+        let payload = read_spec_from_command(&cmd);
+        assert_eq!(payload["params"]["provider_family"], "");
+    }
+
+    #[test]
     fn render_command_routes_overlay_to_render_rs_and_writes_stage_spec() {
         let config = test_config();
         // C3 production takeover: overlay routes to the native render_rs
