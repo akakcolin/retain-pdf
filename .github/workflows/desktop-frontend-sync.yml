@@ -52,6 +52,10 @@ jobs:
           node -e "require('@tailwindcss/oxide')" \
             || npm install --no-save --no-package-lock "@tailwindcss/oxide@$(node -p "require('./node_modules/@tailwindcss/oxide/package.json').version")"
 
+      - name: Check `: any` budget does not grow
+        working-directory: frontend
+        run: npm run check:any-budget
+
       - name: Verify desktop frontend generation
         env:
           RETAIN_PDF_DESKTOP_PLATFORM: linux

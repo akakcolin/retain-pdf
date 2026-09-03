@@ -192,3 +192,72 @@ test("createSelector memoizes derived view models by input values", () => {
   assert.deepEqual(third, { title: "ocr:2" });
   assert.equal(calls, 2);
 });
+
+
+test("createStore shares one frozen snapshot across reads (zero-copy read path)", () => {
+  const store = createStore({
+    name: "zero-copy",
+    initialState: { count: 1, nested: { label: "a" } },
+    actions: {
+      bump(state) {
+        return { ...state, count: state.count + 1 };
+      },
+    },
+  });
+
+  const first = store.getSnapshot();
+  const second = store.getSnapshot();
+  assert.equal(first, second, "读路径必须零拷贝：两次 getSnapshot 返回同一冻结引用");
+  assert.equal(Object.isFrozen(first), true);
+  assert.equal(Object.isFrozen(first.nested), true);
+
+  const third = store.actions.bump();
+  assert.notEqual(third, first, "写后产生新快照");
+  // 草稿契约是可变深拷贝，未变更子树不保证引用共享；但值必须一致且被冻结
+  assert.deepEqual(third.nested, { label: "a" });
+  assert.equal(Object.isFrozen(third.nested), true);
+  assert.equal(store.getSnapshot(), third);
+});
+
+test("createStore tolerates non-cloneable values by reference instead of crashing", () => {
+  // 修复前：structuredClone 遇函数直接抛 DataCloneError，整个 store 不可用
+  const handler = () => "called";
+  const store = createStore({
+    name: "non-cloneable",
+    initialState: { handler, count: 0 },
+    actions: {
+      bump(state) {
+        return { ...state, count: state.count + 1 };
+      },
+    },
+  });
+
+  assert.equal(store.getSnapshot().handler, handler, "函数按引用共享");
+  const next = store.actions.bump();
+  assert.equal(next.count, 1);
+  assert.equal(next.handler, handler);
+  assert.equal(Object.isFrozen(next), true);
+});
+
+test("createStore freezes previousState delivered to subscribers", () => {
+  const store = createStore({
+    name: "prev-frozen",
+    initialState: { stage: "ocr" },
+    actions: {
+      setStage(state, stage) {
+        return { ...state, stage };
+      },
+    },
+  });
+  const metas = [];
+  store.subscribe((_snapshot, meta) => metas.push(meta));
+
+  store.actions.setStage("translation");
+
+  assert.equal(metas.length, 1);
+  assert.equal(metas[0].previousState.stage, "ocr");
+  assert.equal(Object.isFrozen(metas[0].previousState), true);
+  assert.throws(() => {
+    metas[0].previousState.stage = "render";
+  }, TypeError);
+});

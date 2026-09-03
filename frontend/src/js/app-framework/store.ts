@@ -4,6 +4,12 @@
  * Action reducers: `(state: TState, ...args) => Partial<TState> | TState`
  * Runtime always replaces state with the returned object (no deep merge).
  *
+ * 性能模型（2026-09 重构）：
+ * - 写：克隆一次可变草稿给 updater（action 允许原地改草稿），返回对象写时深冻一次；
+ * - 读：getSnapshot() / 订阅通知零拷贝，直接共享已冻结的内部状态；
+ * - 快照只读：调用方原地修改会在严格模式下抛 TypeError（ESM 默认严格）；
+ * - 非 plain 数据（函数 / Map / 类实例）按引用共享、不冻结，且只告警一次。
+ *
  * Typed call sites:
  *   createStore<State, Actions>({ initialState, actions })
  * or rely on inference from `initialState` + `actions`.
@@ -88,25 +94,71 @@ export type StoreActionsConstraint<TState> = Record<
   (state: TState, ...args: any[]) => any
 >;
 
-function freezeSnapshot<T>(value: T): T {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (!value || typeof value !== "object") {
+    return false;
+  }
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+/**
+ * 可变草稿克隆：优先 structuredClone（原生深拷贝）。
+ * 遇到不可克隆值（函数 / File / DOM 节点 / 类实例）时退化为
+ * 「plain object / 数组递归拷贝，其余按引用传递」——宁可引用共享，
+ * 不可让整个 setState 崩溃（修复前 structuredClone 直接抛异常）。
+ */
+function cloneMutable<T>(value: T, onFallback?: (value: unknown) => void): T {
+  if (typeof structuredClone === "function") {
+    try {
+      return structuredClone(value);
+    } catch {
+      // fall through to tolerant clone
+    }
+  }
+  return cloneMutableTolerant(value, onFallback);
+}
+
+function cloneMutableTolerant<T>(value: T, onFallback?: (value: unknown) => void): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => cloneMutableTolerant(item, onFallback)) as T;
+  }
+  if (isPlainObject(value)) {
+    const copy: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+      copy[key] = cloneMutableTolerant(item, onFallback);
+    }
+    return copy as T;
+  }
+  if (value !== null && typeof value === "object" || typeof value === "function") {
+    onFallback?.(value);
+  }
+  return value;
+}
+
+/**
+ * 快照冻结：写时深冻一次（plain object / 数组），读与通知零拷贝。
+ * 已冻结的子树直接跳过——action 以 spread 拷贝时未变更分支保持共享引用，
+ * 因此重复写的冻结成本约等于「变更路径」而非全树。
+ * 非 plain 数据（Map / 类实例 / 函数）不冻结、按引用共享。
+ */
+function freezeForSnapshot<T>(value: T): T {
+  if (!value || typeof value !== "object" || Object.isFrozen(value)) {
     return value;
   }
   if (Array.isArray(value)) {
-    return Object.freeze(value.map((item) => freezeSnapshot(item))) as T;
+    for (const item of value) {
+      freezeForSnapshot(item);
+    }
+    return Object.freeze(value);
   }
-  const copy: Record<string, unknown> = {};
-  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-    copy[key] = freezeSnapshot(item);
+  if (isPlainObject(value)) {
+    for (const item of Object.values(value)) {
+      freezeForSnapshot(item);
+    }
+    return Object.freeze(value);
   }
-  return Object.freeze(copy) as T;
-}
-
-function cloneState<T>(value: T): T {
-  if (typeof structuredClone === "function") {
-    return structuredClone(value);
-  }
-  return JSON.parse(JSON.stringify(value ?? null));
+  return value;
 }
 
 /**
@@ -134,7 +186,19 @@ export function createStore<
   TState,
   TActions
 >): Store<TState, TActions> {
-  let state = cloneState(initialState);
+  let warnedNonCloneable = false;
+  const warnNonCloneable = (value: unknown) => {
+    if (warnedNonCloneable || typeof console === "undefined") {
+      return;
+    }
+    warnedNonCloneable = true;
+    console.warn(
+      `Store "${name}" 含有不可深拷贝的值（按引用共享，勿原地改）：`,
+      value,
+    );
+  };
+
+  let state = freezeForSnapshot(cloneMutable(initialState, warnNonCloneable));
   const listeners = new Set<StoreListener<TState>>();
   let batchDepth = 0;
   let pendingNotification: {
@@ -142,8 +206,9 @@ export function createStore<
     previousState: TState;
   } | null = null;
 
+  /** 快照即内部状态（写时已冻结）；读路径 O(1)，禁止调用方原地改。 */
   function getSnapshot(): TState {
-    return freezeSnapshot(cloneState(state));
+    return state;
   }
 
   function notify(actionName: string, previousState: TState) {
@@ -151,7 +216,7 @@ export function createStore<
     for (const listener of listeners) {
       listener(snapshot, {
         action: actionName,
-        previousState: freezeSnapshot(cloneState(previousState)),
+        previousState,
         store: name,
       });
     }
@@ -164,7 +229,7 @@ export function createStore<
     }
     pendingNotification = {
       action: pendingNotification?.action || actionName,
-      previousState: pendingNotification?.previousState || cloneState(previousState),
+      previousState: pendingNotification?.previousState || previousState,
     };
   }
 
@@ -173,13 +238,14 @@ export function createStore<
     actionName = "setState",
   ): TState {
     const previousState = state;
+    // updater 收到可变草稿（契约允许原地改）；直接对象形式不克隆，由调用方让渡所有权。
     const nextState = typeof updater === "function"
-      ? (updater as (state: TState) => StoreActionResult<TState>)(cloneState(state))
+      ? (updater as (state: TState) => StoreActionResult<TState>)(cloneMutable(state, warnNonCloneable))
       : updater;
     if (!nextState || typeof nextState !== "object") {
       throw new TypeError(`Store "${name}" action "${actionName}" must return an object state.`);
     }
-    state = cloneState(nextState as TState);
+    state = freezeForSnapshot(nextState as TState);
     queueNotification(actionName, previousState);
     return getSnapshot();
   }
@@ -208,7 +274,8 @@ export function createStore<
   }
 
   function reset(nextState: TState = initialState) {
-    return setState(cloneState(nextState), "reset");
+    // 克隆一次，避免冻结/共享调用方持有的对象
+    return setState(cloneMutable(nextState, warnNonCloneable), "reset");
   }
 
   function batch<TResult = TState>(

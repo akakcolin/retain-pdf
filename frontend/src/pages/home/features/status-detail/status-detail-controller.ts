@@ -194,7 +194,13 @@ export function createStatusDetailController({
   });
 
   function syncTranslation(extra: Partial<StatusDetailTranslation> = {}) {
-    store.actions.setTranslation({ ...translationState, ...extra });
+    // query 在状态袋侧会被就地改写（applyQuery/changePage）；镜像进 store 时必须
+    // 断开该子对象引用，否则 store 写时冻结会把状态袋的 query 一起冻住。
+    store.actions.setTranslation({
+      ...translationState,
+      query: { ...translationState.query },
+      ...extra,
+    });
   }
 
   const translationTab = createStatusDetailTranslationTabCoordinator({
