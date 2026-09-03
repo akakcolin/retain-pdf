@@ -28,6 +28,10 @@ export function readInitialLibraryTabFromReturn(): string {
 /**
  * @param ready 图书馆列表已有内容（或合集/收藏视图已挂载）时再恢复滚动
  */
+// 返回主页恢复滚动：双 rAF 后列表仍可能异步增高（封面图加载），
+// 80/320ms 各补一次 scrollTop（评审 P2-7：与旧版逐拍一致）。
+const RETURN_SCROLL_RETRY_DELAYS_MS = [80, 320];
+
 export function useHomeReturnRestore(ready: boolean) {
   const restoredRef = useRef(false);
 
@@ -71,8 +75,9 @@ export function useHomeReturnRestore(ready: boolean) {
       requestAnimationFrame(() => {
         applyHomeReturnScroll(state!);
         // 列表异步增高时再补一次
-        window.setTimeout(() => applyHomeReturnScroll(state!), 80);
-        window.setTimeout(() => applyHomeReturnScroll(state!), 320);
+        for (const delay of RETURN_SCROLL_RETRY_DELAYS_MS) {
+          window.setTimeout(() => applyHomeReturnScroll(state!), delay);
+        }
       });
     });
   }, [ready]);

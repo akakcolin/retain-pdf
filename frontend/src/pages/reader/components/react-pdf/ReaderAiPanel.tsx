@@ -12,6 +12,9 @@ import { ReaderAssistantThread } from "./assistant/ReaderAssistantThread.js";
 import { ReaderConversationBar } from "./assistant/ReaderConversationBar.js";
 import { useReaderAskRuntime } from "./assistant/use-reader-ask-runtime.js";
 
+// 分支成功提示的展示时长：文案较长，给足用户读完的时间（评审 P2-7，工程经验值）。
+const BRANCH_NOTICE_DISMISS_MS = 6000;
+
 export type ReaderAiPanelProps = {
   open: boolean;
   jobId: string;
@@ -59,7 +62,7 @@ export function ReaderAiPanel({
       setBranchNotice(
         "已保存新对话（fork-n-原名）：复制了到此答案的上文，原对话不变。顶部列表可切换。",
       );
-      window.setTimeout(() => setBranchNotice(""), 6000);
+      window.setTimeout(() => setBranchNotice(""), BRANCH_NOTICE_DISMISS_MS);
     }
   }, [branchFromAnswer]);
 

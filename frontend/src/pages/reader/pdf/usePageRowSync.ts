@@ -10,6 +10,14 @@ import {
 
 export type PageRowHeights = ReadonlyMap<number, number>;
 
+// ── 时序常数（评审 P2-7）───────────────────────────────────────────
+// 与 legacy pdf-layout.syncReaderPageRows 逐拍对齐的重量节奏：
+// 首拍后 100ms 补一次（等首屏字体/图片落地），300ms 起允许 settle，
+// 700ms 最后一拍兜底。失效后果：行高不同步，双栏页错位。
+const ROW_SYNC_RESCHEDULE_MS = 100;
+const ROW_SYNC_SETTLE_ARM_MS = 300;
+const ROW_SYNC_FINAL_RESCHEDULE_MS = 700;
+
 function measureNaturalPageHeight(slot: HTMLElement): number {
   // 优先量「纸面」内容，不吃已被抬高的 minHeight
   const content = slot.querySelector<HTMLElement>(
@@ -108,12 +116,12 @@ export function usePageRowSync(
     };
 
     schedule();
-    const t1 = window.setTimeout(schedule, 100);
+    const t1 = window.setTimeout(schedule, ROW_SYNC_RESCHEDULE_MS);
     const t2 = window.setTimeout(() => {
       settleArmed = true;
       schedule();
-    }, 300);
-    const t3 = window.setTimeout(schedule, 700);
+    }, ROW_SYNC_SETTLE_ARM_MS);
+    const t3 = window.setTimeout(schedule, ROW_SYNC_FINAL_RESCHEDULE_MS);
 
     const shell = shellRef.current;
     let ro: ResizeObserver | null = null;

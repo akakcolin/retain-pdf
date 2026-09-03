@@ -129,10 +129,7 @@ ensureElement("browser-credentials-dialog").open = true;
 ensureElement("browser-credentials-dialog").dataset.setupMode = "1";
 ensureElement("error-box").textContent = "old error";
 
-const [{ saveDesktopConfig }, { state }] = await Promise.all([
-  import("../src/js/desktop/index.ts"),
-  import("../src/js/state/store.ts"),
-]);
+const { saveDesktopConfig, desktopState } = await import("../src/js/desktop/index.ts");
 
 let caughtMessage = "";
 try {
@@ -156,8 +153,8 @@ if (desktopStore.firstRunCompleted !== true) {
   throw new Error("expected desktopStore.firstRunCompleted to be true after first-run save");
 }
 
-if (state.desktopConfigured !== true) {
-  throw new Error("expected state.desktopConfigured to be true after first-run save");
+if (desktopState.desktopConfigured !== true) {
+  throw new Error("expected desktopState.desktopConfigured to be true after first-run save");
 }
 
 if (ensureElement("browser-credentials-dialog").open !== false) {

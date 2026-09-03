@@ -10,6 +10,9 @@ import {
   updateDownloadProgress,
 } from "../../utils/download-feedback.js";
 
+// 下载完成后延迟复位 busy：让完成 toast 先绘制，避免按钮状态抖动（评审 P2-7）。
+const BUSY_RELEASE_DELAY_MS = 240;
+
 export function summarizeDownloadProgress(receivedBytes, totalBytes, percent) {
   const receivedText = formatTransferSize(receivedBytes);
   if (Number.isFinite(totalBytes) && totalBytes > 0) {
@@ -74,7 +77,7 @@ export async function downloadProtectedResource(
     });
   } finally {
     if (typeof onBusy === "function") {
-      window.setTimeout(() => onBusy(false), 240);
+      window.setTimeout(() => onBusy(false), BUSY_RELEASE_DELAY_MS);
     }
   }
 }

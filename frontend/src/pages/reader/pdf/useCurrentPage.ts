@@ -12,6 +12,10 @@ import {
   readingFocusY,
 } from "./scroll-to-page.js";
 
+// ── 时序常数（评审 P2-7）───────────────────────────────────────────
+// 页节点尚未渲染完成时的重绑间隔（attach 重试）。
+const PAGE_LIST_ATTACH_RETRY_MS = 120;
+
 export function useCurrentPage(
   scrollRef: RefObject<HTMLElement | null>,
   numPages: number,
@@ -67,7 +71,7 @@ export function useCurrentPage(
       if (cancelled) return;
       const pages = Array.from(root.querySelectorAll<HTMLElement>(selector));
       if (!pages.length) {
-        retryTimer = setTimeout(attach, 120);
+        retryTimer = setTimeout(attach, PAGE_LIST_ATTACH_RETRY_MS);
         return;
       }
       measure();

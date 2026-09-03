@@ -12,6 +12,9 @@ import { useHomeServices } from "../home-services-context.js";
 
 const selectErrorBoxValue = (snapshot) => snapshot?.texts?.["error-box"];
 
+// 「已复制」标签复原时长（评审 P2-7，工程经验值）。
+const COPY_LABEL_RESET_MS = 1600;
+
 export function InlineErrorBox() {
   const services = useHomeServices();
   const value = useStoreSnapshot(services.stores.text, selectErrorBoxValue);
@@ -28,7 +31,7 @@ export function InlineErrorBox() {
     try {
       await copyText(diagnostic);
       setCopyLabel("已复制");
-      globalThis.window?.setTimeout(() => setCopyLabel("复制诊断"), 1600);
+      globalThis.window?.setTimeout(() => setCopyLabel("复制诊断"), COPY_LABEL_RESET_MS);
     } catch {
       setCopyLabel("复制失败");
     }

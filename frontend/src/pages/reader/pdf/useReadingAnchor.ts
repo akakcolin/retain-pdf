@@ -16,11 +16,20 @@ import {
 
 export type ReadingAnchorPane = "source" | "translated";
 
+// ── 时序常数（评审 P2-7；工程经验值，改动前先读注释）────────────────
+// 模式切换后恢复滚动锚点：分多拍重试，覆盖字体/图片加载造成的 layout 漂移。
+// 失效后果：拍数太少→锚点恢复不到位；末拍太大→用户看到"跳一下"。
 const MODE_RESTORE_DELAYS_MS = [0, 48, 140, 320, 560];
+// 兜底安全窗：超过该时长仍未稳定就放弃恢复，避免长时间劫持滚动。
 const MODE_RESTORE_SAFETY_MS = 700;
+// goto 页码对齐重试：三拍，等待目标页渲染出真实高度。
 const GOTO_ALIGN_DELAYS_MS = [80, 200, 400];
+// goto 兜底安全窗，语义同 MODE_RESTORE_SAFETY_MS。
 const GOTO_SAFETY_MS = 500;
+// 恢复完成后解除滚动冻结前的缓冲：等浏览器把最后一拍 layout 画完。
 const UNFREEZE_DELAY_MS = 50;
+// 滚动壳 ref 尚未挂载时的重绑间隔（attach 重试）。
+const ATTACH_RETRY_MS = 50;
 
 export function useReadingAnchor(
   shellRef: RefObject<HTMLElement | null>,
@@ -97,7 +106,7 @@ export function useReadingAnchor(
       if (cancelled) return;
       const el = shellRef.current;
       if (!el) {
-        retryTimer = setTimeout(attach, 50);
+        retryTimer = setTimeout(attach, ATTACH_RETRY_MS);
         return;
       }
       root = el;

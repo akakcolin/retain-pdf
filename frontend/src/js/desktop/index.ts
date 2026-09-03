@@ -7,7 +7,7 @@ import { savePersistedBrowserStoredConfig } from "../config/persisted-config.js"
 import {
   applyDefaultCredentialInputs,
 } from "../features/credentials/default-state-port.js";
-import { state } from "../state/store.js";
+import { createInitialState } from "../state/slices.js";
 import {
   setDesktopConfigured,
   setDesktopMode,
@@ -19,6 +19,10 @@ import {
   APP_DIALOG_IDS,
   APP_EVENTS,
 } from "../contracts/app-contract.js";
+
+// desktop 入口独占的 state 实例(原 js/state/store.ts 全局单例已下线,见架构评审 P2-6)。
+// 导出仅供 desktop-first-run-smoke 脚本断言,其他模块不得 import。
+export const desktopState = createInitialState();
 
 export function showDesktopUi() {
   $("open-output-btn").classList.remove("hidden");
@@ -55,13 +59,13 @@ export function closeSetupDialog() {
 }
 
 export async function bootstrapDesktop(initialConfig = null) {
-  setDesktopMode(state, true);
+  setDesktopMode(desktopState, true);
   showDesktopUi();
   const payload = initialConfig || await loadPersistedConfig();
-  setDeveloperConfig(state, payload.developerConfig || {});
+  setDeveloperConfig(desktopState, payload.developerConfig || {});
   applyDefaultCredentialInputs(payload.browserConfig || {});
-  setDesktopConfigured(state, payload.firstRunCompleted);
-  if (!isDesktopConfigured(state)) {
+  setDesktopConfigured(desktopState, payload.firstRunCompleted);
+  if (!isDesktopConfigured(desktopState)) {
     openSetupDialog();
   } else {
     closeSetupDialog();
@@ -76,15 +80,15 @@ export async function saveDesktopConfig(browserConfig: any = {}, afterSave) {
   let persisted = await savePersistedBrowserStoredConfig({
     ...nextBrowserConfig,
   });
-  setDeveloperConfig(state, persisted.developerConfig || getDeveloperConfig(state));
+  setDeveloperConfig(desktopState, persisted.developerConfig || getDeveloperConfig(desktopState));
   applyDefaultCredentialInputs(persisted.browserConfig || {});
   if (markConfigured && !persisted.firstRunCompleted) {
     persisted = await savePersistedDesktopConfig({ firstRunCompleted: true });
-    setDeveloperConfig(state, persisted.developerConfig || getDeveloperConfig(state));
+    setDeveloperConfig(desktopState, persisted.developerConfig || getDeveloperConfig(desktopState));
     applyDefaultCredentialInputs(persisted.browserConfig || {});
   }
-  setDesktopConfigured(state, persisted.firstRunCompleted);
-  if (isDesktopConfigured(state)) {
+  setDesktopConfigured(desktopState, persisted.firstRunCompleted);
+  if (isDesktopConfigured(desktopState)) {
     closeSetupDialog();
     const errorBox = $("error-box") || $("error-box-inline");
     if (errorBox) {
@@ -96,14 +100,14 @@ export async function saveDesktopConfig(browserConfig: any = {}, afterSave) {
     try {
       await callback();
     } catch (error) {
-      if (isDesktopConfigured(state)) {
+      if (isDesktopConfigured(desktopState)) {
         const message = error?.message || String(error);
         throw new Error(`首次配置已保存，但当前无法连接本地后端。${message}`);
       }
       throw error;
     }
   }
-  setDeveloperConfig(state, persisted.developerConfig || getDeveloperConfig(state));
+  setDeveloperConfig(desktopState, persisted.developerConfig || getDeveloperConfig(desktopState));
   applyDefaultCredentialInputs(persisted.browserConfig || {});
   return persisted;
 }

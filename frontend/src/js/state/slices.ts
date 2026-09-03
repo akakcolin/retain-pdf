@@ -30,3 +30,5 @@ export function createInitialState() {
     ...createDesktopState(),
   };
 }
+
+export type InitialState = ReturnType<typeof createInitialState>;

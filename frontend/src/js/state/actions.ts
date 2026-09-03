@@ -28,76 +28,79 @@ import {
   resetUploadState as resetUploadStateSlice,
   setUploadState as setUploadStateSlice,
 } from "./upload-state.js";
-import { state } from "./store.js";
+import type { InitialState } from "./slices.js";
 
-export function resetJobState(target = state) {
+// 全局 state 单例已下线(架构评审 P2-6):action 一律要求显式传入目标 state,
+// 避免"看起来是全局操作、实际只有 desktop 模块在用"的误导。
+
+export function resetJobState(target: InitialState) {
   resetJobStateSlice(target);
 }
 
-export function resetJobSecondaryState(target = state) {
+export function resetJobSecondaryState(target: InitialState) {
   resetJobSecondaryStateSlice(target);
 }
 
-export function resetUploadState(target = state, options = {}) {
+export function resetUploadState(target: InitialState, options = {}) {
   resetUploadStateSlice(target, options);
 }
 
-export function setUploadState(target = state, payload = {}) {
+export function setUploadState(target: InitialState, payload = {}) {
   setUploadStateSlice(target, payload);
 }
 
-export function setAppliedPageRange(target = state, value = "") {
+export function setAppliedPageRange(target: InitialState, value = "") {
   setAppliedPageRangeSlice(target, value);
 }
 
-export function clearAppliedPageRange(target = state) {
+export function clearAppliedPageRange(target: InitialState) {
   clearAppliedPageRangeSlice(target);
 }
 
-export function resetRecentJobsListState(target = state) {
+export function resetRecentJobsListState(target: InitialState) {
   resetRecentJobsListStateSlice(target);
 }
 
-export function resetOcrValidationState(target = state) {
+export function resetOcrValidationState(target: InitialState) {
   resetOcrValidationStateSlice(target);
 }
 
-export function resetOcrValidationCache(target = state) {
+export function resetOcrValidationCache(target: InitialState) {
   resetOcrValidationCacheSlice(target);
 }
 
-export function setOcrValidationCache(target = state, payload = {}) {
+export function setOcrValidationCache(target: InitialState, payload = {}) {
   setOcrValidationCacheSlice(target, payload);
 }
 
-export function resetDeepSeekBalanceState(target = state) {
+export function resetDeepSeekBalanceState(target: InitialState) {
   resetDeepSeekBalanceStateSlice(target);
 }
 
-export function setDeepSeekBalanceState(target = state, balanceCny, checked = true) {
+export function setDeepSeekBalanceState(target: InitialState, balanceCny, checked = true) {
   setDeepSeekBalanceStateSlice(target, balanceCny, checked);
 }
 
-export function setDeveloperConfig(target = state, config = {}) {
+export function setDeveloperConfig(target: InitialState, config = {}) {
   setDeveloperConfigSlice(target, config);
 }
 
-export function resetDeveloperConfig(target = state) {
+export function resetDeveloperConfig(target: InitialState) {
   resetDeveloperConfigSlice(target);
 }
 
-export function setDesktopMode(target = state, value = true) {
+export function setDesktopMode(target: InitialState, value = true) {
   setDesktopModeSlice(target, value);
 }
 
-export function setDesktopConfigured(target = state, value = false) {
+export function setDesktopConfigured(target: InitialState, value = false) {
   setDesktopConfiguredSlice(target, value);
 }
 
-export function setHomeViewMode(target = state, mode) {
+export function setHomeViewMode(target: InitialState, mode) {
   setHomeViewModeSlice(target, mode);
 }
 
-export function setHomeRecentJobsLoadingState(target = state, loadingState, error = "") {
+export function setHomeRecentJobsLoadingState(target: InitialState, loadingState, error = "") {
   setHomeRecentJobsLoadingStateSlice(target, loadingState, error);
 }

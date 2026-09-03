@@ -79,6 +79,9 @@ function AnnotationItem({ annotation, onJump, onDelete, onSaveNote }) {
 
 // 具名导出:reader 页(src/pages/reader)已打包,直接复用组件源码渲染进
 // 批注抽屉(Phase 2b);mountReaderAnnotationsApp 保留给组件级测试当挂载入口。
+// 「已复制」按钮反馈的展示时长（评审 P2-7，工程经验值）。
+const EXPORT_COPIED_FEEDBACK_MS = 2000;
+
 export function ReaderAnnotationsPanel({ ports }) {
   const [open, setOpen] = useState(false);
   const [annotations, setAnnotations] = useState([]);
@@ -130,7 +133,7 @@ export function ReaderAnnotationsPanel({ ports }) {
     if (ok) {
       setCopied(true);
       clearTimeout(copyTimerRef.current);
-      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
+      copyTimerRef.current = setTimeout(() => setCopied(false), EXPORT_COPIED_FEEDBACK_MS);
     }
   }, [ports, annotations]);
 

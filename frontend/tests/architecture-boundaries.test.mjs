@@ -702,3 +702,62 @@ test("reader non-legacy must not import src/js/* directly (use pages/reader/exte
     "non-legacy reader code imports src/js/* only via pages/reader/external.ts",
   );
 });
+
+
+// ── legacy js/reader 模块级可变单例冻结（评审 P1-4）──────────────────
+// legacy 引擎的模块级 let（region 绑定、rAF ticking、引擎 promise 缓存等）
+// 是既定形态；新功能不得再往里加。预算只降不升：某文件减少后请同步下调。
+const LEGACY_READER_MODULE_LET_BUDGET = new Map([
+  ["ai/ui-interaction-lock.ts", 4],
+  ["markdown-math.ts", 1],
+  ["markdown-preview.ts", 1],
+  ["markdown-render.ts", 1],
+  ["pdf-document.ts", 1],
+  ["pdf-layout.ts", 2],
+  ["region-interactions.ts", 4],
+  ["view.ts", 2],
+]);
+
+test("legacy js/reader 模块级可变单例只减不增", () => {
+  const readerRoot = join(JS_ROOT, "reader");
+  const counts = new Map();
+  for (const file of walkFiles(readerRoot)) {
+    if (!/\.ts$/.test(file)) continue;
+    const rel = relative(readerRoot, file).replace(/\\/g, "/");
+    const found = readSource(file)
+      .split("\n")
+      .filter((line) => /^(?:export\s+)?let\s/.test(line)).length;
+    if (found > 0) counts.set(rel, found);
+  }
+
+  for (const [file, count] of counts) {
+    const budget = LEGACY_READER_MODULE_LET_BUDGET.get(file);
+    assert.ok(
+      budget !== undefined,
+      `${file} 新增了模块级 let 单例（${count} 处）；legacy 引擎已冻结，新状态请放进显式实例/closure`,
+    );
+    assert.ok(
+      count <= budget,
+      `${file} 模块级 let 从 ${budget} 增至 ${count}；legacy 引擎已冻结，只允许减少`,
+    );
+  }
+});
+
+
+// ── 全局 state 单例已下线（评审 P2-6）──────────────────────────────
+// 原 js/state/store.ts 的模块级 `export const state = createInitialState()`
+// 已删除：唯一消费者 desktop 入口现在持有自己的显式实例 desktopState，
+// state/actions.ts 的 target 参数改为必填。此处防止全局单例复活。
+test("global state singleton stays retired (no state/store.ts, no default-target actions)", () => {
+  assert.equal(
+    existsSync(join(JS_ROOT, "state", "store.ts")),
+    false,
+    "js/state/store.ts 已下线；desktop 入口持有显式 desktopState 实例，请勿复活全局单例",
+  );
+  const actionsSource = readSource(join(JS_ROOT, "state", "actions.ts"));
+  assert.equal(
+    /= state[,)]/.test(actionsSource),
+    false,
+    "state/actions.ts 的 target 必须显式传入，不得再默认到全局单例",
+  );
+});

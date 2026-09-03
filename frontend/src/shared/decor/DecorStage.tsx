@@ -13,6 +13,9 @@ import { useEffect, useRef, useState } from "react";
 import { THEME_CHANGE_EVENT, getTheme, getThemeDefinition } from "../theme/theme.js";
 import { planStage, type StagePlan } from "./stage-plan.js";
 
+// 语录气泡自动收起时长：给足阅读时间又不常驻（评审 P2-7，工程经验值）。
+const VERSE_AUTO_DISMISS_MS = 5000;
+
 function currentPack(): string {
   return getThemeDefinition(getTheme())?.decorPack || "";
 }
@@ -38,7 +41,7 @@ export function DecorStage() {
   // 语录气泡自动收起
   useEffect(() => {
     if (!verse) return;
-    const timer = window.setTimeout(() => setVerse(null), 5000);
+    const timer = window.setTimeout(() => setVerse(null), VERSE_AUTO_DISMISS_MS);
     return () => window.clearTimeout(timer);
   }, [verse]);
 

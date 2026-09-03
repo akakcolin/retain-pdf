@@ -5,6 +5,9 @@ import { StickyNote } from "lucide-react";
 import type { ReaderNote } from "../../annotations/types.js";
 import { ReaderFloatShell } from "./ReaderFloatShell.js";
 
+// 「已复制」按钮反馈的展示时长（评审 P2-7，工程经验值）。
+const EXPORT_COPIED_FEEDBACK_MS = 1800;
+
 export type ReaderNotesPanelProps = {
   open: boolean;
   groups: Array<{ page: number; items: ReaderNote[] }>;
@@ -128,7 +131,7 @@ export function ReaderNotesPanel({
               const ok = await onExport();
               if (ok) {
                 setCopied(true);
-                window.setTimeout(() => setCopied(false), 1800);
+                window.setTimeout(() => setCopied(false), EXPORT_COPIED_FEEDBACK_MS);
               }
             }}
           >
