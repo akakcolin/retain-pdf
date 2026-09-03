@@ -9,13 +9,13 @@
 Rust API 创建 job，生成 `specs/*.spec.json` 并依次启动 worker。阶段执行：
 
 - normalize：全量走 native `render_rs --normalize-ocr`（单一实现，Python normalize 引擎已退役）
-- translate：`entrypoints/run_translate_only.py -> services/translation/entrypoints/translate_only_pipeline.py -> runtime/pipeline/translation_stage.py -> services/translation/*`
+- translate：`entrypoints/run_translate_only.py -> services/translation/entrypoints/translate_only_pipeline.py -> services.translation.public（TranslationExecutionRequest）-> services/translation/*`
 - render：native `render_rs --spec render.spec.json`，Python 侧无渲染实现
 
 ## 最常见入口
 
 - 改人工执行入口：`entrypoints/`（console.py、diagnose_failure_with_ai.py、run_translate_only.py、translate_book.py、validate_document_schema.py）
-- 改翻译阶段编排：`runtime/pipeline/`（仅剩 `translation_stage.py`）
+- 改翻译阶段编排：`services/translation/workflow/`（执行计划 `execution_plan.py`、阶段顺序 `book_flow.py`）
 - 改 OCR 归一化：native `rendering_orchestrator/src/normalize/`（`render_rs --normalize-ocr`），Python 侧无实现
 - 改统一 OCR 契约：`services/document_schema/`（`consumer_reader.py`、`reporting.py`）
 - 改翻译主链：`services/translation/`
@@ -24,7 +24,7 @@ Rust API 创建 job，生成 `specs/*.spec.json` 并依次启动 worker。阶段
 ## 快速判断
 
 - “这是入口参数或 worker 启动方式变化吗？” 先看 `entrypoints/`
-- “这是翻译阶段顺序或输入输出协议变化吗？” 先看 `runtime/pipeline/`
+- “这是翻译阶段顺序或输入输出协议变化吗？” 先看 `services/translation/workflow/book_flow.py` 与 `foundation/shared/stage_specs.py`
 - “这是 raw OCR 适配或 schema 变化吗？” 先看 `services/document_schema/`
 - “这是 OCR 归一化或契约问题吗？” 先看 native `rendering_orchestrator/src/normalize/` 或 `services/document_schema/`
 - “这是翻译结果不对吗？” 先看 `services/translation/`

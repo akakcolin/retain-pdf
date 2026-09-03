@@ -11,25 +11,25 @@ from services.translation.services.memory import JobMemorySnapshot
 from services.translation.services.memory import JobMemoryStore
 from services.translation.core.payload import pending_translation_items
 
-from services.translation.workflow.batching.executor import _keep_origin_results_for_transport_batch
-from services.translation.workflow.batching.executor import _translate_batch_or_keep_origin as _translate_batch_or_keep_origin_impl
+from services.translation.workflow.batching.executor import keep_origin_results_for_transport_batch
+from services.translation.workflow.batching.executor import translate_batch_or_keep_origin as _translate_batch_or_keep_origin_impl
 from services.translation.workflow.batch_runner import run_translation_batches_parallel
 from services.translation.workflow.batch_runner import run_translation_batches_sequential
 from services.translation.services.results.flush import TranslationFlushState
 from services.translation.services.results.applier import TranslationResultApplier
 from services.translation.services.results.applier import expand_duplicate_results as _expand_duplicate_results
 from services.translation.services.results.applier import touched_pages_for_batch
-from services.translation.workflow.scheduling.allocation import _allocate_translation_queue_workers
-from services.translation.workflow.scheduling.allocation import _slow_worker_cap
-from services.translation.workflow.batching.plan import _build_translation_batches
-from services.translation.workflow.batching.plan import _classify_translation_batches
-from services.translation.workflow.batching.plan import _dedupe_pending_items
-from services.translation.workflow.batching.plan import _effective_translation_batch_size
-from services.translation.workflow.batching.plan import _save_flush_interval
+from services.translation.workflow.scheduling.allocation import allocate_translation_queue_workers
+from services.translation.workflow.scheduling.allocation import slow_worker_cap
+from services.translation.workflow.batching.plan import build_translation_batches
+from services.translation.workflow.batching.plan import classify_translation_batches
+from services.translation.workflow.batching.plan import dedupe_pending_items
+from services.translation.workflow.batching.plan import effective_translation_batch_size
+from services.translation.workflow.batching.plan import save_flush_interval
 from services.translation.workflow.scheduling.stats import TranslationBatchRunStats
 
 
-def _translate_batch_or_keep_origin(
+def translate_batch_or_keep_origin(
     batch: list[dict],
     *,
     api_key: str,
@@ -116,23 +116,23 @@ def translate_pending_units(
             item_to_page[item.get("item_id", "")] = page_idx
 
     pending = pending_translation_items(flat_payload)
-    pending, duplicate_items_by_rep_id = _dedupe_pending_items(pending)
-    effective_batch_size = _effective_translation_batch_size(
+    pending, duplicate_items_by_rep_id = dedupe_pending_items(pending)
+    effective_batch_size = effective_translation_batch_size(
         batch_size=batch_size,
         model=model,
         base_url=base_url,
         translation_context=translation_context,
     )
-    batches, immediate_results = _build_translation_batches(
+    batches, immediate_results = build_translation_batches(
         pending,
         effective_batch_size=effective_batch_size,
         translation_context=translation_context,
     )
-    batched_fast_batches, single_fast_batches, single_slow_batches = _classify_translation_batches(batches)
+    batched_fast_batches, single_fast_batches, single_slow_batches = classify_translation_batches(batches)
     total_batches = len(batches)
-    flush_interval = _save_flush_interval(workers=workers, total_batches=total_batches)
-    slow_worker_limit = _slow_worker_cap(max(1, workers), len(single_slow_batches))
-    queue_workers = _allocate_translation_queue_workers(
+    flush_interval = save_flush_interval(workers=workers, total_batches=total_batches)
+    slow_worker_limit = slow_worker_cap(max(1, workers), len(single_slow_batches))
+    queue_workers = allocate_translation_queue_workers(
         workers,
         batched_fast_count=len(batched_fast_batches),
         single_fast_count=len(single_fast_batches),

@@ -12,13 +12,13 @@ from services.translation.llm.shared.orchestration import translate_batch
 from services.translation.services.memory import JobMemoryStore
 from services.translation.services.memory import flush_translation_memory
 
-from services.translation.workflow.batching.executor import _translate_batch_or_keep_origin
+from services.translation.workflow.batching.executor import translate_batch_or_keep_origin
 from services.translation.services.results.flush import TranslationFlushState
 from services.translation.services.results.applier import TranslationResultApplier
-from services.translation.workflow.scheduling.failures import _failed_results_for_unhandled_batch_exception
-from services.translation.workflow.scheduling.tail_retry import _drain_translation_tail_queue
-from services.translation.workflow.scheduling.tail_retry import _should_drain_translation_tail_early
-from services.translation.workflow.scheduling.tail_retry import _transport_tail_retry_workers
+from services.translation.workflow.scheduling.failures import failed_results_for_unhandled_batch_exception
+from services.translation.workflow.scheduling.tail_retry import drain_translation_tail_queue
+from services.translation.workflow.scheduling.tail_retry import should_drain_translation_tail_early
+from services.translation.workflow.scheduling.tail_retry import transport_tail_retry_workers
 
 TranslationResult = tuple[
     str,
@@ -74,7 +74,7 @@ def run_translation_batches_sequential(
     total_batches = len(batches)
     for index, batch in enumerate(batches, start=1):
         batch_label = f"book: batch {index}/{total_batches}"
-        translated = _translate_batch_or_keep_origin(
+        translated = translate_batch_or_keep_origin(
             batch,
             api_key=api_key,
             model=model,
@@ -89,7 +89,7 @@ def run_translation_batches_sequential(
         touched_pages = result_applier.apply_batch(batch, translated)
         flush_state.record_progress(index, touched_pages)
         flush_state.flush_if_due(index, label=f"flushed after batch {index}/{total_batches}")
-    _drain_translation_tail_queue(
+    drain_translation_tail_queue(
         translation_context=translation_context,
         result_applier=result_applier,
         flush_state=flush_state,
@@ -119,7 +119,7 @@ def _run_translation_queue_worker(
         translated: dict[str, dict[str, str]] | None = None
         exc: Exception | None = None
         try:
-            translated = _translate_batch_or_keep_origin(
+            translated = translate_batch_or_keep_origin(
                 batch,
                 api_key=api_key,
                 model=model,
@@ -189,7 +189,7 @@ def _normalize_translation_result(result: TranslationResult) -> AppliedTranslati
             f"book: {queue_name} batch failed, preserving remaining completed results: {type(exc).__name__}: {exc}",
             flush=True,
         )
-        translated = _failed_results_for_unhandled_batch_exception(batch, exc)
+        translated = failed_results_for_unhandled_batch_exception(batch, exc)
     return batch, translated or {}
 
 
@@ -236,7 +236,7 @@ def run_translation_batches_parallel(
         "single_slow": single_slow_batches,
     }
     total_batches = sum(len(batches) for batches in batches_by_queue.values())
-    tail_retry_workers = _transport_tail_retry_workers(queue_workers)
+    tail_retry_workers = transport_tail_retry_workers(queue_workers)
     slow_tasks = _translation_tasks("single_slow", single_slow_batches)
     pool_specs = [
         (
@@ -308,8 +308,8 @@ def run_translation_batches_parallel(
             flush_state.record_progress(completed, touched_pages)
             flush_state.flush_if_due(completed, label=f"flushed after completed batch {completed}/{total_batches}")
             print(f"book: completed batch {completed}/{total_batches} (+{len(drained)})", flush=True)
-            if _should_drain_translation_tail_early(completed, total_batches):
-                tail_stats = _drain_translation_tail_queue(
+            if should_drain_translation_tail_early(completed, total_batches):
+                tail_stats = drain_translation_tail_queue(
                     translation_context=translation_context,
                     result_applier=result_applier,
                     flush_state=flush_state,
@@ -336,7 +336,7 @@ def run_translation_batches_parallel(
                 f"{type(worker_error).__name__}: {worker_error}",
                 flush=True,
             )
-    final_tail_stats = _drain_translation_tail_queue(
+    final_tail_stats = drain_translation_tail_queue(
         translation_context=translation_context,
         result_applier=result_applier,
         flush_state=flush_state,

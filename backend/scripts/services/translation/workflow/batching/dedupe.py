@@ -18,7 +18,7 @@ def _source_text(item: dict) -> str:
     )
 
 
-def _dedupe_signature(item: dict) -> str | None:
+def dedupe_signature(item: dict) -> str | None:
     item_id = str(item.get("item_id", "") or "")
     if item_id.startswith(GROUP_ITEM_PREFIX):
         return None
@@ -42,12 +42,12 @@ def _dedupe_signature(item: dict) -> str | None:
     return json.dumps(payload, ensure_ascii=False, sort_keys=True)
 
 
-def _dedupe_pending_items(pending: list[dict]) -> tuple[list[dict], dict[str, list[dict]]]:
+def dedupe_pending_items(pending: list[dict]) -> tuple[list[dict], dict[str, list[dict]]]:
     unique: list[dict] = []
     duplicates_by_rep_id: dict[str, list[dict]] = {}
     representative_by_signature: dict[str, dict] = {}
     for item in pending:
-        signature = _dedupe_signature(item)
+        signature = dedupe_signature(item)
         if signature is None:
             unique.append(item)
             continue
@@ -62,7 +62,7 @@ def _dedupe_pending_items(pending: list[dict]) -> tuple[list[dict], dict[str, li
 
 
 __all__ = [
-    "_dedupe_pending_items",
-    "_dedupe_signature",
+    "dedupe_pending_items",
+    "dedupe_signature",
     "_source_text",
 ]

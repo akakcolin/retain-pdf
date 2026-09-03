@@ -18,7 +18,7 @@ def run_translation_execution_plan(
     request: TranslationExecutionRequest,
     plan: TranslationExecutionPlan,
 ) -> dict:
-    # Import lazily to keep services.translation.workflow importable without pulling runtime.pipeline.
+    # Import lazily to avoid a workflow -> book_flow import cycle at module load time.
     from services.translation.workflow.book_flow import translate_book_with_global_continuations
 
     glossary_entries = plan.glossary_entries

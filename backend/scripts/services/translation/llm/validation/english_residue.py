@@ -146,7 +146,7 @@ def _looks_like_author_name_list(text: str) -> bool:
     return name_like >= max(3, len(segments) - 1)
 
 
-def _is_reference_like_item(item: dict) -> bool:
+def is_reference_like_item(item: dict) -> bool:
     if item_is_reference_like(item):
         return True
     if item_raw_block_type(item) == "ref_text":
@@ -235,7 +235,7 @@ def looks_like_predominantly_english_output(
     translated = str(translated_text or "").strip()
     if not translated:
         return False
-    if _is_reference_like_item(item):
+    if is_reference_like_item(item):
         return False
     if is_direct_math_mode(item) and (_zh_char_count(translated) > 0 or not looks_like_english_prose(source_text)):
         return False
@@ -290,7 +290,7 @@ def looks_like_mixed_english_residue_output(
     translated = str(translated_text or "").strip()
     if not translated:
         return False
-    if _is_reference_like_item(item):
+    if is_reference_like_item(item):
         return False
     if not should_force_translate_body_text(item):
         return False
@@ -331,7 +331,7 @@ def looks_like_source_echo_output(
     translated = str(translated_text or "").strip()
     if not source_text or not translated:
         return False
-    if _is_reference_like_item(item):
+    if is_reference_like_item(item):
         return False
     source_words = EN_WORD_RE.findall(source_text)
     if len(source_words) < 5:

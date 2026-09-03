@@ -10,7 +10,7 @@ from services.translation.llm.shared.tail_retry_queue import TranslationTailItem
 from services.translation.llm.shared.tail_retry_queue import translation_tail_queue_from_context
 from services.translation.services.results.applier import TranslationResultApplier
 from services.translation.services.results.flush import TranslationFlushState
-from services.translation.workflow.scheduling.failures import _failed_results_for_unhandled_batch_exception
+from services.translation.workflow.scheduling.failures import failed_results_for_unhandled_batch_exception
 
 TAIL_RETRY_WORKER_DIVISOR = 2
 TAIL_RETRY_WORKER_LIMIT = 128
@@ -39,7 +39,7 @@ def _env_int(name: str, default: int, *, minimum: int = 1) -> int:
     return max(minimum, parsed)
 
 
-def _drain_translation_tail_queue(
+def drain_translation_tail_queue(
     *,
     translation_context,
     result_applier: TranslationResultApplier,
@@ -83,7 +83,7 @@ def _drain_translation_tail_queue(
                     f"book: translation tail item failed for {tail_item.item.get('item_id', '')} reason={tail_item.reason}: {type(exc).__name__}: {exc}",
                     flush=True,
                 )
-                translated = _failed_results_for_unhandled_batch_exception([tail_item.item], exc)
+                translated = failed_results_for_unhandled_batch_exception([tail_item.item], exc)
             touched_pages = result_applier.apply_batch([tail_item.item], translated)
             completed += 1
             stats["completed"] = completed
@@ -108,7 +108,7 @@ def _drain_translation_tail_queue(
                     f"book: translation tail item failed for {tail_item.item.get('item_id', '')} reason={tail_item.reason}: {type(exc).__name__}: {exc}",
                     flush=True,
                 )
-                translated = _failed_results_for_unhandled_batch_exception([tail_item.item], exc)
+                translated = failed_results_for_unhandled_batch_exception([tail_item.item], exc)
             touched_pages = result_applier.apply_batch([tail_item.item], translated)
             completed += 1
             stats["completed"] = completed
@@ -119,7 +119,7 @@ def _drain_translation_tail_queue(
     return stats
 
 
-def _should_drain_translation_tail_early(completed: int, total_batches: int) -> bool:
+def should_drain_translation_tail_early(completed: int, total_batches: int) -> bool:
     if not _early_tail_retry_enabled():
         return False
     if completed <= 0 or completed >= total_batches:
@@ -157,7 +157,7 @@ def _run_translation_tail_item(tail_item: TranslationTailItem) -> dict[str, dict
     )
 
 
-def _transport_tail_retry_workers(queue_workers: dict[str, int]) -> int:
+def transport_tail_retry_workers(queue_workers: dict[str, int]) -> int:
     explicit_workers = str(os.environ.get("RETAIN_TRANSLATION_TAIL_RETRY_WORKERS", "") or "").strip()
     if explicit_workers:
         return _env_int("RETAIN_TRANSLATION_TAIL_RETRY_WORKERS", 1)
@@ -171,10 +171,10 @@ __all__ = [
     "EARLY_TAIL_RETRY_DRAIN_INTERVAL",
     "TAIL_RETRY_WORKER_DIVISOR",
     "TAIL_RETRY_WORKER_LIMIT",
-    "_drain_translation_tail_queue",
+    "drain_translation_tail_queue",
     "_early_tail_retry_enabled",
     "_early_tail_retry_drain_interval",
     "_run_translation_tail_item",
-    "_should_drain_translation_tail_early",
-    "_transport_tail_retry_workers",
+    "should_drain_translation_tail_early",
+    "transport_tail_retry_workers",
 ]

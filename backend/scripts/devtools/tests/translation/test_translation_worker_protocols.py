@@ -15,5 +15,7 @@ def test_translate_only_pipeline_keeps_events_and_diagnostics_protocol() -> None
     assert 'artifact_key="pipeline_events_jsonl"' in source
     assert 'artifact_key="translation_diagnostics_json"' in source
     assert '"translation_diagnostics.json"' in source
-    assert 'infer_provider_capabilities(base_url=args.base_url, model=args.model).requires_api_key' in source
+    assert 'infer_provider_capabilities(' in source
+    assert 'base_url=args.base_url' in source
+    assert 'provider_family=args.provider_family' in source
     assert "normalize_base_url(args.base_url) == normalize_base_url(DEFAULT_BASE_URL)" not in source

@@ -15,7 +15,7 @@ from services.translation.llm.result_payload import result_entry
 from services.translation.llm.shared.control_context import build_translation_control_context
 from services.translation.services.agents.review_artifact import build_translation_review
 from services.translation.services.finalization.untranslated import recover_blocking_untranslated_items
-from services.translation.workflow.batching.plan import _build_translation_batches
+from services.translation.workflow.batching.plan import build_translation_batches
 
 
 def _item(item_id: str, source_text: str, **overrides) -> dict:
@@ -58,7 +58,7 @@ def test_policy_keep_origin_item_stays_out_of_model_review_and_export_gates() ->
     hex_source = "Answer(slave-Base module):\n" + " ".join(["01", "03", "40", "FF", "00"] * 80)
     payload = [_item("p182-b016", hex_source)]
 
-    batches, immediate_results = _build_translation_batches(
+    batches, immediate_results = build_translation_batches(
         payload,
         effective_batch_size=4,
         translation_context=context,

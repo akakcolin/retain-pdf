@@ -7,7 +7,6 @@ REPO_SCRIPTS_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_SCRIPTS_ROOT))
 
 
-from services.translation.workflow import stages
 from services.translation.workflow.phases import repair as repair_phase
 
 
@@ -36,7 +35,7 @@ def test_agent_repair_stage_can_be_disabled_by_env(monkeypatch, tmp_path: Path) 
     path.write_text(json.dumps(payload), encoding="utf-8")
     monkeypatch.setenv("RETAIN_TRANSLATION_AGENT_REPAIR_LIMIT", "0")
 
-    summary = stages.run_agent_repair_stage(
+    summary = repair_phase.run_agent_repair_stage(
         page_payloads={0: payload},
         translation_paths={0: path},
         api_key="sk-test",
@@ -78,7 +77,7 @@ def test_agent_repair_stage_runs_limited_repair_and_saves(monkeypatch, tmp_path:
         )
 
     monkeypatch.setattr(repair_phase, "request_chat_content", _fake_request)
-    summary = stages.run_agent_repair_stage(
+    summary = repair_phase.run_agent_repair_stage(
         page_payloads={0: payload},
         translation_paths={0: path},
         api_key="sk-test",
@@ -99,7 +98,7 @@ def test_agent_repair_limit_scales_with_blocking_untranslated(monkeypatch) -> No
     monkeypatch.setenv("RETAIN_TRANSLATION_REPAIR_PROFILE", "quality")
     monkeypatch.delenv("RETAIN_TRANSLATION_AGENT_REPAIR_LIMIT", raising=False)
 
-    assert stages._agent_repair_limit_from_env(
+    assert repair_phase.agent_repair_limit_from_env(
         payload_size=3331,
         blocking_untranslated_count=26,
     ) >= 52
@@ -109,7 +108,7 @@ def test_agent_repair_limit_defaults_to_small_fast_budget(monkeypatch) -> None:
     monkeypatch.delenv("RETAIN_TRANSLATION_REPAIR_PROFILE", raising=False)
     monkeypatch.delenv("RETAIN_TRANSLATION_AGENT_REPAIR_LIMIT", raising=False)
 
-    assert stages._agent_repair_limit_from_env(
+    assert repair_phase.agent_repair_limit_from_env(
         payload_size=3331,
         blocking_untranslated_count=26,
     ) == 8
@@ -118,7 +117,7 @@ def test_agent_repair_limit_defaults_to_small_fast_budget(monkeypatch) -> None:
 def test_agent_repair_limit_env_override_still_wins(monkeypatch) -> None:
     monkeypatch.setenv("RETAIN_TRANSLATION_AGENT_REPAIR_LIMIT", "3")
 
-    assert stages._agent_repair_limit_from_env(
+    assert repair_phase.agent_repair_limit_from_env(
         payload_size=3331,
         blocking_untranslated_count=26,
     ) == 3

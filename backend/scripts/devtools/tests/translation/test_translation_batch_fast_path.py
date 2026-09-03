@@ -8,7 +8,7 @@ REPO_SCRIPTS_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_SCRIPTS_ROOT))
 
 
-from services.translation.workflow.batching.plan import _build_translation_batches
+from services.translation.workflow.batching.plan import build_translation_batches
 from services.translation.llm.shared.control_context import build_translation_control_context
 
 
@@ -26,7 +26,7 @@ def _item(item_id: str, text: str, **overrides):
 
 def test_fast_path_keep_origin_is_removed_from_network_batches() -> None:
     context = build_translation_control_context()
-    batches, immediate = _build_translation_batches(
+    batches, immediate = build_translation_batches(
         [
             _item("placeholder-only", "<f1-a7c/>"),
             _item("short-number", "12.5"),
@@ -42,7 +42,7 @@ def test_fast_path_keep_origin_is_removed_from_network_batches() -> None:
 
 def test_fast_path_keep_origin_skips_short_non_body_labels() -> None:
     context = build_translation_control_context()
-    batches, immediate = _build_translation_batches(
+    batches, immediate = build_translation_batches(
         [
             _item(
                 "caption-e",
@@ -63,7 +63,7 @@ def test_fast_path_keep_origin_skips_short_non_body_labels() -> None:
 
 def test_fast_path_keep_origin_skips_editorial_metadata_tokens() -> None:
     context = build_translation_control_context()
-    batches, immediate = _build_translation_batches(
+    batches, immediate = build_translation_batches(
         [
             _item(
                 "crossmark",
@@ -84,7 +84,7 @@ def test_fast_path_keep_origin_skips_editorial_metadata_tokens() -> None:
 
 def test_fast_path_keep_origin_skips_pure_email_fragments_only() -> None:
     context = build_translation_control_context()
-    batches, immediate = _build_translation_batches(
+    batches, immediate = build_translation_batches(
         [
             _item(
                 "email",
@@ -107,7 +107,7 @@ def test_fast_path_keep_origin_skips_pure_email_fragments_only() -> None:
 def test_fast_path_keep_origin_skips_protocol_hex_dump() -> None:
     context = build_translation_control_context()
     source = "Answer(slave-Base module):\n" + " ".join(["01", "03", "40", "FF", "00"] * 80)
-    batches, immediate = _build_translation_batches(
+    batches, immediate = build_translation_batches(
         [
             _item("p182-b016", source),
             _item("body", "This sentence describes antibacterial activity and provides enough body text for translation."),

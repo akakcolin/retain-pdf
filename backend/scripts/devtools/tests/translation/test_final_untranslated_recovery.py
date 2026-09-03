@@ -9,7 +9,6 @@ sys.path.insert(0, str(REPO_SCRIPTS_ROOT))
 
 from services.translation.artifacts import blocking_untranslated_items
 from services.translation.services.finalization import recover_blocking_untranslated_items
-from services.translation.workflow import stages
 from services.translation.workflow.phases import repair as repair_phase
 
 
@@ -112,7 +111,7 @@ def test_final_untranslated_recovery_stage_saves_pages(monkeypatch, tmp_path: Pa
     path.write_text(json.dumps(payload), encoding="utf-8")
 
     monkeypatch.setattr(repair_phase, "request_chat_content", lambda *_args, **_kwargs: "该矩阵在基组中被对角化。")
-    summary = stages.run_final_untranslated_recovery_stage(
+    summary = repair_phase.run_final_untranslated_recovery_stage(
         page_payloads={0: payload},
         translation_paths={0: path},
         api_key="sk-test",

@@ -5,7 +5,7 @@
 总体分层：
 
 ```text
-entrypoints -> runtime/pipeline -> services/* -> foundation
+entrypoints -> services/*（各子系统公开门面）-> foundation
 ```
 
 基本规则：
@@ -13,7 +13,7 @@ entrypoints -> runtime/pipeline -> services/* -> foundation
 - OCR raw payload 由 native `render_rs --normalize-ocr` 归一化为 `document.v1.json`，Python 侧无 adapter / normalize 实现。
 - 翻译主链只消费 `document.v1` 和 translation stage spec。
 - 渲染主链只消费源 PDF、translation manifest、逐页翻译 payload 和 render stage spec。
-- `runtime/pipeline` 只负责编排，不吸收 provider、LLM、Typst、redaction 的细节。
+- 阶段编排在各子系统入口内完成，不吸收 provider、LLM、Typst、redaction 的细节（独立的 `runtime/pipeline` 编排层已于 2026-09 移除）。
 - `translation` 不 import 渲染模块（渲染已 native `render_rs`，Python 侧无渲染树），也不消费 provider raw JSON。
 
 更细规则见 [Python 后端架构边界](../python/architecture.md)。

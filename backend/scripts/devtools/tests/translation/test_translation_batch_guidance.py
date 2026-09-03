@@ -12,7 +12,7 @@ from services.translation.llm.shared.control_context import FallbackPolicy
 from services.translation.llm.shared.control_context import build_translation_control_context
 from services.translation.llm.shared.orchestration.batched_plain import translate_items_plain_text
 from services.translation.services.terms import GlossaryEntry
-from services.translation.workflow.batching.pending_units import _translate_batch_or_keep_origin
+from services.translation.workflow.batching.pending_units import translate_batch_or_keep_origin
 
 
 def _item(item_id: str, text: str, **overrides):
@@ -45,7 +45,7 @@ def test_translate_batch_wrapper_appends_relevant_job_memory_to_domain_guidance(
         captured["context"] = kwargs["context"]
         return {"a": {"decision": "translate", "translated_text": "自洽场"}}
 
-    result = _translate_batch_or_keep_origin(
+    result = translate_batch_or_keep_origin(
         [_item("a", "SCF")],
         api_key="sk-test",
         model="deepseek-chat",

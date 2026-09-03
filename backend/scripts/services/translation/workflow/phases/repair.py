@@ -202,7 +202,7 @@ def run_agent_repair_stage(
         }
     flat_payload: list[dict] = [item for page_idx in sorted(page_payloads) for item in page_payloads[page_idx]]
     blocking_untranslated = blocking_untranslated_items(page_payloads)
-    repair_limit = _agent_repair_limit_from_env(
+    repair_limit = agent_repair_limit_from_env(
         payload_size=len(flat_payload),
         blocking_untranslated_count=len(blocking_untranslated),
     )
@@ -367,7 +367,7 @@ def _final_recovery_limit_from_env() -> int:
         return 64
 
 
-def _agent_repair_limit_from_env(
+def agent_repair_limit_from_env(
     *,
     payload_size: int = 0,
     blocking_untranslated_count: int = 0,

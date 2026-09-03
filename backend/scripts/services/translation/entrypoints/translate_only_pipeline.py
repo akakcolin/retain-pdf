@@ -36,10 +36,11 @@ from services.pipeline_shared.io import save_json
 from services.translation.artifacts import write_translation_debug_index
 from services.translation.artifacts import write_translation_diagnostics
 from services.translation.artifacts import blocking_untranslated_items
-from services.translation.llm.shared.provider_registry import infer_provider_capabilities
-from services.translation.llm.shared.provider_runtime import get_api_key
+from services.translation.public import execute_translation_request
+from services.translation.public import get_api_key
+from services.translation.public import infer_provider_capabilities
+from services.translation.public import TranslationExecutionRequest
 from services.translation.services.terms import parse_glossary_json
-from runtime.pipeline.translation_stage import translate_book_pipeline
 
 
 def parse_args() -> argparse.Namespace:
@@ -85,6 +86,7 @@ def _args_from_spec(spec: TranslateStageSpec) -> SimpleNamespace:
         api_key=resolve_credential_ref(spec.params.credential_ref),
         model=spec.params.model,
         base_url=spec.params.base_url,
+        provider_family=spec.params.provider_family,
         source_lang=spec.params.source_lang,
         target_lang=spec.params.target_lang,
         target_language_name=spec.params.target_language_name,
@@ -126,7 +128,11 @@ def main() -> None:
         print(format_stdout_kv(STDOUT_LABEL_EVENTS_JSONL, event_writer.path))
         api_key = get_api_key(
             args.api_key,
-            required=infer_provider_capabilities(base_url=args.base_url, model=args.model).requires_api_key,
+            required=infer_provider_capabilities(
+                base_url=args.base_url,
+                model=args.model,
+                provider_family=args.provider_family,
+            ).requires_api_key,
         )
         emit_stage_transition(
             stage="translating",
@@ -134,39 +140,42 @@ def main() -> None:
             message="开始准备纯翻译阶段",
         )
         started = time.perf_counter()
-        result = translate_book_pipeline(
-            source_json_path=source_json_path,
-            output_dir=translations_dir,
-            api_key=api_key,
-            start_page=args.start_page,
-            end_page=args.end_page,
-            batch_size=args.batch_size,
-            workers=args.workers,
-            mode=args.mode,
-            math_mode=args.math_mode,
-            classify_batch_size=args.classify_batch_size,
-            skip_title_translation=args.skip_title_translation,
-            model=args.model,
-            base_url=args.base_url,
-            source_pdf_path=source_pdf_path,
-            rule_profile_name=args.rule_profile_name,
-            custom_rules_text=args.custom_rules_text,
-            glossary_id=args.glossary_id,
-            glossary_name=args.glossary_name,
-            glossary_resource_entry_count=args.glossary_resource_entry_count,
-            glossary_inline_entry_count=args.glossary_inline_entry_count,
-            glossary_overridden_entry_count=args.glossary_overridden_entry_count,
-            glossary_entries=parse_glossary_json(args.glossary_json),
-            context_mode=args.context_mode,
-            glossary_mode=args.glossary_mode,
-            memory_mode=args.memory_mode,
-            source_lang=args.source_lang,
-            target_lang=args.target_lang,
-            target_language_name=args.target_language_name,
-            invocation=build_stage_invocation_metadata(
-                stage="translate",
-                stage_spec_schema_version=stage_spec_schema_version,
-            ),
+        result = execute_translation_request(
+            TranslationExecutionRequest(
+                source_json_path=source_json_path,
+                output_dir=translations_dir,
+                api_key=api_key,
+                start_page=args.start_page,
+                end_page=args.end_page,
+                batch_size=args.batch_size,
+                workers=args.workers,
+                mode=args.mode,
+                math_mode=args.math_mode,
+                classify_batch_size=args.classify_batch_size,
+                skip_title_translation=args.skip_title_translation,
+                model=args.model,
+                base_url=args.base_url,
+                provider_family=args.provider_family,
+                source_pdf_path=source_pdf_path,
+                rule_profile_name=args.rule_profile_name,
+                custom_rules_text=args.custom_rules_text,
+                glossary_id=args.glossary_id,
+                glossary_name=args.glossary_name,
+                glossary_resource_entry_count=args.glossary_resource_entry_count,
+                glossary_inline_entry_count=args.glossary_inline_entry_count,
+                glossary_overridden_entry_count=args.glossary_overridden_entry_count,
+                glossary_entries=parse_glossary_json(args.glossary_json),
+                context_mode=args.context_mode,
+                glossary_mode=args.glossary_mode,
+                memory_mode=args.memory_mode,
+                source_lang=args.source_lang,
+                target_lang=args.target_lang,
+                target_language_name=args.target_language_name,
+                invocation=build_stage_invocation_metadata(
+                    stage="translate",
+                    stage_spec_schema_version=stage_spec_schema_version,
+                ),
+            )
         )
         elapsed = time.perf_counter() - started
         diagnostics_path = job_dirs.artifacts_dir / "translation_diagnostics.json"

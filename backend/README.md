@@ -47,7 +47,7 @@ local-runtime/
 后端解耦状态以主线文档和架构门禁为准。当前稳定边界是：
 
 - Rust API 负责任务状态、stage spec、事件、artifact 引用和进程编排。
-- Python `backend/scripts/runtime/pipeline/` 只做阶段编排，不直接消费 OCR provider 原始结构。
+- Python 翻译阶段由 `backend/scripts/services/translation/entrypoints/translate_only_pipeline.py` 承载，经 `services.translation.public` 门面构造 `TranslationExecutionRequest` 执行，不直接消费 OCR provider 原始结构。
 - Python 翻译入口走 `services.translation.workflow` facade。
 - 渲染由 native `render_rs --spec` 全量接管（prepare/typst/overlay/save 全 native），不再有 Python 渲染树。
 - OCR provider 原始产物必须先进入 `document.v1.json`，翻译只消费 normalized document 与 translation artifacts。

@@ -87,8 +87,6 @@ OCR 归一化由 native `render_rs --normalize-ocr` 完成（`rendering_orchestr
   provider / translate / render 共用的阶段协议、summary 和 JSON IO。
 - `services/translation`
   OCR payload 到翻译 JSON。
-- `runtime/pipeline`
-  翻译阶段编排层。
 - `services/README.md`
   具体能力实现层总说明。
 - `foundation/config`
@@ -203,7 +201,6 @@ python backend/scripts/devtools/sync_python_requirements.py --repo-root . --chec
 - [PIPELINE_DIRECTORY_MAP.md](./PIPELINE_DIRECTORY_MAP.md)
 - [foundation/config/README.md](./foundation/config/README.md)
 - [foundation/shared/README.md](./foundation/shared/README.md)
-- [runtime/pipeline/README.md](./runtime/pipeline/README.md)
 - [services/README.md](./services/README.md)
 - [services/translation/README.md](./services/translation/README.md)
 - [services/translation/llm/README.md](./services/translation/llm/README.md)
@@ -215,7 +212,7 @@ python backend/scripts/devtools/sync_python_requirements.py --repo-root . --chec
 
 - `services/translation` 不直接操作 PDF
 - `render_rs`（native）不直接决定翻译策略
-- `runtime/pipeline` 负责编排，不下沉到实现细节
+- 翻译阶段由 `services/translation/entrypoints/translate_only_pipeline.py` 经 `services.translation.public` 门面执行，不再有独立编排层
 - `foundation/` 不承载具体业务流程
 - `entrypoints/` 只做入口，不承载核心实现
 - `devtools/` 不能反向成为主链路依赖
@@ -229,9 +226,9 @@ python backend/scripts/devtools/sync_python_requirements.py --repo-root . --chec
 
 第二条负责卡住 Python 主链最容易回退的边界：
 
-- `runtime/pipeline` 重新直接 import `services.mineru` / 已退役的 `services.ocr_provider`
-- `runtime/pipeline` 重新理解 provider raw token，例如 `layoutParsingResults`
-- `runtime/pipeline` 重新依赖 `document_schema` provider adapters
+- 任何模块重新引入 `runtime/pipeline` 编排层并 import `services.mineru` / 已退役的 `services.ocr_provider`
+- 任何模块重新理解 provider raw token，例如 `layoutParsingResults`
+- 任何模块重新依赖 `document_schema` provider adapters（翻译链路外）
 - `services/translation` 重新碰 provider raw 结构
 - `entrypoints/*` 绕过稳定入口，直接连深层实现
 - 非 devtools 模块重新 import fitz / 重新出现第二个 normalize 实现

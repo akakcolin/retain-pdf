@@ -36,7 +36,7 @@ document.v1.json
 - `backend/scripts/services/translation/from_ocr_pipeline.py`
   provider/normalize 后继续翻译和渲染的入口之一。
 - `backend/scripts/services/translation/workflow`
-  翻译层内部 facade，`runtime/pipeline/translation_stage.py` 通过这里进入翻译执行。
+  翻译层内部编排（执行计划与阶段顺序），`services/translation/entrypoints/translate_only_pipeline.py` 经 `services.translation.public` 门面进入翻译执行。
 
 当前 stage spec 里的 `start_page` / `end_page` 是 0 基页码，`end_page=0` 表示只处理第一页，不能被当成未设置值。
 

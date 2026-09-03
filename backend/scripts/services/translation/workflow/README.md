@@ -18,7 +18,7 @@
 ## 目标目录
 
 - `phases/`
-  后续承接目前集中在 `stages.py` 里的阶段实现。
+  阶段实现已就位（batch_translation / continuation / policy / repair / events），`book_flow.py` 与测试均直接引用；旧的 `stages.py` 兼容垫片已于 2026-09 移除。
   一个 phase 可以调用 policy、continuation、LLM 或 repair 服务，但事件格式和落盘细节要收窄。
 
 - `scheduling/`
@@ -39,10 +39,10 @@
 - Workflow 可以发送 pipeline events，但事件契约必须稳定，不能靠 log message 推断阶段。
 - Batch scheduling 不应该决定翻译质量策略，只负责执行已准备好的 units，并暴露结构化失败。
 - Result flush 不应该重建全局 translation-unit 状态，除非调用方明确要求。
-- Rendering prewarm 属于 runtime/pipeline 职责，translation 内部不应 import rendering 模块。
+- Rendering prewarm 属于 entrypoints 职责，translation 内部不应 import rendering 模块。
 
 ## 迁移顺序
 
-1. 按职责把 `stages.py` 的阶段实现迁到 `phases/`。
+1. ✅ 按职责把 `stages.py` 的阶段实现迁到 `phases/`（2026-09 完成，垫片已删除）。
 2. 把 `batch_runner.py` 里的 queue worker / tail retry 迁到 `scheduling/`。
 3. 把旧逐页 helper 迁到 `legacy/`；等没有生产调用后，再移除相关 production export。

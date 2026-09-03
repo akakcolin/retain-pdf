@@ -144,13 +144,12 @@ Rust API 对应暴露了：
 production 代码在 translation 外部引用本模块时，默认只允许：
 
 - `services.translation.public`
-  runtime、rendering、ocr_provider 共享的稳定 contract，例如 glossary entry、provider runtime 默认值、translation manifest 读取、item role helper、公式保护 helper、diagnostics writer。
+  entrypoints、rendering、ocr_provider 共享的稳定 contract，例如 glossary entry、provider runtime 默认值、translation manifest 读取、item role helper、公式保护 helper、diagnostics writer。
 - `services.translation.entrypoints.*`
   CLI/worker 入口脚本使用。
 
 以下 production 目录不应直接 import translation 内部实现：
 
-- `runtime/pipeline/**`
 - `services/mineru/**`
 - `services/document_schema/**`
 
@@ -429,5 +428,5 @@ repair profile：
 - 允许在这里改策略、并发、术语表、LLM 调度、payload 落盘和翻译诊断
 - 不要在这里直接处理 provider raw OCR 结构，也不要把源 PDF 渲染逻辑塞回来
 - 当前正式输出协议是“逐页 translation payload + `translation-manifest.json`”；渲染层应只消费这套协议
-- 如果修改 payload 结构、manifest 字段语义或默认文件发现方式，必须同步更新 `runtime/pipeline`、`rendering`、README 和测试
+- 如果修改 payload 结构、manifest 字段语义或默认文件发现方式，必须同步更新 `entrypoints`、`rendering`、README 和测试
 - 术语表当前是翻译提示约束，不是渲染层规则，也不是 OCR 层规则；不要把术语逻辑扩散到其他模块

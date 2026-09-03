@@ -12,10 +12,8 @@ from devtools.architecture_checks.translation_rules import DEVTOOLS_ROOT
 from devtools.architecture_checks.translation_rules import DEVTOOLS_TRANSLATION_INTERNAL_DIR_ALLOWLIST
 from devtools.architecture_checks.translation_rules import DEVTOOLS_TRANSLATION_INTERNAL_IMPORT_ALLOWLIST
 from devtools.architecture_checks.translation_rules import DOCUMENT_SCHEMA_ROOT
-from devtools.architecture_checks.translation_rules import PIPELINE_ROOT
 from devtools.architecture_checks.translation_rules import TRANSLATE_ONLY_ENTRYPOINT
 from devtools.architecture_checks.translation_rules import TRANSLATION_ROOT
-from devtools.architecture_checks.translation_rules import TRANSLATION_STAGE_PIPELINE
 
 
 def check_translation_worker_protocol(errors: list[str]) -> None:
@@ -43,7 +41,9 @@ def check_translation_worker_protocol(errors: list[str]) -> None:
 
 
 def check_translation_pipeline_facade_boundary(errors: list[str]) -> None:
-    text = read_text(TRANSLATION_STAGE_PIPELINE)
+    # runtime/pipeline 透传层已移除（2026-09）：translate-only 入口直接经
+    # services.translation.public 门面构造 TranslationExecutionRequest 并执行。
+    text = read_text(TRANSLATE_ONLY_ENTRYPOINT)
     required = (
         "from services.translation.public import TranslationExecutionRequest",
         "from services.translation.public import execute_translation_request",
@@ -51,27 +51,22 @@ def check_translation_pipeline_facade_boundary(errors: list[str]) -> None:
     for item in required:
         if item not in text:
             errors.append(
-                f"runtime/pipeline/translation_stage.py: must call translation public facade via '{item}'"
+                f"services/translation/entrypoints/translate_only_pipeline.py: must call translation public facade via '{item}'"
             )
     forbidden = (
         "from services.translation.workflow import",
-        "from services.translation.services.policy import",
-        "from services.translation.services.context.session_context import",
-        "from services.translation.artifacts import",
-        "from services.translation.core import",
-        "from services.translation.llm import",
-        "from runtime.pipeline.book_translation_flow import",
+        "from services.translation.workflow.execution import",
+        "from runtime.pipeline",
     )
     for item in forbidden:
         if item in text:
             errors.append(
-                f"runtime/pipeline/translation_stage.py: must not import workflow internals directly: '{item}'"
+                f"services/translation/entrypoints/translate_only_pipeline.py: must not import workflow internals directly: '{item}'"
             )
 
 
 def check_translation_public_surface_usage(errors: list[str]) -> None:
     guarded_roots = (
-        PIPELINE_ROOT,
         MINERU_ROOT,
         DOCUMENT_SCHEMA_ROOT,
     )

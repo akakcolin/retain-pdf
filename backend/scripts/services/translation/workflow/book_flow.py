@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from services.translation.workflow.stages import run_continuation_review
-from services.translation.workflow.stages import run_agent_repair_stage
-from services.translation.workflow.stages import run_final_untranslated_recovery_stage
-from services.translation.workflow.stages import run_garbled_reconstruction_stage
-from services.translation.workflow.stages import run_initial_continuation_pass
-from services.translation.workflow.stages import run_page_policy_stage
-from services.translation.workflow.stages import run_translation_batch_stage
+from services.translation.workflow.phases.batch_translation import run_translation_batch_stage
+from services.translation.workflow.phases.continuation import run_continuation_review
+from services.translation.workflow.phases.continuation import run_initial_continuation_pass
+from services.translation.workflow.phases.policy import run_page_policy_stage
+from services.translation.workflow.phases.repair import run_agent_repair_stage
+from services.translation.workflow.phases.repair import run_final_untranslated_recovery_stage
+from services.translation.workflow.phases.repair import run_garbled_reconstruction_stage
 from services.translation.workflow.pages import load_page_payloads
 from services.translation.workflow.pages import save_pages
 from services.translation.workflow.page_policies import build_page_summaries

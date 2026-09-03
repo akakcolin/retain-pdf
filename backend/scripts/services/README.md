@@ -26,8 +26,7 @@
 - `mineru/` 仅保留 `contracts.py`（文件名单），provider 接入已 native 化
 - `pipeline_shared/` 是中性共享层，不应该再放 provider 私有逻辑
 - `translation/ocr` 主线优先读取 normalized document，而不是直接依赖某个 OCR provider 的原始 JSON
-- `runtime/pipeline` 只负责把这些能力串起来
-- 上层入口优先依赖 `runtime/pipeline`，不要直接跨服务拼流程
+- 上层入口（`entrypoints/` 或 `services/translation/entrypoints/`）负责把这些能力串起来，不要直接跨服务拼流程时绕过各服务的公开门面
 - 公共配置和共享工具继续下沉到 `foundation/`
 
 ## OCR 归一化
@@ -41,7 +40,7 @@
 - OCR / provider 负责人主要维护 native `rendering_orchestrator/src/normalize/`、`mineru/`、`document_schema/`
 - 翻译负责人主要维护 `translation/`
 - 渲染负责人主要维护 `rendering/`
-- 编排负责人主要维护 `runtime/pipeline/`
+- 编排负责人主要维护 `entrypoints/` 与 `services/translation/workflow/`
 
 默认原则：
 

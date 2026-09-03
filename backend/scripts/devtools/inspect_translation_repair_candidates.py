@@ -16,8 +16,8 @@ from services.translation.core.item_reader import item_policy_translate
 from services.translation.core.payload import load_translation_manifest_file
 from services.translation.core.payload import load_translations
 from services.translation.services.agents import TranslationAgentCoordinator
-from services.translation.services.agents.repair_pipeline import _has_blocking_issue
-from services.translation.services.agents.repair_pipeline import _repairable_review_issues
+from services.translation.services.agents.repair_pipeline import has_blocking_issue
+from services.translation.services.agents.repair_pipeline import repairable_review_issues
 
 
 def _job_root_from_arg(value: str) -> Path:
@@ -134,7 +134,7 @@ def inspect_repair_candidates(
                 counts["items_with_issues"] += 1
                 for issue in review.issues:
                     issue_counts[issue.kind] += 1
-            if _has_blocking_issue(review.issues):
+            if has_blocking_issue(review.issues):
                 counts["blocking_items"] += 1
                 for issue in review.issues:
                     blocking_issue_counts[issue.kind] += 1
@@ -149,7 +149,7 @@ def inspect_repair_candidates(
                     extra={"issues": [issue.kind for issue in review.issues]},
                 )
                 continue
-            repairable = _repairable_review_issues(review)
+            repairable = repairable_review_issues(review)
             if repairable:
                 counts["repairable_items"] += 1
                 for issue in repairable:

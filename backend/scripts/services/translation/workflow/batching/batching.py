@@ -21,13 +21,13 @@ def chunked(seq: list[dict], size: int) -> list[list[dict]]:
     return [seq[i : i + size] for i in range(0, len(seq), size)]
 
 
-def _save_flush_interval(*, workers: int, total_batches: int) -> int:
+def save_flush_interval(*, workers: int, total_batches: int) -> int:
     if total_batches <= 1:
         return 1
     return max(2, min(12, max(1, workers) * 2))
 
 
-def _effective_translation_batch_size(
+def effective_translation_batch_size(
     *,
     batch_size: int,
     model: str,
@@ -79,7 +79,7 @@ _LOW_RISK_BATCHABILITY_RULES: tuple[_BatchabilityRule, ...] = (
 )
 
 
-def _is_low_risk_batchable_item(
+def is_low_risk_batchable_item(
     item: dict,
     *,
     translation_context: TranslationControlContext | None,
@@ -91,7 +91,7 @@ def _is_low_risk_batchable_item(
     return all(rule.predicate(view, translation_context) for rule in _LOW_RISK_BATCHABILITY_RULES)
 
 
-def _build_translation_batches(
+def build_translation_batches(
     pending: list[dict],
     *,
     effective_batch_size: int,
@@ -109,7 +109,7 @@ def _build_translation_batches(
             immediate_results.append(fast_path_keep_origin_result_fn(item, reason))
             continue
         # 批大小 1(批处理退役)时所有条目都走单条路径,不再标记批候选
-        if effective_batch_size > 1 and _is_low_risk_batchable_item(
+        if effective_batch_size > 1 and is_low_risk_batchable_item(
             item,
             translation_context=translation_context,
             plan_item_view_fn=plan_item_view_fn,
@@ -139,7 +139,7 @@ def _is_single_slow_batch(batch: list[dict]) -> bool:
     return bool(item.get("_heavy_formula_split_applied"))
 
 
-def _classify_translation_batches(
+def classify_translation_batches(
     batches: list[list[dict]],
 ) -> tuple[list[list[dict]], list[list[dict]], list[list[dict]]]:
     batched_fast_batches: list[list[dict]] = []

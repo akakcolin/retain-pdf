@@ -32,10 +32,10 @@ def _failed_results_for_transport_batch(
     return degraded
 
 
-_keep_origin_results_for_transport_batch = _failed_results_for_transport_batch
+keep_origin_results_for_transport_batch = _failed_results_for_transport_batch
 
 
-def _translate_batch_or_keep_origin(
+def translate_batch_or_keep_origin(
     batch: list[dict],
     *,
     api_key: str,
@@ -105,7 +105,7 @@ def _submit_parallel_translation_batches(
     executors.append(executor)
     return {
         executor.submit(
-            _translate_batch_or_keep_origin,
+            translate_batch_or_keep_origin,
             batch,
             api_key=api_key,
             model=model,
@@ -122,8 +122,8 @@ def _submit_parallel_translation_batches(
 
 
 __all__ = [
-    "_keep_origin_results_for_transport_batch",
+    "keep_origin_results_for_transport_batch",
     "_failed_results_for_transport_batch",
     "_submit_parallel_translation_batches",
-    "_translate_batch_or_keep_origin",
+    "translate_batch_or_keep_origin",
 ]

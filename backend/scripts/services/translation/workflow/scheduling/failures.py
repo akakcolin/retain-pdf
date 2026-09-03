@@ -3,7 +3,7 @@ from __future__ import annotations
 import services.translation.llm.shared.orchestration.terminal_payloads as terminal_payloads
 
 
-def _failed_results_for_unhandled_batch_exception(
+def failed_results_for_unhandled_batch_exception(
     batch: list[dict],
     exc: Exception,
 ) -> dict[str, dict[str, str]]:
@@ -29,4 +29,4 @@ def _failed_results_for_unhandled_batch_exception(
     return degraded
 
 
-__all__ = ["_failed_results_for_unhandled_batch_exception"]
+__all__ = ["failed_results_for_unhandled_batch_exception"]

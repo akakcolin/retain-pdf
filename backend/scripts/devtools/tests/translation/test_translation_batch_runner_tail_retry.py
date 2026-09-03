@@ -141,7 +141,7 @@ def test_single_worker_tail_retry_exception_marks_item_failed(monkeypatch) -> No
         memory_store=None,
     )
 
-    tail_retry._drain_translation_tail_queue(
+    tail_retry.drain_translation_tail_queue(
         translation_context=context,
         result_applier=applier,
         flush_state=flush_state,
@@ -271,9 +271,9 @@ def test_parallel_batch_runner_can_drain_transport_tail_retry_before_main_batche
 
 
 def test_transport_tail_retry_workers_scale_with_main_worker_count() -> None:
-    assert batch_runner._transport_tail_retry_workers({"batched_fast": 1, "single_fast": 0, "single_slow": 0}) == 1
-    assert batch_runner._transport_tail_retry_workers({"batched_fast": 80, "single_fast": 20, "single_slow": 0}) == 50
-    assert batch_runner._transport_tail_retry_workers({"batched_fast": 800, "single_fast": 200, "single_slow": 0}) == 128
+    assert batch_runner.transport_tail_retry_workers({"batched_fast": 1, "single_fast": 0, "single_slow": 0}) == 1
+    assert batch_runner.transport_tail_retry_workers({"batched_fast": 80, "single_fast": 20, "single_slow": 0}) == 50
+    assert batch_runner.transport_tail_retry_workers({"batched_fast": 800, "single_fast": 200, "single_slow": 0}) == 128
 
 
 def test_early_transport_tail_retry_is_enabled_by_default(monkeypatch) -> None:
@@ -286,15 +286,15 @@ def test_early_transport_tail_retry_interval_is_configurable(monkeypatch) -> Non
     monkeypatch.setenv("RETAIN_TRANSLATION_EARLY_TAIL_RETRY", "1")
     monkeypatch.setenv("RETAIN_TRANSLATION_EARLY_TAIL_RETRY_INTERVAL", "7")
 
-    assert tail_retry._should_drain_translation_tail_early(7, 20) is True
-    assert tail_retry._should_drain_translation_tail_early(6, 20) is False
+    assert tail_retry.should_drain_translation_tail_early(7, 20) is True
+    assert tail_retry.should_drain_translation_tail_early(6, 20) is False
 
 
 def test_transport_tail_retry_workers_can_be_configured(monkeypatch) -> None:
     monkeypatch.setenv("RETAIN_TRANSLATION_TAIL_RETRY_WORKERS", "32")
-    assert batch_runner._transport_tail_retry_workers({"batched_fast": 1}) == 32
+    assert batch_runner.transport_tail_retry_workers({"batched_fast": 1}) == 32
 
     monkeypatch.delenv("RETAIN_TRANSLATION_TAIL_RETRY_WORKERS", raising=False)
     monkeypatch.setenv("RETAIN_TRANSLATION_TAIL_RETRY_WORKER_DIVISOR", "4")
     monkeypatch.setenv("RETAIN_TRANSLATION_TAIL_RETRY_WORKER_LIMIT", "20")
-    assert batch_runner._transport_tail_retry_workers({"batched_fast": 80, "single_fast": 20}) == 20
+    assert batch_runner.transport_tail_retry_workers({"batched_fast": 80, "single_fast": 20}) == 20

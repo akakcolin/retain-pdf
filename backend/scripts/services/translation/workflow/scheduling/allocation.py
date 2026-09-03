@@ -29,7 +29,7 @@ def _env_int(name: str, default: int, *, fallback_name: str | None = None, minim
         return max(minimum, int(default))
 
 
-def _empty_worker_allocation() -> dict[str, int]:
+def empty_worker_allocation() -> dict[str, int]:
     return {
         "batched_fast": 0,
         "single_fast": 0,
@@ -37,8 +37,8 @@ def _empty_worker_allocation() -> dict[str, int]:
     }
 
 
-def _single_worker_allocation(*, batched_fast_count: int, single_fast_count: int, single_slow_count: int) -> dict[str, int]:
-    allocation = _empty_worker_allocation()
+def single_worker_allocation(*, batched_fast_count: int, single_fast_count: int, single_slow_count: int) -> dict[str, int]:
+    allocation = empty_worker_allocation()
     first_queue = next(
         (
             name
@@ -56,7 +56,7 @@ def _single_worker_allocation(*, batched_fast_count: int, single_fast_count: int
     return allocation
 
 
-def _slow_worker_cap(workers: int, single_slow_count: int = 0) -> int:
+def slow_worker_cap(workers: int, single_slow_count: int = 0) -> int:
     if single_slow_count <= 0:
         return 0
     if workers <= 8:
@@ -94,19 +94,7 @@ def provider_adaptive_initial_limit(*, workers: int, high_capacity: bool = False
     return adaptive_initial_limit(worker_count)
 
 
-def _adaptive_floor_limit(workers: int) -> int:
-    return adaptive_floor_limit(workers)
-
-
-def _adaptive_initial_limit(workers: int) -> int:
-    return adaptive_initial_limit(workers)
-
-
-def _provider_adaptive_initial_limit(*, workers: int, high_capacity: bool = False) -> int:
-    return provider_adaptive_initial_limit(workers=workers, high_capacity=high_capacity)
-
-
-def _fast_queue_targets(*, batched_fast_count: int, single_fast_count: int) -> list[tuple[str, int]]:
+def fast_queue_targets(*, batched_fast_count: int, single_fast_count: int) -> list[tuple[str, int]]:
     return [
         (name, count)
         for name, count in (
@@ -117,7 +105,7 @@ def _fast_queue_targets(*, batched_fast_count: int, single_fast_count: int) -> l
     ]
 
 
-def _weighted_fast_queue_targets(*, batched_fast_count: int, single_fast_count: int) -> list[tuple[str, int]]:
+def weighted_fast_queue_targets(*, batched_fast_count: int, single_fast_count: int) -> list[tuple[str, int]]:
     targets: list[tuple[str, int]] = []
     if batched_fast_count > 0:
         targets.append(("batched_fast", max(1, batched_fast_count)))
@@ -126,7 +114,7 @@ def _weighted_fast_queue_targets(*, batched_fast_count: int, single_fast_count: 
     return targets
 
 
-def _distribute_extra_workers(remaining_after_floor: int, fast_targets: list[tuple[str, int]]) -> dict[str, int]:
+def distribute_extra_workers(remaining_after_floor: int, fast_targets: list[tuple[str, int]]) -> dict[str, int]:
     total_fast_batches = sum(count for _, count in fast_targets)
     if remaining_after_floor <= 0 or total_fast_batches <= 0:
         return {name: 0 for name, _count in fast_targets}
@@ -143,7 +131,7 @@ def _distribute_extra_workers(remaining_after_floor: int, fast_targets: list[tup
     return extras
 
 
-def _allocate_translation_queue_workers(
+def allocate_translation_queue_workers(
     total_workers: int,
     *,
     batched_fast_count: int,
@@ -152,22 +140,22 @@ def _allocate_translation_queue_workers(
     slow_worker_limit: int | None = None,
 ) -> dict[str, int]:
     workers = max(1, total_workers)
-    allocation = _empty_worker_allocation()
+    allocation = empty_worker_allocation()
     if workers == 1:
-        return _single_worker_allocation(
+        return single_worker_allocation(
             batched_fast_count=batched_fast_count,
             single_fast_count=single_fast_count,
             single_slow_count=single_slow_count,
         )
 
-    fast_targets = _fast_queue_targets(
+    fast_targets = fast_queue_targets(
         batched_fast_count=batched_fast_count,
         single_fast_count=single_fast_count,
     )
     fast_queue_floor = len(fast_targets)
 
     if single_slow_count > 0:
-        slow_cap = _slow_worker_cap(workers, single_slow_count) if slow_worker_limit is None else max(0, int(slow_worker_limit))
+        slow_cap = slow_worker_cap(workers, single_slow_count) if slow_worker_limit is None else max(0, int(slow_worker_limit))
         slow_capacity = workers if not fast_targets else max(0, workers - fast_queue_floor)
         allocation["single_slow"] = min(single_slow_count, slow_cap, slow_capacity)
 
@@ -183,11 +171,11 @@ def _allocate_translation_queue_workers(
     remaining_after_floor = remaining - len(fast_targets)
     for name, _count in fast_targets:
         allocation[name] = 1
-    weighted_targets = _weighted_fast_queue_targets(
+    weighted_targets = weighted_fast_queue_targets(
         batched_fast_count=batched_fast_count,
         single_fast_count=single_fast_count,
     )
-    for name, extra in _distribute_extra_workers(remaining_after_floor, weighted_targets).items():
+    for name, extra in distribute_extra_workers(remaining_after_floor, weighted_targets).items():
         allocation[name] += extra
     return allocation
 
@@ -195,17 +183,16 @@ def _allocate_translation_queue_workers(
 __all__ = [
     "adaptive_floor_limit",
     "adaptive_initial_limit",
+    "prefix_cache_warmup_enabled",
     "provider_adaptive_initial_limit",
-    "_adaptive_floor_limit",
-    "_adaptive_initial_limit",
     "DEEPSEEK_ADAPTIVE_INITIAL_LIMIT_ENV",
     "HIGH_CAPACITY_INITIAL_CONCURRENCY_LIMIT_ENV",
-    "_provider_adaptive_initial_limit",
-    "_allocate_translation_queue_workers",
-    "_distribute_extra_workers",
-    "_empty_worker_allocation",
-    "_fast_queue_targets",
-    "_weighted_fast_queue_targets",
-    "_single_worker_allocation",
-    "_slow_worker_cap",
+    "PREFIX_CACHE_WARMUP_ENV",
+    "allocate_translation_queue_workers",
+    "distribute_extra_workers",
+    "empty_worker_allocation",
+    "fast_queue_targets",
+    "weighted_fast_queue_targets",
+    "single_worker_allocation",
+    "slow_worker_cap",
 ]

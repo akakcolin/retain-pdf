@@ -26,7 +26,7 @@ from services.translation.llm.result_payload import result_entry
 from services.translation.llm.result_payload import text_preview
 from services.translation.llm.result_validator import should_reject_keep_origin
 from services.translation.llm.result_validator import validate_batch_result
-from services.translation.llm.validation.english_residue import _is_reference_like_item
+from services.translation.llm.validation.english_residue import is_reference_like_item
 from services.translation.llm.validation.english_residue import is_direct_math_mode
 from services.translation.llm.validation.english_residue import item_math_mode
 from services.translation.llm.validation.english_residue import looks_like_english_prose
@@ -77,7 +77,7 @@ __all__ = [
     "TranslationDiagnosticsCollector",
     "UNESCAPED_INLINE_DOLLAR_RE",
     "UnexpectedPlaceholderError",
-    "_is_reference_like_item",
+    "is_reference_like_item",
     "canonicalize_batch_result",
     "has_balanced_inline_math_delimiters",
     "has_formula_placeholders",

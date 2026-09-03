@@ -91,11 +91,11 @@ def run_agent_repair_pipeline(
         translated_result = translated_results.get(item_id, {}) or {}
         review = coordinator.review_batch([item], {item_id: translated_result})
         reviewed += review.reviewed_item_count
-        if _has_blocking_issue(review.issues):
+        if has_blocking_issue(review.issues):
             skipped += 1
             _record_agent_repair_skip(item, "blocking_quality_issue", review.issues)
             continue
-        issues = _repairable_review_issues(review)
+        issues = repairable_review_issues(review)
         if not issues:
             continue
         if _is_exhausted_residue_candidate(item, issues):
@@ -222,11 +222,11 @@ def _run_single_agent_repair(
         return item, None, exc
 
 
-def _repairable_review_issues(report: TranslationQualityReport) -> list[TranslationQualityIssue]:
+def repairable_review_issues(report: TranslationQualityReport) -> list[TranslationQualityIssue]:
     return RepairAgent().repairable_issues(report.issues)
 
 
-def _has_blocking_issue(issues: list[TranslationQualityIssue]) -> bool:
+def has_blocking_issue(issues: list[TranslationQualityIssue]) -> bool:
     return any(issue.kind in BLOCKING_REPAIR_ISSUE_KINDS for issue in issues)
 
 

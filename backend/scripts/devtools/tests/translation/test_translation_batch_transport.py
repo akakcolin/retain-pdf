@@ -11,7 +11,7 @@ REPO_SCRIPTS_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_SCRIPTS_ROOT))
 
 
-from services.translation.workflow.batching.pending_units import _translate_batch_or_keep_origin
+from services.translation.workflow.batching.pending_units import translate_batch_or_keep_origin
 from services.translation.llm.shared.control_context import build_translation_control_context
 
 
@@ -37,7 +37,7 @@ def test_translate_batch_wrapper_marks_transport_failure_failed() -> None:
         "services.translation.workflow.batching.pending_units.translate_batch",
         side_effect=requests.ConnectionError("Read timed out"),
     ):
-        result = _translate_batch_or_keep_origin(
+        result = translate_batch_or_keep_origin(
             batch,
             api_key="sk-test",
             model="deepseek-chat",

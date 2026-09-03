@@ -8,7 +8,7 @@ from services.translation.llm.shared.control_context import build_translation_co
 from services.translation.services.memory import JobMemorySnapshot
 from services.translation.services.results.applier import expand_duplicate_results as _expand_duplicate_results
 from services.translation.workflow.batching import pending_units
-from services.translation.workflow.batching.plan import _dedupe_pending_items
+from services.translation.workflow.batching.plan import dedupe_pending_items
 
 
 def _item(item_id: str, text: str, **overrides):
@@ -29,7 +29,7 @@ def test_duplicate_plain_items_are_collapsed_and_expanded_with_item_diagnostics(
         _item("b", "A", block_type="image_caption", page_idx=1),
         _item("c", "B", block_type="image_caption", page_idx=1),
     ]
-    unique, duplicates = _dedupe_pending_items(pending)
+    unique, duplicates = dedupe_pending_items(pending)
     assert [item["item_id"] for item in unique] == ["a", "c"]
     assert [item["item_id"] for item in duplicates["a"]] == ["b"]
 
@@ -54,7 +54,7 @@ def test_duplicate_plain_items_keep_origin_when_representative_result_failed() -
         _item("a", "A", block_type="image_caption", page_idx=0),
         _item("b", "A", block_type="image_caption", page_idx=1),
     ]
-    _unique, duplicates = _dedupe_pending_items(pending)
+    _unique, duplicates = dedupe_pending_items(pending)
 
     expanded = _expand_duplicate_results(
         {
@@ -93,7 +93,7 @@ def test_translate_pending_units_uses_readonly_memory_snapshot_by_default(monkey
 
     monkeypatch.setattr(pending_units, "run_translation_batches_parallel", _capture_parallel)
     monkeypatch.setattr(pending_units, "run_translation_batches_sequential", lambda **_kwargs: None)
-    monkeypatch.setattr(pending_units, "_save_flush_interval", lambda **_kwargs: 1)
+    monkeypatch.setattr(pending_units, "save_flush_interval", lambda **_kwargs: 1)
 
     payload = {"pages": []}
     page_payloads = {0: [_item("a", "SCF cycle converges before energy evaluation.", page_idx=0)]}
@@ -130,7 +130,7 @@ def test_translate_pending_units_can_enable_live_memory_updates(monkeypatch, tmp
     monkeypatch.setattr(pending_units, "TranslationResultApplier", _FakeApplier)
     monkeypatch.setattr(pending_units, "run_translation_batches_parallel", lambda **_kwargs: None)
     monkeypatch.setattr(pending_units, "run_translation_batches_sequential", lambda **_kwargs: None)
-    monkeypatch.setattr(pending_units, "_save_flush_interval", lambda **_kwargs: 1)
+    monkeypatch.setattr(pending_units, "save_flush_interval", lambda **_kwargs: 1)
 
     page_payloads = {0: [_item("a", "SCF cycle converges before energy evaluation.", page_idx=0)]}
     translation_paths = {0: tmp_path / "page-0001.json"}

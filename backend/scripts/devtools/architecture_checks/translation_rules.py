@@ -8,7 +8,6 @@ PIPELINE_ROOT = SCRIPTS_ROOT / "runtime" / "pipeline"
 DOCUMENT_SCHEMA_ROOT = SCRIPTS_ROOT / "services" / "document_schema"
 TRANSLATION_ROOT = SCRIPTS_ROOT / "services" / "translation"
 DEVTOOLS_ROOT = SCRIPTS_ROOT / "devtools"
-TRANSLATION_STAGE_PIPELINE = PIPELINE_ROOT / "translation_stage.py"
 
 TRANSLATE_ONLY_ENTRYPOINT = SCRIPTS_ROOT / "services" / "translation" / "entrypoints" / "translate_only_pipeline.py"
 TRANSLATION_ALLOWED_ROOT_DIRS = {
@@ -35,7 +34,6 @@ TRANSLATION_WORKFLOW_ALLOWED_DIRS = {
 TRANSLATION_WORKFLOW_ALLOWED_FILES = {
     "__init__.py",
     "README.md",
-    "batch_plan.py",
     "batch_runner.py",
     "book_flow.py",
     "execution.py",
@@ -44,7 +42,6 @@ TRANSLATION_WORKFLOW_ALLOWED_FILES = {
     "page_policies.py",
     "page_range.py",
     "pages.py",
-    "stages.py",
     "translation_workflow.py",
     "workers.py",
 }
@@ -92,47 +89,13 @@ TRANSLATION_WORKFLOW_SUBPACKAGE_RULES: dict[str, tuple[str, ...]] = {
         "services.translation.services.policy",
     ),
 }
-TRANSLATION_WORKFLOW_PRIVATE_IMPORT_EXCEPTIONS: dict[Path, tuple[str, ...]] = {
-    # Compatibility facades intentionally re-export old private names while callers migrate.
-    Path("workflow/stages.py"): (
-        "services.translation.workflow.phases.repair._agent_repair_limit_from_env",
-    ),
-    Path("workflow/workers.py"): (
-        "services.translation.workflow.scheduling.allocation._",
-    ),
-    Path("workflow/batch_plan.py"): (
-        "services.translation.workflow.scheduling.allocation._",
-    ),
-    Path("workflow/batch_runner.py"): (
-        "services.translation.workflow.batching.executor._translate_batch_or_keep_origin",
-        "services.translation.workflow.scheduling.failures._failed_results_for_unhandled_batch_exception",
-        "services.translation.workflow.scheduling.tail_retry._",
-    ),
-    Path("workflow/batch_plan.py"): (
-        "services.translation.workflow.batching.plan._",
-        "services.translation.workflow.scheduling.allocation._",
-    ),
-    Path("workflow/execution_plan.py"): (
-        "services.translation.workflow.scheduling.allocation._adaptive_floor_limit",
-        "services.translation.workflow.scheduling.allocation._adaptive_initial_limit",
-    ),
-    Path("workflow/batching/plan.py"): (
-        "services.translation.workflow.batching.batching._",
-        "services.translation.workflow.batching.dedupe._",
-        "services.translation.workflow.scheduling.allocation._",
-    ),
-    Path("workflow/batching/pending_units.py"): (
-        "services.translation.workflow.batching.executor._",
-        "services.translation.workflow.batching.plan._",
-        "services.translation.workflow.scheduling.allocation._",
-    ),
-    Path("workflow/scheduling/tail_retry.py"): (
-        "services.translation.workflow.scheduling.failures._failed_results_for_unhandled_batch_exception",
-    ),
-}
+# 历史兼容例外已全部随私有名公开化移除（2026-09）；该表保留为空，
+# 任何新的跨模块私有导入都会直接报错。
+TRANSLATION_WORKFLOW_PRIVATE_IMPORT_EXCEPTIONS: dict[Path, tuple[str, ...]] = {}
 TRANSLATION_LAYER_IMPORT_RULES: dict[str, tuple[str, ...]] = {
     "entrypoints": (
         "services.translation.entrypoints",
+        "services.translation.public",
         "services.translation.artifacts",
         "services.translation.llm",
         "services.translation.services.terms",

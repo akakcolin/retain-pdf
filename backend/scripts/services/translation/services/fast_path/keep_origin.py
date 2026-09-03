@@ -27,21 +27,21 @@ def _source_text(item: dict) -> str:
     )
 
 
-def _normalized_text_without_placeholders(item: dict) -> str:
+def normalized_text_without_placeholders(item: dict) -> str:
     return " ".join(strip_placeholders(_source_text(item)).split())
 
 
-def _plan_item_view(item: dict) -> _PlanItemView:
+def plan_item_view(item: dict) -> _PlanItemView:
     return _PlanItemView(
         item=item,
         source=_source_text(item),
-        compact=_normalized_text_without_placeholders(item),
+        compact=normalized_text_without_placeholders(item),
         policy_translate=item_policy_translate(item),
         layout_zone=str(item.get("layout_zone", "") or "").strip().lower(),
     )
 
 
-def _fast_path_keep_origin_result(item: dict, reason: str) -> dict[str, dict[str, str]]:
+def fast_path_keep_origin_result(item: dict, reason: str) -> dict[str, dict[str, str]]:
     payload = result_entry("keep_origin", "")
     payload["translation_diagnostics"] = {
         "item_id": item.get("item_id", ""),
@@ -55,15 +55,15 @@ def _fast_path_keep_origin_result(item: dict, reason: str) -> dict[str, dict[str
     return {str(item.get("item_id", "") or ""): payload}
 
 
-def _is_fast_path_keep_origin_item(item: dict) -> tuple[bool, str]:
+def is_fast_path_keep_origin_item(item: dict) -> tuple[bool, str]:
     return should_fast_path_keep_origin(item)
 
 
 __all__ = [
     "_PlanItemView",
-    "_fast_path_keep_origin_result",
-    "_is_fast_path_keep_origin_item",
-    "_normalized_text_without_placeholders",
-    "_plan_item_view",
+    "fast_path_keep_origin_result",
+    "is_fast_path_keep_origin_item",
+    "normalized_text_without_placeholders",
+    "plan_item_view",
     "_source_text",
 ]

@@ -4,12 +4,12 @@ from pathlib import Path
 REPO_SCRIPTS_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_SCRIPTS_ROOT))
 
-from services.translation.workflow.batching.plan import _allocate_translation_queue_workers
-from services.translation.workflow.batching.plan import _build_translation_batches
-from services.translation.workflow.batching.plan import _classify_translation_batches
-from services.translation.workflow.batching.plan import _effective_translation_batch_size
-from services.translation.workflow.batching.plan import _adaptive_initial_limit
-from services.translation.workflow.batching.plan import _provider_adaptive_initial_limit
+from services.translation.workflow.batching.plan import allocate_translation_queue_workers
+from services.translation.workflow.batching.plan import build_translation_batches
+from services.translation.workflow.batching.plan import classify_translation_batches
+from services.translation.workflow.batching.plan import effective_translation_batch_size
+from services.translation.workflow.batching.plan import adaptive_initial_limit
+from services.translation.workflow.batching.plan import provider_adaptive_initial_limit
 from services.translation.workflow.batching.plan import TranslationBatchRunStats
 from services.translation.llm.shared.control_context import build_translation_control_context
 from services.translation.llm.shared.control_context import resolve_engine_profile
@@ -32,7 +32,7 @@ def test_default_profile_uses_single_item_requests() -> None:
     # 损坏 <<<END>>> 闭合标签导致整批作废),默认全部单条请求。
     context = build_translation_control_context()
     assert (
-        _effective_translation_batch_size(
+        effective_translation_batch_size(
             batch_size=1,
             model="gpt-4.1-mini",
             base_url="https://api.openai.com/v1",
@@ -50,7 +50,7 @@ def test_deepseek_profile_uses_single_item_requests_for_stability() -> None:
         )
     )
     assert (
-        _effective_translation_batch_size(
+        effective_translation_batch_size(
             batch_size=1,
             model="deepseek-chat",
             base_url="https://api.deepseek.com/v1",
@@ -70,27 +70,27 @@ def test_deepseek_profile_uses_single_item_requests_for_stability() -> None:
 
 
 def test_adaptive_initial_limit_ramps_up_high_worker_counts() -> None:
-    assert _adaptive_initial_limit(1) == 1
-    assert _adaptive_initial_limit(32) == 32
-    assert _adaptive_initial_limit(64) == 32
-    assert _adaptive_initial_limit(1000) == 32
+    assert adaptive_initial_limit(1) == 1
+    assert adaptive_initial_limit(32) == 32
+    assert adaptive_initial_limit(64) == 32
+    assert adaptive_initial_limit(1000) == 32
 
 
 def test_deepseek_adaptive_initial_limit_uses_configured_workers_by_default(monkeypatch) -> None:
     monkeypatch.delenv("RETAIN_TRANSLATION_HIGH_CAPACITY_INITIAL_CONCURRENCY_LIMIT", raising=False)
     monkeypatch.delenv("RETAIN_TRANSLATION_DEEPSEEK_INITIAL_CONCURRENCY_LIMIT", raising=False)
 
-    assert _provider_adaptive_initial_limit(workers=32, high_capacity=True) == 32
-    assert _provider_adaptive_initial_limit(workers=100, high_capacity=True) == 100
-    assert _provider_adaptive_initial_limit(workers=1000, high_capacity=True) == 1000
-    assert _provider_adaptive_initial_limit(workers=1000, high_capacity=False) == 32
+    assert provider_adaptive_initial_limit(workers=32, high_capacity=True) == 32
+    assert provider_adaptive_initial_limit(workers=100, high_capacity=True) == 100
+    assert provider_adaptive_initial_limit(workers=1000, high_capacity=True) == 1000
+    assert provider_adaptive_initial_limit(workers=1000, high_capacity=False) == 32
 
 
 def test_deepseek_adaptive_initial_limit_can_be_capped_by_env(monkeypatch) -> None:
     monkeypatch.setenv("RETAIN_TRANSLATION_HIGH_CAPACITY_INITIAL_CONCURRENCY_LIMIT", "250")
 
-    assert _provider_adaptive_initial_limit(workers=1000, high_capacity=True) == 250
-    assert _provider_adaptive_initial_limit(workers=100, high_capacity=True) == 100
+    assert provider_adaptive_initial_limit(workers=1000, high_capacity=True) == 250
+    assert provider_adaptive_initial_limit(workers=100, high_capacity=True) == 100
 
 
 def test_smarter_batches_group_low_risk_items_and_keep_complex_items_single() -> None:
@@ -106,7 +106,7 @@ def test_smarter_batches_group_low_risk_items_and_keep_complex_items_single() ->
             metadata={"structure_role": "body"},
         ),
     ]
-    batches, immediate = _build_translation_batches(
+    batches, immediate = build_translation_batches(
         pending,
         effective_batch_size=4,
         translation_context=context,
@@ -124,7 +124,7 @@ def test_deepseek_builds_single_item_batches_for_stability() -> None:
             base_url="https://api.deepseek.com/v1",
         )
     )
-    effective_batch_size = _effective_translation_batch_size(
+    effective_batch_size = effective_translation_batch_size(
         batch_size=1,
         model="deepseek-chat",
         base_url="https://api.deepseek.com/v1",
@@ -149,7 +149,7 @@ def test_deepseek_builds_single_item_batches_for_stability() -> None:
         _item("placeholder-heavy", placeholder_heavy),
     ]
 
-    batches, immediate = _build_translation_batches(
+    batches, immediate = build_translation_batches(
         pending,
         effective_batch_size=effective_batch_size,
         translation_context=context,
@@ -189,7 +189,7 @@ def test_smarter_batches_keep_continuation_group_out_of_batched_plain_path_even_
             continuation_group="cg-1",
         ),
     ]
-    batches, immediate = _build_translation_batches(
+    batches, immediate = build_translation_batches(
         pending,
         effective_batch_size=4,
         translation_context=context,
@@ -216,7 +216,7 @@ def test_smarter_batches_keep_continuation_group_with_placeholders_out_of_batche
             "This sentence describes antibacterial activity and provides enough body text for translation.",
         ),
     ]
-    batches, immediate = _build_translation_batches(
+    batches, immediate = build_translation_batches(
         pending,
         effective_batch_size=4,
         translation_context=context,
@@ -228,7 +228,7 @@ def test_smarter_batches_keep_continuation_group_with_placeholders_out_of_batche
 
 
 def test_queue_classification_routes_only_true_slow_blocks_to_single_slow() -> None:
-    batched_fast_batches, single_fast_batches, single_slow_batches = _classify_translation_batches(
+    batched_fast_batches, single_fast_batches, single_slow_batches = classify_translation_batches(
         [
             [
                 _item(
@@ -281,31 +281,31 @@ def test_queue_classification_routes_only_true_slow_blocks_to_single_slow() -> N
 
 
 def test_queue_worker_allocation_reserves_small_tail_pool() -> None:
-    assert _allocate_translation_queue_workers(
+    assert allocate_translation_queue_workers(
         1,
         batched_fast_count=0,
         single_fast_count=3,
         single_slow_count=1,
     ) == {"batched_fast": 0, "single_fast": 1, "single_slow": 0}
-    assert _allocate_translation_queue_workers(
+    assert allocate_translation_queue_workers(
         8,
         batched_fast_count=4,
         single_fast_count=6,
         single_slow_count=2,
     ) == {"batched_fast": 2, "single_fast": 4, "single_slow": 2}
-    assert _allocate_translation_queue_workers(
+    assert allocate_translation_queue_workers(
         24,
         batched_fast_count=2,
         single_fast_count=10,
         single_slow_count=3,
     ) == {"batched_fast": 4, "single_fast": 17, "single_slow": 3}
-    assert _allocate_translation_queue_workers(
+    assert allocate_translation_queue_workers(
         12,
         batched_fast_count=0,
         single_fast_count=0,
         single_slow_count=5,
     ) == {"batched_fast": 0, "single_fast": 0, "single_slow": 12}
-    assert _allocate_translation_queue_workers(
+    assert allocate_translation_queue_workers(
         32,
         batched_fast_count=10,
         single_fast_count=10,
@@ -314,13 +314,13 @@ def test_queue_worker_allocation_reserves_small_tail_pool() -> None:
 
 
 def test_queue_worker_allocation_balances_fast_queues_by_workload() -> None:
-    assert _allocate_translation_queue_workers(
+    assert allocate_translation_queue_workers(
         16,
         batched_fast_count=12,
         single_fast_count=12,
         single_slow_count=0,
     ) == {"batched_fast": 8, "single_fast": 8, "single_slow": 0}
-    assert _allocate_translation_queue_workers(
+    assert allocate_translation_queue_workers(
         100,
         batched_fast_count=138,
         single_fast_count=51,
@@ -353,7 +353,7 @@ def test_translation_batch_run_stats_reports_queue_worker_split() -> None:
 
 
 def test_direct_typst_singleton_uses_single_fast_even_when_marked_batchable() -> None:
-    batched_fast_batches, single_fast_batches, single_slow_batches = _classify_translation_batches(
+    batched_fast_batches, single_fast_batches, single_slow_batches = classify_translation_batches(
         [
             [
                 _item(
@@ -373,7 +373,7 @@ def test_direct_typst_singleton_uses_single_fast_even_when_marked_batchable() ->
 def test_direct_typst_low_risk_body_items_can_enter_batched_plain_path() -> None:
     context = build_translation_control_context()
     body_text = "This direct Typst paragraph discusses density functional theory with enough text for translation."
-    batches, immediate = _build_translation_batches(
+    batches, immediate = build_translation_batches(
         [
             _item("dt-a", body_text, math_mode="direct_typst"),
             _item("dt-b", body_text, math_mode="direct_typst"),
@@ -395,7 +395,7 @@ def test_smarter_batches_leave_reference_like_text_as_single_batch_without_fast_
         _item("body-b", body_text),
         _item("ref", reference_text),
     ]
-    batches, immediate = _build_translation_batches(
+    batches, immediate = build_translation_batches(
         pending,
         effective_batch_size=4,
         translation_context=context,
