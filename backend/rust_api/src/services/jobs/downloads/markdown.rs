@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use crate::error::AppError;
 use crate::models::api::{to_absolute_url, MarkdownDocumentView, MarkdownImageView};
 use crate::models::domain::JobSnapshot;
@@ -12,10 +14,17 @@ use super::{FileDownload, MarkdownDownload, QueryJobsDeps};
 const MARKDOWN_IMAGE_LINK_RE: &str =
     r#"!\[([^\]]*)\]\(\s*<?((?:\./)?images/[^)>\n]+)>?(?:[ \t]+(?:"[^"]*"|'[^']*'))?\s*\)"#;
 // HTML: 分单/双引号（regex crate 不支持 backref）
-const HTML_IMAGE_SRC_DQ_RE: &str =
-    r#"(?i)(<img\b[^>]*?\bsrc\s*=\s*")((?:\./)?images/[^"]+)(")"#;
-const HTML_IMAGE_SRC_SQ_RE: &str =
-    r#"(?i)(<img\b[^>]*?\bsrc\s*=\s*')((?:\./)?images/[^']+)(')"#;
+const HTML_IMAGE_SRC_DQ_RE: &str = r#"(?i)(<img\b[^>]*?\bsrc\s*=\s*")((?:\./)?images/[^"]+)(")"#;
+const HTML_IMAGE_SRC_SQ_RE: &str = r#"(?i)(<img\b[^>]*?\bsrc\s*=\s*')((?:\./)?images/[^']+)(')"#;
+
+// 编译一次、全局复用，避免每次请求重复编译三条正则。
+static MD_IMAGE_LINK: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(MARKDOWN_IMAGE_LINK_RE).expect("valid markdown image regex")
+});
+static HTML_IMAGE_SRC_DQ: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(HTML_IMAGE_SRC_DQ_RE).expect("valid html img dq regex"));
+static HTML_IMAGE_SRC_SQ: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(HTML_IMAGE_SRC_SQ_RE).expect("valid html img sq regex"));
 
 pub(crate) async fn markdown_download(
     deps: &QueryJobsDeps<'_>,
@@ -128,26 +137,23 @@ pub(crate) fn rewrite_markdown_image_links_to_absolute_urls(
     job_id: &str,
     base_url: &str,
 ) -> String {
-    let md_re = regex::Regex::new(MARKDOWN_IMAGE_LINK_RE).expect("valid markdown image regex");
-    let html_dq = regex::Regex::new(HTML_IMAGE_SRC_DQ_RE).expect("valid html img dq regex");
-    let html_sq = regex::Regex::new(HTML_IMAGE_SRC_SQ_RE).expect("valid html img sq regex");
-
-    let rewritten_md = md_re.replace_all(content, |captures: &regex::Captures<'_>| {
+    let rewritten_md = MD_IMAGE_LINK.replace_all(content, |captures: &regex::Captures<'_>| {
         let alt = &captures[1];
         let raw_path = &captures[2];
         let absolute = absolute_markdown_image_url(raw_path, job_id, base_url);
         format!("![{alt}]({absolute})")
     });
 
-    let rewritten_html_dq = html_dq.replace_all(&rewritten_md, |captures: &regex::Captures<'_>| {
-        let prefix = &captures[1];
-        let raw_path = &captures[2];
-        let suffix = &captures[3];
-        let absolute = absolute_markdown_image_url(raw_path, job_id, base_url);
-        format!("{prefix}{absolute}{suffix}")
-    });
+    let rewritten_html_dq =
+        HTML_IMAGE_SRC_DQ.replace_all(&rewritten_md, |captures: &regex::Captures<'_>| {
+            let prefix = &captures[1];
+            let raw_path = &captures[2];
+            let suffix = &captures[3];
+            let absolute = absolute_markdown_image_url(raw_path, job_id, base_url);
+            format!("{prefix}{absolute}{suffix}")
+        });
 
-    html_sq
+    HTML_IMAGE_SRC_SQ
         .replace_all(&rewritten_html_dq, |captures: &regex::Captures<'_>| {
             let prefix = &captures[1];
             let raw_path = &captures[2];
@@ -172,7 +178,10 @@ fn absolute_markdown_image_url(raw_path: &str, job_id: &str, base_url: &str) -> 
 
 /// 归一化 markdown 图片相对路径 → 相对 images 目录的路径（不含 images/ 前缀）
 fn normalize_markdown_image_rel(raw: &str) -> String {
-    let mut path = raw.trim().trim_matches(|c| c == '<' || c == '>').to_string();
+    let mut path = raw
+        .trim()
+        .trim_matches(|c| c == '<' || c == '>')
+        .to_string();
     // 去掉可选 title：仅当 `path "title"` / `path 'title'` 时截断
     // 文件名本身可含空格（chart a.png），不能见空白就截
     if let Some(idx) = path.find(" \"") {

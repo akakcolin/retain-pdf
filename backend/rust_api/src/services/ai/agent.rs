@@ -2,6 +2,7 @@
 //! 裸 function calling 循环:单 provider、单用户本地服务,轮数/超时/引用编号全自持。
 
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::sync::LazyLock;
 
 use serde_json::{json, Map, Value};
 
@@ -11,7 +12,8 @@ use super::llm::{Chat, ToolCall};
 use super::memory::HistoryMessage;
 use super::tools::AiTools;
 
-pub const SYSTEM_PROMPT: &str = "你是 RetainPDF 图书馆的文献问答助手。用户的库里是科学文献(原文多为英文,已翻译为中文)。
+pub const SYSTEM_PROMPT: &str =
+    "你是 RetainPDF 图书馆的文献问答助手。用户的库里是科学文献(原文多为英文,已翻译为中文)。
 
 工作方式:
 - 先用工具找证据,再回答;不要凭空回答文献内容。可以多轮使用工具、更换关键词反复检索。
@@ -77,8 +79,7 @@ impl<'a> RetrievalAgent<'a> {
         let mut user_content = question.trim().to_string();
         if !scoped_document_id.is_empty() {
             // 硬范围说明 + 工具层强制注入 document_id(见 scope_tool_arguments)
-            let mut prefix =
-                format!("(限定文档 document_id={scoped_document_id}");
+            let mut prefix = format!("(限定文档 document_id={scoped_document_id}");
             if !scoped_job_id.is_empty() {
                 prefix.push_str(&format!(", job_id={scoped_job_id}"));
             }
@@ -91,7 +92,8 @@ impl<'a> RetrievalAgent<'a> {
         let mut messages: Vec<Value> = vec![json!({"role": "system", "content": SYSTEM_PROMPT})];
         // 多轮对话:只回放 role/content,工具轨迹不回放
         for turn in history {
-            if matches!(turn.role.as_str(), "user" | "assistant") && !turn.content.trim().is_empty() {
+            if matches!(turn.role.as_str(), "user" | "assistant") && !turn.content.trim().is_empty()
+            {
                 messages.push(json!({"role": turn.role, "content": turn.content}));
             }
         }
@@ -141,9 +143,13 @@ impl<'a> RetrievalAgent<'a> {
                     }));
                     continue;
                 }
-                let arguments = parse_arguments(&call);
-                let arguments =
-                    scope_tool_arguments(&call.name, arguments, &scoped_document_id, &scoped_job_id);
+                let arguments = parse_arguments(call);
+                let arguments = scope_tool_arguments(
+                    &call.name,
+                    arguments,
+                    &scoped_document_id,
+                    &scoped_job_id,
+                );
                 on_event(json!({
                     "type": "tool",
                     "round": round_index,
@@ -220,7 +226,10 @@ fn scope_tool_arguments(
         name,
         "search_fulltext" | "search_favorites" | "list_documents" | "read_blocks"
     ) {
-        arguments.insert("document_id".to_string(), Value::String(document_id.to_string()));
+        arguments.insert(
+            "document_id".to_string(),
+            Value::String(document_id.to_string()),
+        );
     }
     if name == "read_blocks" && !job_id.is_empty() {
         let has_job = arguments
@@ -268,13 +277,19 @@ fn assign_refs(
         for block in blocks.iter_mut() {
             if let Some(block_map) = block.as_object_mut() {
                 if let Some(doc) = &outer_doc {
-                    block_map.entry("document_id".to_string()).or_insert_with(|| doc.clone());
+                    block_map
+                        .entry("document_id".to_string())
+                        .or_insert_with(|| doc.clone());
                 }
                 if let Some(job) = &outer_job {
-                    block_map.entry("job_id".to_string()).or_insert_with(|| job.clone());
+                    block_map
+                        .entry("job_id".to_string())
+                        .or_insert_with(|| job.clone());
                 }
                 if let Some(page) = &outer_page {
-                    block_map.entry("page_idx".to_string()).or_insert_with(|| page.clone());
+                    block_map
+                        .entry("page_idx".to_string())
+                        .or_insert_with(|| page.clone());
                 }
             }
         }
@@ -284,13 +299,25 @@ fn assign_refs(
             continue;
         };
         for entry in entries.iter_mut() {
-            let document_id = entry.get("document_id").and_then(Value::as_str).unwrap_or("").to_string();
-            let block_id = entry.get("block_id").and_then(Value::as_str).unwrap_or("").to_string();
+            let document_id = entry
+                .get("document_id")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
+            let block_id = entry
+                .get("block_id")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
             if document_id.is_empty() || block_id.is_empty() {
                 continue;
             }
             let snippet = pick_snippet(entry);
-            let job_id = entry.get("job_id").and_then(Value::as_str).unwrap_or("").to_string();
+            let job_id = entry
+                .get("job_id")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
             let page_idx = entry.get("page_idx").and_then(Value::as_i64).unwrap_or(0);
             entry["ref"] = Value::from(next_ref);
             citations.insert(
@@ -413,6 +440,18 @@ fn public_tool_payload(result: &Value) -> Value {
     Value::Object(public)
 }
 
+// 引用清洗用正则：编译一次、全局复用，避免每轮回答重复编译。
+static BRACKET_BLOCK_ID_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"(?i)\[\s*(p\d+[-_]b\d+)\s*\]").expect("bracket regex"));
+static BARE_BLOCK_ID_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"(?i)p\d+[-_]b\d+").expect("bare regex"));
+static MULTI_SPACE_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"[ \t]{2,}").expect("space regex"));
+static TRAILING_SPACE_NEWLINE_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r" *\n").expect("newline regex"));
+static CITATION_REF_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"\[(\d+)\]").expect("citation regex"));
+
 /// 把正文里的 [p002-b0004] / 裸 block_id 映射成 [n] 或删掉。
 fn sanitize_answer_text(answer: &str, citations: &BTreeMap<i64, Citation>) -> String {
     if answer.trim().is_empty() {
@@ -421,25 +460,28 @@ fn sanitize_answer_text(answer: &str, citations: &BTreeMap<i64, Citation>) -> St
     let by_block: HashMap<String, i64> = citations
         .values()
         .filter(|citation| !citation.block_id.is_empty())
-        .map(|citation| (citation.block_id.to_lowercase().replace('_', "-"), citation.ref_num))
+        .map(|citation| {
+            (
+                citation.block_id.to_lowercase().replace('_', "-"),
+                citation.ref_num,
+            )
+        })
         .collect();
     // 1. 方括号形式:[p002-b0004]
-    let bracket_re = regex::Regex::new(r"(?i)\[\s*(p\d+[-_]b\d+)\s*\]").expect("bracket regex");
-    let cleaned = bracket_re
+    let cleaned = BRACKET_BLOCK_ID_RE
         .replace_all(answer, |caps: &regex::Captures| {
             block_id_to_ref(caps, &by_block)
         })
         .to_string();
     // 2. 裸形式:p002-b0004(边界 = 前后均非 [A-Za-z0-9_/];regex 不支持 look-around,
     //    手动按字节检查边界)
-    let bare_re = regex::Regex::new(r"(?i)p\d+[-_]b\d+").expect("bare regex");
     let mut out = String::with_capacity(cleaned.len());
     let mut last = 0usize;
-    for matched in bare_re.find_iter(&cleaned) {
-        let prev_ok = matched.start() == 0
-            || !is_word_or_slash(cleaned.as_bytes()[matched.start() - 1]);
-        let next_ok = matched.end() == cleaned.len()
-            || !is_word_or_slash(cleaned.as_bytes()[matched.end()]);
+    for matched in BARE_BLOCK_ID_RE.find_iter(&cleaned) {
+        let prev_ok =
+            matched.start() == 0 || !is_word_or_slash(cleaned.as_bytes()[matched.start() - 1]);
+        let next_ok =
+            matched.end() == cleaned.len() || !is_word_or_slash(cleaned.as_bytes()[matched.end()]);
         if !(prev_ok && next_ok) {
             continue;
         }
@@ -454,10 +496,12 @@ fn sanitize_answer_text(answer: &str, citations: &BTreeMap<i64, Citation>) -> St
     }
     out.push_str(&cleaned[last..]);
     // 压缩因删除产生的多余空白
-    let collapsed = regex::Regex::new(r"[ \t]{2,}").expect("space regex");
-    let collapsed = collapsed.replace_all(&out, " ").to_string();
-    let newline_collapsed = regex::Regex::new(r" *\n").expect("newline regex");
-    newline_collapsed.replace_all(&collapsed, "\n").to_string().trim().to_string()
+    let collapsed = MULTI_SPACE_RE.replace_all(&out, " ").to_string();
+    TRAILING_SPACE_NEWLINE_RE
+        .replace_all(&collapsed, "\n")
+        .to_string()
+        .trim()
+        .to_string()
 }
 
 fn is_word_or_slash(byte: u8) -> bool {
@@ -477,10 +521,9 @@ fn block_id_to_ref(caps: &regex::Captures, by_block: &HashMap<String, i64>) -> S
 
 /// 按正文出现顺序保留 [n],避免排序打乱阅读顺序。
 fn referenced_citations(answer: &str, citations: &BTreeMap<i64, Citation>) -> Vec<Citation> {
-    let citation_re = regex::Regex::new(r"\[(\d+)\]").expect("citation regex");
     let mut ordered_refs: Vec<i64> = Vec::new();
     let mut seen: HashSet<i64> = HashSet::new();
-    for caps in citation_re.captures_iter(answer) {
+    for caps in CITATION_REF_RE.captures_iter(answer) {
         let ref_num = caps
             .get(1)
             .map(|matched| matched.as_str().parse::<i64>().unwrap_or(0))
@@ -735,7 +778,12 @@ mod tests {
                 .collect()
         }
         fn last_tools(&self) -> Vec<Value> {
-            self.calls.lock().unwrap().last().map(|(_, tools)| tools.clone()).unwrap_or_default()
+            self.calls
+                .lock()
+                .unwrap()
+                .last()
+                .map(|(_, tools)| tools.clone())
+                .unwrap_or_default()
         }
     }
 
@@ -834,7 +882,10 @@ mod tests {
             ScriptedChat::answer("选择性来自共轭效应 [2]。"),
         ]);
         let agent = RetrievalAgent::new(tools, 4);
-        let result = agent.ask(&fake, "为什么有选择性?", "", "", &[], |_| {}).await.expect("ask");
+        let result = agent
+            .ask(&fake, "为什么有选择性?", "", "", &[], |_| {})
+            .await
+            .expect("ask");
 
         assert_eq!(result.rounds, 2);
         assert_eq!(result.answer, "选择性来自共轭效应 [2]。");
@@ -850,11 +901,14 @@ mod tests {
         let payload: Value = serde_json::from_str(seen[0]["content"].as_str().unwrap()).unwrap();
         assert_eq!(payload["hits"][0]["ref"], json!(1));
         assert_eq!(payload["hits"][1]["ref"], json!(2));
-        assert_eq!(json!(result.tool_trace), json!([{
-            "round": 1,
-            "tool": "search_fulltext",
-            "arguments": {"query": "选择性"}
-        }]));
+        assert_eq!(
+            json!(result.tool_trace),
+            json!([{
+                "round": 1,
+                "tool": "search_fulltext",
+                "arguments": {"query": "选择性"}
+            }])
+        );
     }
 
     #[tokio::test]
@@ -875,7 +929,10 @@ mod tests {
             .await
             .expect("ask");
         // 模型没传 document_id 也要强制注入
-        assert_eq!(result.tool_trace[0]["arguments"]["document_id"], json!(document_id));
+        assert_eq!(
+            result.tool_trace[0]["arguments"]["document_id"],
+            json!(document_id)
+        );
     }
 
     #[tokio::test]
@@ -890,7 +947,10 @@ mod tests {
             ScriptedChat::answer("选择性来自共轭效应且有反应速率。"),
         ]);
         let agent = RetrievalAgent::new(tools, 4);
-        let result = agent.ask(&fake, "结论?", "", "", &[], |_| {}).await.expect("ask");
+        let result = agent
+            .ask(&fake, "结论?", "", "", &[], |_| {})
+            .await
+            .expect("ask");
         assert_eq!(result.citations.len(), 2);
     }
 
@@ -945,7 +1005,10 @@ mod tests {
             ScriptedChat::answer("工具都失败了,无法回答。"),
         ]);
         let agent = RetrievalAgent::new(tools, 3);
-        let result = agent.ask(&fake, "q", "", "", &[], |_| {}).await.expect("ask");
+        let result = agent
+            .ask(&fake, "q", "", "", &[], |_| {})
+            .await
+            .expect("ask");
         assert!(result.answer.starts_with("工具都失败了"));
         let contents: Vec<String> = fake
             .seen_tool_messages()
@@ -953,7 +1016,9 @@ mod tests {
             .map(|message| message["content"].as_str().unwrap_or("").to_string())
             .collect();
         assert!(
-            contents.iter().any(|content| content.contains("unknown tool: missing")),
+            contents
+                .iter()
+                .any(|content| content.contains("unknown tool: missing")),
             "未知工具错误应回喂给模型: {contents:?}"
         );
         assert!(contents.iter().any(|content| content.contains("ref")));

@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 use anyhow::{anyhow, Context, Result};
 use base64::engine::general_purpose::STANDARD;
@@ -6,6 +7,24 @@ use base64::Engine;
 use regex::{Captures, Regex};
 use reqwest::Client;
 use serde_json::Value;
+
+// 正则集中在模块级 LazyLock：编译一次、全局复用，避免每页/每张图重复编译。
+static IMG_SRC_CAPTURE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)<img\b[^>]*\bsrc=["']([^"']+)["']"#).expect("valid img src regex")
+});
+static IMG_SRC_REWRITE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)(<img\b[^>]*\bsrc=["'])([^"']+)(["'])"#).expect("valid img src regex")
+});
+static CENTERED_IMG_DIV_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)<div\s+style=["']text-align:\s*center;?["']\s*>\s*(<img\b[^>]*>)\s*</div>"#)
+        .expect("valid centered img div regex")
+});
+static IMG_TAG_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(?i)<img\b([^>]*)>"#).expect("valid img tag regex"));
+static HTML_ATTR_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"([A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*["']([^"']*)["']"#)
+        .expect("valid html attr regex")
+});
 
 pub(super) async fn materialize_paddle_markdown_artifacts(
     payload: &Value,
@@ -121,8 +140,7 @@ fn paddle_markdown_target_rel_path_for_image_key(
     {
         return PathBuf::from(normalized);
     }
-    let re = Regex::new(r#"(?i)<img\b[^>]*\bsrc=["']([^"']+)["']"#).expect("valid img src regex");
-    for captures in re.captures_iter(markdown_text) {
+    for captures in IMG_SRC_CAPTURE_RE.captures_iter(markdown_text) {
         let src = captures[1]
             .trim()
             .trim_start_matches('/')
@@ -158,30 +176,25 @@ fn paddle_markdown_rel_src_path(src: &str, page_index: usize) -> String {
 }
 
 fn rewrite_paddle_markdown_image_srcs(text: &str, page_index: usize) -> String {
-    let re =
-        Regex::new(r#"(?i)(<img\b[^>]*\bsrc=["'])([^"']+)(["'])"#).expect("valid img src regex");
-    re.replace_all(text, |captures: &Captures<'_>| {
-        format!(
-            "{}{}{}",
-            &captures[1],
-            paddle_markdown_rel_src_path(&captures[2], page_index),
-            &captures[3]
-        )
-    })
-    .into_owned()
+    IMG_SRC_REWRITE_RE
+        .replace_all(text, |captures: &Captures<'_>| {
+            format!(
+                "{}{}{}",
+                &captures[1],
+                paddle_markdown_rel_src_path(&captures[2], page_index),
+                &captures[3]
+            )
+        })
+        .into_owned()
 }
 
 fn normalize_paddle_markdown_images(text: &str, page_index: usize) -> String {
     let rewritten = rewrite_paddle_markdown_image_srcs(text, page_index);
-    let centered_div_re = Regex::new(
-        r#"(?i)<div\s+style=["']text-align:\s*center;?["']\s*>\s*(<img\b[^>]*>)\s*</div>"#,
-    )
-    .expect("valid centered img div regex");
-    let without_center_div = centered_div_re.replace_all(&rewritten, |captures: &Captures<'_>| {
-        markdown_image_from_img_tag(&captures[1])
-    });
-    let img_re = Regex::new(r#"(?i)<img\b([^>]*)>"#).expect("valid img tag regex");
-    img_re
+    let without_center_div = CENTERED_IMG_DIV_RE
+        .replace_all(&rewritten, |captures: &Captures<'_>| {
+            markdown_image_from_img_tag(&captures[1])
+        });
+    IMG_TAG_RE
         .replace_all(&without_center_div, |captures: &Captures<'_>| {
             markdown_image_from_attrs(&captures[1])
         })
@@ -189,19 +202,16 @@ fn normalize_paddle_markdown_images(text: &str, page_index: usize) -> String {
 }
 
 fn markdown_image_from_img_tag(img_tag: &str) -> String {
-    let img_re = Regex::new(r#"(?i)<img\b([^>]*)>"#).expect("valid img tag regex");
-    let Some(captures) = img_re.captures(img_tag) else {
+    let Some(captures) = IMG_TAG_RE.captures(img_tag) else {
         return img_tag.to_string();
     };
     markdown_image_from_attrs(&captures[1])
 }
 
 fn markdown_image_from_attrs(attrs_text: &str) -> String {
-    let attr_re = Regex::new(r#"([A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*["']([^"']*)["']"#)
-        .expect("valid html attr regex");
     let mut src = String::new();
     let mut alt = String::from("Image");
-    for captures in attr_re.captures_iter(attrs_text) {
+    for captures in HTML_ATTR_RE.captures_iter(attrs_text) {
         let key = captures[1].to_ascii_lowercase();
         if key == "src" {
             src = captures[2].trim().to_string();
