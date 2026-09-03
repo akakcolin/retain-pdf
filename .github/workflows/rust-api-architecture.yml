@@ -35,6 +35,9 @@ jobs:
       - name: Python Pipeline Architecture Check
         run: python3 backend/scripts/devtools/check_pipeline_architecture.py
 
+      - name: Cross-Language Default Parity Check
+        run: python3 backend/scripts/devtools/check_default_parity.py
+
       - name: Cargo Build
         run: cargo build --manifest-path backend/rust_api/Cargo.toml
 

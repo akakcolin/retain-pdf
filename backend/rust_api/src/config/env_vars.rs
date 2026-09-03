@@ -1,6 +1,8 @@
 use std::env;
 use std::path::PathBuf;
 
+use super::defaults::{LOCAL_LLM_DEFAULT_BASE_URL, LOCAL_LLM_DEFAULT_MODEL};
+
 pub(super) fn env_u64(name: &str, fallback: u64) -> u64 {
     env::var(name)
         .ok()
@@ -72,11 +74,11 @@ pub(crate) fn offline_mode() -> bool {
 pub(crate) fn local_llm_default_model() -> String {
     env_optional_string("RUST_API_LOCAL_LLM_MODEL")
         .or_else(|| env_optional_string("RETAIN_LOCAL_LLM_MODEL"))
-        .unwrap_or_else(|| "qwen2.5:7b".to_string())
+        .unwrap_or_else(|| LOCAL_LLM_DEFAULT_MODEL.to_string())
 }
 
 pub(crate) fn local_llm_default_base_url() -> String {
     env_optional_string("RUST_API_LOCAL_LLM_BASE_URL")
         .or_else(|| env_optional_string("RETAIN_LOCAL_LLM_BASE_URL"))
-        .unwrap_or_else(|| "http://localhost:11434/v1".to_string())
+        .unwrap_or_else(|| LOCAL_LLM_DEFAULT_BASE_URL.to_string())
 }

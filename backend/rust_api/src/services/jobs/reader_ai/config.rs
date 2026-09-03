@@ -1,3 +1,4 @@
+use crate::config::defaults::DEEPSEEK_DEFAULT_BASE_URL;
 use crate::error::AppError;
 use crate::models::api::ReaderAiChatRequest;
 
@@ -98,7 +99,7 @@ fn resolve_provider_defaults(provider: &str) -> Result<ProviderDefaults, AppErro
     match provider {
         "deepseek" => Ok(ProviderDefaults {
             default_model: "deepseek-chat".to_string(),
-            default_base_url: "https://api.deepseek.com/v1".to_string(),
+            default_base_url: DEEPSEEK_DEFAULT_BASE_URL.to_string(),
             api_key_env: "DEEPSEEK_API_KEY",
         }),
         // 前端/桌面把自定义 OpenAI 兼容端点命名为 openai-compatible;协议与

@@ -1,3 +1,4 @@
+use super::defaults::{DEEPSEEK_DEFAULT_BALANCE_URL, DEEPSEEK_DEFAULT_BASE_URL};
 use super::env_vars::{
     env_bool, env_optional_string, env_string, env_u16, env_u32, env_u64, env_usize,
     local_llm_default_base_url, local_llm_default_model, offline_mode,
@@ -202,13 +203,10 @@ fn env_optional_string_with_fallback(primary: &str, fallback: &str, default: &st
 impl DeepSeekRuntimeConfig {
     pub fn from_env() -> Self {
         Self {
-            default_base_url: env_string(
-                "RUST_API_DEEPSEEK_BASE_URL",
-                "https://api.deepseek.com/v1",
-            ),
+            default_base_url: env_string("RUST_API_DEEPSEEK_BASE_URL", DEEPSEEK_DEFAULT_BASE_URL),
             balance_url: env_string(
                 "RUST_API_DEEPSEEK_BALANCE_URL",
-                "https://api.deepseek.com/user/balance",
+                DEEPSEEK_DEFAULT_BALANCE_URL,
             ),
             probe_timeout_secs: env_u64("RUST_API_DEEPSEEK_PROBE_TIMEOUT_SECS", 20),
             allow_private_urls: env_bool(ALLOW_PRIVATE_PROVIDER_URLS_ENV, offline_mode()),

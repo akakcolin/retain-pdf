@@ -16,6 +16,7 @@ if str(REPO_SCRIPTS_ROOT) not in sys.path:
 
 from foundation.shared.stage_specs import TranslateStageSpec
 from foundation.shared.stage_specs import resolve_credential_ref
+from services.translation.llm.providers.deepseek.transport import DEFAULT_BASE_URL
 from services.translation.llm import translate_batch
 from services.translation.core.payload import load_translation_manifest_file
 from services.translation.core.payload import load_translations
@@ -297,7 +298,7 @@ def replay_translation_case_artifact(case_artifact_path: Path, item_id: str | No
             classify_batch_size=int(spec.get("classify_batch_size") or 12),
             workers=int(spec.get("workers") or 1),
             model=str(spec.get("model") or "deepseek-v4-flash"),
-            base_url=str(spec.get("base_url") or "https://api.deepseek.com/v1"),
+            base_url=str(spec.get("base_url") or DEFAULT_BASE_URL),
             glossary_entries=list(spec.get("glossary_entries") or []),
             credential_ref=str(spec.get("credential_ref") or ""),
             job_root_label=str(replay_input.get("job_root") or ""),

@@ -1,3 +1,4 @@
+use super::defaults::DEEPSEEK_DEFAULT_BASE_URL;
 use super::env_vars::{env_string, env_u64, env_usize};
 
 /// retainpdf-ai 并入 Rust 后的运行时配置。
@@ -20,7 +21,7 @@ pub struct AiRuntimeConfig {
 impl AiRuntimeConfig {
     pub fn from_env() -> Self {
         Self {
-            llm_base_url: env_string("RETAIN_AI_LLM_BASE_URL", "https://api.deepseek.com/v1")
+            llm_base_url: env_string("RETAIN_AI_LLM_BASE_URL", DEEPSEEK_DEFAULT_BASE_URL)
                 .trim_end_matches('/')
                 .to_string(),
             llm_model: env_string("RETAIN_AI_LLM_MODEL", "deepseek-v4-flash"),
@@ -37,7 +38,7 @@ impl AiRuntimeConfig {
 impl Default for AiRuntimeConfig {
     fn default() -> Self {
         Self {
-            llm_base_url: "https://api.deepseek.com/v1".to_string(),
+            llm_base_url: DEEPSEEK_DEFAULT_BASE_URL.to_string(),
             llm_model: "deepseek-v4-flash".to_string(),
             llm_api_key: String::new(),
             llm_timeout_s: 60,

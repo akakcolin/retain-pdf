@@ -12,6 +12,7 @@ if str(REPO_ROOT / "backend" / "scripts") not in sys.path:
     sys.path.append(str(REPO_ROOT / "backend" / "scripts"))
 
 from foundation.shared.stage_specs import TRANSLATE_STAGE_SCHEMA_VERSION
+from services.translation.llm.providers.deepseek.transport import DEFAULT_BASE_URL
 from services.translation.workflow.batching.batching import is_low_risk_batchable_item
 from services.translation.services.context.execution_context import context_with_memory_guidance
 from services.translation.services.fast_path.keep_origin import is_fast_path_keep_origin_item
@@ -315,7 +316,7 @@ def _build_translate_spec(
             "glossary_overridden_entry_count": 0,
             "glossary_entries": [],
             "model": "deepseek-v4-flash",
-            "base_url": "https://api.deepseek.com/v1",
+            "base_url": DEFAULT_BASE_URL,
             "credential_ref": "env:DEEPSEEK_API_KEY",
         },
     }

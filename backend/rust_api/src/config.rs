@@ -5,6 +5,7 @@ use anyhow::{bail, Result};
 
 mod ai;
 mod auth;
+pub(crate) mod defaults;
 pub(crate) mod env_vars;
 mod job_runner;
 mod paths;
