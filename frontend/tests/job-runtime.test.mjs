@@ -19,7 +19,6 @@ import {
   setAppliedPageRange,
   setUploadState,
 } from "../src/js/features/upload/state.js";
-import { state } from "../src/js/state/store.js";
 import {
   createJobEventsResource,
   fetchRecentJobEvents,
@@ -1563,4 +1562,105 @@ test("secondary resource patches pass render context instead of raw cache inputs
   assert.deepEqual(eventPatch.context.job, job);
   assert.equal(eventPatch.context.jobId, jobId);
   assert.equal(eventPatch.context.events.items[0].progress.current, 3);
+});
+
+
+test("invalidateJobPolls bumps generation so in-flight polls from before navigation are dropped", () => {
+  const state = createInitialState();
+  const { generation } = runtimePollingStateModule.startRuntimeJob(state, "job-nav");
+  assert.equal(runtimePollingStateModule.isCurrentJobGeneration(state, "job-nav", generation), true);
+
+  // 模拟在途 poll：begin 之后、finish 之前用户导航离开
+  assert.equal(runtimePollingStateModule.beginJobPoll(state), generation);
+  runtimePollingStateModule.invalidateJobPolls(state);
+
+  assert.equal(
+    runtimePollingStateModule.isCurrentJobGeneration(state, "job-nav", generation),
+    false,
+    "导航离开后旧 generation 必须失效，在途 poll 返回不再写回渲染",
+  );
+  // invalidate 同时完成 stop 的语义：timer 清空、inFlight 复位
+  assert.equal(state.timer, null);
+  assert.equal(runtimePollingStateModule.runtimePollingStoreFor(state).getSnapshot().pollInFlight, false);
+});
+
+test("stop() keeps generation so terminal-path secondary scheduling still matches", () => {
+  // fetchJob 终态分支先 stop() 再 schedule({generation})：
+  // 若 stop 作废旧 generation，终态 manifest 重拉会被误判为 stale。
+  const state = createInitialState();
+  const { generation } = runtimePollingStateModule.startRuntimeJob(state, "job-terminal");
+  runtimePollingStateModule.stopPolling(state);
+  assert.equal(
+    runtimePollingStateModule.isCurrentJobGeneration(state, "job-terminal", generation),
+    true,
+    "stop 不得作废 generation（终态副资源调度依赖旧值）",
+  );
+});
+
+test("returnJobRuntimeToHome invalidates in-flight polls of the leaving job", () => {
+  const previousDocument = global.document;
+  const previousCustomEvent = global.CustomEvent;
+  global.CustomEvent = class CustomEvent {
+    constructor(type, options = {}) {
+      this.type = type;
+      this.detail = options.detail;
+    }
+  };
+  global.document = {
+    dispatchEvent() {},
+    getElementById() {
+      return null;
+    },
+  };
+
+  const runtimeState = createInitialState();
+  const { generation } = runtimePollingStateModule.startRuntimeJob(runtimeState, "job-leaving");
+  try {
+    returnJobRuntimeToHome({
+      state: runtimeState,
+      uploadStatePort: { clearAppliedPageRange() {} },
+      resetStatePort: {
+        resetJob() {},
+        clearAppliedPageRange() {},
+      },
+      onReaderDialogClose() {},
+      setWorkflowSections() {},
+      resetUploadProgress() {},
+      resetUploadedFile() {},
+      applyWorkflowMode() {},
+      clearPageRanges() {},
+      setText() {},
+      updateJobWarning() {},
+      activateDetailTab() {},
+      jobPresentationPort: { summarizeStatus: (status) => status },
+      shellViewPort: { closeDialogs() {}, resetEvents() {} },
+    });
+  } finally {
+    global.document = previousDocument;
+    global.CustomEvent = previousCustomEvent;
+  }
+
+  assert.equal(
+    runtimePollingStateModule.isCurrentJobGeneration(runtimeState, "job-leaving", generation),
+    false,
+    "返回主页后，离开前发出的在途 poll 必须失效",
+  );
+});
+
+test("startJob refreshes currentJobStartedAt for every new job", () => {
+  const state = createInitialState();
+  let nowValue = "2026-09-03T10:00:00Z";
+  const port = runtimePollingStateModule.createRuntimePollingStatePort(state, {
+    now: () => nowValue,
+  });
+
+  const first = port.startJob("job-first");
+  assert.equal(first.startedAt, "2026-09-03T10:00:00Z");
+
+  // 上一任务跑完后不返回主页、直接开始新任务：startedAt 必须刷新，
+  // 不能沿用 job-first 的开始时间（修复前只在为空时写入）。
+  nowValue = "2026-09-03T11:00:00Z";
+  const second = port.startJob("job-second");
+  assert.equal(second.startedAt, "2026-09-03T11:00:00Z");
+  assert.equal(state.currentJobStartedAt, "2026-09-03T11:00:00Z");
 });

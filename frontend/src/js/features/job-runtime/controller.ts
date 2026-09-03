@@ -1,3 +1,4 @@
+import { TEXT_KEYS } from "../../dom/text-keys.js";
 import {
   clearActiveJobId,
   writeActiveJobId,
@@ -6,7 +7,9 @@ import {
   createJobEventsResource,
 } from "./job-events-resource.js";
 import { createCurrentJobStatePort } from "./current-job-state.js";
+import type { CurrentJobStatePort } from "./current-job-state.js";
 import { createSecondaryResourceStatePort } from "./secondary-resource-cache.js";
+import type { SecondaryResourceStatePort } from "./secondary-resource-cache.js";
 import {
   createJobRenderContextPort,
 } from "./render-context.js";
@@ -14,6 +17,7 @@ import {
   createRuntimePollingStatePort,
   JOB_POLL_INTERVAL_MS,
 } from "./runtime-polling-state.js";
+import type { RuntimePollingStatePort } from "./runtime-polling-state.js";
 import {
   notifyLibraryJobUpdated,
   requestLibraryRefresh,
@@ -22,6 +26,76 @@ import { createSecondaryResourceSchedulerPort } from "./secondary-resources.js";
 import { returnJobRuntimeToHome } from "./runtime-reset.js";
 import { createJobRuntimeShellViewPort } from "./shell-view-port.js";
 import { createJobRuntimeResetStatePort } from "./reset-state-port.js";
+import type { JobRuntimeResetStatePort, JobRuntimeResetTarget } from "./reset-state-port.js";
+
+/** 任务展示语义端口（normalize/终态判定），缺省走本地兜底实现。 */
+export interface JobRuntimePresentationPort {
+  normalizeJobPayload?: (payload: unknown) => Record<string, unknown>;
+  isTerminalStatus?: (status: unknown) => boolean;
+  isJobTerminal?: (value?: unknown) => boolean;
+}
+
+/** 书架事件端口：job-runtime 只用到这两个方法。 */
+export interface JobRuntimeLibraryEventPort {
+  publishJobCreated?: (job?: unknown) => void;
+  requestRefresh?: (options?: {
+    delay?: number;
+    force?: boolean;
+    terminal?: boolean;
+  }) => void;
+}
+
+/** job-runtime 对 upload 状态的唯一诉求：返回主页时清页码范围。 */
+export interface JobRuntimeUploadStatePort {
+  clearAppliedPageRange?: () => void;
+}
+
+export interface MountJobRuntimeFeatureOptions {
+  /** 宿主状态对象（轮询/当前任务/副资源子 store 的挂载点）。 */
+  state: object;
+  apiPrefix?: string;
+  buildJobDetailEndpoint: (jobId: string, apiPrefix?: string) => string;
+  fetchJobPayload: (jobId: string, apiPrefix?: string) => Promise<unknown>;
+  fetchJobEvents: (
+    jobId: string,
+    apiPrefix?: string,
+    limit?: number,
+    offset?: number,
+  ) => Promise<unknown>;
+  fetchJobArtifactsManifest: (jobId: string, apiPrefix?: string) => Promise<unknown>;
+  fetchJobStageActions: (jobId: string, apiPrefix?: string) => Promise<unknown>;
+  retryJobStage: (
+    jobId: string,
+    apiPrefix: string | undefined,
+    stage: string,
+    bookMeta?: Record<string, unknown>,
+  ) => Promise<Record<string, unknown> | null | undefined>;
+  submitJson: (url: string, payload: unknown) => Promise<unknown>;
+  /** 主渲染：消费 renderContextPort.applySnapshot 的产物（statusCardStore 写入）。 */
+  renderJob: (context: unknown) => void;
+  renderJobSecondaryPatch: (patch: unknown) => void;
+  setText: (id: string, text?: unknown) => void;
+  setWorkflowSections: (payload: unknown) => void;
+  resetUploadProgress: () => void;
+  resetUploadedFile: () => void;
+  applyWorkflowMode: () => void;
+  clearPageRanges: () => void;
+  updateJobWarning: (status: string) => void;
+  activateDetailTab: (tab: string) => void;
+  onReaderDialogSync?: () => void;
+  onReaderDialogClose?: () => void;
+  uploadStatePort?: JobRuntimeUploadStatePort;
+  libraryEventPort?: JobRuntimeLibraryEventPort;
+  jobEventsResource?: ReturnType<typeof createJobEventsResource>;
+  pollingPort?: RuntimePollingStatePort;
+  currentJobPort?: CurrentJobStatePort;
+  secondaryResourcePort?: SecondaryResourceStatePort;
+  shellViewPort?: ReturnType<typeof createJobRuntimeShellViewPort>;
+  jobPresentationPort?: JobRuntimePresentationPort;
+  resetStatePort?: JobRuntimeResetStatePort;
+  renderContextPort?: ReturnType<typeof createJobRenderContextPort>;
+  secondaryResourceSchedulerPort?: ReturnType<typeof createSecondaryResourceSchedulerPort>;
+}
 
 export function mountJobRuntimeFeature({
   state,
@@ -53,7 +127,7 @@ export function mountJobRuntimeFeature({
   secondaryResourcePort = createSecondaryResourceStatePort(state),
   shellViewPort = createJobRuntimeShellViewPort(),
   jobPresentationPort,
-  resetStatePort = createJobRuntimeResetStatePort(state),
+  resetStatePort = createJobRuntimeResetStatePort(state as JobRuntimeResetTarget),
   renderContextPort = createJobRenderContextPort(state, { jobPresentationPort }),
   secondaryResourceSchedulerPort = createSecondaryResourceSchedulerPort({
     state,
@@ -70,10 +144,12 @@ export function mountJobRuntimeFeature({
     renderContextPort,
     jobPresentationPort,
   }),
-}: any) {
-  const normalizeJobPayload = jobPresentationPort?.normalizeJobPayload || ((value) => value || {});
+}: MountJobRuntimeFeatureOptions) {
+  const fallbackNormalize = (value: unknown): Record<string, unknown> =>
+    (value || {}) as Record<string, unknown>;
+  const normalizeJobPayload = jobPresentationPort?.normalizeJobPayload || fallbackNormalize;
   const isTerminalStatus = jobPresentationPort?.isTerminalStatus || ((status) => status === "failed" || status === "canceled");
-  const isJobTerminal = jobPresentationPort?.isJobTerminal || ((value: any = {}) => isTerminalStatus(value?.status || value));
+  const isJobTerminal = jobPresentationPort?.isJobTerminal || ((value: Record<string, unknown> = {}) => isTerminalStatus(value?.status || value));
   // 当前轮询会话是否向图书馆广播进度补丁。
   // silent：不全量刷库，但 status/stage 变化仍同步（封面转圈 / 完成「已翻译」）。
   let sessionPublishLibrary = true;
@@ -207,11 +283,11 @@ export function mountJobRuntimeFeature({
     lastLibraryPublishKey = libraryPublishKeyOf(normalizedPlaceholder);
     notifyLibraryJobUpdated(normalizedPlaceholder, { port: libraryEventPort });
     fetchJob(jobId).catch((err) => {
-      setText("error-box", err.message);
+      setText(TEXT_KEYS.errorBox, err.message);
     });
     pollingPort.startTimer(() => {
       fetchJob(jobId).catch((err) => {
-        setText("error-box", err.message);
+        setText(TEXT_KEYS.errorBox, err.message);
       });
     }, JOB_POLL_INTERVAL_MS);
   }
@@ -237,7 +313,7 @@ export function mountJobRuntimeFeature({
   async function cancelCurrentJob() {
     const jobId = currentJobPort.jobId();
     if (!jobId) {
-      setText("error-box", "当前没有可取消的任务");
+      setText(TEXT_KEYS.errorBox, "当前没有可取消的任务");
       return;
     }
     shellViewPort.setCancelDisabled(true);
@@ -245,7 +321,7 @@ export function mountJobRuntimeFeature({
       await submitJson(`${buildJobDetailEndpoint(jobId, apiPrefix)}/cancel`, {});
       await fetchJob(jobId);
     } catch (err) {
-      setText("error-box", err.message);
+      setText(TEXT_KEYS.errorBox, err.message);
     }
   }
 
@@ -259,11 +335,11 @@ export function mountJobRuntimeFeature({
       || ""
     }`.trim();
     if (!jobId || !normalizedStage) {
-      setText("error-box", "当前没有可重新执行的阶段");
+      setText(TEXT_KEYS.errorBox, "当前没有可重新执行的阶段");
       return;
     }
     try {
-      setText("error-box", "-");
+      setText(TEXT_KEYS.errorBox, "-");
       // statusCard snapshot 顶层无 document_id；身份在 job / raw_response 里
       const prevSnapshot = (currentJobPort.snapshot?.() || {}) as Record<string, unknown>;
       const prevJob = (
@@ -329,7 +405,7 @@ export function mountJobRuntimeFeature({
         await fetchJob(jobId);
       }
     } catch (err) {
-      setText("error-box", err.message || String(err));
+      setText(TEXT_KEYS.errorBox, err.message || String(err));
     }
   }
 

@@ -37,6 +37,8 @@ export interface RuntimePollingStatePortOptions {
 
 export type RuntimePollingActions = {
   stop(currentState: RuntimePollingState): RuntimePollingState;
+  /** 停止 + 作废旧 generation：导航离开/卸载时使在途 poll 的渲染失效。 */
+  invalidate(currentState: RuntimePollingState): RuntimePollingState;
   beginPoll(currentState: RuntimePollingState): RuntimePollingState;
   finishPoll(currentState: RuntimePollingState): RuntimePollingState;
   startJob(currentState: RuntimePollingState, jobId: unknown): RuntimePollingState;
@@ -53,6 +55,8 @@ export interface RuntimePollingStatePort {
   store: RuntimePollingStore;
   getSnapshot: () => RuntimePollingState;
   stop: () => RuntimePollingState;
+  /** stop + generation 前移：使 stop 之前发出的在途 poll 全部失效（导航离开用）。 */
+  invalidate: () => RuntimePollingState;
   beginPoll: () => number | null;
   finishPoll: () => RuntimePollingState;
   isCurrentGeneration: (jobId: unknown, generation: unknown) => boolean;
@@ -83,6 +87,13 @@ export function createRuntimePollingStore(
       stop(currentState) {
         return {
           ...currentState,
+          pollInFlight: false,
+        };
+      },
+      invalidate(currentState) {
+        return {
+          ...currentState,
+          generation: Number(currentState.generation || 0) + 1,
           pollInFlight: false,
         };
       },
@@ -169,6 +180,13 @@ export function createRuntimePollingStatePort(
       }
       return applyRuntimePollingAction(state, (currentStore) => currentStore.actions.stop());
     },
+    invalidate() {
+      if (host?.timer) {
+        clearIntervalFn(host.timer);
+        host.timer = null;
+      }
+      return applyRuntimePollingAction(state, (currentStore) => currentStore.actions.invalidate());
+    },
     beginPoll() {
       const current = store.getSnapshot();
       if (current.pollInFlight) {
@@ -189,7 +207,8 @@ export function createRuntimePollingStatePort(
         state,
         (currentStore) => currentStore.actions.startJob(jobId),
       );
-      if (host && !host.currentJobStartedAt) {
+      // 新任务即新计时：无条件刷新，避免沿用上一任务残留的 startedAt。
+      if (host) {
         host.currentJobStartedAt = now();
       }
       return {
@@ -212,6 +231,14 @@ export function createRuntimePollingStatePort(
 
 export function stopPolling(state: unknown) {
   createRuntimePollingStatePort(state as object).stop();
+}
+
+/**
+ * 导航离开 / 返回主页时调用：停表 + 作废当前 generation，
+ * 使 stop 之前发出的在途 poll 在返回后不再写回渲染。
+ */
+export function invalidateJobPolls(state: unknown) {
+  createRuntimePollingStatePort(state as object).invalidate();
 }
 
 export function beginJobPoll(state: unknown) {

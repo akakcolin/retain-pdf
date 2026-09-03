@@ -1,3 +1,4 @@
+import { TEXT_KEYS } from "../../dom/text-keys.js";
 import { resetStatusDetailRuntimeView } from "../app-shell/idle-reset.js";
 import { clearActiveJobId } from "./active-job-storage.js";
 import { createJobRuntimeShellViewPort } from "./shell-view-port.js";
@@ -6,7 +7,7 @@ import {
   currentJobId,
 } from "./current-job-state.js";
 import {
-  stopPolling,
+  invalidateJobPolls,
 } from "./runtime-polling-state.js";
 
 export function returnJobRuntimeToHome({
@@ -28,7 +29,8 @@ export function returnJobRuntimeToHome({
   const summarizeStatus = jobPresentationPort.summarizeStatus || ((status) => status);
   const resetState = resetStatePort || createJobRuntimeResetStatePort(state);
   clearActiveJobId(currentJobId(state));
-  stopPolling(state);
+  // invalidate = stop + generation 前移：在途 poll 返回后不再写回渲染/书架。
+  invalidateJobPolls(state);
   shellViewPort.closeDialogs();
   onReaderDialogClose?.();
   resetState.resetJob();
@@ -41,11 +43,11 @@ export function returnJobRuntimeToHome({
   resetUploadProgress();
   resetUploadedFile();
   applyWorkflowMode();
-  setText("job-summary", summarizeStatus("idle"));
-  setText("job-stage-detail", "-");
-  setText("job-id", "-");
-  setText("query-job-duration", "-");
-  setText("job-finished-at", "-");
+  setText(TEXT_KEYS.jobSummary, summarizeStatus("idle"));
+  setText(TEXT_KEYS.jobStageDetail, "-");
+  setText(TEXT_KEYS.jobId, "-");
+  setText(TEXT_KEYS.queryJobDuration, "-");
+  setText(TEXT_KEYS.jobFinishedAt, "-");
   clearPageRanges();
   resetStatusDetailRuntimeView({
     setText,

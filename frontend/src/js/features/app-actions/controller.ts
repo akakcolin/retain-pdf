@@ -1,3 +1,4 @@
+import { TEXT_KEYS } from "../../dom/text-keys.js";
 import {
   runSubmitFlow,
   type AppActionsConfigPort,
@@ -15,6 +16,7 @@ import { createAppActionsUploadStatePort } from "./upload-state-port.js";
 export interface AppActionsUploadStatePort {
   getSnapshot?: () => {
     uploadId?: string;
+    submitBusy?: boolean;
   };
   reset?: (options?: { includePageRange?: boolean }) => void;
   setSubmitBusy?: (busy?: boolean) => void;
@@ -161,6 +163,10 @@ export function mountAppActionsFeature({
 
   async function submitForm(event) {
     event.preventDefault();
+    // 逻辑层重入守卫：视图层禁用按钮之外兜底，防第二个触发入口（快捷键/命令面板）重复提交。
+    if (readUploadState().submitBusy) {
+      return;
+    }
     const workflow = currentWorkflow();
     const desktopMode = runtimeEnv.isDesktopMode();
     setSubmitBusyState(true);
@@ -213,7 +219,7 @@ export function mountAppActionsFeature({
         ? configPort.apiBaseLabel()
         : configPort.apiBaseLabel;
       const message = `当前前端无法连接后端。API Base: ${label}。请确认本地服务已经启动，然后重试。`;
-      setText("error-box", message);
+      setText(TEXT_KEYS.errorBox, message);
       throw new Error(message);
     }
   }
@@ -222,7 +228,7 @@ export function mountAppActionsFeature({
     try {
       await openDesktopOutputDirectory();
     } catch (err) {
-      setText("error-box", (err as { message?: string })?.message || String(err));
+      setText(TEXT_KEYS.errorBox, (err as { message?: string })?.message || String(err));
     }
   }
 
