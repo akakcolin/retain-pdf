@@ -8,8 +8,8 @@ use tower::util::ServiceExt;
 use super::jobs_common::{minimal_pdf_bytes, test_state};
 use crate::app::build_app;
 use crate::db::documents::sha256_hex;
-use crate::models::domain::{now_iso, UploadRecord};
 use crate::models::api::FtsBlockRow;
+use crate::models::domain::{now_iso, UploadRecord};
 
 fn seed_document(state: &crate::AppState, content: &[u8]) -> String {
     let hash = sha256_hex(content);
@@ -255,7 +255,10 @@ async fn ai_ask_requires_llm_api_key() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     let payload = json_response(response).await;
     let message = payload["message"].as_str().unwrap_or("");
-    assert!(message.contains("LLM API Key"), "unexpected message: {message}");
+    assert!(
+        message.contains("LLM API Key"),
+        "unexpected message: {message}"
+    );
 }
 
 #[tokio::test]
@@ -383,7 +386,9 @@ async fn favorite_note_patch_updates_in_place() {
                 .uri(format!("/api/v1/favorites/{favorite_id}"))
                 .header("X-API-Key", "test-key")
                 .header("content-type", "application/json")
-                .body(Body::from(serde_json::json!({"note": "改后的笔记"}).to_string()))
+                .body(Body::from(
+                    serde_json::json!({"note": "改后的笔记"}).to_string(),
+                ))
                 .expect("request"),
         )
         .await
@@ -449,10 +454,7 @@ async fn asset_upload_dedupes_and_serves_immutable() {
         .await
         .expect("download response");
     assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(
-        response.headers().get("content-type").unwrap(),
-        "image/png"
-    );
+    assert_eq!(response.headers().get("content-type").unwrap(), "image/png");
     assert!(response
         .headers()
         .get("cache-control")
@@ -494,7 +496,10 @@ async fn asset_upload_dedupes_and_serves_immutable() {
     assert_eq!(response.status(), StatusCode::OK);
     let payload = json_response(response).await;
     assert_eq!(payload["data"]["asset_id"], asset_id);
-    assert!(payload["data"]["rect_json"].as_str().unwrap().contains("300"));
+    assert!(payload["data"]["rect_json"]
+        .as_str()
+        .unwrap()
+        .contains("300"));
 
     // 未上传的 asset_id 被拒绝
     let response = app
@@ -549,13 +554,18 @@ async fn conversation_lifecycle_and_message_appending() {
         .expect("id")
         .to_string();
 
-    for (role, content) in [("user", "溴锂交换的选择性由什么决定?"), ("assistant", "由共轭效应决定 [1]。")] {
+    for (role, content) in [
+        ("user", "溴锂交换的选择性由什么决定?"),
+        ("assistant", "由共轭效应决定 [1]。"),
+    ] {
         let response = app
             .clone()
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/api/v1/ai/conversations/{conversation_id}/messages"))
+                    .uri(format!(
+                        "/api/v1/ai/conversations/{conversation_id}/messages"
+                    ))
                     .header("X-API-Key", "test-key")
                     .header("content-type", "application/json")
                     .body(Body::from(
@@ -585,7 +595,10 @@ async fn conversation_lifecycle_and_message_appending() {
         .expect("detail");
     let payload = json_response(response).await;
     // 标题自动取首问前缀;消息按 seq 正序;引用快照原样保存
-    assert!(payload["data"]["title"].as_str().unwrap().contains("溴锂交换"));
+    assert!(payload["data"]["title"]
+        .as_str()
+        .unwrap()
+        .contains("溴锂交换"));
     assert_eq!(payload["data"]["message_count"], 2);
     assert_eq!(payload["data"]["messages"][0]["role"], "user");
     assert_eq!(payload["data"]["messages"][1]["seq"], 2);
@@ -596,14 +609,18 @@ async fn conversation_lifecycle_and_message_appending() {
     // head 落在最后一条;assistant 的 parent 为 user
     assert_eq!(
         payload["data"]["head_id"].as_str().unwrap(),
-        payload["data"]["messages"][1]["message_id"].as_str().unwrap()
+        payload["data"]["messages"][1]["message_id"]
+            .as_str()
+            .unwrap()
     );
     let user_id = payload["data"]["messages"][0]["message_id"]
         .as_str()
         .unwrap()
         .to_string();
     assert_eq!(
-        payload["data"]["messages"][1]["parent_id"].as_str().unwrap(),
+        payload["data"]["messages"][1]["parent_id"]
+            .as_str()
+            .unwrap(),
         user_id
     );
 
@@ -613,7 +630,9 @@ async fn conversation_lifecycle_and_message_appending() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/ai/conversations/{conversation_id}/messages"))
+                .uri(format!(
+                    "/api/v1/ai/conversations/{conversation_id}/messages"
+                ))
                 .header("X-API-Key", "test-key")
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -657,10 +676,14 @@ async fn conversation_lifecycle_and_message_appending() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/ai/conversations/{conversation_id}/messages"))
+                .uri(format!(
+                    "/api/v1/ai/conversations/{conversation_id}/messages"
+                ))
                 .header("X-API-Key", "test-key")
                 .header("content-type", "application/json")
-                .body(Body::from(serde_json::json!({"role": "tool", "content": "x"}).to_string()))
+                .body(Body::from(
+                    serde_json::json!({"role": "tool", "content": "x"}).to_string(),
+                ))
                 .expect("request"),
         )
         .await
@@ -703,9 +726,7 @@ async fn collections_crud_and_document_membership_roundtrip() {
                 .uri("/api/v1/collections")
                 .header("X-API-Key", "test-key")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    serde_json::json!({"name": "化学"}).to_string(),
-                ))
+                .body(Body::from(serde_json::json!({"name": "化学"}).to_string()))
                 .expect("request"),
         )
         .await
@@ -749,7 +770,10 @@ async fn collections_crud_and_document_membership_roundtrip() {
         .expect("list response");
     assert_eq!(response.status(), StatusCode::OK);
     let payload = json_response(response).await;
-    assert_eq!(payload["data"]["collections"][0]["collection_id"], collection_id);
+    assert_eq!(
+        payload["data"]["collections"][0]["collection_id"],
+        collection_id
+    );
 
     // 改名
     let response = app
@@ -1127,7 +1151,10 @@ async fn deleting_a_job_reconciles_document_active_job() {
         .await
         .expect("delete job-b");
     assert_eq!(response.status(), StatusCode::OK);
-    let doc = state.db.get_document(&document_id).expect("doc still exists");
+    let doc = state
+        .db
+        .get_document(&document_id)
+        .expect("doc still exists");
     assert_eq!(doc.active_job_id.as_deref(), Some("job-a"));
 
     // 再删 job-a —— 没有剩余 book job,active 降级为 NULL(干净馆藏,非僵尸)
@@ -1144,7 +1171,10 @@ async fn deleting_a_job_reconciles_document_active_job() {
         .await
         .expect("delete job-a");
     assert_eq!(response.status(), StatusCode::OK);
-    let doc = state.db.get_document(&document_id).expect("doc still exists");
+    let doc = state
+        .db
+        .get_document(&document_id)
+        .expect("doc still exists");
     assert_eq!(doc.active_job_id, None);
 }
 
@@ -1314,7 +1344,10 @@ async fn ingest_only_document_survives_and_orphans_are_hidden() {
         .iter()
         .map(|d| d["document_id"].as_str().unwrap())
         .collect();
-    assert!(ids.contains(&ingest_only.as_str()), "ingest-only doc must stay");
+    assert!(
+        ids.contains(&ingest_only.as_str()),
+        "ingest-only doc must stay"
+    );
     assert!(!ids.contains(&"orphandoc0000"), "orphan doc must be hidden");
 }
 
@@ -1336,7 +1369,10 @@ async fn retention_preserves_document_backed_uploads() {
         content_hash: hash.clone(),
     };
     state.db.save_upload(&upload).expect("save upload");
-    state.db.upsert_document_from_upload(&upload).expect("upsert doc");
+    state
+        .db
+        .upsert_document_from_upload(&upload)
+        .expect("upsert doc");
 
     // 一个陈旧、无 job、也无 document 支撑的 upload(真正的废上传,应被 GC)
     let junk = UploadRecord {

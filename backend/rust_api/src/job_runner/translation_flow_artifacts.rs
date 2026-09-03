@@ -15,7 +15,7 @@ pub(super) async fn prepare_job_from_ocr_artifacts(
     source_job_id: &str,
     action_label: &str,
 ) -> Result<(JobRuntimeState, PathBuf)> {
-    let source_job = deps.db.get_job(&source_job_id)?;
+    let source_job = deps.db.get_job(source_job_id)?;
     let source_artifacts = source_job
         .artifacts
         .as_ref()
@@ -28,7 +28,7 @@ pub(super) async fn prepare_job_from_ocr_artifacts(
 
     let job_paths = build_job_paths(&deps.persist.output_root, &job.job_id)?;
     attach_job_paths(&mut job, &job_paths);
-    copy_ocr_checkpoint_artifacts(&mut job, &source_job_id, source_artifacts);
+    copy_ocr_checkpoint_artifacts(&mut job, source_job_id, source_artifacts);
     if let Some(artifacts) = job.artifacts.as_mut() {
         artifacts.copy_translation_inputs_from(source_artifacts);
         artifacts.source_pdf = Some(source_pdf_path.to_string_lossy().to_string());

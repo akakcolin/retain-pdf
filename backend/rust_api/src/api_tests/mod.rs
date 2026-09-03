@@ -1,8 +1,6 @@
 mod glossaries;
 mod http_contract;
 mod jobs_common;
-mod library_data;
-mod metrics;
 mod jobs_create;
 mod jobs_detail;
 mod jobs_diagnostics;
@@ -13,5 +11,7 @@ mod jobs_markdown;
 mod jobs_reader;
 mod jobs_retry;
 mod jobs_security;
+mod library_data;
+mod metrics;
 mod providers;
 mod translation_debug;

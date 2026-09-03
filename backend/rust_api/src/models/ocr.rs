@@ -4,21 +4,18 @@ use std::collections::BTreeMap;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum OcrProviderKind {
     Mineru,
     Paddle,
     Local,
+    #[default]
     Unknown,
-}
-
-impl Default for OcrProviderKind {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum OcrTaskState {
     Queued,
     WaitingUpload,
@@ -26,13 +23,8 @@ pub enum OcrTaskState {
     Converting,
     Succeeded,
     Failed,
+    #[default]
     Unknown,
-}
-
-impl Default for OcrTaskState {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
@@ -115,6 +107,7 @@ pub struct OcrProviderPublicDefinition {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum OcrErrorCategory {
     HttpStatus,
     Unauthorized,
@@ -147,13 +140,8 @@ pub enum OcrErrorCategory {
     ResultDownloadFailed,
     ResultUnpackFailed,
     InvalidProviderResponse,
+    #[default]
     Unknown,
-}
-
-impl Default for OcrErrorCategory {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

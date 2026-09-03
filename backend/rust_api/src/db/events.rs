@@ -9,6 +9,7 @@ use super::rows::row_to_job_event;
 use super::Db;
 
 impl Db {
+    #[allow(clippy::too_many_arguments)] // 参数即事件字段集合，收拢结构体收益低
     pub fn append_event(
         &self,
         job_id: &str,

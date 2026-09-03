@@ -11,6 +11,7 @@ use super::artifacts::{download_and_unpack_after_success, persist_provider_resul
 use super::save_ocr_job;
 use super::status::{record_provider_trace, update_ocr_job_from_status};
 
+#[allow(clippy::too_many_arguments)] // 参数即运行时上下文，收拢结构体收益低
 pub(super) async fn process_batch_status(
     deps: &ProcessRuntimeDeps,
     job: &mut JobRuntimeState,
@@ -86,10 +87,7 @@ pub(super) async fn process_batch_status(
         return Ok(true);
     }
     if item.state == "failed" {
-        return Err(anyhow!(
-            "MinerU batch task failed: {}",
-            item.err_msg.trim().to_string()
-        ));
+        return Err(anyhow!("MinerU batch task failed: {}", item.err_msg.trim()));
     }
     Ok(false)
 }
@@ -148,10 +146,7 @@ pub(super) async fn process_remote_task_status(
         return Ok(true);
     }
     if item.state == "failed" {
-        return Err(anyhow!(
-            "MinerU task failed: {}",
-            item.err_msg.trim().to_string()
-        ));
+        return Err(anyhow!("MinerU task failed: {}", item.err_msg.trim()));
     }
     Ok(false)
 }

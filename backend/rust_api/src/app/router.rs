@@ -7,15 +7,15 @@ use tower_http::trace::TraceLayer;
 
 use crate::app::AppState;
 use crate::auth;
+use crate::routes::ai;
+use crate::routes::collections;
 use crate::routes::glossaries;
 use crate::routes::health;
 use crate::routes::jobs;
-use crate::routes::metrics;
-use crate::routes::ai;
-use crate::routes::collections;
 use crate::routes::library;
 use crate::routes::library_data;
 use crate::routes::library_extras;
+use crate::routes::metrics;
 use crate::routes::providers;
 use crate::routes::translate;
 use crate::routes::uploads;
@@ -83,10 +83,7 @@ pub fn build_app(state: AppState) -> Router {
             "/api/v1/glossaries/:glossary_id/export.csv",
             get(glossaries::export_glossary_csv_route),
         )
-        .route(
-            "/api/v1/documents",
-            get(library_data::list_documents_route),
-        )
+        .route("/api/v1/documents", get(library_data::list_documents_route))
         .route(
             "/api/v1/documents/:document_id",
             get(library_data::get_document_route)

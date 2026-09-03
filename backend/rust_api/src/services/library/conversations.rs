@@ -181,17 +181,11 @@ fn resolve_head_id(
     }
     // 旧数据无 head_id:取 seq 最大的一条作为当前叶
     let all = deps.db.list_messages(conversation_id, 2000)?;
-    Ok(all
-        .last()
-        .map(|m| m.message_id.clone())
-        .unwrap_or_default())
+    Ok(all.last().map(|m| m.message_id.clone()).unwrap_or_default())
 }
 
 /// 从 head 沿 parent 链回溯得到可见线性路径(根→叶),供 LLM 上下文。
-pub fn visible_path_messages(
-    messages: &[MessageRecord],
-    head_id: &str,
-) -> Vec<MessageRecord> {
+pub fn visible_path_messages(messages: &[MessageRecord], head_id: &str) -> Vec<MessageRecord> {
     if messages.is_empty() {
         return Vec::new();
     }

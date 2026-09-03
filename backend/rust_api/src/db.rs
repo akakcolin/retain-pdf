@@ -206,7 +206,7 @@ impl Db {
             "#,
         )?;
         // 图书馆表走版本化迁移,随 schema 保证存在(不依赖 init 被调用)
-        run_versioned_migrations(&conn)?;
+        run_versioned_migrations(conn)?;
         *ready = true;
         Ok(())
     }
@@ -606,15 +606,17 @@ mod tests {
         job.progress_total = Some(10);
         db.save_job(&job).expect("save job");
 
-        let conn = Connection::open(&fs.db_path).expect("open sqlite");
-        let (status_json, error, stage, stage_detail, progress_current, progress_total): (
+        type JobRowTuple = (
             String,
             Option<String>,
             Option<String>,
             Option<String>,
             Option<i64>,
             Option<i64>,
-        ) = conn
+        );
+        let conn = Connection::open(&fs.db_path).expect("open sqlite");
+        let (status_json, error, stage, stage_detail, progress_current, progress_total): JobRowTuple =
+            conn
             .query_row(
                 "SELECT status_json, error, stage, stage_detail, progress_current, progress_total \
                  FROM jobs WHERE job_id = ?1",

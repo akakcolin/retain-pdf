@@ -258,11 +258,8 @@ mod tests {
 
         for id in ["upload-orphan", "upload-referenced", "upload-recent"] {
             fs::create_dir_all(fs.data_root.join("uploads").join(id)).expect("upload dir");
-            fs::write(
-                fs.data_root.join("uploads").join(id).join("a.pdf"),
-                b"pdf",
-            )
-            .expect("write upload file");
+            fs::write(fs.data_root.join("uploads").join(id).join("a.pdf"), b"pdf")
+                .expect("write upload file");
         }
 
         let make_record = |upload_id: &str, uploaded_at: &str| UploadRecord {
@@ -289,7 +286,8 @@ mod tests {
         db.save_upload(&make_record("upload-recent", &recent_ts))
             .expect("save recent upload");
 
-        let mut referencing_job = job_with_status("job-referencing-upload", JobStatusKind::Succeeded);
+        let mut referencing_job =
+            job_with_status("job-referencing-upload", JobStatusKind::Succeeded);
         referencing_job.upload_id = Some("upload-referenced".to_string());
         db.save_job(&referencing_job)
             .expect("save job referencing upload");

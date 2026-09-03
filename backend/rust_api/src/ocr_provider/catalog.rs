@@ -140,7 +140,7 @@ fn provider_capabilities_for_public(
     known_kind: &OcrProviderKind,
     _provider_kind: &str,
 ) -> OcrProviderCapabilities {
-    provider_capabilities(known_kind).unwrap_or_else(|| OcrProviderCapabilities {
+    provider_capabilities(known_kind).unwrap_or(OcrProviderCapabilities {
         supports_remote_url_submit: true,
         supports_local_file_upload: true,
         supports_polling: true,
@@ -326,15 +326,11 @@ pub fn ensure_provider_diagnostics(
         let mut diagnostics = OcrProviderDiagnostics::new(definition.kind.clone());
         diagnostics.capabilities = Some(definition.capabilities);
         artifacts.ocr_provider_diagnostics = Some(diagnostics);
-    } else if artifacts
-        .ocr_provider_diagnostics
-        .as_ref()
-        .map(|diag| diag.capabilities.is_none() || diag.provider != definition.kind)
-        .unwrap_or(true)
-    {
-        let diagnostics = artifacts.ocr_provider_diagnostics.as_mut().unwrap();
-        diagnostics.provider = definition.kind;
-        diagnostics.capabilities = Some(definition.capabilities);
+    } else if let Some(diagnostics) = artifacts.ocr_provider_diagnostics.as_mut() {
+        if diagnostics.capabilities.is_none() || diagnostics.provider != definition.kind {
+            diagnostics.provider = definition.kind;
+            diagnostics.capabilities = Some(definition.capabilities);
+        }
     }
     artifacts.ocr_provider_diagnostics.as_mut().unwrap()
 }

@@ -37,7 +37,11 @@ pub struct MetricsSnapshot {
 
 impl MetricsSnapshot {
     pub fn native_hit_ratio(&self, subsystem: &str) -> f64 {
-        let hits = self.native_hits_by_subsystem.get(subsystem).copied().unwrap_or(0);
+        let hits = self
+            .native_hits_by_subsystem
+            .get(subsystem)
+            .copied()
+            .unwrap_or(0);
         let fallbacks: u64 = self
             .native_fallbacks_by_subsystem_reason
             .iter()
@@ -102,7 +106,10 @@ fn load_snapshot(db: &Db, data_root: &Path) -> Result<MetricsSnapshot> {
         if !is_render_job(&row.command) {
             continue;
         }
-        let renderer = row.renderer.clone().unwrap_or_else(|| "unknown".to_string());
+        let renderer = row
+            .renderer
+            .clone()
+            .unwrap_or_else(|| "unknown".to_string());
         if matches!(row.status.as_str(), "succeeded" | "failed") {
             *snapshot
                 .render_jobs_by_renderer_status
@@ -148,11 +155,12 @@ fn read_render_elapsed(path: &Path) -> Option<f64> {
     value.get("render_elapsed").and_then(|item| item.as_f64())
 }
 
+/// native_stats.json 解析结果: (subsystem -> 命中次数, (subsystem, reason) -> 回退次数)。
+type NativeStats = (BTreeMap<String, u64>, BTreeMap<(String, String), u64>);
+
 /// Reads `native_stats.json` into `(hits: subsystem -> count, fallbacks:
 /// (subsystem, reason) -> count)`. Any malformed entry is skipped.
-fn read_native_stats(
-    path: &Path,
-) -> Option<(BTreeMap<String, u64>, BTreeMap<(String, String), u64>)> {
+fn read_native_stats(path: &Path) -> Option<NativeStats> {
     let text = std::fs::read_to_string(path).ok()?;
     let value: serde_json::Value = serde_json::from_str(&text).ok()?;
     let mut hits = BTreeMap::new();
@@ -171,7 +179,9 @@ fn read_native_stats(
             };
             for (reason, count) in reasons {
                 if let Some(n) = count.as_u64() {
-                    *fallbacks.entry((subsystem.clone(), reason.clone())).or_insert(0) += n;
+                    *fallbacks
+                        .entry((subsystem.clone(), reason.clone()))
+                        .or_insert(0) += n;
                 }
             }
         }
@@ -235,7 +245,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use crate::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
+    use crate::models::domain::{JobSnapshot, JobStatusKind};
     use crate::models::request::CreateJobInput;
 
     struct TestMetricsFs {
@@ -254,7 +264,11 @@ mod tests {
             let data_root = root.join("data");
             let db = Db::new(data_root.join("db").join("jobs.db"), data_root.clone());
             db.init().expect("init db");
-            Self { root, data_root, db }
+            Self {
+                root,
+                data_root,
+                db,
+            }
         }
 
         fn save_job(&self, command: Vec<String>, status: JobStatusKind, renderer: Option<&str>) {
@@ -300,7 +314,11 @@ mod tests {
     #[test]
     fn snapshot_aggregates_render_jobs_by_renderer_and_status() {
         let fs = TestMetricsFs::new("render");
-        fs.save_job(render_command(), JobStatusKind::Succeeded, Some("render_rs"));
+        fs.save_job(
+            render_command(),
+            JobStatusKind::Succeeded,
+            Some("render_rs"),
+        );
         fs.save_job(render_command(), JobStatusKind::Succeeded, Some("python"));
         fs.save_job(render_command(), JobStatusKind::Failed, Some("render_rs"));
         fs.save_job(render_command(), JobStatusKind::Running, Some("render_rs"));
@@ -401,7 +419,9 @@ mod tests {
             .insert(("render_rs".to_string(), "succeeded".to_string()), 2);
         snapshot.render_elapsed_count = 1;
         snapshot.render_elapsed_sum_seconds = 3.0;
-        snapshot.native_hits_by_subsystem.insert("source".to_string(), 3);
+        snapshot
+            .native_hits_by_subsystem
+            .insert("source".to_string(), 3);
         snapshot
             .native_fallbacks_by_subsystem_reason
             .insert(("source".to_string(), "in_memory_page".to_string()), 1);
@@ -423,7 +443,11 @@ mod tests {
     #[test]
     fn registry_caches_snapshot_within_ttl() {
         let fs = TestMetricsFs::new("cache");
-        fs.save_job(render_command(), JobStatusKind::Succeeded, Some("render_rs"));
+        fs.save_job(
+            render_command(),
+            JobStatusKind::Succeeded,
+            Some("render_rs"),
+        );
         let registry = MetricsRegistry::new();
         let first = registry
             .snapshot(&fs.db, &fs.data_root)

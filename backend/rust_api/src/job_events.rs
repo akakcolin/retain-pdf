@@ -57,6 +57,7 @@ pub fn emit_job_events_with_previous(
     emit_job_events_best_effort(db, data_root, output_root, Some(previous), current);
 }
 
+#[allow(clippy::too_many_arguments)] // 参数即运行时上下文，收拢结构体收益低
 pub fn record_custom_job_event_with_resources(
     db: &Db,
     data_root: &Path,
@@ -73,6 +74,7 @@ pub fn record_custom_job_event_with_resources(
     }
 }
 
+#[allow(clippy::too_many_arguments)] // 参数即运行时上下文，收拢结构体收益低
 pub fn record_custom_runtime_event_with_resources(
     db: &Db,
     data_root: &Path,

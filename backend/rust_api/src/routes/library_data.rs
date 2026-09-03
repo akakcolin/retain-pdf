@@ -12,9 +12,9 @@ use axum::Json;
 use crate::error::AppError;
 use crate::models::api::{
     ApiResponse, CreateFavoriteInput, DocumentDeleteResultView, DocumentListView, DocumentRecord,
-    FavoriteListView, FavoriteMutationResult, FavoriteRecord, JobSubmissionView, LibraryDeleteQuery,
-    ListDocumentsQuery, ListFavoritesQuery, PatchDocumentInput, PatchFavoriteInput, SearchQuery,
-    SearchResultView,
+    FavoriteListView, FavoriteMutationResult, FavoriteRecord, JobSubmissionView,
+    LibraryDeleteQuery, ListDocumentsQuery, ListFavoritesQuery, PatchDocumentInput,
+    PatchFavoriteInput, SearchQuery, SearchResultView,
 };
 use crate::models::request::CreateJobInput;
 use crate::routes::common::{build_library_route_deps, ok_json, request_base_url};
@@ -196,10 +196,7 @@ pub async fn delete_favorite_route(
     AxumPath(favorite_id): AxumPath<String>,
 ) -> Result<Json<ApiResponse<FavoriteMutationResult>>, AppError> {
     let deps = build_library_route_deps(&state);
-    Ok(ok_json(delete_favorite_view(
-        &deps.library,
-        &favorite_id,
-    )?))
+    Ok(ok_json(delete_favorite_view(&deps.library, &favorite_id)?))
 }
 
 // --- search ---

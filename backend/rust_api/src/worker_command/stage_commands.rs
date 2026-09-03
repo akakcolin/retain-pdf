@@ -138,15 +138,12 @@ fn build_extract_text_layer_command(
     source_pdf_path: &Path,
     output_json_path: &Path,
 ) -> Result<Vec<String>> {
-    let spec_path = write_extract_text_layer_stage_spec(
-        request,
-        job_paths,
-        source_pdf_path,
-        output_json_path,
-    )?;
+    let spec_path =
+        write_extract_text_layer_stage_spec(request, job_paths, source_pdf_path, output_json_path)?;
     Ok(build_extract_text_layer_entrypoint(config, &spec_path))
 }
 
+#[allow(clippy::too_many_arguments)] // 参数即命令构建上下文，收拢结构体收益低
 fn build_normalize_ocr_command(
     config: &WorkerCommandRuntimeConfig<'_>,
     request: &ResolvedJobSpec,

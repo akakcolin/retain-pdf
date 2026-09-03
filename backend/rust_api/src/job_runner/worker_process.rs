@@ -1,8 +1,8 @@
 #[cfg(unix)]
 use std::io;
+use std::path::Path;
 #[cfg(windows)]
 use std::process::Command as StdCommand;
-use std::path::Path;
 use std::process::Stdio;
 use std::time::Instant;
 
@@ -14,9 +14,7 @@ use tokio::time::{sleep, Duration};
 
 use crate::config::{PythonWorkerEntrypointMode, WorkerProcessRuntimeConfig};
 use crate::models::domain::JobRuntimeState;
-use crate::ocr_provider::{
-    provider_token, provider_token_env_name, require_supported_provider,
-};
+use crate::ocr_provider::{provider_token, provider_token_env_name, require_supported_provider};
 use crate::process::python::{prepend_python_bin_dir_to_path, worker_env};
 
 pub(super) fn spawn_worker_process(
@@ -203,7 +201,10 @@ mod tests {
 
     #[test]
     fn renderer_label_none_for_non_render_workers() {
-        let normalize_cmd = vec!["/opt/bin/python3".to_string(), "run_translate_only.py".to_string()];
+        let normalize_cmd = vec![
+            "/opt/bin/python3".to_string(),
+            "run_translate_only.py".to_string(),
+        ];
         assert_eq!(renderer_label(&normalize_cmd), None);
         let unknown_cmd = vec!["/opt/bin/python3".to_string(), "custom.py".to_string()];
         assert_eq!(renderer_label(&unknown_cmd), None);

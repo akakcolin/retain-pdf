@@ -1,7 +1,7 @@
 //! 直连 LLM(DeepSeek 兼容端点)的流式/非流式 chat/completions 客户端。
 //! 移植自 retainpdf_ai/agent.py 的 build_deepseek_chat_fn + assemble_streaming_message
 //! + _friendly_llm_error:同一个 message dict(role/content/tool_calls)喂给 agent 循环,
-//! 上层无需感知流式与否。
+//!   上层无需感知流式与否。
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -77,7 +77,11 @@ impl LlmClient {
     }
 
     /// 发送一轮 chat。tools 为空数组 = 纯回答(轮数耗尽收尾)。
-    pub async fn chat(&self, messages: &[Value], tools: &[Value]) -> Result<AssistantMessage, AppError> {
+    pub async fn chat(
+        &self,
+        messages: &[Value],
+        tools: &[Value],
+    ) -> Result<AssistantMessage, AppError> {
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
         let mut body = json!({
             "model": self.model,
@@ -108,15 +112,17 @@ impl LlmClient {
         if self.on_delta.is_some() {
             self.consume_stream(response).await
         } else {
-            let parsed: Value = response
-                .json()
-                .await
-                .map_err(|err| AppError::bad_gateway(format!("AI model returned invalid JSON: {err}")))?;
+            let parsed: Value = response.json().await.map_err(|err| {
+                AppError::bad_gateway(format!("AI model returned invalid JSON: {err}"))
+            })?;
             parse_non_stream_message(&parsed)
         }
     }
 
-    async fn consume_stream(&self, response: reqwest::Response) -> Result<AssistantMessage, AppError> {
+    async fn consume_stream(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<AssistantMessage, AppError> {
         let Some(on_delta) = self.on_delta.as_ref() else {
             return Ok(AssistantMessage {
                 content: String::new(),
@@ -245,14 +251,14 @@ where
             if let Some(pos) = self.buf.iter().position(|byte| *byte == b'\n') {
                 let line = self.buf.drain(..=pos).collect::<Vec<u8>>();
                 let line = String::from_utf8_lossy(&line);
-                return Ok(Some(
-                    line.trim_end_matches(['\r', '\n']).to_string(),
-                ));
+                return Ok(Some(line.trim_end_matches(['\r', '\n']).to_string()));
             }
             match self.stream.next().await {
                 Some(Ok(chunk)) => self.buf.extend_from_slice(chunk.as_ref()),
                 Some(Err(err)) => {
-                    return Err(AppError::bad_gateway(format!("AI stream read failed: {err}")))
+                    return Err(AppError::bad_gateway(format!(
+                        "AI stream read failed: {err}"
+                    )))
                 }
                 None => {
                     if self.buf.is_empty() {
@@ -277,12 +283,8 @@ fn friendly_llm_error(status: StatusCode, detail: &str) -> AppError {
         StatusCode::PAYMENT_REQUIRED => "模型账户余额不足：请前往服务商充值后重试".to_string(),
         StatusCode::FORBIDDEN => "模型服务拒绝访问：请检查 Key 权限或所选模型".to_string(),
         StatusCode::NOT_FOUND => "模型或接口地址不存在：请检查模型名称与 Base URL".to_string(),
-        StatusCode::TOO_MANY_REQUESTS => {
-            "模型请求过于频繁（限流）：请稍候几秒再试".to_string()
-        }
-        _ if status.is_server_error() => {
-            "模型服务暂时不可用（上游故障）：请稍后重试".to_string()
-        }
+        StatusCode::TOO_MANY_REQUESTS => "模型请求过于频繁（限流）：请稍候几秒再试".to_string(),
+        _ if status.is_server_error() => "模型服务暂时不可用（上游故障）：请稍后重试".to_string(),
         _ => format!("模型服务返回错误（HTTP {}）", status.as_u16()),
     };
     let mut snippet = detail.trim().replace('\n', " ");
@@ -303,18 +305,41 @@ fn parse_non_stream_message(parsed: &Value) -> Result<AssistantMessage, AppError
         .and_then(|choices| choices.first())
         .and_then(|choice| choice.get("message"))
         .ok_or_else(|| AppError::bad_gateway("AI model returned invalid response shape"))?;
-    let content = message.get("content").and_then(Value::as_str).unwrap_or("").to_string();
+    let content = message
+        .get("content")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
     let mut tool_calls = Vec::new();
     if let Some(calls) = message.get("tool_calls").and_then(Value::as_array) {
         for call in calls {
-            let id = call.get("id").and_then(Value::as_str).unwrap_or("").to_string();
+            let id = call
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
             let function = call.get("function").unwrap_or(&Value::Null);
-            let name = function.get("name").and_then(Value::as_str).unwrap_or("").to_string();
-            let arguments = function.get("arguments").and_then(Value::as_str).unwrap_or("").to_string();
-            tool_calls.push(ToolCall { id, name, arguments });
+            let name = function
+                .get("name")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
+            let arguments = function
+                .get("arguments")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
+            tool_calls.push(ToolCall {
+                id,
+                name,
+                arguments,
+            });
         }
     }
-    Ok(AssistantMessage { content, tool_calls })
+    Ok(AssistantMessage {
+        content,
+        tool_calls,
+    })
 }
 
 #[cfg(test)]

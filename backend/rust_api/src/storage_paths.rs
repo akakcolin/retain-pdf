@@ -117,8 +117,8 @@ mod tests {
             rel_root.display()
         );
 
-        let relative =
-            to_relative_data_path(&rel_root, &rel_upload).expect("relative path under relative DATA_ROOT");
+        let relative = to_relative_data_path(&rel_root, &rel_upload)
+            .expect("relative path under relative DATA_ROOT");
         assert_eq!(relative, "uploads/job-1/paper.pdf");
         let _ = fs::remove_dir_all(&temp);
     }

@@ -16,7 +16,11 @@ fn render_command() -> Vec<String> {
 }
 
 fn save_succeeded_render_job(state: &crate::AppState, job_id: &str, renderer: &str) {
-    let mut job = JobSnapshot::new(job_id.to_string(), CreateJobInput::default(), render_command());
+    let mut job = JobSnapshot::new(
+        job_id.to_string(),
+        CreateJobInput::default(),
+        render_command(),
+    );
     job.status = JobStatusKind::Succeeded;
     job.runtime.get_or_insert_with(Default::default).renderer = Some(renderer.to_string());
     job.sync_runtime_state();
@@ -51,9 +55,9 @@ async fn metrics_endpoint_emits_prometheus_text_without_api_key() {
         .expect("metrics body");
     let text = String::from_utf8(body.to_vec()).expect("utf8 body");
     assert!(text.contains("retainpdf_jobs_total{status=\"succeeded\"} 1"));
-    assert!(text.contains(
-        "retainpdf_render_jobs_total{renderer=\"render_rs\",status=\"succeeded\"} 1"
-    ));
+    assert!(
+        text.contains("retainpdf_render_jobs_total{renderer=\"render_rs\",status=\"succeeded\"} 1")
+    );
     assert!(text.contains("retainpdf_render_elapsed_seconds_count 0"));
 }
 

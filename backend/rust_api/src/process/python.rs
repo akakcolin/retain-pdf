@@ -159,10 +159,14 @@ impl PythonCommand {
 
     /// Emit `RUST_API_DATA_ROOT` / `RUST_API_OUTPUT_ROOT` / `OUTPUT_ROOT`.
     pub fn data_roots(mut self, data_root: &Path, output_root: &Path) -> Self {
-        self.env
-            .push((DATA_ROOT_ENV.to_string(), data_root.to_string_lossy().into_owned()));
-        self.env
-            .push((OUTPUT_ROOT_ENV.to_string(), output_root.to_string_lossy().into_owned()));
+        self.env.push((
+            DATA_ROOT_ENV.to_string(),
+            data_root.to_string_lossy().into_owned(),
+        ));
+        self.env.push((
+            OUTPUT_ROOT_ENV.to_string(),
+            output_root.to_string_lossy().into_owned(),
+        ));
         self.env.push((
             LEGACY_OUTPUT_ROOT_ENV.to_string(),
             output_root.to_string_lossy().into_owned(),
@@ -318,8 +322,9 @@ mod tests {
         let args: Vec<&OsStr> = command.get_args().collect();
         assert_eq!(args, vec![OsStr::new("/tmp/run.py")]);
         let envs: Vec<(&OsStr, Option<&OsStr>)> = command.get_envs().collect();
-        assert!(envs.iter().any(|(k, v)| *k == OsStr::new(PYTHONUNBUFFERED_ENV)
-            && *v == Some(OsStr::new("1"))));
+        assert!(envs
+            .iter()
+            .any(|(k, v)| *k == OsStr::new(PYTHONUNBUFFERED_ENV) && *v == Some(OsStr::new("1"))));
         assert_eq!(
             command.get_current_dir().map(|p| p.to_path_buf()),
             Some(PathBuf::from("/cwd"))

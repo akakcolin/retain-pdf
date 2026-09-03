@@ -100,9 +100,12 @@ pub fn load_job_blocks(job_root: &Path) -> Result<Vec<Block>, AppError> {
                         .unwrap_or("")
                         .trim()
                         .to_string();
-                    let translated_text =
-                        translated.get(&(page_idx, block_idx as i64)).cloned().unwrap_or_default();
-                    if block_id.is_empty() || (source_text.is_empty() && translated_text.is_empty()) {
+                    let translated_text = translated
+                        .get(&(page_idx, block_idx as i64))
+                        .cloned()
+                        .unwrap_or_default();
+                    if block_id.is_empty() || (source_text.is_empty() && translated_text.is_empty())
+                    {
                         continue;
                     }
                     blocks.push(Block {
@@ -202,8 +205,10 @@ mod tests {
         assert_eq!(ids, vec!["p003-b0000", "p003-b0001"]);
         assert_eq!(blocks[1].translated_text, "第二个块的译文");
         let windowed = read_page_blocks(&job_root, 2, "p003-b0001", 1);
-        let windowed_ids: Vec<&str> =
-            windowed.iter().map(|block| block.block_id.as_str()).collect();
+        let windowed_ids: Vec<&str> = windowed
+            .iter()
+            .map(|block| block.block_id.as_str())
+            .collect();
         assert_eq!(windowed_ids, vec!["p003-b0001"]);
         fs::remove_dir_all(&root).ok();
     }

@@ -23,9 +23,9 @@ impl ReaderAiConfig {
         let model = if request_api_key.is_some() {
             request_value(request.and_then(|item| item.model.as_deref()))
                 .or_else(|| env_value("RETAINPDF_AI_MODEL"))
-                .unwrap_or_else(|| resolved.default_model)
+                .unwrap_or(resolved.default_model)
         } else {
-            env_value("RETAINPDF_AI_MODEL").unwrap_or_else(|| resolved.default_model)
+            env_value("RETAINPDF_AI_MODEL").unwrap_or(resolved.default_model)
         };
         let api_key = request_api_key
             .or_else(|| env_value("RETAINPDF_AI_API_KEY"))
@@ -39,9 +39,9 @@ impl ReaderAiConfig {
         let base_url = if request.and_then(|item| item.api_key.as_deref()).is_some() {
             request_value(request.and_then(|item| item.base_url.as_deref()))
                 .or_else(|| env_value("RETAINPDF_AI_BASE_URL"))
-                .unwrap_or_else(|| resolved.default_base_url)
+                .unwrap_or(resolved.default_base_url)
         } else {
-            env_value("RETAINPDF_AI_BASE_URL").unwrap_or_else(|| resolved.default_base_url)
+            env_value("RETAINPDF_AI_BASE_URL").unwrap_or(resolved.default_base_url)
         };
         validate_base_url(&base_url)?;
         Ok(Self {
@@ -143,7 +143,8 @@ mod tests {
 
     #[test]
     fn openai_compatible_alias_resolves_to_openai_protocol_defaults() {
-        let defaults = resolve_provider_defaults("openai-compatible").expect("openai-compatible defaults");
+        let defaults =
+            resolve_provider_defaults("openai-compatible").expect("openai-compatible defaults");
         assert_eq!(defaults.default_model, "gpt-4.1-mini");
         assert_eq!(defaults.default_base_url, "https://api.openai.com/v1");
         assert_eq!(defaults.api_key_env, "OPENAI_API_KEY");

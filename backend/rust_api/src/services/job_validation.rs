@@ -134,9 +134,9 @@ pub fn validate_ocr_provider_request(input: &CreateJobInput) -> Result<(), AppEr
     let provider_kind = require_supported_provider(provider)
         .map_err(|err| AppError::bad_request(err.to_string()))?;
     validate_provider_token(input, &provider_kind)?;
-    if !input.source.source_url.trim().is_empty()
-        && !(input.source.source_url.starts_with("http://")
-            || input.source.source_url.starts_with("https://"))
+    if !(input.source.source_url.trim().is_empty()
+        || input.source.source_url.starts_with("http://")
+        || input.source.source_url.starts_with("https://"))
     {
         return Err(AppError::bad_request(
             "source_url must start with http:// or https://",
@@ -337,7 +337,8 @@ mod tests {
     fn local_provider_rejects_remote_source_url() {
         let mut input = local_input();
         input.source.source_url = "https://example.com/paper.pdf".to_string();
-        let err = validate_ocr_provider_request(&input).expect_err("local + source_url should fail");
+        let err =
+            validate_ocr_provider_request(&input).expect_err("local + source_url should fail");
         assert!(err
             .to_string()
             .contains("local OCR provider requires an uploaded source PDF"));

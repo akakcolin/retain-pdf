@@ -6,6 +6,7 @@ use crate::models::api::{upload_to_response, UploadView};
 use crate::models::domain::UploadRecord;
 use crate::services::jobs::{store_pdf_upload, UploadedPdfInput};
 
+#[allow(clippy::too_many_arguments)] // 参数即上传限制与运行时配置，收拢结构体收益低
 pub async fn store_upload(
     db: &Db,
     uploads_dir: &Path,
@@ -33,6 +34,7 @@ pub async fn store_upload(
     .await
 }
 
+#[allow(clippy::too_many_arguments)] // 参数即上传限制与运行时配置，收拢结构体收益低
 pub async fn store_upload_view(
     db: &Db,
     uploads_dir: &Path,

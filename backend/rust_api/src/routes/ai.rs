@@ -13,8 +13,8 @@ use crate::app::AppState;
 use crate::config::AiRuntimeConfig;
 use crate::error::AppError;
 use crate::models::api::ApiResponse;
-use crate::services::ai::{run_ask, AskPayload, AskRequest, LlmClient};
 use crate::services::ai::AiDeps;
+use crate::services::ai::{run_ask, AskPayload, AskRequest, LlmClient};
 
 /// 合并启动期 env 配置与按请求携带的 LLM 凭据;缺 key 直接 400(避免打到上游才 401)。
 fn resolve_llm_settings(
@@ -34,7 +34,11 @@ fn resolve_llm_settings(
     let base_url = if request.llm_base_url.trim().is_empty() {
         config.llm_base_url.trim_end_matches('/').to_string()
     } else {
-        request.llm_base_url.trim().trim_end_matches('/').to_string()
+        request
+            .llm_base_url
+            .trim()
+            .trim_end_matches('/')
+            .to_string()
     };
     let model = if request.llm_model.trim().is_empty() {
         config.llm_model.clone()
@@ -116,10 +120,10 @@ pub async fn ask_route(
         })
     });
     let body = axum::body::Body::from_stream(stream);
-    Ok(Response::builder()
+    Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/event-stream")
         .header(header::CACHE_CONTROL, "no-cache")
         .body(body)
-        .map_err(|err| AppError::internal(format!("build SSE response: {err}")))?)
+        .map_err(|err| AppError::internal(format!("build SSE response: {err}")))
 }

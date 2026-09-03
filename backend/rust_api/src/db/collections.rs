@@ -1,13 +1,12 @@
 use anyhow::{Context, Result};
 use rusqlite::{params, OptionalExtension};
 
-use crate::models::domain::now_iso;
 use crate::models::api::CollectionRecord;
+use crate::models::domain::now_iso;
 
 use super::Db;
 
-const COLLECTION_COLUMNS: &str =
-    "c.collection_id, c.name, c.parent_id, c.sort_order, c.created_at,
+const COLLECTION_COLUMNS: &str = "c.collection_id, c.name, c.parent_id, c.sort_order, c.created_at,
      (SELECT COUNT(*) FROM collection_documents cd WHERE cd.collection_id = c.collection_id)";
 
 impl Db {
@@ -40,7 +39,9 @@ impl Db {
         let conn = self.connect()?;
         let record = conn
             .query_row(
-                &format!("SELECT {COLLECTION_COLUMNS} FROM collections c WHERE c.collection_id = ?1"),
+                &format!(
+                    "SELECT {COLLECTION_COLUMNS} FROM collections c WHERE c.collection_id = ?1"
+                ),
                 params![collection_id],
                 row_to_collection,
             )
@@ -252,18 +253,17 @@ mod tests {
         let fs = TestDbFs::new("collections-membership");
         let db = fs.db();
         db.init().expect("init");
-        db.create_collection("col-a", "化学", None)
-            .expect("create");
+        db.create_collection("col-a", "化学", None).expect("create");
 
         // collection_documents 的 document_id 外键要求文档真实存在,先造一条。
         let hash = sha256_hex(b"membership doc");
         db.upsert_document_from_upload(&upload_with_hash("up-membership", &hash))
             .expect("seed document");
 
-        db.add_documents_to_collection("col-a", &[hash.clone()])
+        db.add_documents_to_collection("col-a", std::slice::from_ref(&hash))
             .expect("add");
         // 幂等:重复加入不报错、不重复计数。
-        db.add_documents_to_collection("col-a", &[hash.clone()])
+        db.add_documents_to_collection("col-a", std::slice::from_ref(&hash))
             .expect("add again");
         let after_add = db.get_collection("col-a").expect("get").expect("found");
         assert_eq!(after_add.document_count, 1);

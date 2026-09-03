@@ -14,6 +14,7 @@ use crate::storage_paths::{
     ARTIFACT_KEY_TRANSLATION_MANIFEST_JSON,
 };
 
+#[allow(clippy::field_reassign_with_default)] // 逐步赋值比全字段展开更可读
 fn build_job(job_id: &str, workflow: WorkflowKind) -> JobSnapshot {
     let mut input = CreateJobInput::default();
     input.workflow = workflow;
@@ -398,8 +399,8 @@ fn job_detail_view_exposes_runtime_and_failure_contract() {
             .and_then(|runtime| runtime.terminal_reason.as_deref()),
         Some("failed")
     );
-    assert_eq!(detail.actions.cancel.enabled, false);
-    assert_eq!(detail.artifacts.pdf.ready, false);
+    assert!(!detail.actions.cancel.enabled);
+    assert!(!detail.artifacts.pdf.ready);
 }
 
 #[test]

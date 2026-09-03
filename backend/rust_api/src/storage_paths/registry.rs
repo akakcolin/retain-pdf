@@ -20,8 +20,9 @@ use super::constants::{
 use super::path_ops::{resolve_data_path, to_relative_data_path};
 use super::resolvers::{
     resolve_events_jsonl, resolve_markdown_bundle_zip, resolve_markdown_images_dir,
-    resolve_markdown_path, resolve_translated_markdown_bundle_zip, resolve_translated_markdown_path,
-    resolve_translation_manifest, resolve_typst_pdf, resolve_typst_source,
+    resolve_markdown_path, resolve_translated_markdown_bundle_zip,
+    resolve_translated_markdown_path, resolve_translation_manifest, resolve_typst_pdf,
+    resolve_typst_source,
 };
 
 pub fn collect_job_artifact_entries(
@@ -294,6 +295,7 @@ pub fn collect_job_artifact_entries(
     Ok(items)
 }
 
+#[allow(clippy::too_many_arguments)] // 参数即产物字段集合，收拢结构体收益低
 fn push_optional_artifact(
     items: &mut Vec<JobArtifactRecord>,
     data_root: &Path,
@@ -339,6 +341,7 @@ fn push_optional_artifact(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)] // 参数即产物字段集合，收拢结构体收益低
 fn push_virtual_artifact(
     items: &mut Vec<JobArtifactRecord>,
     data_root: &Path,

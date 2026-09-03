@@ -19,9 +19,8 @@ use crate::models::api::{
 };
 use crate::routes::common::{build_library_route_deps, ok_json};
 use crate::services::library_api::{
-    append_message_view, create_conversation_view, delete_conversation_view,
-    get_conversation_view, list_conversations_view, load_asset_view, patch_conversation_view,
-    store_asset_view,
+    append_message_view, create_conversation_view, delete_conversation_view, get_conversation_view,
+    list_conversations_view, load_asset_view, patch_conversation_view, store_asset_view,
 };
 use crate::AppState;
 
@@ -81,10 +80,7 @@ pub async fn create_conversation_route(
     Json(payload): Json<CreateConversationInput>,
 ) -> Result<Json<ApiResponse<ConversationRecord>>, AppError> {
     let deps = build_library_route_deps(&state);
-    Ok(ok_json(create_conversation_view(
-        &deps.library,
-        &payload,
-    )?))
+    Ok(ok_json(create_conversation_view(&deps.library, &payload)?))
 }
 
 pub async fn list_conversations_route(

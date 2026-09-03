@@ -174,10 +174,7 @@ fn list_books_filtered(db: &Db, query: &ListJobsQuery) -> Result<Vec<JobSnapshot
                     job.artifacts
                         .as_ref()
                         .and_then(|artifacts| artifacts.ocr_provider_diagnostics.as_ref())
-                        .map(|diag| {
-                            format!("{:?}", diag.provider).to_ascii_lowercase()
-                                == provider.to_ascii_lowercase()
-                        })
+                        .map(|diag| format!("{:?}", diag.provider).eq_ignore_ascii_case(provider))
                         .unwrap_or(false)
                 })
                 .unwrap_or(true)

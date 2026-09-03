@@ -11,9 +11,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::models::api::JobEventRecord;
-use crate::models::domain::{
-    job_stage_str, JobFailureInfo, JobSnapshot, JobStage, JobStatusKind,
-};
+use crate::models::domain::{job_stage_str, JobFailureInfo, JobSnapshot, JobStage, JobStatusKind};
 use crate::models::request::CreateJobInput;
 use crate::services::jobs::replay::rebuild_terminal_state;
 
@@ -129,7 +127,10 @@ fn build_book_succeeded() -> (JobSnapshot, Vec<JobEventRecord>) {
     finished.updated_at = "2026-09-01T00:00:25Z".to_string();
     finished.sync_runtime_state();
 
-    let events = derive_sequence(initial, vec![running, translating, rendering, finished.clone()]);
+    let events = derive_sequence(
+        initial,
+        vec![running, translating, rendering, finished.clone()],
+    );
     (finished, events)
 }
 

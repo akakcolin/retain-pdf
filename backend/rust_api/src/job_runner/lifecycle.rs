@@ -144,25 +144,37 @@ fn update_document_after_job(deps: &ProcessRuntimeDeps, job: &JobRuntimeState) {
         Ok(Some(document_id)) => document_id,
         Ok(None) => return,
         Err(error) => {
-            error!("library: link job {} to document failed: {error}", job.job_id);
+            error!(
+                "library: link job {} to document failed: {error}",
+                job.job_id
+            );
             return;
         }
     };
     if job.status != JobStatusKind::Succeeded {
         return;
     }
-    if let Err(error) = deps.db.set_document_active_job(&document_id, &job.job_id, None) {
+    if let Err(error) = deps
+        .db
+        .set_document_active_job(&document_id, &job.job_id, None)
+    {
         error!("library: set active job for {document_id} failed: {error}");
     }
     let job_root = deps.persist.output_root.join(&job.job_id);
     match crate::db::documents::build_fts_rows_from_job_dir(&job_root) {
         Ok(rows) => {
-            if let Err(error) = deps.db.replace_document_fts(&document_id, &job.job_id, &rows) {
+            if let Err(error) = deps
+                .db
+                .replace_document_fts(&document_id, &job.job_id, &rows)
+            {
                 error!("library: fts rebuild for {document_id} failed: {error}");
             }
         }
         Err(error) => {
-            error!("library: fts rows from {} failed: {error}", job_root.display());
+            error!(
+                "library: fts rows from {} failed: {error}",
+                job_root.display()
+            );
         }
     }
 }

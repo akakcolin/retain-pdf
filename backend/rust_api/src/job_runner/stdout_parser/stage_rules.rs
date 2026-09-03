@@ -106,7 +106,7 @@ fn sync_provider_status_to_job(
 }
 
 fn is_ocr_stage(stage: Option<&str>) -> bool {
-    match stage.and_then(JobStage::from_str) {
+    match stage.and_then(JobStage::from_slug) {
         Some(
             JobStage::Queued
             | JobStage::OcrSubmitting

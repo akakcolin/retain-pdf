@@ -169,6 +169,7 @@ impl Db {
     }
 
     /// 追加消息:seq 自增、刷新会话时间与 head;会话标题为空时取首条 user 消息前缀。
+    #[allow(clippy::too_many_arguments)] // 参数即消息字段集合，收拢结构体收益低
     pub fn append_message(
         &self,
         conversation_id: &str,

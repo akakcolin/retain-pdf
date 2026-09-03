@@ -127,7 +127,11 @@ def scan_rs_files(root: Path) -> list[Path]:
     return sorted(
         path
         for path in root.rglob("*.rs")
-        if path.is_file() and ".ipynb_checkpoints" not in path.parts
+        if path.is_file()
+        and ".ipynb_checkpoints" not in path.parts
+        # macOS 在网络卷上会为编辑过的文件生成 AppleDouble 元数据文件(._*.rs),
+        # 不是源码,跳过以免 UTF-8 解码失败。
+        and not path.name.startswith("._")
     )
 
 

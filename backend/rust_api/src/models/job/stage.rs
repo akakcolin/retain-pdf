@@ -55,7 +55,7 @@ impl JobStage {
         }
     }
 
-    pub fn from_str(value: &str) -> Option<Self> {
+    pub fn from_slug(value: &str) -> Option<Self> {
         match value.trim() {
             "queued" => Some(JobStage::Queued),
             "running" => Some(JobStage::Running),
@@ -84,7 +84,7 @@ impl JobStage {
 }
 
 pub fn normalize_job_stage(value: Option<&str>) -> Option<JobStage> {
-    value.and_then(JobStage::from_str)
+    value.and_then(JobStage::from_slug)
 }
 
 pub fn job_stage_str(stage: JobStage) -> &'static str {
@@ -197,7 +197,7 @@ pub fn event_progress_unit(stage_or_substage: Option<&str>, event: &str) -> &'st
 }
 
 pub fn job_stage_rank(stage: Option<&str>) -> i32 {
-    match stage.and_then(JobStage::from_str) {
+    match stage.and_then(JobStage::from_slug) {
         Some(JobStage::Queued | JobStage::Running | JobStage::Canceled | JobStage::Failed) => 0,
         Some(
             JobStage::OcrSubmitting

@@ -31,10 +31,57 @@ pub(super) fn render_only_command(
 /// orchestrator (`bundle_builder::build_bundle` resolves `auto` and rejects
 /// anything else). The Python render fallback and the
 /// `RETAINPDF_RENDER_ORCHESTRATOR_RS/OFF` escape valves are retired.
-
 fn render_rs_command(config: &WorkerCommandRuntimeConfig<'_>, spec_path: &Path) -> Vec<String> {
     let bin = config.render_rs_bin.to_string_lossy().into_owned();
-    vec![bin, "--spec".to_string(), spec_path.to_string_lossy().into_owned()]
+    vec![
+        bin,
+        "--spec".to_string(),
+        spec_path.to_string_lossy().into_owned(),
+    ]
+}
+
+pub(super) fn extract_text_layer_command(
+    config: &WorkerCommandRuntimeConfig<'_>,
+    spec_path: &Path,
+) -> Vec<String> {
+    native_extract_text_layer_command(config, spec_path)
+}
+
+/// C5-N1 routing decision: the skip-OCR text-layer extraction runs natively by
+/// default (render_rs `--extract-text-layer`); the python worker is retired.
+fn native_extract_text_layer_command(
+    config: &WorkerCommandRuntimeConfig<'_>,
+    spec_path: &Path,
+) -> Vec<String> {
+    vec![
+        config.render_rs_bin.to_string_lossy().into_owned(),
+        "--extract-text-layer".to_string(),
+        "--spec".to_string(),
+        spec_path.to_string_lossy().into_owned(),
+    ]
+}
+
+/// C5-N2a..C5-N2d: every registered OCR provider (mineru / paddle) normalizes
+/// through the native `render_rs --normalize-ocr` worker. The python normalize
+/// worker and the `should_route_normalize_native` fallback are retired; a new
+/// provider lands a native adapter in `rendering_orchestrator/src/normalize/`.
+pub(super) fn normalize_ocr_command(
+    config: &WorkerCommandRuntimeConfig<'_>,
+    spec_path: &Path,
+) -> Vec<String> {
+    native_normalize_ocr_command(config, spec_path)
+}
+
+fn native_normalize_ocr_command(
+    config: &WorkerCommandRuntimeConfig<'_>,
+    spec_path: &Path,
+) -> Vec<String> {
+    vec![
+        config.render_rs_bin.to_string_lossy().into_owned(),
+        "--normalize-ocr".to_string(),
+        "--spec".to_string(),
+        spec_path.to_string_lossy().into_owned(),
+    ]
 }
 
 #[cfg(test)]
@@ -54,7 +101,10 @@ mod tests {
 
     #[test]
     fn render_rs_command_shape() {
-        let cmd = render_rs_command(&test_command_config(Path::new("/opt/bin/render_rs")), Path::new("/tmp/spec.json"));
+        let cmd = render_rs_command(
+            &test_command_config(Path::new("/opt/bin/render_rs")),
+            Path::new("/tmp/spec.json"),
+        );
         assert_eq!(cmd[0], "/opt/bin/render_rs");
         assert_eq!(cmd[1], "--spec");
         assert_eq!(cmd[2], "/tmp/spec.json");
@@ -127,48 +177,4 @@ mod tests {
             assert_eq!(cmd[2], "/tmp/spec.json", "mode {mode}");
         }
     }
-}
-
-pub(super) fn extract_text_layer_command(
-    config: &WorkerCommandRuntimeConfig<'_>,
-    spec_path: &Path,
-) -> Vec<String> {
-    native_extract_text_layer_command(config, spec_path)
-}
-
-/// C5-N1 routing decision: the skip-OCR text-layer extraction runs natively by
-/// default (render_rs `--extract-text-layer`); the python worker is retired.
-fn native_extract_text_layer_command(
-    config: &WorkerCommandRuntimeConfig<'_>,
-    spec_path: &Path,
-) -> Vec<String> {
-    vec![
-        config.render_rs_bin.to_string_lossy().into_owned(),
-        "--extract-text-layer".to_string(),
-        "--spec".to_string(),
-        spec_path.to_string_lossy().into_owned(),
-    ]
-}
-
-/// C5-N2a..C5-N2d: every registered OCR provider (mineru / paddle) normalizes
-/// through the native `render_rs --normalize-ocr` worker. The python normalize
-/// worker and the `should_route_normalize_native` fallback are retired; a new
-/// provider lands a native adapter in `rendering_orchestrator/src/normalize/`.
-pub(super) fn normalize_ocr_command(
-    config: &WorkerCommandRuntimeConfig<'_>,
-    spec_path: &Path,
-) -> Vec<String> {
-    native_normalize_ocr_command(config, spec_path)
-}
-
-fn native_normalize_ocr_command(
-    config: &WorkerCommandRuntimeConfig<'_>,
-    spec_path: &Path,
-) -> Vec<String> {
-    vec![
-        config.render_rs_bin.to_string_lossy().into_owned(),
-        "--normalize-ocr".to_string(),
-        "--spec".to_string(),
-        spec_path.to_string_lossy().into_owned(),
-    ]
 }

@@ -48,13 +48,8 @@ pub async fn execute_ocr_job(
     parent_job_id: Option<String>,
 ) -> Result<JobRuntimeState> {
     if job.request_payload.ocr.skip_ocr {
-        return execute_text_layer_extraction(
-            deps,
-            job,
-            output_job_id_override,
-            parent_job_id,
-        )
-        .await;
+        return execute_text_layer_extraction(deps, job, output_job_id_override, parent_job_id)
+            .await;
     }
     let provider_kind = parse_provider_kind(&job.request_payload.ocr.provider);
     job.status = JobStatusKind::Running;

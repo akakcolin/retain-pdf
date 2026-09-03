@@ -101,8 +101,11 @@ fn clip(text: &str, max_chars: usize) -> String {
     if normalized.chars().count() <= max_chars {
         return normalized;
     }
-    let mut truncated: String = normalized.chars().take(max_chars.saturating_sub(1)).collect();
-    truncated.push_str("…");
+    let mut truncated: String = normalized
+        .chars()
+        .take(max_chars.saturating_sub(1))
+        .collect();
+    truncated.push('…');
     truncated
 }
 
@@ -200,7 +203,7 @@ fn build_extractive_summary(turns: &[TranscriptMessage], max_chars: usize) -> St
     let text = lines.join("\n");
     if text.chars().count() > max_chars {
         let mut truncated: String = text.chars().take(max_chars.saturating_sub(1)).collect();
-        truncated.push_str("…");
+        truncated.push('…');
         truncated
     } else {
         text
@@ -216,10 +219,7 @@ fn parse_citations(citations_json: &str) -> Vec<Value> {
     if !trimmed.starts_with('[') {
         return Vec::new();
     }
-    match serde_json::from_str::<Vec<Value>>(trimmed) {
-        Ok(items) => items,
-        Err(_) => Vec::new(),
-    }
+    serde_json::from_str::<Vec<Value>>(trimmed).unwrap_or_default()
 }
 
 /// 若 turn 数超过阈值或 force,把「最新 summary 之后、窗口之外」的早期轮次折叠为一条
@@ -255,7 +255,10 @@ pub fn maybe_compress_transcript(
 
     let keep_n = window_turns * 2;
     let (to_fold, kept): (&[TranscriptMessage], &[TranscriptMessage]) = if turns.len() > keep_n {
-        (&turns[..turns.len() - keep_n], &turns[turns.len() - keep_n..])
+        (
+            &turns[..turns.len() - keep_n],
+            &turns[turns.len() - keep_n..],
+        )
     } else if force {
         (&turns[..], &turns[..])
     } else {
@@ -318,7 +321,7 @@ fn clip_content(role: &str, content: &str) -> String {
         return text.to_string();
     }
     let mut truncated: String = text.chars().take(limit.saturating_sub(1)).collect();
-    truncated.push_str("…");
+    truncated.push('…');
     truncated
 }
 
@@ -349,7 +352,10 @@ pub fn assemble_history(
             had_summary = true;
             history.push(HistoryMessage {
                 role: "user".to_string(),
-                content: format!("以下是更早对话的摘要，请当作已知背景：\n{}", summary.content),
+                content: format!(
+                    "以下是更早对话的摘要，请当作已知背景：\n{}",
+                    summary.content
+                ),
             });
             history.push(HistoryMessage {
                 role: "assistant".to_string(),

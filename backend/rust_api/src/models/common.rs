@@ -68,17 +68,13 @@ impl JobStatusState {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum WorkflowKind {
+    #[default]
     Book,
     Ocr,
     Translate,
     Render,
-}
-
-impl Default for WorkflowKind {
-    fn default() -> Self {
-        Self::Book
-    }
 }
 
 impl WorkflowKind {

@@ -202,6 +202,7 @@ fn build_pdf_with_bad_xref_bytes() -> Vec<u8> {
     bytes
 }
 
+#[allow(clippy::field_reassign_with_default)] // 逐步赋值比全字段展开更可读
 fn base_translation_input(workflow: WorkflowKind) -> CreateJobInput {
     let mut input = CreateJobInput::default();
     input.workflow = workflow;
@@ -697,10 +698,9 @@ fn prepare_ocr_input_rejects_without_file_upload_id_or_source_url() {
     let err = prepare_ocr_input(&snapshot_context(&state), &input, None)
         .expect_err("missing source should fail");
     match err {
-        AppError::BadRequest(message) => assert_eq!(
-            message,
-            "either file, upload_id, or source_url is required"
-        ),
+        AppError::BadRequest(message) => {
+            assert_eq!(message, "either file, upload_id, or source_url is required")
+        }
         other => panic!("unexpected error: {other:?}"),
     }
 }

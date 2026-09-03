@@ -11,6 +11,7 @@ use crate::models::{CreateJobInput, JobSnapshot};
 use crate::api_tests::jobs_common::{read_json, test_state};
 
 #[tokio::test]
+#[allow(clippy::field_reassign_with_default)] // 逐步赋值比全字段展开更可读
 async fn main_job_events_include_ocr_child_page_progress() {
     let state = test_state("events-ocr-child-progress");
     let mut parent = JobSnapshot::new(

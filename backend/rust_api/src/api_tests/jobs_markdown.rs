@@ -136,14 +136,20 @@ async fn markdown_document_rewrites_html_img_and_titled_markdown_links() {
         .expect("absolute markdown");
     let expected = "http://127.0.0.1:41000/api/v1/jobs/markdown-html-img-job/markdown/images/page-2/imgs/fig.png";
     assert!(abs.contains(expected), "html img rewritten: {abs}");
-    assert!(abs.contains(&format!("![cap]({expected})")), "titled md rewritten: {abs}");
+    assert!(
+        abs.contains(&format!("![cap]({expected})")),
+        "titled md rewritten: {abs}"
+    );
     assert!(!abs.contains("/markdown/images/images/"));
 }
 
 #[tokio::test]
 async fn translated_markdown_bundle_zip_is_registered_and_downloadable() {
     let state = test_state("translated-markdown-bundle");
-    let job_root = state.config.output_root.join("translated-markdown-bundle-job");
+    let job_root = state
+        .config
+        .output_root
+        .join("translated-markdown-bundle-job");
     let markdown_dir = job_root.join("md");
     let images_dir = markdown_dir.join("images/page-1/imgs");
     fs::create_dir_all(&images_dir).expect("create markdown images");

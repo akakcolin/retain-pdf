@@ -4,13 +4,13 @@ use crate::models::domain::{now_iso, JobRuntimeState, JobStatusKind};
 use crate::ocr_provider::OcrProviderKind;
 use crate::worker_command::{build_worker_stage_command, WorkerStageCommand};
 
+use super::support::{fail_missing_source_pdf, fail_ocr_transport, save_ocr_job};
+use super::transport::prepare_local_upload_source;
+use super::workspace::OcrWorkspace;
 use super::{
     clear_job_failure, execute_process_job, job_artifacts_mut, sync_runtime_state,
     ProcessRuntimeDeps,
 };
-use super::support::{fail_missing_source_pdf, fail_ocr_transport, save_ocr_job};
-use super::transport::prepare_local_upload_source;
-use super::workspace::OcrWorkspace;
 
 /// Skip the OCR provider entirely and build the translation source document
 /// from the PDF's embedded text layer.
@@ -55,7 +55,10 @@ pub(super) async fn execute_text_layer_extraction(
 
     job_artifacts_mut(&mut job).source_pdf = Some(source_pdf_path.to_string_lossy().to_string());
 
-    let output_json_path = workspace.job_paths.ocr_dir.join("normalized_document_v1.json");
+    let output_json_path = workspace
+        .job_paths
+        .ocr_dir
+        .join("normalized_document_v1.json");
     job.command = build_worker_stage_command(
         &deps.worker_command_runtime(),
         &job.request_payload,

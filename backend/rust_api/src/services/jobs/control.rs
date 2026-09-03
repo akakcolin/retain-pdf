@@ -132,6 +132,7 @@ mod tests {
         (db, data_root)
     }
 
+    #[allow(clippy::field_reassign_with_default)] // 逐步赋值比全字段展开更可读
     fn seed_job(db: &Db, job_id: &str, status: JobStatusKind) {
         let mut input = CreateJobInput::default();
         input.workflow = WorkflowKind::Ocr;
@@ -157,13 +158,7 @@ mod tests {
         let job_runner = crate::config::JobRunnerConfig::default();
         let canceled_jobs: RwLock<HashSet<String>> = RwLock::new(HashSet::new());
 
-        let deps = ControlDeps::new(
-            &db,
-            &job_runner,
-            &data_root,
-            &output_root,
-            &canceled_jobs,
-        );
+        let deps = ControlDeps::new(&db, &job_runner, &data_root, &output_root, &canceled_jobs);
 
         // Hold the registry write lock so that cancel_job's
         // `deps.runtime.request_cancel(job_id).await` call is forced to

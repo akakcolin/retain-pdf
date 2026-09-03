@@ -12,10 +12,7 @@ use crate::models::domain::UploadRecord;
 use super::books::{ensure_deletable, remove_job_files, remove_path_if_exists};
 use super::LibraryDeps;
 
-pub(crate) fn document_media_urls(
-    base_url: &str,
-    document_id: &str,
-) -> (String, String, String) {
+pub(crate) fn document_media_urls(base_url: &str, document_id: &str) -> (String, String, String) {
     let base = format!(
         "{}/api/v1/documents/{}",
         base_url.trim_end_matches('/'),

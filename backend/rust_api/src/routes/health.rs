@@ -70,7 +70,7 @@ fn native_hit_ratio(snapshot: &MetricsSnapshot) -> BTreeMap<String, f64> {
     for subsystem in snapshot.native_hits_by_subsystem.keys() {
         out.insert(subsystem.clone(), snapshot.native_hit_ratio(subsystem));
     }
-    for ((subsystem, _), _) in &snapshot.native_fallbacks_by_subsystem_reason {
+    for (subsystem, _) in snapshot.native_fallbacks_by_subsystem_reason.keys() {
         out.entry(subsystem.clone())
             .or_insert_with(|| snapshot.native_hit_ratio(subsystem));
     }
@@ -80,7 +80,10 @@ fn native_hit_ratio(snapshot: &MetricsSnapshot) -> BTreeMap<String, f64> {
 fn native_fallbacks(snapshot: &MetricsSnapshot) -> BTreeMap<String, BTreeMap<String, u64>> {
     let mut out: BTreeMap<String, BTreeMap<String, u64>> = BTreeMap::new();
     for ((subsystem, reason), count) in &snapshot.native_fallbacks_by_subsystem_reason {
-        *out.entry(subsystem.clone()).or_default().entry(reason.clone()).or_insert(0) += count;
+        *out.entry(subsystem.clone())
+            .or_default()
+            .entry(reason.clone())
+            .or_insert(0) += count;
     }
     out
 }

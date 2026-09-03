@@ -47,7 +47,8 @@ fn attach_local_paddlex_runtime_error(
     err: anyhow::Error,
     stage: &str,
 ) -> anyhow::Error {
-    if let Some(provider_err) = err.downcast_ref::<crate::ocr_provider::local::LocalPaddlexProviderError>()
+    if let Some(provider_err) =
+        err.downcast_ref::<crate::ocr_provider::local::LocalPaddlexProviderError>()
     {
         apply_local_error(
             job,

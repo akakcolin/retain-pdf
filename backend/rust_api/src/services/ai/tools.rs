@@ -20,9 +20,10 @@ fn safe_job_root(data_root: &Path, job_id: &str) -> Option<PathBuf> {
     if !bytes[0].is_ascii_alphanumeric() {
         return None;
     }
-    if bytes.iter().any(|byte| {
-        !(byte.is_ascii_alphanumeric() || matches!(*byte, b'.' | b'_' | b'-'))
-    }) {
+    if bytes
+        .iter()
+        .any(|byte| !(byte.is_ascii_alphanumeric() || matches!(*byte, b'.' | b'_' | b'-')))
+    {
         return None;
     }
     Some(data_root.join("jobs").join(job_id))
@@ -43,8 +44,15 @@ fn percent_encode_segment(segment: &str) -> String {
 /// 列出该页 OCR Markdown 图片,返回可鉴权拉取的 API 相对路径。
 /// 磁盘: jobs/<job>/md/images/page-<1-based>/...
 /// API:  /api/v1/jobs/<job>/markdown/images/<rel-without-images-prefix>
-fn list_markdown_image_urls(job_root: &Path, job_id: &str, page_idx: i64, limit: usize) -> Vec<String> {
-    let page_dir = job_root.join("md/images").join(format!("page-{}", page_idx + 1));
+fn list_markdown_image_urls(
+    job_root: &Path,
+    job_id: &str,
+    page_idx: i64,
+    limit: usize,
+) -> Vec<String> {
+    let page_dir = job_root
+        .join("md/images")
+        .join(format!("page-{}", page_idx + 1));
     if !page_dir.is_dir() {
         return Vec::new();
     }
@@ -168,9 +176,8 @@ impl<'a> AiTools<'a> {
             }),
         ];
         if !scoped_document_id.trim().is_empty() {
-            specs.retain(|spec| {
-                spec["function"]["name"].as_str().unwrap_or("") != "list_documents"
-            });
+            specs
+                .retain(|spec| spec["function"]["name"].as_str().unwrap_or("") != "list_documents");
         }
         specs
     }
@@ -196,7 +203,11 @@ impl<'a> AiTools<'a> {
         let hits = match self.db.search_blocks(
             &query,
             limit,
-            if document_id.is_empty() { None } else { Some(&document_id) },
+            if document_id.is_empty() {
+                None
+            } else {
+                Some(&document_id)
+            },
         ) {
             Ok(hits) => hits,
             Err(err) => return serde_json::json!({"error": format!("search failed: {err}")}),
@@ -216,7 +227,8 @@ impl<'a> AiTools<'a> {
             if let Some(job_root) = safe_job_root(self.data_root, &hit_job_id) {
                 let images = list_markdown_image_urls(&job_root, &hit_job_id, hit_page, 4);
                 if !images.is_empty() {
-                    item["image_urls"] = Value::Array(images.into_iter().map(Value::String).collect());
+                    item["image_urls"] =
+                        Value::Array(images.into_iter().map(Value::String).collect());
                 }
             }
             enriched_hits.push(item);
@@ -252,7 +264,11 @@ impl<'a> AiTools<'a> {
         let documents = match self.db.list_documents(
             limit,
             0,
-            if reading_status.is_empty() { None } else { Some(&reading_status) },
+            if reading_status.is_empty() {
+                None
+            } else {
+                Some(&reading_status)
+            },
             if tag.is_empty() { None } else { Some(&tag) },
             None,
         ) {
@@ -276,7 +292,9 @@ impl<'a> AiTools<'a> {
         if job_id.is_empty() {
             job_id = match self.db.get_document(&document_id) {
                 Ok(document) => document.active_job_id.unwrap_or_default(),
-                Err(err) => return serde_json::json!({"error": format!("document not found: {err}")}),
+                Err(err) => {
+                    return serde_json::json!({"error": format!("document not found: {err}")})
+                }
             };
         }
         if job_id.is_empty() {
@@ -301,17 +319,24 @@ impl<'a> AiTools<'a> {
     fn search_favorites(&self, arguments: &Map<String, Value>) -> Value {
         let keyword = string_arg(arguments, "keyword").trim().to_ascii_lowercase();
         let document_id = string_arg(arguments, "document_id").trim().to_string();
-        let favorites = match self.db.list_favorites(
-            if document_id.is_empty() { None } else { Some(&document_id) },
-        ) {
+        let favorites = match self.db.list_favorites(if document_id.is_empty() {
+            None
+        } else {
+            Some(&document_id)
+        }) {
             Ok(favorites) => favorites,
-            Err(err) => return serde_json::json!({"error": format!("list favorites failed: {err}")}),
+            Err(err) => {
+                return serde_json::json!({"error": format!("list favorites failed: {err}")})
+            }
         };
         let mut out: Vec<Value> = Vec::new();
         for favorite in favorites {
             if !keyword.is_empty()
                 && !favorite.quote_text.to_ascii_lowercase().contains(&keyword)
-                && !favorite.translated_quote_text.to_ascii_lowercase().contains(&keyword)
+                && !favorite
+                    .translated_quote_text
+                    .to_ascii_lowercase()
+                    .contains(&keyword)
                 && !favorite.note.to_ascii_lowercase().contains(&keyword)
             {
                 continue;
@@ -344,9 +369,11 @@ fn string_arg(arguments: &Map<String, Value>, key: &str) -> String {
 }
 
 fn int_arg(arguments: &Map<String, Value>, key: &str) -> Option<i64> {
-    arguments
-        .get(key)
-        .and_then(|value| value.as_i64().or_else(|| value.as_str().and_then(|s| s.parse().ok())))
+    arguments.get(key).and_then(|value| {
+        value
+            .as_i64()
+            .or_else(|| value.as_str().and_then(|s| s.parse().ok()))
+    })
 }
 
 fn project_document(document: &crate::models::api::DocumentRecord) -> Value {

@@ -50,12 +50,6 @@ async fn list_ocr_providers_returns_public_contract() {
         local["options"]["local_paddlex_url"]["env"],
         "RETAIN_LOCAL_PADDLEX_URL"
     );
-    assert_eq!(
-        local["capabilities"]["supports_remote_url_submit"],
-        false
-    );
-    assert_eq!(
-        local["capabilities"]["supports_local_file_upload"],
-        true
-    );
+    assert_eq!(local["capabilities"]["supports_remote_url_submit"], false);
+    assert_eq!(local["capabilities"]["supports_local_file_upload"], true);
 }

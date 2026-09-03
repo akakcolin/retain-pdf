@@ -3,6 +3,7 @@ use crate::ocr_provider::OcrProviderDiagnostics;
 
 use super::PythonStructuredFailure;
 
+#[allow(clippy::too_many_arguments)] // 参数即失败信息字段集合，收拢结构体收益低
 pub(super) fn build_failure(
     stage: String,
     category: &str,

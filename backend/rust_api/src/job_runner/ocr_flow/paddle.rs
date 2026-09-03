@@ -84,6 +84,7 @@ pub(super) async fn run_remote_ocr_transport_paddle(
     .await
 }
 
+#[allow(clippy::too_many_arguments)] // 参数即运行时上下文，收拢结构体收益低
 async fn run_paddle_poll_loop(
     deps: &ProcessRuntimeDeps,
     job: &mut JobRuntimeState,

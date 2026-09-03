@@ -24,8 +24,8 @@ use rust_api::models::{
     JobArtifactRecord, JobEventRecord, JobFailureInfo, JobSnapshot, JobStatusKind, WorkflowKind,
 };
 use rust_api::services::jobs::replay::{
-    diff_rebuilt_vs_stored, expected_terminal_artifacts, rebuild_terminal_state, ReplayDiff,
-    RebuiltTerminalState,
+    diff_rebuilt_vs_stored, expected_terminal_artifacts, rebuild_terminal_state,
+    RebuiltTerminalState, ReplayDiff,
 };
 use rust_api::storage_paths::resolve_data_path;
 
@@ -58,7 +58,10 @@ fn main() -> ExitCode {
 
 fn run() -> Result<ExitCode, String> {
     let args = parse_args()?;
-    let db = Db::new(args.data_root.join("db").join("jobs.db"), args.data_root.clone());
+    let db = Db::new(
+        args.data_root.join("db").join("jobs.db"),
+        args.data_root.clone(),
+    );
 
     let stored = db
         .get_job(&args.job_id)
@@ -81,13 +84,27 @@ fn run() -> Result<ExitCode, String> {
 
     if args.json {
         print_json_report(
-            &args, &stored, &rebuilt, &event_source, stored_finished_at, &diffs, &artifacts,
-            &notes, verdict,
+            &args,
+            &stored,
+            &rebuilt,
+            &event_source,
+            stored_finished_at,
+            &diffs,
+            &artifacts,
+            &notes,
+            verdict,
         );
     } else {
         print_text_report(
-            &args, &stored, &rebuilt, &event_source, stored_finished_at, &diffs, &artifacts,
-            &notes, verdict,
+            &args,
+            &stored,
+            &rebuilt,
+            &event_source,
+            stored_finished_at,
+            &diffs,
+            &artifacts,
+            &notes,
+            verdict,
         );
     }
 
@@ -157,8 +174,7 @@ fn load_events(
         .lines()
         .filter(|line| !line.trim().is_empty())
         .map(|line| {
-            serde_json::from_str(line)
-                .map_err(|err| format!("parse events.jsonl line: {err}"))
+            serde_json::from_str(line).map_err(|err| format!("parse events.jsonl line: {err}"))
         })
         .collect::<Result<Vec<JobEventRecord>, String>>()?;
     let count = events.len();
@@ -166,7 +182,11 @@ fn load_events(
 }
 
 fn jsonl_fallback_path(data_root: &Path, stored: &JobSnapshot) -> PathBuf {
-    if let Some(root) = stored.artifacts.as_ref().and_then(|item| item.job_root.as_ref()) {
+    if let Some(root) = stored
+        .artifacts
+        .as_ref()
+        .and_then(|item| item.job_root.as_ref())
+    {
         if let Ok(dir) = resolve_data_path(data_root, root) {
             let path = dir.join("logs").join(EVENTS_FILE_NAME);
             if path.exists() {
@@ -209,7 +229,11 @@ fn artifact_notes(
     let ready: Vec<&str> = expected
         .iter()
         .copied()
-        .filter(|key| artifacts.iter().any(|item| item.artifact_key == *key && item.ready))
+        .filter(|key| {
+            artifacts
+                .iter()
+                .any(|item| item.artifact_key == *key && item.ready)
+        })
         .collect();
     match rebuilt.status {
         JobStatusKind::Succeeded if ready.is_empty() => vec![format!(
@@ -225,6 +249,7 @@ fn artifact_notes(
     }
 }
 
+#[allow(clippy::too_many_arguments)] // 报告输出参数即展示字段集合，收拢结构体收益低
 fn print_text_report(
     args: &Args,
     stored: &JobSnapshot,
@@ -267,7 +292,10 @@ fn print_text_report(
         quoted(rebuilt.error.as_deref().unwrap_or("")),
         quoted(stored.error.as_deref().unwrap_or(""))
     );
-    println!("  failure:         rebuilt={}", failure_summary(&rebuilt.failure));
+    println!(
+        "  failure:         rebuilt={}",
+        failure_summary(&rebuilt.failure)
+    );
     println!(
         "  finished_at:     rebuilt={} stored={}",
         display_opt(&rebuilt.finished_at),
@@ -380,11 +408,9 @@ fn artifact_json(item: &JobArtifactRecord) -> serde_json::Value {
 
 fn diff_line(diff: &ReplayDiff) -> String {
     match diff {
-        ReplayDiff::Status { rebuilt, stored } => format!(
-            "status rebuilt={} stored={}",
-            snake(rebuilt),
-            snake(stored)
-        ),
+        ReplayDiff::Status { rebuilt, stored } => {
+            format!("status rebuilt={} stored={}", snake(rebuilt), snake(stored))
+        }
         ReplayDiff::TerminalStage { rebuilt, stored } => format!(
             "terminal_stage rebuilt={} stored={}",
             display_opt(rebuilt),
@@ -400,12 +426,12 @@ fn diff_line(diff: &ReplayDiff) -> String {
             quoted(rebuilt),
             quoted(stored)
         ),
-        ReplayDiff::FailurePresence { rebuilt, stored } => format!(
-            "failure_presence rebuilt={rebuilt} stored={stored}"
-        ),
-        ReplayDiff::FailureCategory { rebuilt, stored } => format!(
-            "failure_category rebuilt={rebuilt} stored={stored}"
-        ),
+        ReplayDiff::FailurePresence { rebuilt, stored } => {
+            format!("failure_presence rebuilt={rebuilt} stored={stored}")
+        }
+        ReplayDiff::FailureCategory { rebuilt, stored } => {
+            format!("failure_category rebuilt={rebuilt} stored={stored}")
+        }
         ReplayDiff::FailureCode { rebuilt, stored } => {
             format!("failure_code rebuilt={rebuilt} stored={stored}")
         }

@@ -133,6 +133,41 @@ pub(super) fn fail_missing_source_pdf(
     sync_runtime_state(job);
 }
 
+pub(super) fn fail_ocr_transport(job: &mut JobRuntimeState, err: &anyhow::Error) {
+    let message = format_error_chain(err);
+    append_error_chain_log(job, err);
+    attach_job_provider_failure(job, &message);
+    job.status = JobStatusKind::Failed;
+    job.stage = Some(job_stage_str(JobStage::Failed).to_string());
+    if job
+        .stage_detail
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .is_none()
+    {
+        job.stage_detail = Some("OCR provider transport 失败".to_string());
+    }
+    job.error = Some(message);
+    job.updated_at = now_iso();
+    job.finished_at = Some(now_iso());
+    refresh_job_failure(job);
+    sync_runtime_state(job);
+}
+
+pub fn sync_parent_with_ocr_child(
+    parent_job: &mut JobRuntimeState,
+    ocr_finished: &JobRuntimeState,
+) {
+    let parent_artifacts = job_artifacts_mut(parent_job);
+    parent_artifacts.ocr_job_id = Some(ocr_finished.job_id.clone());
+    parent_artifacts.ocr_status = Some(ocr_finished.status.clone());
+
+    if let Some(child_artifacts) = ocr_finished.artifacts.as_ref() {
+        parent_artifacts.copy_ocr_checkpoint_from(&ocr_finished.job_id, child_artifacts);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{parent_ocr_stage_from_child, parent_stage_allows_ocr_mirror};
@@ -177,40 +212,5 @@ mod tests {
         ] {
             assert!(parent_stage_allows_ocr_mirror(stage));
         }
-    }
-}
-
-pub(super) fn fail_ocr_transport(job: &mut JobRuntimeState, err: &anyhow::Error) {
-    let message = format_error_chain(err);
-    append_error_chain_log(job, err);
-    attach_job_provider_failure(job, &message);
-    job.status = JobStatusKind::Failed;
-    job.stage = Some(job_stage_str(JobStage::Failed).to_string());
-    if job
-        .stage_detail
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .is_none()
-    {
-        job.stage_detail = Some("OCR provider transport 失败".to_string());
-    }
-    job.error = Some(message);
-    job.updated_at = now_iso();
-    job.finished_at = Some(now_iso());
-    refresh_job_failure(job);
-    sync_runtime_state(job);
-}
-
-pub fn sync_parent_with_ocr_child(
-    parent_job: &mut JobRuntimeState,
-    ocr_finished: &JobRuntimeState,
-) {
-    let parent_artifacts = job_artifacts_mut(parent_job);
-    parent_artifacts.ocr_job_id = Some(ocr_finished.job_id.clone());
-    parent_artifacts.ocr_status = Some(ocr_finished.status.clone());
-
-    if let Some(child_artifacts) = ocr_finished.artifacts.as_ref() {
-        parent_artifacts.copy_ocr_checkpoint_from(&ocr_finished.job_id, child_artifacts);
     }
 }

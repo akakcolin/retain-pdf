@@ -77,10 +77,7 @@ impl LocalPaddlexClient {
         Self::with_runtime(base_url, LocalPaddlexRuntimeConfig::from_env())
     }
 
-    pub fn with_runtime(
-        base_url: impl Into<String>,
-        runtime: LocalPaddlexRuntimeConfig,
-    ) -> Self {
+    pub fn with_runtime(base_url: impl Into<String>, runtime: LocalPaddlexRuntimeConfig) -> Self {
         let base_url = {
             let raw = base_url.into();
             let trimmed = raw.trim();
@@ -118,12 +115,14 @@ impl LocalPaddlexClient {
             })?;
         let envelope = parse_json_response("layout_parse", response).await?;
         if envelope.error_code != 0 {
-            return Err(anyhow::Error::new(LocalPaddlexProviderError::provider_error(
-                "layout_parse",
-                envelope.error_code,
-                &envelope.error_msg,
-                normalize_trace_id(&envelope.log_id).as_deref(),
-            )));
+            return Err(anyhow::Error::new(
+                LocalPaddlexProviderError::provider_error(
+                    "layout_parse",
+                    envelope.error_code,
+                    &envelope.error_msg,
+                    normalize_trace_id(&envelope.log_id).as_deref(),
+                ),
+            ));
         }
         let log_id = normalize_trace_id(&envelope.log_id);
         let result = envelope
@@ -287,7 +286,10 @@ mod tests {
         assert_eq!(envelope.error_code, 0);
         assert_eq!(envelope.log_id, "log-123");
         let result = envelope.result.expect("result present");
-        assert!(result.get("layoutParsingResults").and_then(|v| v.as_array()).is_some());
+        assert!(result
+            .get("layoutParsingResults")
+            .and_then(|v| v.as_array())
+            .is_some());
     }
 
     #[test]

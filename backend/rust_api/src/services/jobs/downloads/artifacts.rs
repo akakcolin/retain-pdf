@@ -40,8 +40,12 @@ pub(crate) fn registered_artifact_download(
         return Ok(FileDownload::new(path, item.content_type, item.file_name));
     }
     if artifact_key == ARTIFACT_KEY_TRANSLATED_MARKDOWN_BUNDLE_ZIP {
-        let (item, path) =
-            build_translated_markdown_bundle_for_job(deps.db, deps.data_root, job, include_job_dir)?;
+        let (item, path) = build_translated_markdown_bundle_for_job(
+            deps.db,
+            deps.data_root,
+            job,
+            include_job_dir,
+        )?;
         return Ok(FileDownload::new(path, item.content_type, item.file_name));
     }
     let Some((item, path)) = resolve_registry_artifact(deps.db, deps.data_root, job, artifact_key)?

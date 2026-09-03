@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use super::LibraryDeps;
 use crate::db::Db;
 use crate::error::AppError;
 use crate::models::api::{
@@ -10,7 +11,6 @@ use crate::models::domain::{JobSnapshot, JobStatusKind};
 use crate::services::book_projection::{
     build_library_book_detail_view, build_library_book_list_view,
 };
-use super::LibraryDeps;
 
 pub fn list_library_books(
     deps: &LibraryDeps<'_>,
@@ -46,10 +46,7 @@ pub fn delete_library_book(
     for job in &jobs {
         ensure_deletable(job, force)?;
         // 锚点块空间保护:被收藏引用的 run 删除后所有锚点断链,拒绝删除
-        let referencing = deps
-            .db
-            .favorites_referencing_job(&job.job_id)
-            .unwrap_or(0);
+        let referencing = deps.db.favorites_referencing_job(&job.job_id).unwrap_or(0);
         if referencing > 0 {
             return Err(AppError::conflict(format!(
                 "job {} is referenced by {referencing} favorite(s); remove the favorites first",
@@ -121,7 +118,10 @@ pub(super) fn ensure_deletable(job: &JobSnapshot, force: bool) -> Result<(), App
     Ok(())
 }
 
-pub(super) fn remove_job_files(deps: &LibraryDeps<'_>, job_id: &str) -> Result<Vec<String>, AppError> {
+pub(super) fn remove_job_files(
+    deps: &LibraryDeps<'_>,
+    job_id: &str,
+) -> Result<Vec<String>, AppError> {
     let mut removed = Vec::new();
     remove_path_if_exists(deps.output_root.join(job_id), &mut removed)?;
     remove_path_if_exists(
@@ -131,7 +131,10 @@ pub(super) fn remove_job_files(deps: &LibraryDeps<'_>, job_id: &str) -> Result<V
     Ok(removed)
 }
 
-pub(super) fn remove_path_if_exists(path: PathBuf, removed: &mut Vec<String>) -> Result<(), AppError> {
+pub(super) fn remove_path_if_exists(
+    path: PathBuf,
+    removed: &mut Vec<String>,
+) -> Result<(), AppError> {
     if !path.exists() {
         return Ok(());
     }

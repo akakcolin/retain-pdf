@@ -76,8 +76,7 @@ pub use view::{
     ReaderAiSelectionView, ReaderAiUsedContextView, ReaderDocumentMetadataView,
     ReaderJobLanguageView, ReaderMetadataView, ReaderPageMetadataView, ReaderRegionBoxView,
     ReaderRegionItemView, ReaderRegionsView, ResourceLinkView, RetryStageKind, RetryStageRequest,
-    RetryStageSubmissionView,
-    StageActionsView, StageRetryActionLinkView, StageRetryActionView, TranslationDebugIndexView,
-    TranslationDebugItemView, TranslationDebugListItemView, TranslationDebugListView,
-    TranslationDiagnosticsView, TranslationReplayView,
+    RetryStageSubmissionView, StageActionsView, StageRetryActionLinkView, StageRetryActionView,
+    TranslationDebugIndexView, TranslationDebugItemView, TranslationDebugListItemView,
+    TranslationDebugListView, TranslationDiagnosticsView, TranslationReplayView,
 };

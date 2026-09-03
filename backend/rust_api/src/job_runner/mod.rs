@@ -17,7 +17,9 @@ mod stdout_parser;
 mod translation_flow;
 mod worker_process;
 
-pub(crate) use cancel_registry::{clear_cancel_request_with_registry, request_cancel_with_registry};
+pub(crate) use cancel_registry::{
+    clear_cancel_request_with_registry, request_cancel_with_registry,
+};
 pub(crate) use lifecycle::spawn_job;
 pub(crate) use process_runner::execute_process_job;
 pub(crate) use runtime_deps::{JobPersistDeps, ProcessRuntimeDeps};

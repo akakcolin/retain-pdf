@@ -189,7 +189,9 @@ pub fn rebuild_terminal_state(events: &[JobEventRecord]) -> RebuiltTerminalState
     // authoritative (completion.rs sets it before persisting); otherwise the
     // last `stage_transition` to_stage; fallback to the max-seq event stage.
     let terminal_stage = if terminal_event_seen {
-        terminal_event_stage.or(last_transition_to_stage).or(fallback_stage)
+        terminal_event_stage
+            .or(last_transition_to_stage)
+            .or(fallback_stage)
     } else {
         last_transition_to_stage.or(fallback_stage)
     };
@@ -380,7 +382,12 @@ mod tests {
         })
     }
 
-    fn event(seq: i64, event_name: &str, payload: Option<Value>, stage: Option<&str>) -> JobEventRecord {
+    fn event(
+        seq: i64,
+        event_name: &str,
+        payload: Option<Value>,
+        stage: Option<&str>,
+    ) -> JobEventRecord {
         JobEventRecord {
             job_id: "job-1".to_string(),
             seq,
@@ -446,14 +453,39 @@ mod tests {
     #[test]
     fn replay_rebuilds_succeeded_terminal_state() {
         let stream = vec![
-            event(0, "job_created", Some(json!({"workflow": "book", "status": "queued", "stage": "queued"})), Some("queued")),
+            event(
+                0,
+                "job_created",
+                Some(json!({"workflow": "book", "status": "queued", "stage": "queued"})),
+                Some("queued"),
+            ),
             status_event(1, "running", "running"),
             transition(2, "queued", "running", &["queued", "running"]),
-            transition(3, "running", "translating", &["queued", "running", "translating"]),
-            transition(4, "translating", "rendering", &["queued", "running", "translating", "rendering"]),
+            transition(
+                3,
+                "running",
+                "translating",
+                &["queued", "running", "translating"],
+            ),
+            transition(
+                4,
+                "translating",
+                "rendering",
+                &["queued", "running", "translating", "rendering"],
+            ),
             status_event(5, "succeeded", "rendering"),
-            transition(6, "rendering", "finished", &["queued", "running", "translating", "rendering", "finished"]),
-            event(7, "job_terminal", Some(json!({"status": "succeeded"})), Some("finished")),
+            transition(
+                6,
+                "rendering",
+                "finished",
+                &["queued", "running", "translating", "rendering", "finished"],
+            ),
+            event(
+                7,
+                "job_terminal",
+                Some(json!({"status": "succeeded"})),
+                Some("finished"),
+            ),
         ];
 
         let rebuilt = rebuild_terminal_state(&stream);
@@ -471,11 +503,26 @@ mod tests {
     #[test]
     fn replay_rebuilds_failure_from_failure_classified() {
         let stream = vec![
-            event(0, "job_created", Some(json!({"workflow": "book", "status": "queued", "stage": "queued"})), Some("queued")),
+            event(
+                0,
+                "job_created",
+                Some(json!({"workflow": "book", "status": "queued", "stage": "queued"})),
+                Some("queued"),
+            ),
             status_event(1, "running", "running"),
             transition(2, "queued", "running", &["queued", "running"]),
-            transition(3, "running", "translating", &["queued", "running", "translating"]),
-            event(4, "job_error", Some(json!({"error": "ReadTimeout"})), Some("translating")),
+            transition(
+                3,
+                "running",
+                "translating",
+                &["queued", "running", "translating"],
+            ),
+            event(
+                4,
+                "job_error",
+                Some(json!({"error": "ReadTimeout"})),
+                Some("translating"),
+            ),
             status_event(5, "failed", "failed"),
             event(
                 6,
@@ -488,8 +535,18 @@ mod tests {
                 })),
                 Some("failed"),
             ),
-            event(7, "job_terminal", Some(json!({"status": "failed", "failure_category": "upstream_timeout"})), Some("failed")),
-            transition(8, "translating", "failed", &["queued", "running", "translating", "failed"]),
+            event(
+                7,
+                "job_terminal",
+                Some(json!({"status": "failed", "failure_category": "upstream_timeout"})),
+                Some("failed"),
+            ),
+            transition(
+                8,
+                "translating",
+                "failed",
+                &["queued", "running", "translating", "failed"],
+            ),
         ];
 
         let rebuilt = rebuild_terminal_state(&stream);
@@ -507,11 +564,26 @@ mod tests {
     #[test]
     fn replay_stage_history_falls_back_to_to_stage_sequence() {
         let stream = vec![
-            event(0, "job_created", Some(json!({"workflow": "ocr", "status": "queued", "stage": "queued"})), Some("queued")),
+            event(
+                0,
+                "job_created",
+                Some(json!({"workflow": "ocr", "status": "queued", "stage": "queued"})),
+                Some("queued"),
+            ),
             status_event(1, "running", "running"),
             // stage_transition without a stage_history payload → fallback path.
-            event(2, "stage_transition", Some(json!({"from_stage": "queued", "to_stage": "running"})), Some("running")),
-            event(3, "stage_transition", Some(json!({"from_stage": "running", "to_stage": "normalizing"})), Some("normalizing")),
+            event(
+                2,
+                "stage_transition",
+                Some(json!({"from_stage": "queued", "to_stage": "running"})),
+                Some("running"),
+            ),
+            event(
+                3,
+                "stage_transition",
+                Some(json!({"from_stage": "running", "to_stage": "normalizing"})),
+                Some("normalizing"),
+            ),
         ];
 
         let rebuilt = rebuild_terminal_state(&stream);
@@ -523,7 +595,12 @@ mod tests {
     #[test]
     fn replay_known_gap_when_stored_terminal_stream_missing_terminal() {
         let stream = vec![
-            event(0, "job_created", Some(json!({"workflow": "book", "status": "queued", "stage": "queued"})), Some("queued")),
+            event(
+                0,
+                "job_created",
+                Some(json!({"workflow": "book", "status": "queued", "stage": "queued"})),
+                Some("queued"),
+            ),
             status_event(1, "running", "running"),
             transition(2, "queued", "running", &["queued", "running"]),
         ];
@@ -550,11 +627,21 @@ mod tests {
     #[test]
     fn replay_diff_detects_status_and_failure_drift() {
         let stream = vec![
-            event(0, "job_created", Some(json!({"workflow": "book", "status": "queued", "stage": "queued"})), Some("queued")),
+            event(
+                0,
+                "job_created",
+                Some(json!({"workflow": "book", "status": "queued", "stage": "queued"})),
+                Some("queued"),
+            ),
             status_event(1, "running", "running"),
             transition(2, "queued", "running", &["queued", "running"]),
             status_event(3, "succeeded", "finished"),
-            event(4, "job_terminal", Some(json!({"status": "succeeded"})), Some("finished")),
+            event(
+                4,
+                "job_terminal",
+                Some(json!({"status": "succeeded"})),
+                Some("finished"),
+            ),
         ];
 
         let mut stored = JobSnapshot::new(
@@ -612,7 +699,12 @@ mod tests {
     #[test]
     fn replay_failure_comparison_normalizes_both_sides() {
         let stream = vec![
-            event(0, "job_created", Some(json!({"workflow": "book", "status": "queued", "stage": "queued"})), Some("queued")),
+            event(
+                0,
+                "job_created",
+                Some(json!({"workflow": "book", "status": "queued", "stage": "queued"})),
+                Some("queued"),
+            ),
             status_event(1, "failed", "failed"),
             event(
                 2,
@@ -625,7 +717,12 @@ mod tests {
                 })),
                 Some("failed"),
             ),
-            event(3, "job_terminal", Some(json!({"status": "failed"})), Some("failed")),
+            event(
+                3,
+                "job_terminal",
+                Some(json!({"status": "failed"})),
+                Some("failed"),
+            ),
         ];
 
         // Stored failure is the legacy shape (no formal fields) — both sides must
@@ -712,7 +809,10 @@ mod tests {
             let rebuilt = rebuild_terminal_state(&events);
             let projection = semantic_projection(&rebuilt);
             let expected: Value = serde_json::from_str(expected_json).expect("parse expected");
-            assert_eq!(projection, expected, "replay corpus {name} diverged from golden");
+            assert_eq!(
+                projection, expected,
+                "replay corpus {name} diverged from golden"
+            );
         }
     }
 }

@@ -116,9 +116,7 @@ mod tests {
         job_artifacts_mut(&mut job).source_pdf = Some("/original/upload.pdf".to_string());
         apply_line(
             &mut job,
-            &format!(
-                "{STDOUT_LABEL_SOURCE_PDF}: /rendered/source-bbox-text-stripped.pdf"
-            ),
+            &format!("{STDOUT_LABEL_SOURCE_PDF}: /rendered/source-bbox-text-stripped.pdf"),
         );
 
         let artifacts = job.artifacts.as_ref().expect("artifacts");

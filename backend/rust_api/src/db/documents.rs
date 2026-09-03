@@ -3,8 +3,8 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use rusqlite::{params, Connection, OptionalExtension};
 
-use crate::models::domain::{now_iso, UploadRecord};
 use crate::models::api::{BlockSearchHit, DocumentRecord, FavoriteRecord, FtsBlockRow};
+use crate::models::domain::{now_iso, UploadRecord};
 use crate::storage_paths::resolve_data_path;
 
 use super::Db;
@@ -296,7 +296,10 @@ impl Db {
 
     pub fn delete_upload(&self, upload_id: &str) -> Result<bool> {
         let conn = self.connect()?;
-        let changed = conn.execute("DELETE FROM uploads WHERE upload_id = ?1", params![upload_id])?;
+        let changed = conn.execute(
+            "DELETE FROM uploads WHERE upload_id = ?1",
+            params![upload_id],
+        )?;
         Ok(changed > 0)
     }
 
@@ -456,7 +459,7 @@ impl Db {
             }
             return Ok(hits);
         }
-        let pattern = format!("%{}%", query.replace('%', "").replace('_', ""));
+        let pattern = format!("%{}%", query.replace(['%', '_'], ""));
         if let Some(doc_id) = doc_filter {
             let mut stmt = conn.prepare(
                 r#"
@@ -468,8 +471,7 @@ impl Db {
                 LIMIT ?3
                 "#,
             )?;
-            let rows =
-                stmt.query_map(params![pattern, doc_id, limit as i64], row_to_search_hit)?;
+            let rows = stmt.query_map(params![pattern, doc_id, limit as i64], row_to_search_hit)?;
             for row in rows {
                 hits.push(row?);
             }
@@ -840,9 +842,13 @@ fn row_to_favorite(row: &rusqlite::Row<'_>) -> rusqlite::Result<FavoriteRecord> 
 /// - `translated/page-*.json` 提供 translated_text,按 (page_idx, block_idx)
 ///   数字索引对齐(译文 item_id 与规范 block_id 的零填充位数不同,不能按
 ///   字符串对齐)。
+///
 /// 译文缺失时只索引原文。
 pub fn build_fts_rows_from_job_dir(job_root: &Path) -> Result<Vec<FtsBlockRow>> {
-    let normalized_path = job_root.join("ocr").join("normalized").join("document.v1.json");
+    let normalized_path = job_root
+        .join("ocr")
+        .join("normalized")
+        .join("document.v1.json");
     let raw = std::fs::read_to_string(&normalized_path)
         .with_context(|| format!("read {}", normalized_path.display()))?;
     let document: serde_json::Value = serde_json::from_str(&raw)?;
@@ -1052,8 +1058,11 @@ mod tests {
             .expect("save favorite");
         assert_eq!(db.favorites_referencing_job("job-1").expect("count"), 1);
         let conn = db.connect().expect("connect");
-        conn.execute("DELETE FROM documents WHERE document_id = ?1", params![hash])
-            .expect("delete document");
+        conn.execute(
+            "DELETE FROM documents WHERE document_id = ?1",
+            params![hash],
+        )
+        .expect("delete document");
         assert_eq!(db.list_favorites(None).expect("list").len(), 0);
     }
 
@@ -1105,7 +1114,9 @@ mod tests {
             }],
         )
         .expect("fts rebuild");
-        let rebuilt = db.search_blocks("光学光谱", 10, None).expect("search rebuilt");
+        let rebuilt = db
+            .search_blocks("光学光谱", 10, None)
+            .expect("search rebuilt");
         assert_eq!(rebuilt.len(), 1);
         assert_eq!(rebuilt[0].job_id, "job-2");
     }

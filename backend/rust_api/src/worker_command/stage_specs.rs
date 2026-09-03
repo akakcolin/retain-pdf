@@ -97,8 +97,12 @@ pub(crate) fn write_extract_text_layer_stage_spec(
         "params": {},
     });
     let content = serde_json::to_string_pretty(&payload)?;
-    fs::write(&spec_path, content)
-        .with_context(|| format!("write extract_text_layer stage spec: {}", spec_path.display()))?;
+    fs::write(&spec_path, content).with_context(|| {
+        format!(
+            "write extract_text_layer stage spec: {}",
+            spec_path.display()
+        )
+    })?;
     Ok(spec_path)
 }
 
@@ -216,4 +220,3 @@ pub(crate) fn write_render_stage_spec(
         .with_context(|| format!("write render stage spec: {}", spec_path.display()))?;
     Ok(spec_path)
 }
-

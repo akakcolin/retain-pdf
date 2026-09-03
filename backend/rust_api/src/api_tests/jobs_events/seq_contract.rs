@@ -11,6 +11,7 @@ use crate::app::build_app;
 use crate::models::{CreateJobInput, JobArtifacts, JobSnapshot, WorkflowKind};
 
 #[tokio::test]
+#[allow(clippy::field_reassign_with_default)] // 逐步赋值比全字段展开更可读
 async fn job_events_route_returns_global_monotonic_seq_after_source_merge() {
     let state = test_state("events-global-seq");
     let job_id = "job-route-events-global-seq";

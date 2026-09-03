@@ -72,6 +72,7 @@ mod tests {
         Arc::new(config)
     }
 
+    #[allow(clippy::field_reassign_with_default)] // 逐步赋值比全字段展开更可读
     fn build_request(workflow: WorkflowKind) -> ResolvedJobSpec {
         let mut input = CreateJobInput::default();
         input.workflow = workflow;
@@ -131,6 +132,7 @@ mod tests {
         );
     }
 
+    #[allow(clippy::too_many_arguments)] // 测试辅助函数，参数即命令构建上下文
     fn normalize_command(
         config: &AppConfig,
         request: &ResolvedJobSpec,
@@ -219,10 +221,7 @@ mod tests {
 
         assert!(contains(
             &cmd,
-            &config
-                .run_translate_only_script
-                .to_string_lossy()
-                .to_string()
+            config.run_translate_only_script.to_string_lossy().as_ref()
         ));
         assert!(contains(&cmd, "--spec"));
         assert!(!contains(&cmd, "--source-json"));
@@ -421,7 +420,7 @@ mod tests {
         assert!(!contains(&cmd, "python"));
         assert!(!contains(
             &cmd,
-            &config.run_translate_only_script.to_string_lossy().to_string()
+            config.run_translate_only_script.to_string_lossy().as_ref()
         ));
         assert!(contains(&cmd, "--spec"));
     }

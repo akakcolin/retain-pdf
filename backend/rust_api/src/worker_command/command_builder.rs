@@ -18,7 +18,10 @@ impl CommandBuilder {
         // always sets `PYTHONUNBUFFERED=1` (see `worker_env`).
         let parts = match mode {
             PythonWorkerEntrypointMode::Script => {
-                vec![python_bin.to_string(), entrypoint.script_path.to_string_lossy().to_string()]
+                vec![
+                    python_bin.to_string(),
+                    entrypoint.script_path.to_string_lossy().to_string(),
+                ]
             }
             PythonWorkerEntrypointMode::Console => vec![entrypoint.console_command.to_string()],
         };

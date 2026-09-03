@@ -7,14 +7,12 @@ use crate::models::api::{
     AddCollectionDocumentsInput, AppendMessageInput, AssetRecord, CollectionListView,
     CollectionMutationResult, CollectionRecord, ConversationDetailView, ConversationListView,
     ConversationMutationResult, ConversationRecord, CreateCollectionInput, CreateConversationInput,
-    PatchConversationInput,
     CreateFavoriteInput, DocumentDeleteResultView, DocumentListView, DocumentRecord,
     FavoriteListView, FavoriteMutationResult, FavoriteRecord, JobSubmissionView,
-    LibraryBatchDeleteInput,
-    LibraryBatchDeleteResultView, LibraryBookDetailView, LibraryBookListView,
-    LibraryDeleteResultView, ListConversationsQuery, ListDocumentsQuery, ListFavoritesQuery,
-    ListJobsQuery, MessageRecord, PatchCollectionInput, PatchDocumentInput, PatchFavoriteInput,
-    SearchQuery, SearchResultView,
+    LibraryBatchDeleteInput, LibraryBatchDeleteResultView, LibraryBookDetailView,
+    LibraryBookListView, LibraryDeleteResultView, ListConversationsQuery, ListDocumentsQuery,
+    ListFavoritesQuery, ListJobsQuery, MessageRecord, PatchCollectionInput, PatchConversationInput,
+    PatchDocumentInput, PatchFavoriteInput, SearchQuery, SearchResultView,
 };
 use crate::models::request::CreateJobInput;
 use crate::services::jobs::JobsFacade;
@@ -183,10 +181,7 @@ pub fn store_asset_view(
     store_asset(deps, mime, data)
 }
 
-pub fn load_asset_view(
-    deps: &LibraryDeps<'_>,
-    asset_id: &str,
-) -> Result<AssetDownload, AppError> {
+pub fn load_asset_view(deps: &LibraryDeps<'_>, asset_id: &str) -> Result<AssetDownload, AppError> {
     load_asset(deps, asset_id)
 }
 
@@ -245,9 +240,7 @@ pub fn create_collection_view(
     create_collection(deps, payload)
 }
 
-pub fn list_collections_view(
-    deps: &LibraryDeps<'_>,
-) -> Result<CollectionListView, AppError> {
+pub fn list_collections_view(deps: &LibraryDeps<'_>) -> Result<CollectionListView, AppError> {
     list_collections(deps)
 }
 

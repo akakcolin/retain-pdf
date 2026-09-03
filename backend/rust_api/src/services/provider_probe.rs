@@ -83,13 +83,18 @@ pub struct DeepSeekBalanceView {
 /// `allow_private_urls` is the per-deployment escape hatch
 /// (`RUST_API_ALLOW_PRIVATE_PROVIDER_URLS=1`) for self-hosted setups (e.g. a
 /// local Ollama/OpenAI-compatible endpoint on `localhost`).
-fn validate_provider_base_url(raw_base_url: &str, allow_private_urls: bool) -> Result<(), AppError> {
+fn validate_provider_base_url(
+    raw_base_url: &str,
+    allow_private_urls: bool,
+) -> Result<(), AppError> {
     let trimmed = raw_base_url.trim();
     let parsed = url::Url::parse(trimmed)
         .map_err(|_| AppError::bad_request("base_url must be a valid absolute http(s) URL"))?;
 
     if parsed.scheme() != "http" && parsed.scheme() != "https" {
-        return Err(AppError::bad_request("base_url scheme must be http or https"));
+        return Err(AppError::bad_request(
+            "base_url scheme must be http or https",
+        ));
     }
 
     if !parsed.username().is_empty() || parsed.password().is_some() {

@@ -147,7 +147,11 @@ fn visible_path(messages: &[MessageRecord], head_id: &str, stop_at: &str) -> Vec
             break;
         }
         let pid = node.parent_id.trim().to_string();
-        cur = if pid.is_empty() { None } else { by_id.get(&pid) };
+        cur = if pid.is_empty() {
+            None
+        } else {
+            by_id.get(&pid)
+        };
     }
     chain.reverse();
     chain
@@ -167,7 +171,9 @@ fn load_transcript(db: &Db, conversation_id: &str, stop_at: &str) -> Vec<Transcr
     visible_path(&messages, &head_id, stop_at)
         .into_iter()
         .filter_map(|message| {
-            if !matches!(message.role.as_str(), "user" | "assistant") || message.content.trim().is_empty() {
+            if !matches!(message.role.as_str(), "user" | "assistant")
+                || message.content.trim().is_empty()
+            {
                 return None;
             }
             let citations_json = if message.citations_json.trim().is_empty() {
@@ -227,7 +233,11 @@ fn prepare_memory(
             }
         }
     }
-    let assembled = assemble_history(&working, config.memory_window_turns, config.memory_max_chars);
+    let assembled = assemble_history(
+        &working,
+        config.memory_window_turns,
+        config.memory_max_chars,
+    );
     let mut debug = assembled.debug;
     debug["compressed"] = Value::Bool(compress_event.is_some());
     debug["evidence_count"] = Value::from(0);
@@ -257,10 +267,16 @@ fn persist_turn(
     if conversation_id.is_empty() {
         return true;
     }
-    let citations_json =
-        serde_json::to_string(&result.citations.iter().map(citation_to_json).collect::<Vec<_>>())
-            .unwrap_or_else(|_| "[]".to_string());
-    let tool_trace_json = serde_json::to_string(&result.tool_trace).unwrap_or_else(|_| "[]".to_string());
+    let citations_json = serde_json::to_string(
+        &result
+            .citations
+            .iter()
+            .map(citation_to_json)
+            .collect::<Vec<_>>(),
+    )
+    .unwrap_or_else(|_| "[]".to_string());
+    let tool_trace_json =
+        serde_json::to_string(&result.tool_trace).unwrap_or_else(|_| "[]".to_string());
     let model = if request.llm_model.trim().is_empty() {
         config.llm_model.clone()
     } else {
@@ -373,8 +389,14 @@ where
             on_event,
         )
         .await?;
-    let persisted =
-        persist_turn(deps.db, deps.config, request, &conversation_id, &result, &summary_id);
+    let persisted = persist_turn(
+        deps.db,
+        deps.config,
+        request,
+        &conversation_id,
+        &result,
+        &summary_id,
+    );
     Ok(AskPayload {
         answer: result.answer,
         citations: result.citations.iter().map(citation_to_json).collect(),
@@ -395,7 +417,12 @@ mod tests {
             message_id: message_id.to_string(),
             conversation_id: "conv-1".to_string(),
             seq,
-            role: if message_id.starts_with("u") { "user" } else { "assistant" }.to_string(),
+            role: if message_id.starts_with("u") {
+                "user"
+            } else {
+                "assistant"
+            }
+            .to_string(),
             content: format!("content-{message_id}"),
             citations_json: "[]".to_string(),
             tool_trace_json: "[]".to_string(),

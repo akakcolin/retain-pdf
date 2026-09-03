@@ -5,7 +5,9 @@ use crate::models::domain::{
     CreateJobInput, JobFailureInfo, JobSnapshot, JobStatusKind, JobStatusState, WorkflowKind,
 };
 
-use super::rows::{parse_status_kind, row_to_job_snapshot, JOB_SELECT_SQL, STATUS_JSON_STATUS_EXPR};
+use super::rows::{
+    parse_status_kind, row_to_job_snapshot, JOB_SELECT_SQL, STATUS_JSON_STATUS_EXPR,
+};
 use super::{Db, JobProcessRecord};
 
 /// One job row shaped for the /metrics aggregation (see `metrics.rs`).
@@ -235,9 +237,8 @@ impl Db {
     /// malformed status/runtime JSON rather than failing the whole query.
     pub fn list_job_metric_rows(&self) -> Result<Vec<JobMetricRow>> {
         let conn = self.connect()?;
-        let mut stmt = conn.prepare(
-            "SELECT job_id, status_json, command_json, runtime_json FROM jobs",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT job_id, status_json, command_json, runtime_json FROM jobs")?;
         let rows = stmt.query_map([], |row| {
             let status_json: String = row.get(1)?;
             let command_json: String = row.get(2)?;

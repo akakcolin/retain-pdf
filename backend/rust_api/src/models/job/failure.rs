@@ -58,7 +58,7 @@ impl JobFailureInfo {
             .map(str::trim)
             .unwrap_or("")
             .is_empty()
-            && self.code.as_deref().map(str::trim).unwrap_or("") != ""
+            && !self.code.as_deref().map(str::trim).unwrap_or("").is_empty()
         {
             self.provider_code = self.code.clone();
         }
@@ -68,12 +68,12 @@ impl JobFailureInfo {
             .map(str::trim)
             .unwrap_or("")
             .is_empty()
-            && self
+            && !self
                 .raw_error_excerpt
                 .as_deref()
                 .map(str::trim)
                 .unwrap_or("")
-                != ""
+                .is_empty()
         {
             self.raw_excerpt = self.raw_error_excerpt.clone();
         }
