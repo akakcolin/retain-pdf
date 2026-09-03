@@ -1,3 +1,4 @@
+import { TEXT_KEYS } from "../dom/text-keys.js";
 import { $ } from "../dom/query.js";
 import { firstJobIdFromPayload, firstNonEmptyText, buildDetailPageUrl } from "./routing.js";
 
@@ -32,22 +33,22 @@ export function bindRerunButton({
     const jobId = detailPageState.job?.job_id || getJobId();
     const actionUrl = `${detailPageState.rerunActionUrl || ""}`.trim();
     if (!button || (!jobId && !actionUrl)) {
-      setText("detail-rerun-status", "当前任务暂不可从断点恢复。");
+      setText(TEXT_KEYS.detailRerunStatus, "当前任务暂不可从断点恢复。");
       return;
     }
     button.disabled = true;
-    setText("detail-rerun-status", "正在提交恢复任务...");
+    setText(TEXT_KEYS.detailRerunStatus, "正在提交恢复任务...");
     try {
       const payload = await resumePort.submit({ actionUrl, jobId });
       const nextJobId = firstJobIdFromPayload(payload);
       if (!nextJobId) {
-        setText("detail-rerun-status", "恢复任务已提交，但响应中没有 job_id。");
+        setText(TEXT_KEYS.detailRerunStatus, "恢复任务已提交，但响应中没有 job_id。");
         return;
       }
-      setText("detail-rerun-status", `已创建恢复任务 ${nextJobId}，正在跳转...`);
+      setText(TEXT_KEYS.detailRerunStatus, `已创建恢复任务 ${nextJobId}，正在跳转...`);
       window.location.href = buildDetailPageUrl(nextJobId);
     } catch (error) {
-      setText("detail-rerun-status", error.message || String(error));
+      setText(TEXT_KEYS.detailRerunStatus, error.message || String(error));
       button.disabled = false;
     }
   });

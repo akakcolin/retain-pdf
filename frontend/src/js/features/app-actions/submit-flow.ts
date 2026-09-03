@@ -1,3 +1,4 @@
+import { TEXT_KEYS } from "../../dom/text-keys.js";
 import { withTimeout } from "../../utils/async-timeout.js";
 import { buildErrorDiagnostic } from "../../utils/error-diagnostics.js";
 import {
@@ -7,6 +8,12 @@ import {
 import { APP_EVENTS } from "../../contracts/app-contract.js";
 
 export const DEEPSEEK_BALANCE_CHECK_TIMEOUT_MS = 12000;
+
+// 提交成功后延迟软刷新书架投影（等后端文档投影落库）。
+// 失效后果：太短→投影尚未含新文档，列表疑似"没提交上"；force 刷新会叠乘闪烁（已踩过）。
+// TODO(评审 P2-7)：理想形态是确认投影包含新 jobId 后再刷（轮询确认驱动），
+// 但 requestRefresh 目前是 fire-and-forget 命令端口，缺查回通道，需扩契约后再改。
+const POST_CREATE_PROJECTION_ALIGN_MS = 800;
 
 /** DeepSeek 余额/预算快照（workflow budget 侧）。 */
 export interface BudgetStateSnapshot {
@@ -195,7 +202,7 @@ export async function ensureDeepSeekBudgetReady({
   if (!needsDeepSeekBudgetCheck({ workflow, workflowNeedsUpload, currentBudgetState })) {
     return true;
   }
-  setText("error-box", "正在检测 DeepSeek 余额…");
+  setText(TEXT_KEYS.errorBox, "正在检测 DeepSeek 余额…");
   try {
     const result = asBalanceResult(await withTimeout(
       refreshDeepSeekBalance?.({ silent: true }) || Promise.resolve(null),
@@ -203,24 +210,24 @@ export async function ensureDeepSeekBudgetReady({
       "DeepSeek 余额检测超时，请稍后重试或在接口设置中检测。",
     ));
     if (result?.status === "missing_key") {
-      setText("error-box", "请先填写 DeepSeek API Key。");
+      setText(TEXT_KEYS.errorBox, "请先填写 DeepSeek API Key。");
       return false;
     }
     if (result?.status === "network_error") {
-      setText("error-box", "DeepSeek 余额检测失败，请稍后重试或在接口设置中检测。");
+      setText(TEXT_KEYS.errorBox, "DeepSeek 余额检测失败，请稍后重试或在接口设置中检测。");
       return false;
     }
   } catch (error) {
-    setText("error-box", (error as { message?: string })?.message || "DeepSeek 余额检测失败，请稍后重试。");
+    setText(TEXT_KEYS.errorBox, (error as { message?: string })?.message || "DeepSeek 余额检测失败，请稍后重试。");
     return false;
   }
   const budget = asBudgetState(currentBudgetState?.());
   if (budget?.blocking) {
-    setText("error-box", `余额不足：${budget.message}。请充值后再提交。`);
+    setText(TEXT_KEYS.errorBox, `余额不足：${budget.message}。请充值后再提交。`);
     return false;
   }
   if (budget?.visible && !budget.balanceChecked) {
-    setText("error-box", "无法确认 DeepSeek 余额，请先在接口设置中完成检测。");
+    setText(TEXT_KEYS.errorBox, "无法确认 DeepSeek 余额，请先在接口设置中完成检测。");
     return false;
   }
   return true;
@@ -262,21 +269,21 @@ export function handleSubmitReadinessBlock({
   switch (readiness?.reason) {
     case SUBMIT_BLOCK_REASONS.DESKTOP_NOT_CONFIGURED:
       openSetupDialog?.();
-      setText("error-box", "请先完成首次配置。");
+      setText(TEXT_KEYS.errorBox, "请先完成首次配置。");
       return true;
     case SUBMIT_BLOCK_REASONS.MISSING_CREDENTIALS:
-      setText("error-box", "请先填写当前 OCR Provider 凭证。");
+      setText(TEXT_KEYS.errorBox, "请先填写当前 OCR Provider 凭证。");
       openBrowserCredentialsDialog?.();
       return true;
     case SUBMIT_BLOCK_REASONS.MISSING_UPLOAD:
-      setText("error-box", "请先选择并上传 PDF 文件");
+      setText(TEXT_KEYS.errorBox, "请先选择并上传 PDF 文件");
       return true;
     case SUBMIT_BLOCK_REASONS.MISSING_RENDER_SOURCE:
-      setText("error-box", "请先在开发者设置里填写 Render 源任务 ID。");
+      setText(TEXT_KEYS.errorBox, "请先在开发者设置里填写 Render 源任务 ID。");
       return true;
     case SUBMIT_BLOCK_REASONS.BUDGET_BLOCKING: {
       const budget = asBudgetState(currentBudgetState?.());
-      setText("error-box", `余额不足：${budget?.message || "请充值后再提交"}。请充值后再提交。`);
+      setText(TEXT_KEYS.errorBox, `余额不足：${budget?.message || "请充值后再提交"}。请充值后再提交。`);
       return true;
     }
     default:
@@ -297,13 +304,13 @@ export async function ensureOcrCredentialsForSubmit({
   }
   return Boolean(await ensureOcrCredentialsReady?.({
     onMissingToken: () => {
-      setText("error-box", "请先填写当前 OCR Provider 凭证。");
+      setText(TEXT_KEYS.errorBox, "请先填写当前 OCR Provider 凭证。");
       if (!desktopMode) {
         openBrowserCredentialsDialog?.();
       }
     },
     onInvalidToken: (result) => {
-      setText("error-box", result.summary || "OCR Provider 凭证校验未通过。");
+      setText(TEXT_KEYS.errorBox, result.summary || "OCR Provider 凭证校验未通过。");
       if (!desktopMode) {
         openBrowserCredentialsDialog?.();
       }
@@ -327,7 +334,7 @@ export function publishSubmitSuccess({
   // 单次延迟 soft 对齐文档投影（soft reset 保留旧 items；不 force 绕过 workflow suspend）
   windowRef?.setTimeout?.(() => {
     libraryEventPort?.requestRefresh?.({ delay: 0, force: false });
-  }, 800);
+  }, POST_CREATE_PROJECTION_ALIGN_MS);
   const EventCtor = documentRef?.defaultView?.CustomEvent || globalThis.CustomEvent;
   const openWorkflowEvent = typeof EventCtor === "function"
     ? new EventCtor(APP_EVENTS.openTranslationWorkflow)
@@ -373,7 +380,7 @@ export async function runSubmitFlow({
   now,
 }: RunSubmitFlowOptions = {}) {
   if (configPort?.isMock?.()) {
-    setText("error-box", "-");
+    setText(TEXT_KEYS.errorBox, "-");
     const payload = await submitJobRequest(apiPrefix, { workflow, source: {}, mock: true });
     publishSubmitSuccess({
       payload,
@@ -434,7 +441,7 @@ export async function runSubmitFlow({
     return { status: "ocr_credentials_not_ready" };
   }
 
-  setText("error-box", "-");
+  setText(TEXT_KEYS.errorBox, "-");
 
   try {
     const runPayload = collectRunPayload?.();
@@ -456,7 +463,7 @@ export async function runSubmitFlow({
       handleMissingUploadError?.();
       return { status: "missing_upload", error: err };
     }
-    setText("error-box", buildErrorDiagnostic(err, {
+    setText(TEXT_KEYS.errorBox, buildErrorDiagnostic(err, {
       operation: "提交 PDF 任务",
       url: `${apiPrefix || ""}/jobs`,
       details: {

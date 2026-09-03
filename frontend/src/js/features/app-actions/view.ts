@@ -1,3 +1,4 @@
+import { TEXT_KEYS } from "../../dom/text-keys.js";
 import { $ } from "../../dom/query.js";
 import { APP_EVENTS } from "../../contracts/app-contract.js";
 
@@ -27,5 +28,5 @@ export function resetMissingUploadState({
 }: ResetMissingUploadStateOptions = {}) {
   uploadStatePort?.reset?.({ includePageRange: false });
   resetUploadedFile?.();
-  setText("error-box", "当前上传文件已失效，请重新上传 PDF 后再提交。");
+  setText(TEXT_KEYS.errorBox, "当前上传文件已失效，请重新上传 PDF 后再提交。");
 }

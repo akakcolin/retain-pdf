@@ -1,3 +1,4 @@
+import { TEXT_KEYS } from "../dom/text-keys.js";
 import { $ } from "../dom/query.js";
 import { resolveJobActions } from "../job/actions.js";
 import { resolveLiveDurations } from "../job/durations.js";
@@ -51,7 +52,7 @@ export function renderJobDetailOverview({
   if ($("detail-rerun-btn")) {
     ($("detail-rerun-btn") as any).disabled = !rerunEnabled;
   }
-  setText("detail-rerun-status", summarizeResumePlan(resumePlan));
+  setText(TEXT_KEYS.detailRerunStatus, summarizeResumePlan(resumePlan));
   renderJobDetailPublicError({ job, setText });
   setEventsStatus("尚未加载");
   renderJobDetailActionLinks({ actions, job, manifestPayload, setActionLink });

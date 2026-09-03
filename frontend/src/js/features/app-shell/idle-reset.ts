@@ -1,22 +1,24 @@
+import { TEXT_KEYS } from "../../dom/text-keys.js";
+
 export function resetStatusDetailRuntimeView({ setText, resetEventsList, activateDetailTab }: any) {
-  setText("runtime-current-stage", "-");
-  setText("runtime-stage-elapsed", "-");
-  setText("runtime-total-elapsed", "-");
-  setText("runtime-retry-count", "0");
-  setText("runtime-last-transition", "-");
-  setText("runtime-terminal-reason", "-");
-  setText("runtime-input-protocol", "-");
-  setText("runtime-stage-spec-version", "-");
-  setText("runtime-math-mode", "-");
-  setText("status-detail-job-id", "-");
-  setText("failure-summary", "-");
-  setText("failure-category", "-");
-  setText("failure-stage", "-");
-  setText("failure-root-cause", "-");
-  setText("failure-suggestion", "-");
-  setText("failure-last-log-line", "-");
-  setText("failure-retryable", "-");
-  setText("events-status", "全部事件");
+  setText(TEXT_KEYS.runtimeCurrentStage, "-");
+  setText(TEXT_KEYS.runtimeStageElapsed, "-");
+  setText(TEXT_KEYS.runtimeTotalElapsed, "-");
+  setText(TEXT_KEYS.runtimeRetryCount, "0");
+  setText(TEXT_KEYS.runtimeLastTransition, "-");
+  setText(TEXT_KEYS.runtimeTerminalReason, "-");
+  setText(TEXT_KEYS.runtimeInputProtocol, "-");
+  setText(TEXT_KEYS.runtimeStageSpecVersion, "-");
+  setText(TEXT_KEYS.runtimeMathMode, "-");
+  setText(TEXT_KEYS.statusDetailJobId, "-");
+  setText(TEXT_KEYS.failureSummary, "-");
+  setText(TEXT_KEYS.failureCategory, "-");
+  setText(TEXT_KEYS.failureStage, "-");
+  setText(TEXT_KEYS.failureRootCause, "-");
+  setText(TEXT_KEYS.failureSuggestion, "-");
+  setText(TEXT_KEYS.failureLastLogLine, "-");
+  setText(TEXT_KEYS.failureRetryable, "-");
+  setText(TEXT_KEYS.eventsStatus, "全部事件");
   resetEventsList();
   activateDetailTab("overview");
 }
@@ -42,12 +44,12 @@ export function initializeIdleAppView({
   updateActionButtons(normalizeJobPayload({}));
   setWorkflowSections(null);
   setLinearProgress("job-progress-bar", "job-progress-text", NaN, NaN, "-");
-  setText("job-summary", summarizeStatus("idle"));
-  setText("job-stage-detail", "-");
-  setText("query-job-duration", "-");
+  setText(TEXT_KEYS.jobSummary, summarizeStatus("idle"));
+  setText(TEXT_KEYS.jobStageDetail, "-");
+  setText(TEXT_KEYS.queryJobDuration, "-");
   resetStatusDetailRuntimeView({ setText, resetEventsList, activateDetailTab });
   if (configPort?.isMock?.()) {
-    setText("error-box", "-");
+    setText(TEXT_KEYS.errorBox, "-");
   }
   renderPageRangeSummary();
   resetUploadProgress();

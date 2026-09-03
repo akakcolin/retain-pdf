@@ -1,3 +1,4 @@
+import { TEXT_KEYS } from "../dom/text-keys.js";
 import { $ } from "../dom/query.js";
 import { summarizeRuntimeField } from "../job/formatters.js";
 
@@ -40,12 +41,12 @@ export function applyDiagnostics(diagnostics, job, setText) {
   if (!diagnostics) {
     return;
   }
-  setText("detail-failure-summary", summarizeRuntimeField(diagnostics.summary || diagnostics.failure_summary || job.final_failure_summary));
-  setText("detail-failure-category", summarizeRuntimeField(diagnostics.category || diagnostics.failure_category || diagnostics.failed_category || job.final_failure_category));
-  setText("detail-failure-stage", summarizeRuntimeField(diagnostics.failed_stage || diagnostics.stage || diagnostics.failed_substage));
-  setText("detail-failure-root-cause", summarizeRuntimeField(diagnostics.root_cause || diagnostics.detail || diagnostics.raw_excerpt));
-  setText("detail-failure-suggestion", summarizeRuntimeField(diagnostics.suggestion));
-  setText("detail-failure-retryable", typeof diagnostics.retryable === "boolean" ? (diagnostics.retryable ? "是" : "否") : "-");
+  setText(TEXT_KEYS.detailFailureSummary, summarizeRuntimeField(diagnostics.summary || diagnostics.failure_summary || job.final_failure_summary));
+  setText(TEXT_KEYS.detailFailureCategory, summarizeRuntimeField(diagnostics.category || diagnostics.failure_category || diagnostics.failed_category || job.final_failure_category));
+  setText(TEXT_KEYS.detailFailureStage, summarizeRuntimeField(diagnostics.failed_stage || diagnostics.stage || diagnostics.failed_substage));
+  setText(TEXT_KEYS.detailFailureRootCause, summarizeRuntimeField(diagnostics.root_cause || diagnostics.detail || diagnostics.raw_excerpt));
+  setText(TEXT_KEYS.detailFailureSuggestion, summarizeRuntimeField(diagnostics.suggestion));
+  setText(TEXT_KEYS.detailFailureRetryable, typeof diagnostics.retryable === "boolean" ? (diagnostics.retryable ? "是" : "否") : "-");
 }
 
 export function renderFailureDebugContext(job) {

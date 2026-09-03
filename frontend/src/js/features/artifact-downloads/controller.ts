@@ -1,3 +1,4 @@
+import { TEXT_KEYS } from "../../dom/text-keys.js";
 import {
   fileNameFromDisposition,
   formatTransferSize,
@@ -49,7 +50,7 @@ export function mountArtifactDownloadsFeature({
     }
 
     event.preventDefault();
-    setText("error-box", "-");
+    setText(TEXT_KEYS.errorBox, "-");
     const action = downloadActionForLink(link);
     const jobId = runtimePort.currentJobId(state) || "result";
     const {
@@ -88,12 +89,12 @@ export function mountArtifactDownloadsFeature({
         filename,
         onProgress: ({ receivedBytes, totalBytes, percent, done }) => {
           if (done) {
-            setText("error-box", `已开始保存 ${filename}`);
+            setText(TEXT_KEYS.errorBox, `已开始保存 ${filename}`);
             viewPort.setLinkBusy(link, true, "已完成");
             completeDownloadToast(filename);
             return;
           }
-          setText("error-box", summarizeDownloadProgress(receivedBytes, totalBytes, percent));
+          setText(TEXT_KEYS.errorBox, summarizeDownloadProgress(receivedBytes, totalBytes, percent));
           viewPort.setLinkBusy(
             link,
             true,
@@ -108,7 +109,7 @@ export function mountArtifactDownloadsFeature({
         },
       });
     } catch (err) {
-      setText("error-box", buildErrorDiagnostic(err, {
+      setText(TEXT_KEYS.errorBox, buildErrorDiagnostic(err, {
         operation: "下载任务产物",
         url,
         jobId,

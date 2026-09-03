@@ -1,3 +1,4 @@
+import { TEXT_KEYS } from "../../dom/text-keys.js";
 import { withTimeout } from "../../utils/async-timeout.js";
 import { buildErrorDiagnostic } from "../../utils/error-diagnostics.js";
 import {
@@ -210,19 +211,19 @@ export function mountUploadFeature({
     const end = rawEnd.trim();
     const maxPage = pageRangeLimit();
     if ((start && Number(start) < 1) || (end && Number(end) < 1)) {
-      setText("error-box", "页码必须从 1 开始");
+      setText(TEXT_KEYS.errorBox, "页码必须从 1 开始");
       return false;
     }
     if ((start && maxPage && Number(start) > maxPage) || (end && maxPage && Number(end) > maxPage)) {
-      setText("error-box", `页码不能超过 ${maxPage}`);
+      setText(TEXT_KEYS.errorBox, `页码不能超过 ${maxPage}`);
       return false;
     }
     if (start && end && Number(start) > Number(end)) {
-      setText("error-box", "起始页不能大于结束页");
+      setText(TEXT_KEYS.errorBox, "起始页不能大于结束页");
       return false;
     }
     if (maxPage && start && end && Number(end) - Number(start) + 1 > maxPage) {
-      setText("error-box", `页码区间不能超过 ${maxPage} 页`);
+      setText(TEXT_KEYS.errorBox, `页码区间不能超过 ${maxPage} 页`);
       return false;
     }
     updateAppliedPageRange(normalizePageRangeValue(start, end));
@@ -267,7 +268,7 @@ export function mountUploadFeature({
       return;
     }
     if (file.size > frontMaxBytes) {
-      setText("error-box", `当前前端限制为 ${formatByteLimit(frontMaxBytes)} 以内 PDF`);
+      setText(TEXT_KEYS.errorBox, `当前前端限制为 ${formatByteLimit(frontMaxBytes)} 以内 PDF`);
       viewPort.showUploadStatus("文件超出大小限制");
       return;
     }
@@ -276,19 +277,19 @@ export function mountUploadFeature({
       try {
         const localPageCount = await countPdfPages(file);
         if (!Number.isFinite(localPageCount) || localPageCount <= 0) {
-          setText("error-box", "PDF 解析失败，请检查文件是否损坏或可访问性异常。");
+          setText(TEXT_KEYS.errorBox, "PDF 解析失败，请检查文件是否损坏或可访问性异常。");
           viewPort.showUploadStatus("文件校验失败");
           clearFileInputValue();
           return;
         }
         if (localPageCount > frontMaxPageCount) {
-          setText("error-box", `PDF 页数超过限制：最多 ${frontMaxPageCount} 页`);
+          setText(TEXT_KEYS.errorBox, `PDF 页数超过限制：最多 ${frontMaxPageCount} 页`);
           viewPort.showUploadStatus("文件超出页数限制");
           clearFileInputValue();
           return;
         }
       } catch (err) {
-        setText("error-box", buildErrorDiagnostic(err, {
+        setText(TEXT_KEYS.errorBox, buildErrorDiagnostic(err, {
           operation: "校验 PDF 文件",
           details: {
             file_name: file.name,
@@ -301,7 +302,7 @@ export function mountUploadFeature({
         return;
       }
     }
-    setText("error-box", "-");
+    setText(TEXT_KEYS.errorBox, "-");
     viewPort.showUploadStatus("正在上传…");
 
     const uploadUrl = configPort.buildUploadUrl(apiPrefix);
@@ -313,7 +314,7 @@ export function mountUploadFeature({
       );
       const uploadedPageCount = Number(payload.page_count || 0);
       if (frontMaxPageCount > 0 && uploadedPageCount > frontMaxPageCount) {
-        setText("error-box", `PDF 页数超过限制：最多 ${frontMaxPageCount} 页`);
+        setText(TEXT_KEYS.errorBox, `PDF 页数超过限制：最多 ${frontMaxPageCount} 页`);
         viewPort.showUploadStatus("文件超出页数限制");
         clearFileInputValue();
         resetUploadedFile();
@@ -360,7 +361,7 @@ export function mountUploadFeature({
     } catch (err) {
       resetUploadedFile();
       clearFileInputValue();
-      setText("error-box", buildErrorDiagnostic(err, {
+      setText(TEXT_KEYS.errorBox, buildErrorDiagnostic(err, {
         operation: "上传 PDF 文件",
         url: uploadUrl,
         details: {

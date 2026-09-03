@@ -1,3 +1,4 @@
+import { TEXT_KEYS } from "../dom/text-keys.js";
 import { $ } from "../dom/query.js";
 import {
   collectMarkdownImageRefs,
@@ -203,16 +204,16 @@ export function renderMarkdownContract({
   const previewContent = typeof markdownPayload?.content_with_absolute_image_urls === "string"
     ? markdownPayload.content_with_absolute_image_urls
     : content;
-  setText("detail-markdown-json-url", jsonUrl || "-");
-  setText("detail-markdown-raw-url", rawUrl || "-");
-  setText("detail-markdown-images-base-url", imagesBaseUrl || "-");
+  setText(TEXT_KEYS.detailMarkdownJsonUrl, jsonUrl || "-");
+  setText(TEXT_KEYS.detailMarkdownRawUrl, rawUrl || "-");
+  setText(TEXT_KEYS.detailMarkdownImagesBaseUrl, imagesBaseUrl || "-");
   setActionLink("detail-markdown-json-btn", jsonUrl, contract.ready && !!jsonUrl);
   setActionLink("detail-markdown-raw-btn", rawUrl, contract.ready && !!rawUrl);
   if (!contract.ready) {
     revokeMarkdownImageUrls(markdownImageUrls);
-    setText("detail-markdown-status", "当前任务没有已发布 Markdown");
-    setText("detail-markdown-image-count", "0");
-    setText("detail-markdown-preview", "-");
+    setText(TEXT_KEYS.detailMarkdownStatus, "当前任务没有已发布 Markdown");
+    setText(TEXT_KEYS.detailMarkdownImageCount, "0");
+    setText(TEXT_KEYS.detailMarkdownPreview, "-");
     const grid = $("detail-markdown-image-grid");
     grid?.classList.add("hidden");
     if (grid) {
@@ -222,7 +223,7 @@ export function renderMarkdownContract({
     return;
   }
   if (!markdownPayload) {
-    setText("detail-markdown-status", "已发布，正在读取内容…");
+    setText(TEXT_KEYS.detailMarkdownStatus, "已发布，正在读取内容…");
     return;
   }
   const refs = Array.isArray(markdownPayload?.images) && markdownPayload.images.length > 0
@@ -237,9 +238,9 @@ export function renderMarkdownContract({
   if (sizeText !== "-") {
     statusBits.push(sizeText);
   }
-  setText("detail-markdown-status", statusBits.join(" · "));
-  setText("detail-markdown-image-count", `${refs.length}`);
-  setText("detail-markdown-preview", truncatePreview(previewContent));
+  setText(TEXT_KEYS.detailMarkdownStatus, statusBits.join(" · "));
+  setText(TEXT_KEYS.detailMarkdownImageCount, `${refs.length}`);
+  setText(TEXT_KEYS.detailMarkdownPreview, truncatePreview(previewContent));
 }
 
 export async function renderMarkdownImagePreview({
