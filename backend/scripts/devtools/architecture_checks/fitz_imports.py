@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
+from devtools.architecture_checks.common import REPO_ROOT
 from devtools.architecture_checks.common import SCRIPTS_ROOT
 from devtools.architecture_checks.common import imported_modules
+from devtools.architecture_checks.common import read_text
 from devtools.architecture_checks.common import rel
 from devtools.architecture_checks.common import scan_py_files
 
@@ -78,4 +81,47 @@ def check_fitz_import_allowlist(errors: list[str]) -> None:
         print(f"fitz import allowlist: {len(seen)} non-devtools modules enumerated")
 
 
-__all__ = ["FITZ_IMPORT_ALLOWLIST", "check_fitz_import_allowlist"]
+RUST_SRC_ROOT = REPO_ROOT / "backend" / "rust_api" / "src"
+DESKTOP_REQUIREMENTS = REPO_ROOT / "desktop" / "requirements-desktop-posix.txt"
+_INLINE_FITZ_RE = re.compile(r"^\s*import (fitz|pymupdf)\b", re.MULTILINE)
+
+
+def _rust_production_text(path: Path) -> str:
+    return read_text(path).split("\n#[cfg(test)]", 1)[0]
+
+
+def check_desktop_bundle_covers_rust_fitz(errors: list[str]) -> None:
+    """rust_api 的内联 python 脚本(preview/upload)同样消费 fitz,但对 Python 侧
+    import 扫描不可见——desktop 打包曾因此剪掉 PyMuPDF 导致上传/预览接口 500。
+    只要 Rust 生产代码还有内联 fitz,desktop 依赖清单就必须包含 PyMuPDF。"""
+    rust_users: list[str] = []
+    for path in sorted(RUST_SRC_ROOT.rglob("*.rs")):
+        if path.name.startswith("._"):  # macOS 网络卷 AppleDouble 元数据
+            continue
+        rel_parts = path.relative_to(RUST_SRC_ROOT).parts
+        if "api_tests" in rel_parts or path.stem in {"tests", "test"}:
+            continue
+        if _INLINE_FITZ_RE.search(_rust_production_text(path)):
+            rust_users.append(str(path.relative_to(REPO_ROOT)))
+    if not rust_users:
+        print("desktop bundle fitz coverage: no inline fitz in rust_api, PyMuPDF not required")
+        return
+    requirements = read_text(DESKTOP_REQUIREMENTS).lower()
+    if "pymupdf" not in requirements:
+        errors.append(
+            "desktop/requirements-desktop-posix.txt 缺少 PyMuPDF,但 rust_api 生产代码仍有内联 "
+            f"fitz 调用: {', '.join(rust_users)};请在 pyproject.toml 的 desktop extra 恢复 "
+            "PyMuPDF 并运行 devtools/sync_python_requirements.py"
+        )
+    else:
+        print(
+            "desktop bundle fitz coverage: "
+            f"PyMuPDF covers {len(rust_users)} inline fitz call sites in rust_api"
+        )
+
+
+__all__ = [
+    "FITZ_IMPORT_ALLOWLIST",
+    "check_desktop_bundle_covers_rust_fitz",
+    "check_fitz_import_allowlist",
+]

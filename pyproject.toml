@@ -13,10 +13,12 @@ dependencies = [
 test = [
   "pytest==9.0.3",
 ]
-# Desktop bundle only ships the Python HTTP stack (requests/urllib3);
-# PyMuPDF (translation/OCR fitz usage) and the app runtime deps are pruned
-# from the packaged app.
+# Desktop bundle ships the Python HTTP stack plus PyMuPDF: rust_api 的
+# 上传页数统计/坏 PDF 修复(services/jobs/creation/upload.rs)与 PDF 预览渲染
+# (services/derived_artifacts/preview.rs)仍是内联 python + fitz,打包缺
+# PyMuPDF 会让上传与预览接口 500。PyMuPDF 为 abi3 wheel,兼容捆绑的 3.14。
 desktop = [
+  "PyMuPDF==1.26.5",
   "requests==2.32.5",
   "urllib3==2.5.0",
 ]

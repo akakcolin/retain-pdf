@@ -6,6 +6,7 @@ import sys
 from devtools.architecture_checks.common import ArchitectureCheckSyntaxError
 from devtools.architecture_checks.entrypoints import check_entrypoint_stable_imports
 from devtools.architecture_checks.entrypoints import check_stage_spec_contract_checker
+from devtools.architecture_checks.fitz_imports import check_desktop_bundle_covers_rust_fitz
 from devtools.architecture_checks.fitz_imports import check_fitz_import_allowlist
 from devtools.architecture_checks.normalize_engine import check_normalize_native_only
 from devtools.architecture_checks.providers import check_pipeline_provider_leaks
@@ -32,6 +33,7 @@ def main() -> int:
         check_translation_internal_boundaries(errors)
         check_translation_payload_field_writers(errors)
         check_fitz_import_allowlist(errors)
+        check_desktop_bundle_covers_rust_fitz(errors)
         check_normalize_native_only(errors)
     except ArchitectureCheckSyntaxError as exc:
         errors.append(str(exc))
