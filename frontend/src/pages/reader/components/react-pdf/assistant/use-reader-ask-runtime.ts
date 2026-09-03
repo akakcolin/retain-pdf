@@ -1,4 +1,5 @@
 // assistant-ui ExternalStore：进度/正文分离 + 消息分支树 + 本地快照。
+// 树/消息/citations 纯函数已拆到 ./thread-tree.ts（评审 P1-5）；本文件只做编排。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -6,7 +7,6 @@ import {
   useExternalStoreRuntime,
   type AppendMessage,
   type ThreadMessage,
-  type ThreadMessageLike,
 } from "@assistant-ui/react";
 import { describeToolEvent } from "../../../legacy/ai/answer-view.js";
 import {
@@ -15,281 +15,36 @@ import {
   createReaderAskAnswerer,
   createReaderMarkdownAnswerer,
   defaultReaderDataPort,
-  deleteConversation,
-  forkConversationFromPath,
   getConversation,
   listConversations,
   loadStoredConversationId,
   loadThreadBranchSnapshot,
   lockReaderAiNavigation,
   messagesToBranchItems,
-  nextForkConversationTitle,
   patchConversation,
   sanitizeAssistantAnswer,
   saveThreadBranchSnapshot,
   type AiCitationLike,
   type ConversationRecord,
-  type ThreadBranchItem,
-  type ThreadBranchMessage,
-  type ThreadBranchSnapshot,
 } from "../../../external.js";
+import {
+  findMessage,
+  makeReaderAskId as makeId,
+  normalizeAiCitations as normalizeCitations,
+  READER_ASK_SUGGESTIONS as SUGGESTIONS,
+  shouldFallbackToLocal,
+  snapshotFromTree,
+  textFromAppend,
+  toThreadMessageLike,
+  treeFromSnapshot,
+  treeItemsFromBranchItems,
+  visibleMessages,
+  type ReaderAskStoreMessage,
+  type ReaderAskTreeItem,
+} from "./thread-tree.js";
+import { createReaderAskSessionOps } from "./session-operations.js";
 
-export type ReaderAskStoreMessage = ThreadBranchMessage & {
-  citations?: AiCitationLike[];
-  status?: ThreadMessageLike["status"];
-};
-
-type TreeItem = {
-  parentId: string | null;
-  message: ReaderAskStoreMessage;
-};
-
-const SUGGESTIONS = [
-  { prompt: "这篇文献的主要结论是什么？" },
-  { prompt: "作者用了什么方法或模型？" },
-  { prompt: "有哪些关键结果或数据？" },
-];
-
-function textFromAppend(message: AppendMessage): string {
-  const content = message.content as unknown;
-  if (typeof content === "string") return content.trim();
-  if (!Array.isArray(content)) return "";
-  return content
-    .map((part) => {
-      if (part && typeof part === "object" && (part as { type?: string }).type === "text") {
-        return `${(part as { text?: string }).text || ""}`;
-      }
-      return "";
-    })
-    .join("")
-    .trim();
-}
-
-function toThreadMessageLike(message: ReaderAskStoreMessage): ThreadMessageLike {
-  // 注意：fromThreadMessageLike 会丢掉 trim 为空的 text part；
-  // 流式占位用可见点，避免 content=[] 时气泡不挂载 Parts。
-  const raw = message.content;
-  const isAssistant = message.role === "assistant";
-  const content = raw.trim()
-    ? raw
-    : isAssistant && message.status?.type === "running"
-      ? "…"
-      : raw;
-  // assistant-ui fromBranchableArray：status 只能出现在 assistant，否则
-  // Uncaught Error: status is only supported for assistant messages
-  return {
-    id: message.id,
-    role: message.role,
-    content: [{ type: "text", text: content || "" }],
-    ...(isAssistant && message.status ? { status: message.status } : {}),
-    metadata: {
-      custom: {
-        citations: message.citations || [],
-        progress: message.progress || "",
-        storeId: message.id,
-      },
-    },
-  };
-}
-
-function shouldFallbackToLocal(error: unknown): boolean {
-  const status = Number((error as { status?: number })?.status) || 0;
-  const msg = `${(error as Error)?.message || ""}`;
-  return status === 502 || /\b502\b/.test(msg);
-}
-
-function makeId(prefix: string) {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function normalizeCitations(raw: unknown): AiCitationLike[] {
-  if (!Array.isArray(raw)) return [];
-  const out: AiCitationLike[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== "object") continue;
-    const c = item as AiCitationLike;
-    const blockId = `${c.block_id || ""}`.trim();
-    if (!blockId) continue;
-    let pageIdx: number | undefined;
-    const rawPage = c.page_idx ?? c.page;
-    if (rawPage !== undefined && rawPage !== null && `${rawPage}`.trim() !== "") {
-      const n = Number(rawPage);
-      if (Number.isFinite(n) && n >= 0) pageIdx = Math.floor(n);
-    }
-    if (pageIdx === undefined) {
-      const m = blockId.match(/(?:^|[^0-9])p0*([1-9]\d*)(?:-|_|\b)/i);
-      if (m) pageIdx = Math.max(0, Number(m[1]) - 1);
-    }
-    out.push({
-      ...c,
-      block_id: blockId,
-      ref: c.ref,
-      page_idx: pageIdx,
-      job_id: `${c.job_id || ""}`.trim(),
-      document_id: `${c.document_id || ""}`.trim(),
-      snippet: `${c.snippet || ""}`.trim(),
-    });
-  }
-  return out;
-}
-
-function snapshotFromTree(
-  items: readonly TreeItem[],
-  headId: string | null,
-): ThreadBranchSnapshot {
-  return {
-    version: 1,
-    headId,
-    items: items.map((item) => ({
-      parentId: item.parentId,
-      message: {
-        id: item.message.id,
-        role: item.message.role,
-        content: item.message.content,
-        ...(item.message.progress ? { progress: item.message.progress } : {}),
-        ...(item.message.citations?.length
-          ? { citations: item.message.citations }
-          : {}),
-        ...(item.message.status
-          ? {
-            status: {
-              type: item.message.status.type,
-              ...("reason" in item.message.status && item.message.status.reason
-                ? { reason: `${item.message.status.reason}` }
-                : {}),
-            },
-          }
-          : {}),
-      },
-    })) as ThreadBranchItem[],
-  };
-}
-
-function treeFromSnapshot(snapshot: ThreadBranchSnapshot): {
-  items: TreeItem[];
-  headId: string | null;
-} {
-  const items: TreeItem[] = snapshot.items.map((item) => ({
-    parentId: item.parentId,
-    message: {
-      ...item.message,
-      citations: (item.message.citations || []) as AiCitationLike[],
-      status: item.message.status as ReaderAskStoreMessage["status"],
-    },
-  }));
-  return { items, headId: snapshot.headId };
-}
-
-function visibleMessages(
-  items: readonly TreeItem[],
-  headId: string | null,
-): ReaderAskStoreMessage[] {
-  if (!items.length) return [];
-  const byId = new Map(items.map((i) => [i.message.id, i]));
-  const head = (headId && byId.get(headId)) || items[items.length - 1];
-  if (!head) return [];
-  const chain: ReaderAskStoreMessage[] = [];
-  let cur: TreeItem | undefined = head;
-  const guard = new Set<string>();
-  while (cur && !guard.has(cur.message.id)) {
-    guard.add(cur.message.id);
-    chain.push(cur.message);
-    cur = cur.parentId ? byId.get(cur.parentId) : undefined;
-  }
-  return chain.reverse();
-}
-
-function findMessage(
-  items: readonly TreeItem[],
-  id: string | null | undefined,
-): ReaderAskStoreMessage | null {
-  if (!id) return null;
-  return items.find((i) => i.message.id === id)?.message ?? null;
-}
-
-/** 从任意消息沿 parent 回溯到根，得到路径上的 TreeItem 序列（根→叶）。 */
-function pathItemsToMessage(
-  items: readonly TreeItem[],
-  targetId: string,
-): TreeItem[] {
-  const byId = new Map(items.map((i) => [i.message.id, i]));
-  let cur = byId.get(targetId);
-  if (!cur) return [];
-  const chain: TreeItem[] = [];
-  const guard = new Set<string>();
-  while (cur && !guard.has(cur.message.id)) {
-    guard.add(cur.message.id);
-    chain.push(cur);
-    cur = cur.parentId ? byId.get(cur.parentId) : undefined;
-  }
-  return chain.reverse();
-}
-
-/**
- * 分支用路径：优先 parent 链；链断/缺 parent 时退化为「可见路径截到目标答案」。
- * 避免只 fork 出半截（甚至只有一条 assistant）导致「分支不像新对话/无上文」。
- */
-function pathForBranch(
-  items: readonly TreeItem[],
-  targetId: string,
-  headId: string | null,
-): TreeItem[] {
-  const tid = `${targetId || ""}`.trim();
-  if (!tid || !items.length) return [];
-
-  // aui 有时用自己的 id；优先精确匹配，再回退到当前 head / 最近 assistant
-  let resolvedId = tid;
-  if (!items.some((i) => i.message.id === resolvedId)) {
-    if (headId && items.some((i) => i.message.id === headId)) {
-      resolvedId = headId;
-    } else {
-      const lastAssist = [...items].reverse().find((i) => i.message.role === "assistant");
-      if (lastAssist) resolvedId = lastAssist.message.id;
-    }
-  }
-
-  let path = pathItemsToMessage(items, resolvedId);
-  // parent 链完整：至少含 user+assistant
-  if (path.length >= 2 && path[path.length - 1].message.role === "assistant") {
-    return path;
-  }
-  if (path.length === 1 && path[0].message.role === "user") {
-    path = [];
-  }
-
-  // Fallback：按当前可见线性顺序，从根截到 target（含）
-  const visible = visibleMessages(items, headId || resolvedId);
-  let idx = visible.findIndex((m) => m.id === resolvedId);
-  if (idx < 0) {
-    // 再退：整条可见路径（以 head 为叶）
-    idx = visible.length - 1;
-  }
-  if (idx < 0) return path;
-  const byId = new Map(items.map((i) => [i.message.id, i]));
-  const linear: TreeItem[] = [];
-  for (let i = 0; i <= idx; i += 1) {
-    const row = byId.get(visible[i].id);
-    if (row) linear.push(row);
-  }
-  // 确保以 assistant 结尾
-  while (linear.length && linear[linear.length - 1].message.role !== "assistant") {
-    linear.pop();
-  }
-  return linear.length ? linear : path;
-}
-
-function treeItemsFromBranchItems(
-  branchItems: ReturnType<typeof messagesToBranchItems>,
-): TreeItem[] {
-  return branchItems.map((item) => ({
-    parentId: item.parentId,
-    message: {
-      ...item.message,
-      citations: (item.message.citations || []) as AiCitationLike[],
-      status: item.message.status as ReaderAskStoreMessage["status"],
-    },
-  }));
-}
+type TreeItem = ReaderAskTreeItem;
 
 export type ReaderAskSessionSummary = {
   id: string;
@@ -952,398 +707,43 @@ export function useReaderAskRuntime(options: {
     if (last?.id) setHeadId(last.id);
   }, []);
 
-  /** 新对话窗口：清空气泡，下次 ask 会 auto-create 新 conversation。 */
-  const newSession = useCallback(async () => {
-    if (sessionBusy) return;
-    // 生成中也允许开新窗：真 abort 在飞请求，防旧流写进新窗口
-    runAbortRef.current?.abort();
-    runAbortRef.current = null;
-    runningRef.current = false;
-    setIsRunning(false);
-    armReaderAiClickShield(900);
-    lockReaderAiNavigation(900);
-    setSessionBusy(true);
-    setSessionError("");
-    const token = ++switchTokenRef.current;
-    try {
-      await new Promise<void>((r) => {
-        window.setTimeout(r, 40);
-      });
-      if (token !== switchTokenRef.current) return;
-      const docId = documentIdRef.current
-        || `${(await remoteAnswerer?.getDocumentId?.()) || ""}`.trim();
-      documentIdRef.current = docId;
-      remoteAnswerer?.clearConversationId?.(docId);
-      setActiveConversationId("");
-      activeConversationIdRef.current = "";
-      setItems([]);
-      setHeadId(null);
-      clearThreadBranchSnapshot(jobId);
-      if (docId) await refreshSessions(docId);
-    } catch (error) {
-      console.warn("[reader-ai] new session failed", error);
-      setSessionError("无法创建新对话，请重试。");
-    } finally {
-      if (token === switchTokenRef.current) setSessionBusy(false);
-    }
-  }, [jobId, remoteAnswerer, refreshSessions, sessionBusy]);
+  const sessionBusyRef = useRef(sessionBusy);
+  sessionBusyRef.current = sessionBusy;
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
 
-  /** 切换已有会话窗口。 */
-  const switchSession = useCallback(async (conversationId: string) => {
-    const id = `${conversationId || ""}`.trim();
-    const current =
-      activeConversationIdRef.current
-      || remoteAnswerer?.getConversationId?.()
-      || "";
-    if (!id || id === current || sessionBusy) return;
-
-    // 生成中也允许切走：真 abort 在飞请求——旧流的 done 若继续，会把
-    // conversation_id 粘回旧会话、下一问落错线程（审计 P0-4）
-    runAbortRef.current?.abort();
-    runAbortRef.current = null;
-    runningRef.current = false;
-    setIsRunning(false);
-
-    // 短时隔离即可；过长会像「点了没反应 / 乱跳」
-    armReaderAiClickShield(1200);
-    lockReaderAiNavigation(1200);
-    setSessionBusy(true);
-    setSessionError("");
-    const token = ++switchTokenRef.current;
-
-    // 先切 UI 选中态 + 清空，避免仍显示上一会话内容
-    setActiveConversationId(id);
-    activeConversationIdRef.current = id;
-    setItems([]);
-    setHeadId(null);
-
-    const viewport = globalThis.document?.querySelector?.(
-      "[data-reader-ai-viewport]",
-    ) as HTMLElement | null;
-    if (viewport) viewport.dataset.suppressAutoscroll = "1";
-
-    try {
-      await new Promise<void>((r) => {
-        window.setTimeout(r, 80);
-      });
-      if (token !== switchTokenRef.current) return;
-
-      try {
-        (globalThis.document?.activeElement as HTMLElement | null)?.blur?.();
-      } catch {
-        // ignore
-      }
-
-      const docId = documentIdRef.current
-        || `${(await remoteAnswerer?.getDocumentId?.()) || ""}`.trim();
-      documentIdRef.current = docId;
-
-      const detail = await getConversation(id);
-      if (token !== switchTokenRef.current) return;
-
-      armReaderAiClickShield(800);
-      lockReaderAiNavigation(800);
-
-      const branchItems = messagesToBranchItems(detail.messages || []);
-      applyConversationTree(branchItems, detail.head_id);
-      remoteAnswerer?.setConversationId?.(id, docId);
-
-      // 本地快照与服务端对齐（按会话隔离）
-      if (branchItems.length) {
-        saveThreadBranchSnapshot(
-          jobId,
-          {
-            version: 1,
-            headId: `${detail.head_id || ""}`.trim()
-              || branchItems[branchItems.length - 1]?.message.id
-              || null,
-            items: branchItems as ThreadBranchItem[],
-          },
-          id,
-        );
-      } else {
-        clearThreadBranchSnapshot(jobId, id);
-      }
-
-      if (docId) await refreshSessions(docId);
-
-      // 只滚 AI 面板，不碰 PDF
-      requestAnimationFrame(() => {
-        const vp = globalThis.document?.querySelector?.(
-          "[data-reader-ai-viewport]",
-        ) as HTMLElement | null;
-        if (vp) {
-          vp.scrollTop = vp.scrollHeight;
-          window.setTimeout(() => {
-            delete vp.dataset.suppressAutoscroll;
-          }, 200);
-        }
-        armReaderAiClickShield(350);
-        lockReaderAiNavigation(350);
-      });
-    } catch (error) {
-      console.warn("[reader-ai] switch session failed", error);
-      if (token === switchTokenRef.current) {
-        setSessionError("加载该对话失败，请检查网络后重试。");
-        // 失败时不要假装已切换：恢复为空，避免展示错会话
-        setItems([]);
-        setHeadId(null);
-      }
-    } finally {
-      if (token === switchTokenRef.current) setSessionBusy(false);
-    }
-  }, [
-    applyConversationTree,
+  // 会话操作（新建/切换/删除/重命名/分支）拆到 ./session-operations.ts；
+  // 状态经 getter/setter、可变引用经 refs 袋注入，行为与内联实现一致。
+  const {
+    branchFromAnswer,
+    newSession,
+    removeSession,
+    renameSession,
+    switchSession,
+  } = useMemo(() => createReaderAskSessionOps({
     jobId,
     remoteAnswerer,
+    getSessionBusy: () => sessionBusyRef.current,
+    getSessions: () => sessionsRef.current,
+    setSessionBusy,
+    setSessionError,
+    setIsRunning,
+    setSessions,
+    setItems,
+    setHeadId,
+    setActiveConversationId,
     refreshSessions,
-    sessionBusy,
-  ]);
-
-  /**
-   * 从某条助手答案「开新对话」：
-   * 复制 root→该答案 的历史到新 conversation，原会话原样保留。
-   * 之后提问只带新会话上下文，避免原线程被续写污染（ChatGPT Branch in new chat）。
-   * @returns 是否成功
-   */
-  const branchFromAnswer = useCallback(async (assistantMessageId: string): Promise<boolean> => {
-    const forkId = `${assistantMessageId || ""}`.trim();
-    // 允许在 busy 时排队失败要有提示；生成中也可 fork（先停本地 running）
-    if (!forkId) {
-      setSessionError("无法分支：消息 id 无效。");
-      return false;
-    }
-    if (sessionBusy) {
-      setSessionError("请稍候，当前有会话操作进行中。");
-      return false;
-    }
-    if (runningRef.current) {
-      runningRef.current = false;
-      setIsRunning(false);
-    }
-
-    const path = pathForBranch(itemsRef.current, forkId, headIdRef.current);
-    if (!path.length) {
-      setSessionError("无法分支：找不到到此答案的对话路径。");
-      return false;
-    }
-    const last = path[path.length - 1];
-    if (last.message.role !== "assistant") {
-      setSessionError("只能从助手答案处开新对话。");
-      return false;
-    }
-
-    setSessionBusy(true);
-    setSessionError("");
-    try {
-      await new Promise<void>((resolve) => {
-        window.setTimeout(resolve, 40);
-      });
-
-      let docId = documentIdRef.current
-        || `${(await remoteAnswerer?.getDocumentId?.()) || ""}`.trim();
-      documentIdRef.current = docId;
-      if (!docId) {
-        // 再试一次解析
-        try {
-          docId = `${(await remoteAnswerer?.getDocumentId?.()) || ""}`.trim();
-          documentIdRef.current = docId;
-        } catch {
-          docId = "";
-        }
-      }
-      if (!docId) {
-        setSessionError("无法分支：文档未就绪，请稍后重试。");
-        return false;
-      }
-
-      // 线性化 parent，保证 fork 写入时父子链完整（不依赖可能断裂的旧 parentId）
-      const pathPayload = path.map((item, i) => ({
-        id: item.message.id,
-        role: item.message.role as "user" | "assistant",
-        content: item.message.content,
-        citations: item.message.citations,
-        parentId: i === 0 ? null : path[i - 1].message.id,
-      }));
-
-      // 标题：fork-n-xxx（xxx = 当前/原始对话名）
-      const currentId =
-        activeConversationIdRef.current
-        || remoteAnswerer?.getConversationId?.()
-        || "";
-      const currentRow = (sessions || []).find((s) => s.conversation_id === currentId);
-      const firstUser = pathPayload.find((p) => p.role === "user");
-      const sourceTitle =
-        `${currentRow?.title || ""}`.trim()
-        || `${firstUser?.content || ""}`.replace(/\s+/g, " ").trim()
-        || "未命名对话";
-      const existingTitles = (sessions || []).map((s) => s.title || "");
-      const branchTitle = nextForkConversationTitle(sourceTitle, existingTitles);
-
-      // 必须完整 fork 到服务端（含消息），禁止只建空会话
-      const forked = await forkConversationFromPath({
-        documentId: docId,
-        title: branchTitle,
-        path: pathPayload,
-      });
-      const nextItems = treeItemsFromBranchItems(forked.items);
-      const nextHead = nextItems[nextItems.length - 1]?.message.id || null;
-      const nextConvId = forked.conversation.conversation_id;
-      if (!nextConvId || !nextItems.length) {
-        throw new Error("fork returned empty conversation");
-      }
-
-      armReaderAiClickShield(600);
-      lockReaderAiNavigation(600);
-
-      // 切到新会话：原会话仍在列表里可切回
-      setItems(nextItems);
-      setHeadId(nextHead);
-      setActiveConversationId(nextConvId);
-      activeConversationIdRef.current = nextConvId;
-      remoteAnswerer?.setConversationId?.(nextConvId, docId);
-
-      // 乐观插入列表（带正确标题与消息数），再 refresh 对齐服务端
-      setSessions((prev) => {
-        const row: ConversationRecord = {
-          conversation_id: nextConvId,
-          title: branchTitle,
-          document_id: docId,
-          created_at: forked.conversation.created_at || new Date().toISOString(),
-          updated_at: forked.conversation.updated_at || new Date().toISOString(),
-          message_count: nextItems.length,
-          head_id: nextHead || "",
-        };
-        const without = prev.filter((s) => s.conversation_id !== nextConvId);
-        return [row, ...without];
-      });
-
-      saveThreadBranchSnapshot(
-        jobId,
-        snapshotFromTree(nextItems, nextHead),
-        nextConvId,
-      );
-      await refreshSessions(docId);
-
-      // 新对话：滚到末尾，方便接着问
-      requestAnimationFrame(() => {
-        const vp = globalThis.document?.querySelector?.(
-          "[data-reader-ai-viewport]",
-        ) as HTMLElement | null;
-        if (vp) {
-          delete vp.dataset.suppressAutoscroll;
-          vp.scrollTop = vp.scrollHeight;
-        }
-      });
-      return true;
-    } catch (error) {
-      console.warn("[reader-ai] branch from answer failed", error);
-      setSessionError("分支失败：未能复制上文到新对话。请检查网络后重试。");
-      return false;
-    } finally {
-      setSessionBusy(false);
-    }
-  }, [jobId, remoteAnswerer, refreshSessions, sessionBusy, sessions]);
-
-  /** 删除会话（服务端 + 本地快照）；删当前则切到最近一条或空窗。 */
-  const removeSession = useCallback(async (conversationId: string) => {
-    const id = `${conversationId || ""}`.trim();
-    if (!id || sessionBusy) return;
-    runningRef.current = false;
-    setIsRunning(false);
-    setSessionBusy(true);
-    setSessionError("");
-    const token = ++switchTokenRef.current;
-    try {
-      const docId = documentIdRef.current
-        || `${(await remoteAnswerer?.getDocumentId?.()) || ""}`.trim();
-      documentIdRef.current = docId;
-
-      try {
-        await deleteConversation(id);
-      } catch (error) {
-        const status = Number((error as { status?: number })?.status) || 0;
-        if (status !== 404) throw error;
-      }
-      clearThreadBranchSnapshot(jobId, id);
-
-      const current =
-        activeConversationIdRef.current
-        || remoteAnswerer?.getConversationId?.()
-        || "";
-      const deletingActive = current === id;
-
-      setSessions((prev) => prev.filter((s) => s.conversation_id !== id));
-
-      if (deletingActive) {
-        remoteAnswerer?.clearConversationId?.(docId);
-        setActiveConversationId("");
-        activeConversationIdRef.current = "";
-        setItems([]);
-        setHeadId(null);
-        clearThreadBranchSnapshot(jobId);
-
-        const list = docId
-          ? ((await listConversations({ document_id: docId, limit: 50 }).catch(
-            () => ({ conversations: [] as ConversationRecord[] }),
-          )).conversations || [])
-          : [];
-        if (token !== switchTokenRef.current) return;
-        setSessions(list);
-
-        const next = list[0];
-        if (next?.conversation_id) {
-          const nextId = next.conversation_id;
-          setActiveConversationId(nextId);
-          activeConversationIdRef.current = nextId;
-          try {
-            const detail = await getConversation(nextId);
-            if (token !== switchTokenRef.current) return;
-            applyConversationTree(
-              messagesToBranchItems(detail.messages || []),
-              detail.head_id,
-            );
-            remoteAnswerer?.setConversationId?.(nextId, docId);
-          } catch {
-            setItems([]);
-            setHeadId(null);
-          }
-        }
-      } else if (docId) {
-        await refreshSessions(docId);
-      }
-    } catch (error) {
-      console.warn("[reader-ai] delete session failed", error);
-      setSessionError("删除对话失败，请重试。");
-    } finally {
-      if (token === switchTokenRef.current) setSessionBusy(false);
-    }
-  }, [applyConversationTree, jobId, remoteAnswerer, refreshSessions, sessionBusy]);
-
-  /** 重命名会话标题。 */
-  const renameSession = useCallback(async (conversationId: string, title: string) => {
-    const id = `${conversationId || ""}`.trim();
-    const nextTitle = `${title || ""}`.replace(/\s+/g, " ").trim();
-    if (!id || !nextTitle || sessionBusy) return;
-    setSessionBusy(true);
-    setSessionError("");
-    try {
-      const clipped = nextTitle.slice(0, 80);
-      await patchConversation(id, { title: clipped });
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.conversation_id === id ? { ...s, title: clipped } : s,
-        ),
-      );
-      const docId = documentIdRef.current;
-      if (docId) await refreshSessions(docId);
-    } catch (error) {
-      console.warn("[reader-ai] rename session failed", error);
-      setSessionError("重命名失败，请重试。");
-    } finally {
-      setSessionBusy(false);
-    }
-  }, [refreshSessions, sessionBusy]);
+    applyConversationTree,
+    refs: {
+      runAbort: runAbortRef,
+      running: runningRef,
+      switchToken: switchTokenRef,
+      documentId: documentIdRef,
+      activeConversationId: activeConversationIdRef,
+      items: itemsRef,
+      headId: headIdRef,
+    },
+  }), [applyConversationTree, jobId, refreshSessions, remoteAnswerer]);
 
   // 问答完成后刷新会话列表标题/排序
   const prevRunning = useRef(false);

@@ -159,8 +159,9 @@ export function createReaderAskAnswerer({
       clearStoredConversationId({ jobId });
     },
     getDocumentId: () => resolveDocumentId(),
-    ensureLoaded: async () => {
+    ensureLoaded: async (_jobId?: string) => {
       // 预热 document_id;失败在 answer 时再报错
+      // （与 markdown-answerer 的 ensureLoaded(jobId) 保持同型，参数可忽略）
       const documentId = await resolveDocumentId();
       return Boolean(documentId);
     },
