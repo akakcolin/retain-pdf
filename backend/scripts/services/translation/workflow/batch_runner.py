@@ -3,6 +3,7 @@ from __future__ import annotations
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from queue import Empty, Queue
+import sys
 import time
 from typing import Callable
 
@@ -320,9 +321,21 @@ def run_translation_batches_parallel(
     finally:
         for executor in executors:
             executor.shutdown(wait=True, cancel_futures=False)
+        worker_error: Exception | None = None
         for future in worker_futures:
             if future.done() and future.exception() is not None:
-                raise future.exception()
+                worker_error = future.exception()
+                break
+        if worker_error is not None:
+            if sys.exc_info()[0] is None:
+                raise worker_error
+            # 主循环已在抛出更有诊断价值的异常（如 "queues stopped early"），
+            # worker 异常降级为日志，避免在 finally 中覆盖原始异常。
+            print(
+                f"book: translation worker also failed while another error was propagating: "
+                f"{type(worker_error).__name__}: {worker_error}",
+                flush=True,
+            )
     final_tail_stats = _drain_translation_tail_queue(
         translation_context=translation_context,
         result_applier=result_applier,

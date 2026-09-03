@@ -19,7 +19,7 @@ from services.translation.llm.shared.response_parsing import extract_single_item
 from services.translation.llm.shared.response_parsing import unwrap_translation_shell
 
 
-DEFAULT_BASE_URL = "https://api.deepseek.com/v1"
+DEFAULT_BASE_URL = transport.DEFAULT_BASE_URL
 DEFAULT_MODEL = "deepseek-v4-flash"
 DEFAULT_API_KEY_ENV = "DEEPSEEK_API_KEY"
 DEFAULT_API_KEY_FILE = "deepseek.env"
