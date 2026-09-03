@@ -10,43 +10,12 @@ use axum::Json;
 use serde_json::{json, Value};
 
 use crate::app::AppState;
-use crate::config::AiRuntimeConfig;
 use crate::error::AppError;
 use crate::models::api::ApiResponse;
-use crate::services::ai::AiDeps;
-use crate::services::ai::{run_ask, AskPayload, AskRequest, LlmClient};
-
-/// 合并启动期 env 配置与按请求携带的 LLM 凭据;缺 key 直接 400(避免打到上游才 401)。
-fn resolve_llm_settings(
-    config: &AiRuntimeConfig,
-    request: &AskRequest,
-) -> Result<(String, String, String), AppError> {
-    let api_key = if request.llm_api_key.trim().is_empty() {
-        config.llm_api_key.trim().to_string()
-    } else {
-        request.llm_api_key.trim().to_string()
-    };
-    if api_key.is_empty() {
-        return Err(AppError::bad_request(
-            "缺少 LLM API Key:请在前端凭据设置中填写模型 API Key。",
-        ));
-    }
-    let base_url = if request.llm_base_url.trim().is_empty() {
-        config.llm_base_url.trim_end_matches('/').to_string()
-    } else {
-        request
-            .llm_base_url
-            .trim()
-            .trim_end_matches('/')
-            .to_string()
-    };
-    let model = if request.llm_model.trim().is_empty() {
-        config.llm_model.clone()
-    } else {
-        request.llm_model.trim().to_string()
-    };
-    Ok((api_key, base_url, model))
-}
+use crate::routes::common::build_ai_route_deps;
+use crate::services::ai_api::{
+    ask, resolve_llm_settings, AiDeps, AskPayload, AskRequest, LlmClient,
+};
 
 fn payload_to_json(payload: &AskPayload) -> Value {
     serde_json::to_value(payload).expect("serialize AskPayload")
@@ -65,17 +34,18 @@ pub async fn ask_route(
             "question too long (max 4000 characters)",
         ));
     }
-    let (api_key, base_url, model) = resolve_llm_settings(&state.config.ai, &request)?;
-    let timeout_s = state.config.ai.llm_timeout_s;
+    let deps = build_ai_route_deps(&state);
+    let (api_key, base_url, model) = resolve_llm_settings(deps.ai, &request)?;
+    let timeout_s = deps.ai.llm_timeout_s;
 
     if !request.stream {
         let client = LlmClient::new(base_url, model, api_key, timeout_s);
-        let deps = AiDeps {
-            db: state.db.as_ref(),
-            data_root: &state.config.data_root,
-            config: &state.config.ai,
+        let ai_deps = AiDeps {
+            db: deps.db.as_ref(),
+            data_root: deps.data_root,
+            config: deps.ai,
         };
-        let result = run_ask(&deps, &request, &client, |_| {}).await?;
+        let result = ask(&ai_deps, &request, &client, |_| {}).await?;
         return Ok(Json(ApiResponse::ok(payload_to_json(&result))).into_response());
     }
 
@@ -86,17 +56,20 @@ pub async fn ask_route(
         let _ = on_delta_tx.try_send(json!({"type": "answer_delta", "text": text}));
     });
     let client = LlmClient::new(base_url, model, api_key, timeout_s).with_on_delta(on_delta);
-    let state = state.clone();
+    // 后台任务只持有克隆出的 owned 句柄,不克隆整个 AppState。
+    let db = Arc::clone(deps.db);
+    let data_root = deps.data_root.to_path_buf();
+    let ai_config = deps.ai.clone();
     let request = Arc::new(request);
     let tool_tx = tx.clone();
     let final_tx = tx;
     tokio::spawn(async move {
-        let deps = AiDeps {
-            db: state.db.as_ref(),
-            data_root: &state.config.data_root,
-            config: &state.config.ai,
+        let ai_deps = AiDeps {
+            db: db.as_ref(),
+            data_root: &data_root,
+            config: &ai_config,
         };
-        let result = run_ask(&deps, &request, &client, move |event| {
+        let result = ask(&ai_deps, &request, &client, move |event| {
             let _ = tool_tx.try_send(event);
         })
         .await;

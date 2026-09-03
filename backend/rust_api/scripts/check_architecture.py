@@ -50,6 +50,12 @@ ROUTE_STATE_RESOURCE_ALLOWLIST = {
 }
 
 ROUTE_SERVICE_IMPORT_ALLOWLIST = {
+    Path("src/routes/ai.rs"): (
+        "crate::services::ai_api::",
+    ),
+    Path("src/routes/translate.rs"): (
+        "crate::services::translate_api::",
+    ),
     Path("src/routes/glossaries.rs"): (
         "crate::services::glossary_api::",
     ),

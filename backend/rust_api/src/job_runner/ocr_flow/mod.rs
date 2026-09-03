@@ -38,7 +38,7 @@ use super::cancel_registry::is_cancel_requested_with_registry;
 use provider_transport::execute_provider_transport;
 pub use support::sync_parent_with_ocr_child;
 use support::{fail_missing_source_pdf, fail_ocr_transport, save_ocr_job};
-use text_layer::execute_text_layer_extraction;
+use text_layer::{prepare_text_layer_extraction, TextLayerPreparation};
 use workspace::OcrWorkspace;
 
 pub async fn execute_ocr_job(
@@ -48,8 +48,14 @@ pub async fn execute_ocr_job(
     parent_job_id: Option<String>,
 ) -> Result<JobRuntimeState> {
     if job.request_payload.ocr.skip_ocr {
-        return execute_text_layer_extraction(deps, job, output_job_id_override, parent_job_id)
-            .await;
+        let prepared =
+            prepare_text_layer_extraction(&deps, job, output_job_id_override, parent_job_id)
+                .await?;
+        // 回交 process runner 的决策统一收敛在编排层。
+        return match prepared {
+            TextLayerPreparation::Ready(job) => execute_process_job(deps, job, &[]).await,
+            TextLayerPreparation::Terminal(job) => Ok(job),
+        };
     }
     let provider_kind = parse_provider_kind(&job.request_payload.ocr.provider);
     job.status = JobStatusKind::Running;

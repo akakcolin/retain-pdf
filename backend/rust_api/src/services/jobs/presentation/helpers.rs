@@ -5,7 +5,7 @@ use crate::models::api::{
     to_absolute_url, BookSummaryView, JobFailureDiagnosticView, OcrJobSummaryView,
 };
 use crate::models::domain::{JobFailureInfo, JobSnapshot};
-use crate::models::TranslationLanguageMeta;
+use crate::models::request::TranslationLanguageMeta;
 use crate::storage_paths::resolve_source_pdf;
 
 pub(super) fn derive_display_name(db: &Db, job: &JobSnapshot) -> String {

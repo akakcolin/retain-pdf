@@ -1,4 +1,5 @@
 pub mod ai;
+pub mod ai_api;
 pub mod artifacts;
 pub(crate) mod book_projection;
 pub(crate) mod derived_artifacts;
@@ -12,4 +13,5 @@ pub mod library;
 pub mod library_api;
 pub mod provider_probe;
 pub mod runtime_gateway;
+pub mod translate_api;
 pub mod upload_api;

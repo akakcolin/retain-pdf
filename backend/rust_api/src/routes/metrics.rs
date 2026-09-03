@@ -3,14 +3,13 @@ use axum::http::{header, StatusCode};
 use axum::response::{IntoResponse, Response};
 
 use crate::metrics::render_prometheus;
+use crate::routes::common::build_metrics_route_deps;
 use crate::AppState;
 
 /// Prometheus text exposition, mounted unauthenticated next to `/health`.
 pub async fn metrics(State(state): State<AppState>) -> Response {
-    match state
-        .metrics
-        .snapshot(state.db.as_ref(), &state.config.data_root)
-    {
+    let deps = build_metrics_route_deps(&state);
+    match deps.metrics.snapshot(deps.db, deps.data_root) {
         Ok(snapshot) => (
             [(
                 header::CONTENT_TYPE,

@@ -1,11 +1,14 @@
 use std::collections::HashSet;
 use std::path::Path;
+use std::sync::Arc;
 
 use axum::http::{header, HeaderMap};
 use axum::Json;
 
 use crate::app::{build_jobs_facade_from_state, AppState};
-use crate::config::{DeepSeekRuntimeConfig, MineruRuntimeConfig, PaddleRuntimeConfig};
+use crate::config::{
+    AiRuntimeConfig, DeepSeekRuntimeConfig, MineruRuntimeConfig, PaddleRuntimeConfig,
+};
 use crate::db::Db;
 use crate::metrics::MetricsRegistry;
 use crate::models::api::ApiResponse;
@@ -146,6 +149,26 @@ pub fn build_health_route_deps(state: &AppState) -> HealthRouteDeps<'_> {
         db: state.db.as_ref(),
         metrics: &state.metrics,
         data_root: &state.config.data_root,
+    }
+}
+
+/// /metrics 与 /health 依赖形状一致(db + metrics + data_root),复用同一构建器。
+pub fn build_metrics_route_deps(state: &AppState) -> HealthRouteDeps<'_> {
+    build_health_route_deps(state)
+}
+
+pub struct AiRouteDeps<'a> {
+    /// Arc 句柄:SSE 路径要把 db 克隆进后台任务,非流式路径用 as_ref() 借用。
+    pub db: &'a Arc<Db>,
+    pub data_root: &'a Path,
+    pub ai: &'a AiRuntimeConfig,
+}
+
+pub fn build_ai_route_deps(state: &AppState) -> AiRouteDeps<'_> {
+    AiRouteDeps {
+        db: &state.db,
+        data_root: &state.config.data_root,
+        ai: &state.config.ai,
     }
 }
 
