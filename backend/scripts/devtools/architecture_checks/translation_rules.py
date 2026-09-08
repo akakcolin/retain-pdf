@@ -262,6 +262,7 @@ DEVTOOLS_TRANSLATION_INTERNAL_IMPORT_ALLOWLIST = {
     Path("inspect_translation_repair_candidates.py"),
     Path("job_debug_runner.py"),
     Path("replay_translation_item.py"),
+    Path("tp018_regression.py"),
     Path("translation_repair_runner.py"),
 }
 DEVTOOLS_TRANSLATION_INTERNAL_DIR_ALLOWLIST = {
