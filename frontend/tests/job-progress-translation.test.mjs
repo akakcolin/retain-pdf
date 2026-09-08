@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 import {
   collectStageProgressByKey,
   resolveDisplayedStagePresentation,
-} from "../src/js/job-status/job-stage-presentation.js";
-import { compositeTranslationProgressFromRecord } from "../src/js/job-status/job-stage-translation-progress.js";
-import { summarizeStageProgressText } from "../src/js/job-status/job-status-summary-progress.js";
+} from "../src/pages/home/features/status/job-stage-presentation.js";
+import { compositeTranslationProgressFromRecord } from "../src/pages/home/features/status/job-stage-translation-progress.js";
+import { summarizeStageProgressText } from "../src/pages/home/features/status/job-status-summary-progress.js";
 import { TRANSLATION_WORKFLOW_DIALOG } from "../src/js/features/translation-workflow-dialog/contract.js";
 
 test("english batch detail is not parsed as translation batch progress", () => {

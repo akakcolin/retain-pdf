@@ -1,4 +1,4 @@
-// 事件流列表:src/js/status-detail/events.js 的 buildEventsPresentation
+// 事件流列表:events.js(自 src/js/status-detail 迁入)的 buildEventsPresentation
 // (字符串模板拼接)的 JSX 重写,类名/结构照搬(蓝图 §1.1 判决表:events.js
 // markup 拼接部分不用,改读原始数据数组;逐条断言取代 markup 断言)。
 //

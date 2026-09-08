@@ -1,5 +1,5 @@
-import { TEXT_KEYS } from "../../dom/text-keys.js";
-import { $ } from "../../dom/query.js";
+import { TEXT_KEYS } from "../../../shared/dom/text-keys.js";
+import { $ } from "../../../shared/dom/query.js";
 import { APP_EVENTS } from "../../contracts/app-contract.js";
 
 export interface ResetMissingUploadStateOptions {

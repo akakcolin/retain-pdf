@@ -29,7 +29,7 @@ pub(crate) struct UploadStoreDeps<'a> {
     pub(crate) upload_max_bytes: u64,
     pub(crate) upload_max_pages: u32,
     pub(crate) upload_max_complexity: u64,
-    pub(crate) python_bin: &'a str,
+    pub(crate) render_rs_bin: &'a Path,
 }
 
 impl<'a> UploadStoreDeps<'a> {
@@ -39,7 +39,7 @@ impl<'a> UploadStoreDeps<'a> {
         upload_max_bytes: u64,
         upload_max_pages: u32,
         upload_max_complexity: u64,
-        python_bin: &'a str,
+        render_rs_bin: &'a Path,
     ) -> Self {
         Self {
             db,
@@ -47,7 +47,7 @@ impl<'a> UploadStoreDeps<'a> {
             upload_max_bytes,
             upload_max_pages,
             upload_max_complexity,
-            python_bin,
+            render_rs_bin,
         }
     }
 }
@@ -113,6 +113,7 @@ pub(crate) struct ReplayDeps<'a> {
     pub(crate) scripts_dir: &'a Path,
     pub(crate) python_bin: &'a str,
     pub(crate) data_root: &'a Path,
+    pub(crate) render_rs_bin: &'a Path,
 }
 
 impl<'a> ReplayDeps<'a> {
@@ -121,12 +122,14 @@ impl<'a> ReplayDeps<'a> {
         scripts_dir: &'a Path,
         python_bin: &'a str,
         data_root: &'a Path,
+        render_rs_bin: &'a Path,
     ) -> Self {
         Self {
             project_root,
             scripts_dir,
             python_bin,
             data_root,
+            render_rs_bin,
         }
     }
 }

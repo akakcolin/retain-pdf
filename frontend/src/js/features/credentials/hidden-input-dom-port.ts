@@ -1,4 +1,4 @@
-import { $ } from "../../dom/query.js";
+import { $ } from "../../../shared/dom/query.js";
 import {
   DEFAULT_OCR_PROVIDER,
   DEFAULT_TRANSLATION_PROVIDER,

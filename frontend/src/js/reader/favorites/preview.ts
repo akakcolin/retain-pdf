@@ -1,4 +1,4 @@
-import type { ReaderSelection } from "../types.js";
+import type { ReaderSelection } from "../../../pages/reader/legacy/types.js";
 
 export function captureSelectionPreview(selection: Partial<ReaderSelection> = {}) {
   const canvas = selection.pageElement?.querySelector?.("canvas") as HTMLCanvasElement | null;

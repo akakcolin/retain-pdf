@@ -36,7 +36,7 @@ import {
   isTerminalStatus,
 } from "../src/js/job/core.js";
 import { normalizeJobPayload } from "../src/js/job/normalize.js";
-import { buildJobPatchWithDisplayState } from "../src/js/job-status/job-display-state.js";
+import { buildJobPatchWithDisplayState } from "../src/pages/home/features/status/job-display-state.js";
 
 test("returnJobRuntimeToHome clears page range through upload state port", () => {
   const previousDocument = global.document;

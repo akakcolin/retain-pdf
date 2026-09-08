@@ -254,12 +254,14 @@ function pruneBundledMacPythonRuntime(root) {
         }
       }
       // pymupdf/pikepdf/lxml are unreachable from the desktop's worker flow:
-      // render/normalize/extract run natively (render_rs), and the always-Python
-      // translate worker lazy-imports fitz
-      // (translation/llm/domain_context.py),
-      // degrading sci domain inference instead of importing it.
-      // PIL is not imported by any bundled script. rendering_bridge is deleted
-      // (Python rendering tree retired), so no bridge ships into the bundle.
+      // render/normalize/extract/repair run natively (render_rs), and PyMuPDF is
+      // no longer a dependency (only the optional `fitz` extra). This pruning is
+      // defensive: it also strips them if a stale requirements file reinstalled
+      // them. The translate worker's lazy fitz import
+      // (translation/llm/domain_context.py) degrades sci domain inference when
+      // fitz is absent. PIL is not imported by any bundled script.
+      // rendering_bridge is deleted (Python rendering tree retired), so no
+      // bridge ships into the bundle.
       const removableSitePackages = [
         "fitz", "pymupdf", "core", // pymupdf
         "lxml", // pikepdf dependency

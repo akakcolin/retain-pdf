@@ -1,4 +1,4 @@
-import { $ } from "../../dom/query.js";
+import { $ } from "../../../shared/dom/query.js";
 import {
   CREDENTIAL_DOM_DATASETS,
   CREDENTIAL_DOM_IDS,

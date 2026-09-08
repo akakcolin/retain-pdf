@@ -1,0 +1,172 @@
+{
+  "schema": "translation_case_bundle_v1",
+  "captured_at": "2026-09-08",
+  "fixture": {
+    "job_root": "synthetic-tp018",
+    "item_id": "tp018-plain-prose-b000",
+    "description": "Control case without placeholders (plain route, no formula routing)",
+    "case_artifact": "",
+    "expected_contains": [],
+    "required_terms": [],
+    "forbidden_substrings": [],
+    "require_cjk": true,
+    "min_cjk_chars": 1,
+    "min_output_chars": 1,
+    "notes": "Synthetic formula-dense case; original TP-018 job 20260412152452-4abf73 is unreproducible."
+  },
+  "saved": {
+    "snapshot": {},
+    "item": {
+      "item_id": "tp018-plain-prose-b000",
+      "page_idx": 0,
+      "block_idx": 0,
+      "block_type": "text",
+      "math_mode": "placeholder",
+      "should_translate": true,
+      "classification_label": "",
+      "skip_reason": "",
+      "final_status": "",
+      "source_text": "This paragraph discusses the experimental setup and the measured outcomes in plain prose without any inline formula markers, so it should be translated through the ordinary body path.",
+      "protected_source_text": "This paragraph discusses the experimental setup and the measured outcomes in plain prose without any inline formula markers, so it should be translated through the ordinary body path.",
+      "protected_translated_text": "",
+      "translation_unit_id": "tp018-plain-prose-b000",
+      "translation_unit_kind": "single",
+      "translation_unit_member_ids": [
+        "tp018-plain-prose-b000"
+      ],
+      "translation_unit_protected_source_text": "This paragraph discusses the experimental setup and the measured outcomes in plain prose without any inline formula markers, so it should be translated through the ordinary body path.",
+      "translation_unit_protected_translated_text": "",
+      "translation_unit_translated_text": "",
+      "group_protected_source_text": "",
+      "group_protected_translated_text": "",
+      "group_translated_text": "",
+      "protected_map": [],
+      "formula_map": [],
+      "translation_unit_protected_map": [],
+      "group_protected_map": [],
+      "group_formula_map": [],
+      "translation_diagnostics": {},
+      "continuation_group": "",
+      "continuation_prev_text": "",
+      "continuation_next_text": "",
+      "continuation_decision": "",
+      "layout_mode": "single",
+      "layout_zone": "body",
+      "bbox": [
+        42,
+        88,
+        500,
+        200
+      ],
+      "metadata": {
+        "structure_role": "body",
+        "ocr_sub_type": "body",
+        "normalized_sub_type": "body"
+      },
+      "lines": [
+        {
+          "bbox": [
+            42,
+            88,
+            500,
+            200
+          ],
+          "spans": [
+            {
+              "type": "text",
+              "content": "This paragraph discusses the experimental setup and the measured outcomes in plain prose without any inline formula markers, so it should be translated through the ordinary body path."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "replay_input": {
+    "job_root": "synthetic-tp018",
+    "job_id": "synthetic-tp018",
+    "item_id": "tp018-plain-prose-b000",
+    "page_idx": 0,
+    "page_path": "synthetic/page-001.json",
+    "spec": {
+      "mode": "sci",
+      "math_mode": "placeholder",
+      "skip_title_translation": false,
+      "rule_profile_name": "general_sci",
+      "custom_rules_text": "",
+      "classify_batch_size": 12,
+      "workers": 1,
+      "model": "deepseek-chat",
+      "base_url": "https://api.deepseek.com/v1",
+      "glossary_entries": [],
+      "credential_ref": "env:RETAIN_TRANSLATION_API_KEY"
+    },
+    "page_payload": [
+      {
+        "item_id": "tp018-plain-prose-b000",
+        "page_idx": 0,
+        "block_idx": 0,
+        "block_type": "text",
+        "math_mode": "placeholder",
+        "should_translate": true,
+        "classification_label": "",
+        "skip_reason": "",
+        "final_status": "",
+        "source_text": "This paragraph discusses the experimental setup and the measured outcomes in plain prose without any inline formula markers, so it should be translated through the ordinary body path.",
+        "protected_source_text": "This paragraph discusses the experimental setup and the measured outcomes in plain prose without any inline formula markers, so it should be translated through the ordinary body path.",
+        "protected_translated_text": "",
+        "translation_unit_id": "tp018-plain-prose-b000",
+        "translation_unit_kind": "single",
+        "translation_unit_member_ids": [
+          "tp018-plain-prose-b000"
+        ],
+        "translation_unit_protected_source_text": "This paragraph discusses the experimental setup and the measured outcomes in plain prose without any inline formula markers, so it should be translated through the ordinary body path.",
+        "translation_unit_protected_translated_text": "",
+        "translation_unit_translated_text": "",
+        "group_protected_source_text": "",
+        "group_protected_translated_text": "",
+        "group_translated_text": "",
+        "protected_map": [],
+        "formula_map": [],
+        "translation_unit_protected_map": [],
+        "group_protected_map": [],
+        "group_formula_map": [],
+        "translation_diagnostics": {},
+        "continuation_group": "",
+        "continuation_prev_text": "",
+        "continuation_next_text": "",
+        "continuation_decision": "",
+        "layout_mode": "single",
+        "layout_zone": "body",
+        "bbox": [
+          42,
+          88,
+          500,
+          200
+        ],
+        "metadata": {
+          "structure_role": "body",
+          "ocr_sub_type": "body",
+          "normalized_sub_type": "body"
+        },
+        "lines": [
+          {
+            "bbox": [
+              42,
+              88,
+              500,
+              200
+            ],
+            "spans": [
+              {
+                "type": "text",
+                "content": "This paragraph discusses the experimental setup and the measured outcomes in plain prose without any inline formula markers, so it should be translated through the ordinary body path."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "replay": {},
+  "drift": {}
+}

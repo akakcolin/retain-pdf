@@ -5,17 +5,16 @@ import { createInitialState } from "../src/js/state/slices.js";
 import * as currentJobStateModule from "../src/js/features/job-runtime/current-job-state.js";
 import { createSecondaryResourceStatePort } from "../src/js/features/job-runtime/secondary-resource-cache.js";
 import { createJobRenderContextPort } from "../src/js/features/job-runtime/render-context.js";
-import { normalizedStageEventRecord } from "../src/js/job-status/job-stage-event-record.js";
-import { buildEventsPresentation } from "../src/js/status-detail/events.js";
-import { createStatusDetailPresenter } from "../src/js/status-detail/presenter.js";
+import { normalizedStageEventRecord } from "../src/pages/home/features/status/job-stage-event-record.js";
+import { buildEventsPresentation } from "../src/pages/home/features/status-detail/events.js";
+import { buildStatusDetailSnapshot } from "../src/pages/home/features/status-detail/snapshot.js";
 import {
   resolveStageHistoryDuration,
   stageHistoryDisplay,
 } from "../src/js/job/stage-history.js";
 import { resolveLiveDurations } from "../src/js/job/durations.js";
-import { buildStageHistoryPresentation } from "../src/js/status-detail/history.js";
-import { buildStatusCardSnapshot } from "../src/js/job-status/status-card-snapshot.js";
-import { buildJobStatusViewModel } from "../src/js/job-status/job-status-view-model.js";
+import { buildStageHistoryPresentation } from "../src/pages/home/features/status-detail/history.js";
+import { buildJobStatusViewModel } from "../src/pages/home/features/status/job-status-view-model.js";
 // bootstrap/status-detail-runtime-port.js 已随 cutover 删除;这是它的纯逻辑
 // 拷贝(job-runtime 三个 kept 端口的字面量组合,零 DOM),迁移指向 pages/home
 // 的同名实现(两者函数体完全一致,仅头部注释与相对导入路径不同)。
@@ -32,27 +31,27 @@ import {
 import {
   buildJobDetailEventViewModel,
   buildJobDetailStatusViewModel,
-} from "../src/js/job-detail/status-view-model.js";
-import { createJobDetailConfigPort } from "../src/js/job-detail/config-port.js";
-import { createJobDetailDataPort } from "../src/js/job-detail/data-port.js";
-import { createJobDetailResumePort } from "../src/js/job-detail/resume-port.js";
+} from "../src/pages/detail/legacy/status-view-model.js";
+import { createJobDetailConfigPort } from "../src/pages/detail/legacy/config-port.js";
+import { createJobDetailDataPort } from "../src/pages/detail/legacy/data-port.js";
+import { createJobDetailResumePort } from "../src/pages/detail/legacy/resume-port.js";
 import {
   renderJobDetailFailureSummary,
   renderJobDetailRuntimeSummary,
   summarizeMathMode,
-} from "../src/js/job-detail/summary.js";
+} from "../src/pages/detail/legacy/summary.js";
 import {
   isReaderActionEnabled,
   renderJobDetailActionLinks,
-} from "../src/js/job-detail/action-links.js";
+} from "../src/pages/detail/legacy/action-links.js";
 import {
   loadAndRenderMarkdownFlow,
-} from "../src/js/job-detail/markdown-flow.js";
-import { renderJobDetailOverview } from "../src/js/job-detail/overview-renderer.js";
+} from "../src/pages/detail/legacy/markdown-flow.js";
+import { renderJobDetailOverview } from "../src/pages/detail/legacy/overview-renderer.js";
 import {
   createJobDetailPageState,
   revokeJobDetailMarkdownImageUrls,
-} from "../src/js/job-detail/page-state.js";
+} from "../src/pages/detail/legacy/page-state.js";
 
 global.window ||= {};
 global.window.location ||= {
@@ -61,33 +60,8 @@ global.window.location ||= {
   pathname: "/",
 };
 
-test("status detail presenter owns snapshot fallback rendering", () => {
-  const calls = [];
-  const presenter = createStatusDetailPresenter({
-    renderSnapshotView: (snapshot) => {
-      calls.push(["view", snapshot.headline.jobId]);
-      return false;
-    },
-    renderSnapshotSections: (snapshot) => {
-      calls.push(["sections", snapshot.headline.jobId]);
-    },
-  });
-
-  const snapshot = presenter.renderDetails({
-    job_id: "job-status-detail-presenter",
-    status: "running",
-  }, { items: [] });
-
-  assert.equal(snapshot.headline.jobId, "job-status-detail-presenter");
-  assert.deepEqual(calls, [
-    ["view", "job-status-detail-presenter"],
-    ["sections", "job-status-detail-presenter"],
-  ]);
-});
-
 test("status detail snapshot runtime stage follows public presentation", () => {
-  const presenter = createStatusDetailPresenter();
-  const snapshot = presenter.renderDetails({
+  const snapshot = buildStatusDetailSnapshot({
     job_id: "job-status-detail-public-stage",
     status: "running",
     display_stage: "translation",
@@ -97,13 +71,13 @@ test("status detail snapshot runtime stage follows public presentation", () => {
     progress: { unit: "batch", current: 30, total: 100 },
   }, { items: [] });
 
+  assert.equal(snapshot.headline.jobId, "job-status-detail-public-stage");
   assert.equal(/render|prewarm|渲染/.test(snapshot.runtime.currentStage), false);
   assert.match(snapshot.runtime.currentStage, /translation|翻译|第 30\/100 批/);
 });
 
 test("status detail snapshot runtime stage follows normalized stage snapshot", () => {
-  const presenter = createStatusDetailPresenter();
-  const snapshot = presenter.renderDetails({
+  const snapshot = buildStatusDetailSnapshot({
     job_id: "job-status-detail-normalized-stage",
     status: "running",
     stage: "render_preprocess",
@@ -131,8 +105,7 @@ test("status detail snapshot runtime stage follows normalized stage snapshot", (
 });
 
 test("status detail snapshot does not use legacy user_stage as runtime public stage", () => {
-  const presenter = createStatusDetailPresenter();
-  const snapshot = presenter.renderDetails({
+  const snapshot = buildStatusDetailSnapshot({
     job_id: "job-status-detail-legacy-user-stage",
     status: "running",
     user_stage: "translation",
@@ -1216,9 +1189,7 @@ test("job status view model preserves status card snapshot fields", () => {
   };
 
   const viewModel = buildJobStatusViewModel(input);
-  const snapshot = buildStatusCardSnapshot(input);
 
-  assert.deepEqual(snapshot, viewModel);
   assert.equal(viewModel.jobId, "job-status-model");
   assert.equal(viewModel.stageKey, "done");
   assert.equal(viewModel.progressText, "已完成");

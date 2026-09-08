@@ -1,4 +1,4 @@
-import { TEXT_KEYS } from "../../dom/text-keys.js";
+import { TEXT_KEYS } from "../../../shared/dom/text-keys.js";
 
 export function resetStatusDetailRuntimeView({ setText, resetEventsList, activateDetailTab }: any) {
   setText(TEXT_KEYS.runtimeCurrentStage, "-");

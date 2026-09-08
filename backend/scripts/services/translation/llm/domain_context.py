@@ -70,7 +70,12 @@ def _domain_context_total_timeout() -> int:
 
 
 def extract_pdf_preview_text(source_pdf_path: Path, max_pages: int = 2) -> str:
-    import fitz  # deferred: desktop bundles no pymupdf; callers degrade on ImportError
+    try:
+        import fitz  # optional (AGPL) extra; absent in desktop/docker bundles
+    except ImportError:
+        # No text-layer preview: `infer_domain_context` falls back to the OCR
+        # preview text the caller already computed.
+        return ""
 
     doc = fitz.open(source_pdf_path)
     try:

@@ -20,10 +20,12 @@ impl<'a> JobsFacade<'a> {
         job_id: &str,
     ) -> Result<StageActionsView, AppError> {
         let job = load_job_or_404(self.command.db, job_id)?;
+        let entries = self.command.db.list_job_artifact_entries(&job.job_id)?;
         Ok(build_stage_actions_view(
             base_url,
             &job,
             self.command.control.data_root,
+            &entries,
         ))
     }
 
@@ -41,10 +43,15 @@ impl<'a> JobsFacade<'a> {
         }
 
         let source_job = load_job_or_404(self.command.db, source_job_id)?;
+        let entries = self
+            .command
+            .db
+            .list_job_artifact_entries(&source_job.job_id)?;
         let plan = stage_plan(
             &source_job,
             request.stage.clone(),
             self.command.control.data_root,
+            &entries,
         );
         if !plan.can_retry {
             return Err(AppError::bad_request(plan.disabled_reason));

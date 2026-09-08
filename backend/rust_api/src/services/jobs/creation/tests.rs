@@ -21,10 +21,26 @@ use super::prepare::prepare_ocr_input;
 use super::submit::create_translation_job;
 use super::upload::{store_pdf_upload, UploadedPdfInput};
 
-/// Resolve a python that can actually run `import fitz` — the upload repair
-/// path spawns it (`repair_pdf_with_pymupdf`). A bare `python` is not on PATH
-/// on macOS, so prefer `PYTHON_BIN`, then the repo venv (has PyMuPDF), then the
-/// platform default name.
+/// Resolve a `render_rs` binary — the upload repair path spawns it. Prefer
+/// `RENDER_RS_BIN`, then a built orchestrator binary, then a bare name.
+fn test_render_rs_bin() -> std::path::PathBuf {
+    if let Ok(bin) = std::env::var("RENDER_RS_BIN") {
+        let trimmed = bin.trim();
+        if !trimmed.is_empty() {
+            return std::path::PathBuf::from(trimmed);
+        }
+    }
+    let target_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../rendering_orchestrator/target");
+    for profile in ["debug", "release"] {
+        let candidate = target_dir.join(profile).join("render_rs");
+        if candidate.exists() {
+            return candidate;
+        }
+    }
+    std::path::PathBuf::from("render_rs")
+}
+
+/// Resolve the python used by the worker entrypoint config in tests.
 fn test_python_bin() -> String {
     if let Ok(bin) = std::env::var("PYTHON_BIN") {
         let trimmed = bin.trim();
@@ -63,7 +79,7 @@ fn test_state(test_name: &str) -> AppState {
         scripts_dir: scripts_dir.clone(),
         run_translate_only_script: scripts_dir.join("run_translate_only.py"),
         run_failure_ai_diagnosis_script: scripts_dir.join("diagnose_failure_with_ai.py"),
-        render_rs_bin: scripts_dir.join("render_rs"),
+        render_rs_bin: test_render_rs_bin(),
         uploads_dir,
         downloads_dir,
         jobs_db_path: data_root.join("db").join("jobs.db"),
@@ -111,7 +127,7 @@ fn submit_context<'a>(state: &'a AppState) -> JobSubmitDeps<'a> {
             state.config.upload_max_bytes,
             state.config.upload_max_pages,
             state.config.upload_max_complexity,
-            &state.config.python_bin,
+            &state.config.render_rs_bin,
         ),
         JobLaunchDeps::new(
             state.db.as_ref(),
@@ -350,7 +366,7 @@ async fn store_pdf_upload_rejects_non_pdf_filename() {
         0,
         0,
         0,
-        &state.config.python_bin,
+        &state.config.render_rs_bin,
         UploadedPdfInput {
             filename: "notes.txt".to_string(),
             bytes: b"not a pdf".to_vec(),
@@ -376,7 +392,7 @@ async fn store_pdf_upload_rejects_path_traversal_filename() {
         0,
         0,
         0,
-        &state.config.python_bin,
+        &state.config.render_rs_bin,
         UploadedPdfInput {
             filename: "../../../../tmp/evil.pdf".to_string(),
             bytes: build_test_pdf_bytes(),
@@ -403,7 +419,7 @@ async fn store_pdf_upload_rejects_absolute_path_filename() {
         0,
         0,
         0,
-        &state.config.python_bin,
+        &state.config.render_rs_bin,
         UploadedPdfInput {
             filename: "/etc/evil.pdf".to_string(),
             bytes: build_test_pdf_bytes(),
@@ -427,7 +443,7 @@ async fn store_pdf_upload_rejects_nul_byte_in_filename() {
         0,
         0,
         0,
-        &state.config.python_bin,
+        &state.config.render_rs_bin,
         UploadedPdfInput {
             filename: "evil.pdf\0.pdf".to_string(),
             bytes: build_test_pdf_bytes(),
@@ -451,7 +467,7 @@ async fn store_pdf_upload_rejects_backslash_traversal_filename() {
         0,
         0,
         0,
-        &state.config.python_bin,
+        &state.config.render_rs_bin,
         UploadedPdfInput {
             filename: "..\\..\\evil.pdf".to_string(),
             bytes: build_test_pdf_bytes(),
@@ -475,7 +491,7 @@ async fn store_pdf_upload_repairs_bad_xref_pdf() {
         0,
         0,
         0,
-        &state.config.python_bin,
+        &state.config.render_rs_bin,
         UploadedPdfInput {
             filename: "bad-xref.pdf".to_string(),
             bytes: build_pdf_with_bad_xref_bytes(),
@@ -499,7 +515,7 @@ async fn store_pdf_upload_rejects_high_complexity_pdf() {
         0,
         0,
         1,
-        &state.config.python_bin,
+        &state.config.render_rs_bin,
         UploadedPdfInput {
             filename: "complex.pdf".to_string(),
             bytes: build_test_pdf_bytes(),
@@ -525,7 +541,7 @@ async fn store_pdf_upload_accepts_high_complexity_budget() {
         0,
         0,
         u64::MAX,
-        &state.config.python_bin,
+        &state.config.render_rs_bin,
         UploadedPdfInput {
             filename: "complex-ok.pdf".to_string(),
             bytes: build_test_pdf_bytes(),

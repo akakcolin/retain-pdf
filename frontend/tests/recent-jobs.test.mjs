@@ -80,7 +80,7 @@ import {
   buildJobImageCandidateUrls,
   normalizeJobImageUrl,
 } from "../src/js/api/job-images.js";
-import { adaptJobStageSnapshot } from "../src/js/job-status/job-stage-contract-adapter.js";
+import { adaptJobStageSnapshot } from "../src/pages/home/features/status/job-stage-contract-adapter.js";
 import {
   RECENT_JOBS_IDS,
   RECENT_JOBS_PRIVATE_KEYS,

@@ -17,7 +17,7 @@ frontend/src/
 │   ├── api/           # HTTP / 后端契约
 │   ├── features/      # 命令式领域逻辑（mount*、ports、state）
 │   ├── reader/        # 旧 pdf.js 引擎 + 少量被新引擎复用的 ports
-│   ├── job-status/ job/ job-detail/ status-detail/  # 任务展示纯逻辑
+│   ├── job/ status-detail/  # 任务展示纯逻辑（job-detail → pages/detail/legacy，job-status → pages/home/features/status）
 │   ├── state/ config/ mock/ islands/ …
 └── styles/ components/ shared/ partials/
 ```
@@ -81,8 +81,8 @@ frontend/src/
 | 层 | 入口 / 路径 | js 依赖方式 |
 |----|-------------|-------------|
 | **A 新引擎（默认）** | `ReaderAppReactPdf` + `hooks/` `pdf/` `annotations/` `components/react-pdf/` | 只经 **`pages/reader/external.ts`** |
-| **B 共享 ports** | `js/reader` 子集：data/config/resource/pdf-document/page-state… | 经 external 出口；勿塞进 pdf-controller |
-| **C legacy** | `?engine=legacy` → `legacy/**` + **`js/reader` 命令式主力** | 允许直接 import `js/reader/**` |
+| **B 共享 ports** | `pages/reader/legacy` 子集：data/config/resource/pdf-document/page-state… | 经 external 出口；勿塞进 pdf-controller |
+| **C legacy** | `?engine=legacy` → **`pages/reader/legacy/**`**（引擎主力）+ `js/reader/{favorites,annotations,ai,downloads}` | legacy 可直接 import `js/reader/**` |
 
 详情：`pages/reader/README.md`、`js/reader/README.md`。
 
@@ -93,7 +93,7 @@ frontend/src/
 | 路径 | 规则 |
 |------|------|
 | `pages/detail/**` | js 只经 **`pages/detail/external.ts`** |
-| `js/job-detail/*` | overview / markdown / resume 命令式逻辑 |
+| `pages/detail/legacy/*` | overview / markdown / resume 命令式逻辑 |
 
 ---
 
@@ -102,7 +102,7 @@ frontend/src/
 | 目录 | 用途 |
 |------|------|
 | `api/` | 后端 API 客户端 |
-| `job-status/`、`job/`、`job-detail/` | 任务阶段 / 产物 / 详情页逻辑（detail + home status 共用） |
+| `job/` | 任务阶段 / 产物逻辑（detail + home status 共用）；`job-detail/` → `pages/detail/legacy/`，`job-status/` → `pages/home/features/status/` |
 | `status-detail/` | 状态详情 presenter（偏旧路径；与 `js/features/status-detail` 并存时以实际 import 为准） |
 | `state/`、`config/` | 全局 store 切片、runtime 配置 |
 | `islands/` | 可挂到旧 HTML 的小岛（如 library-search、reader-annotations） |
@@ -115,11 +115,11 @@ frontend/src/
 ## 死代码策略
 
 - **先文档、再删**：`rg` 无 importer 仍可能是动态路径或测试专用。
-- `js/reader` 几乎全部被 legacy 链路引用（含内部引用）。已删除无生产引用的 `ai/remote-answerer.ts`。
+- `js/reader` 顶层引擎已迁 `pages/reader/legacy/`；余下 `{favorites,annotations,ai,downloads}` 子目录仍被 legacy 链路引用（含内部引用）。
 - **`pages/home/features` → `src/js/*`**：经 `pages/home/composition/external.ts`。
 - **`pages/detail` → `src/js/*`**：经 `pages/detail/external.ts`。
 - **`pages/reader` 非 legacy → `src/js/*`**：经 `pages/reader/external.ts`；`legacy/**` 除外。
-- **不要**批量删除 `js/reader/favorites/*` 或 `pdf-renderer` 等——它们经 `selection-favorites` / `pdf-controller` 服务 `?engine=legacy`。
+- **不要**批量删除 `js/reader/favorites/*`——它们经 `pages/reader/legacy/selection-favorites` 服务 `?engine=legacy`。
 
 ---
 

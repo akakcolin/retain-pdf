@@ -1,5 +1,5 @@
 // 启动进度浮层:初始可见,进度文案/进度条/隐藏均由命令式 view 层驱动
-// (src/js/reader/view.js + progress-presenter.js),React 只渲染一次容器。
+// (src/pages/reader/legacy/view.js + progress-presenter.js),React 只渲染一次容器。
 
 export function ReaderBootLoading() {
   return (

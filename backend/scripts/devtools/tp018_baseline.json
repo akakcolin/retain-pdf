@@ -1,0 +1,101 @@
+{
+  "cases": {
+    "tp018-formula-window-12-b000": {
+      "elapsed_seconds": 1.574,
+      "empty_translation": false,
+      "english_residue": false,
+      "final_status": "translated",
+      "heavy_formula_split": false,
+      "item_id": "tp018-formula-window-12-b000",
+      "placeholder_regression": false,
+      "protocol_shell": false,
+      "route_path": [
+        "block_level",
+        "segmented"
+      ],
+      "segmented": true,
+      "windowed": false
+    },
+    "tp018-fragmented-formula-b000": {
+      "elapsed_seconds": 1.551,
+      "empty_translation": false,
+      "english_residue": false,
+      "final_status": "translated",
+      "heavy_formula_split": false,
+      "item_id": "tp018-fragmented-formula-b000",
+      "placeholder_regression": false,
+      "protocol_shell": false,
+      "route_path": [
+        "block_level",
+        "segmented"
+      ],
+      "segmented": true,
+      "windowed": false
+    },
+    "tp018-heavy-split-b000": {
+      "elapsed_seconds": 6.2,
+      "empty_translation": false,
+      "english_residue": false,
+      "final_status": "translated",
+      "heavy_formula_split": true,
+      "item_id": "tp018-heavy-split-b000",
+      "placeholder_regression": false,
+      "protocol_shell": false,
+      "route_path": [
+        "block_level",
+        "heavy_formula_split"
+      ],
+      "segmented": false,
+      "windowed": false
+    },
+    "tp018-inline-abbrev-b000": {
+      "elapsed_seconds": 1.085,
+      "empty_translation": false,
+      "english_residue": false,
+      "final_status": "translated",
+      "heavy_formula_split": false,
+      "item_id": "tp018-inline-abbrev-b000",
+      "placeholder_regression": false,
+      "protocol_shell": false,
+      "route_path": [
+        "block_level",
+        "segmented"
+      ],
+      "segmented": true,
+      "windowed": false
+    },
+    "tp018-plain-prose-b000": {
+      "elapsed_seconds": 0.655,
+      "empty_translation": false,
+      "english_residue": false,
+      "final_status": "translated",
+      "heavy_formula_split": false,
+      "item_id": "tp018-plain-prose-b000",
+      "placeholder_regression": false,
+      "protocol_shell": false,
+      "route_path": [
+        "block_level"
+      ],
+      "segmented": false,
+      "windowed": false
+    }
+  },
+  "note": "样本为公式密集同源合成用例（原始 job 20260412152452-4abf73 已不可复现）；record 写 before 观测，check 断言 windowed/耗时/检测器不回归。",
+  "observed": {
+    "case_count": 5,
+    "empty_translations": 0,
+    "english_residue": 0,
+    "failed_cases": 0,
+    "heavy_formula_split_cases": 1,
+    "placeholder_regressions": 0,
+    "protocol_shell": 0,
+    "segmented_cases": 3,
+    "total_seconds": 11.065,
+    "windowed_cases": 0
+  },
+  "schema": "retainpdf_tp018_baseline_v1",
+  "targets": {
+    "time_tolerance": 1.0
+  },
+  "updated_at": "2026-09-08"
+}

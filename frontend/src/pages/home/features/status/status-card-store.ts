@@ -8,7 +8,7 @@ import type { Store } from "../../composition/external.js";
 
 // 状态卡 store + presenter(蓝图 §2 features/status/,§4 生命周期)。
 //
-// 唯一 VM 源:job-status/status-card-runtime-source.js 的
+// 唯一 VM 源:status-card-runtime-source.js(自 js/job-status 迁入)的
 // buildRuntimeStatusCardSnapshot——直接镜像 components/status/
 // connected-job-status-card.js 的 createRuntimeStatusCardSource 语义:无论
 // renderMain(主轮询命中)还是 renderPatch(events/manifest/stageActions 三路
@@ -161,7 +161,7 @@ type CurrentJobStoreLike = {
 };
 
 type SecondaryResourceStoreLike = {
-  getSnapshot: () => import("../../../../js/job-status/status-card-runtime-source.js").SecondaryResourceSnapshot;
+  getSnapshot: () => import("./status-card-runtime-source.js").SecondaryResourceSnapshot;
 };
 
 export type StatusCardPresenterDeps = {

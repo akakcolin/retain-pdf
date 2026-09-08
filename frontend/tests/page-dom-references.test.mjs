@@ -4,7 +4,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
 // detail.html / reader.html 现由 esbuild 打包的 dist/{detail,reader}.bundle.js 挂载 React
-// 树(Phase 1 / 2b cutover),但 src/js/job-detail、src/js/reader 下保留的纯逻辑仍以
+// 树(Phase 1 / 2b cutover),但 src/pages/detail/legacy、src/js/reader(含
+// pages/reader/legacy)下保留的纯逻辑仍以
 // 字符串字面量引用 DOM id/class,esbuild 不做这类校验:id 改名、typo、删掉 CSS 类都只会
 // 在运行时静默失效(dom/query.js 的守卫会吞掉 null)。本测试交叉校验:job-detail / reader
 // 目录下 JS 出现的每个 "detail-*" / "reader-*" 字符串字面量,必须能在对应页面 HTML 的
@@ -24,16 +25,17 @@ const STYLES_ROOT = join(PROJECT_ROOT, "src/styles");
 // 已确认的历史遗留引用(运行时元素/类确实不存在)。新增条目前必须先人工确认,
 // 并注明原因;一旦引用恢复归属,下方的 hygiene 用例会强制从这里移除。
 const KNOWN_ORPHANS = {
-  "src/js/job-detail": Object.freeze([
+  "src/pages/detail/legacy": Object.freeze([
     // 模板生成的类,src/styles 中没有对应规则(无样式 div)
     "detail-artifact-meta",
   ]),
   "src/js/reader": Object.freeze([]),
+  "src/pages/reader/legacy": Object.freeze([]),
 };
 
 const PAGES = [
   {
-    jsDir: "src/js/job-detail",
+    jsDir: "src/pages/detail/legacy",
     prefix: "detail",
     htmlFile: "detail.html",
     // Phase 1 cutover 后 detail.html 只剩 #detail-root 挂载点,页面骨架
@@ -47,6 +49,14 @@ const PAGES = [
     htmlFile: "reader.html",
     // Phase 2b cutover 后 reader.html 只剩 #reader-root 挂载点,页面骨架
     // (id/class)改由 React 树渲染(照 detail 先例扫描新世界 JSX)。
+    jsxDir: "src/pages/reader",
+  },
+  {
+    // 顶层 reader 纯逻辑已随 ADR 0009 迁入 pages/reader/legacy;子目录
+    // (favorites/annotations/ai/downloads)仍留 js/reader,故两者都要扫。
+    jsDir: "src/pages/reader/legacy",
+    prefix: "reader",
+    htmlFile: "reader.html",
     jsxDir: "src/pages/reader",
   },
 ];

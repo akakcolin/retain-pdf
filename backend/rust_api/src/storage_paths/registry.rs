@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 
 use anyhow::Result;
 
@@ -333,7 +335,7 @@ fn push_optional_artifact(
         content_type: content_type.to_string(),
         ready,
         size_bytes,
-        checksum: None,
+        checksum: artifact_checksum(artifact_key, &resolved_path, artifact_kind),
         source_stage,
         created_at: now.to_string(),
         updated_at: now.to_string(),
@@ -381,12 +383,149 @@ fn push_virtual_artifact(
         content_type: content_type.to_string(),
         ready,
         size_bytes,
-        checksum: None,
+        checksum: artifact_checksum(artifact_key, &resolved_path, artifact_kind),
         source_stage,
         created_at: now.to_string(),
         updated_at: now.to_string(),
     });
     Ok(())
+}
+
+/// 断点恢复只复用这四个 checkpoint 产物，因此只有它们需要 sha256 基线。其余产物
+/// （渲染 PDF、调试输出）不在 resume 复用面上，算哈希纯属浪费。
+fn is_checkpoint_artifact_key(artifact_key: &str) -> bool {
+    [
+        ARTIFACT_KEY_SOURCE_PDF,
+        ARTIFACT_KEY_NORMALIZED_DOCUMENT_JSON,
+        ARTIFACT_KEY_TRANSLATION_MANIFEST_JSON,
+        ARTIFACT_KEY_TRANSLATIONS_DIR,
+    ]
+    .contains(&artifact_key)
+}
+
+/// checkpoint 产物的内容摘要：文件取 sha256；目录取递归摘要（相对路径排序后逐文件
+/// 哈希再合并，忽略临时文件）。非 checkpoint key 或路径不可读时返回 None。
+pub fn artifact_checksum(artifact_key: &str, path: &Path, artifact_kind: &str) -> Option<String> {
+    if !is_checkpoint_artifact_key(artifact_key) {
+        return None;
+    }
+    if artifact_kind == ARTIFACT_KIND_DIR {
+        directory_digest(path)
+    } else {
+        file_digest(path)
+    }
+}
+
+fn file_digest(path: &Path) -> Option<String> {
+    let metadata = std::fs::metadata(path).ok()?;
+    if !metadata.is_file() {
+        return None;
+    }
+    let cache_key = format!(
+        "file:{}:{}:{}",
+        path.display(),
+        metadata.len(),
+        modified_stamp(&metadata)
+    );
+    cached_checksum(cache_key, || {
+        let bytes = std::fs::read(path).ok()?;
+        Some(crate::db::documents::sha256_hex(&bytes))
+    })
+}
+
+fn directory_digest(dir: &Path) -> Option<String> {
+    if !std::fs::metadata(dir).ok()?.is_dir() {
+        return None;
+    }
+    let mut files: Vec<(String, PathBuf, u64, u128)> = Vec::new();
+    collect_digest_files(dir, dir, &mut files)?;
+    files.sort_by(|left, right| left.0.cmp(&right.0));
+    let mut signature = String::new();
+    for (relative, _, len, stamp) in &files {
+        signature.push_str(relative);
+        signature.push('\u{1f}');
+        signature.push_str(&len.to_string());
+        signature.push('\u{1f}');
+        signature.push_str(&stamp.to_string());
+        signature.push('\u{1e}');
+    }
+    let cache_key = format!(
+        "dir:{}:{}",
+        dir.display(),
+        crate::db::documents::sha256_hex(signature.as_bytes())
+    );
+    cached_checksum(cache_key, || {
+        let mut buffer: Vec<u8> = Vec::new();
+        for (relative, path, _, _) in &files {
+            let bytes = std::fs::read(path).ok()?;
+            buffer.extend_from_slice(relative.as_bytes());
+            buffer.push(0);
+            buffer.extend_from_slice(crate::db::documents::sha256_hex(&bytes).as_bytes());
+            buffer.push(b'\n');
+        }
+        Some(crate::db::documents::sha256_hex(&buffer))
+    })
+}
+
+fn collect_digest_files(
+    root: &Path,
+    dir: &Path,
+    out: &mut Vec<(String, PathBuf, u64, u128)>,
+) -> Option<()> {
+    for entry in std::fs::read_dir(dir).ok()? {
+        let entry = entry.ok()?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        // 忽略隐藏文件与 *.tmp：断电留下的半写文件不应污染基线。
+        if name.starts_with('.') || name.ends_with(".tmp") {
+            continue;
+        }
+        let path = entry.path();
+        let metadata = entry.metadata().ok()?;
+        if metadata.is_dir() {
+            collect_digest_files(root, &path, out)?;
+        } else if metadata.is_file() {
+            let relative = path
+                .strip_prefix(root)
+                .map(|item| item.to_string_lossy().replace('\\', "/"))
+                .unwrap_or_else(|_| name.clone());
+            out.push((relative, path, metadata.len(), modified_stamp(&metadata)));
+        }
+    }
+    Some(())
+}
+
+fn modified_stamp(metadata: &std::fs::Metadata) -> u128 {
+    metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0)
+}
+
+/// 进程内缓存：save_job 每次都会重算 checkpoint 摘要，大书逐页哈希很贵。键带上
+/// 大小与 mtime，内容变了自然失效。
+fn cached_checksum(cache_key: String, compute: impl FnOnce() -> Option<String>) -> Option<String> {
+    let cache = checksum_cache();
+    if let Ok(guard) = cache.lock() {
+        if let Some(hit) = guard.get(&cache_key) {
+            return Some(hit.clone());
+        }
+    }
+    let value = compute()?;
+    if let Ok(mut guard) = cache.lock() {
+        // 容量到顶直接清空：命中率掉一档，但缓存不会无界增长。
+        if guard.len() >= 4096 {
+            guard.clear();
+        }
+        guard.insert(cache_key, value.clone());
+    }
+    Some(value)
+}
+
+fn checksum_cache() -> &'static Mutex<HashMap<String, String>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 trait ArtifactRawPath {

@@ -89,6 +89,7 @@ async fn retry_stage_route_creates_render_job_by_default() {
         },
     );
     source_job.status = JobStatusKind::Succeeded;
+    seed_ocr_checkpoint_files(&state, &source_job);
     seed_translation_checkpoint_files(&state, &source_job);
     state.db.save_job(&source_job).expect("save source job");
 
@@ -133,6 +134,7 @@ async fn retry_stage_route_allows_in_place_render_when_requested() {
         },
     );
     source_job.status = JobStatusKind::Succeeded;
+    seed_ocr_checkpoint_files(&state, &source_job);
     seed_translation_checkpoint_files(&state, &source_job);
     state.db.save_job(&source_job).expect("save source job");
 
@@ -190,6 +192,7 @@ async fn retry_stage_route_applies_overrides_for_in_place_render() {
     source_job.request_payload.render.compile_workers = 1;
     source_job.request_payload.render.render_mode = "overlay".to_string();
     source_job.request_payload.runtime.timeout_seconds = 10;
+    seed_ocr_checkpoint_files(&state, &source_job);
     seed_translation_checkpoint_files(&state, &source_job);
     state.db.save_job(&source_job).expect("save source job");
 

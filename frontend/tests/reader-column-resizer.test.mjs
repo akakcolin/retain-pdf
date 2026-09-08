@@ -6,7 +6,7 @@ import {
   loadColumnWidths,
   saveColumnWidths,
   createReaderColumnResizer,
-} from "../src/js/reader/column-resizer.js";
+} from "../src/pages/reader/legacy/controllers/column-resizer.js";
 
 function memoryStorage(seed) {
   const map = new Map(seed ? Object.entries(seed) : []);

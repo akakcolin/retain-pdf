@@ -12,6 +12,7 @@
     "prepare:vendor": "node ./scripts/prepare-runtime-deps.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "check:any-budget": "node ./scripts/check-any-budget.mjs",
+    "check:js-ownership": "node ./scripts/check-js-ownership.mjs",
     "smoke:desktop-first-run": "node --import ./tests/helpers/register-jsx.mjs ./scripts/desktop-first-run-smoke.mjs",
     "smoke:homepage-actions": "python3 ./scripts/frontend-homepage-actions-smoke.py",
     "smoke:homepage": "python3 ./scripts/frontend-homepage-smoke.py",

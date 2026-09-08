@@ -44,22 +44,22 @@ before(async () => {
       href: "http://localhost/index.html",
     },
   };
-  readerDataPort = await import("../src/js/reader/data-port.js");
-  readerInteractionFlow = await import("../src/js/reader/interaction-flow.js");
-  readerPdfDocument = await import("../src/js/reader/pdf-document.js");
-  readerPageConfig = await import("../src/js/reader/config-port.js");
-  readerPageState = await import("../src/js/reader/page-state.js");
-  readerProgressPresenter = await import("../src/js/reader/progress-presenter.js");
-  readerResourceResolver = await import("../src/js/reader/resource-resolver.js");
-  readerRegionInteractions = await import("../src/js/reader/region-interactions.js");
+  readerDataPort = await import("../src/pages/reader/legacy/data-port.js");
+  readerInteractionFlow = await import("../src/pages/reader/legacy/interaction-flow.js");
+  readerPdfDocument = await import("../src/pages/reader/legacy/pdf-document.js");
+  readerPageConfig = await import("../src/pages/reader/legacy/config-port.js");
+  readerPageState = await import("../src/pages/reader/legacy/page-state.js");
+  readerProgressPresenter = await import("../src/pages/reader/legacy/progress-presenter.js");
+  readerResourceResolver = await import("../src/pages/reader/legacy/resource-resolver.js");
+  readerRegionInteractions = await import("../src/pages/reader/legacy/region-interactions.js");
   readerAiMarkdown = await import("../src/js/reader/ai/markdown-answerer.js");
   readerAiConfig = await import("../src/js/reader/ai/config.js");
-  readerModeController = await import("../src/js/reader/mode-controller.js");
-  readerChromeController = await import("../src/js/reader/chrome-controller.js");
-  readerView = await import("../src/js/reader/view.js");
-  readerFavoritesStorage = await import("../src/js/reader/favorites-storage.js");
-  readerAiContext = await import("../src/js/reader/ai-context.js");
-  readerViewerMountFlow = await import("../src/js/reader/viewer-mount-flow.js");
+  readerModeController = await import("../src/pages/reader/legacy/controllers/mode-controller.js");
+  readerChromeController = await import("../src/pages/reader/legacy/controllers/chrome-controller.js");
+  readerView = await import("../src/pages/reader/legacy/view.js");
+  readerFavoritesStorage = await import("../src/pages/reader/legacy/favorites-storage.js");
+  readerAiContext = await import("../src/pages/reader/legacy/ai-context.js");
+  readerViewerMountFlow = await import("../src/pages/reader/legacy/viewer-mount-flow.js");
   readerDialogRuntimePort = await import("../src/js/bootstrap/reader-dialog-runtime-port.js");
   readerDownloadResolve = await import("../src/js/reader/downloads/resolve.js");
 });
@@ -558,7 +558,7 @@ test("reader favorites can reopen a saved area selection", async () => {
       return 1;
     },
   };
-  const controller = (await import("../src/js/reader/selection-favorites.js")).createReaderSelectionFavorites({
+  const controller = (await import("../src/pages/reader/legacy/selection-favorites.js")).createReaderSelectionFavorites({
     documentRef,
     root,
     setReaderMode: (mode) => {
@@ -842,7 +842,7 @@ test("reader left drag clipping can be collected into the side drawer", async ()
     },
   };
   pageElement.ownerDocument = documentRef;
-  const controller = (await import("../src/js/reader/selection-favorites.js")).createReaderSelectionFavorites({
+  const controller = (await import("../src/pages/reader/legacy/selection-favorites.js")).createReaderSelectionFavorites({
     documentRef,
     drawerController: { open: (name) => drawerCalls.push(name) },
     root,

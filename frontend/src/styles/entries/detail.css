@@ -12,10 +12,9 @@
 @source "../../shared/**/*.{js,jsx,ts,tsx}";
 @source "../../components/**/*.{js,jsx,ts,tsx}";
 @source "../../lib/**/*.{js,jsx,ts,tsx}";
-/* detail 仍用 job-detail / job-status 文案与下载 */
+/* detail 仍用 js/job 与已迁入 pages 的 job-status 文案与下载（job-detail 已在 pages/detail/** 内） */
 @source "../../js/job/**/*.{js,ts}";
-@source "../../js/job-detail/**/*.{js,ts}";
-@source "../../js/job-status/**/*.{js,ts}";
+@source "../../pages/home/features/status/**/*.{js,jsx,ts,tsx}";
 @source "../../js/utils/**/*.{js,ts}";
 @source inline("detail-item detail-tab detail-tab-panel progress-bar mono button-link");
 

@@ -6,7 +6,7 @@ import { join } from "node:path";
 const PROJECT_ROOT = process.cwd();
 const JS_ROOT = join(PROJECT_ROOT, "src/js");
 
-const { TEXT_KEYS } = await import("../src/js/dom/text-keys.js");
+const { TEXT_KEYS } = await import("../src/shared/dom/text-keys.js");
 
 function listTsFiles(dir) {
   const out = [];

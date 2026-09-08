@@ -49,7 +49,6 @@
       "foundation/shared/job_dirs.py",
       "foundation/shared/stage_specs.py",
       "foundation/shared/structured_errors.py",
-      "runtime/pipeline/translation_stage.py",
       "services/pipeline_shared/direct_typst_math.py",
       "services/translation/artifacts/aggregator.py",
       "services/translation/core/payload/template_contract.py",
@@ -73,6 +72,7 @@
       "services/translation/llm/shared/orchestration/single_item_routes.py",
       "services/translation/llm/shared/prompt_building.py",
       "services/translation/llm/shared/prompt_protocols.py",
+      "services/translation/llm/shared/response_parsing.py",
       "services/translation/llm/validation/english_residue.py",
       "services/translation/services/agents/repair_pipeline.py",
       "services/translation/services/context/session_context.py",
@@ -86,7 +86,6 @@
       "import_name": "fitz",
       "package_name": "PyMuPDF",
       "runtime_files": [
-        "services/derived_artifacts/side_by_side_pdf.py",
         "services/translation/llm/domain_context.py"
       ],
       "devtool_files": [

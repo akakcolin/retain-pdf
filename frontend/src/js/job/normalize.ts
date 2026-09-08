@@ -8,7 +8,7 @@ import {
 } from "./core.js";
 import {
   adaptJobStageSnapshot,
-} from "../job-status/job-stage-contract-adapter.js";
+} from "../../pages/home/features/status/job-stage-contract-adapter.js";
 import { flattenStageSnapshot } from "./stage-snapshot-flatten.js";
 import type {
   JobArtifacts,

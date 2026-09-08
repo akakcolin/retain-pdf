@@ -3,7 +3,14 @@
 // 元信息（页数/大小/入库/合集）自左栏迁入：右栏不再空旷，左栏纯粹封面+主操作。
 
 import { IconLayers } from "../panels/ui.jsx";
-import { TitleMetaPanel } from "../panels/TitleMetaPanel.jsx";
+import { TitleMetaPanel, type TitleMetaPanelProps } from "../panels/TitleMetaPanel.jsx";
+
+type BookDetailOverviewTabProps = TitleMetaPanelProps & {
+  pageCount?: number;
+  bytes?: number;
+  addedAt?: string;
+  memberCollections?: string[];
+};
 
 function formatBytes(bytes) {
   const n = Number(bytes);
@@ -41,7 +48,7 @@ export function BookDetailOverviewTab({
   addedAt,
   memberCollections = [],
   ...titleMetaProps
-}) {
+}: BookDetailOverviewTabProps) {
   const sizeText = formatBytes(bytes);
   const dateText = formatDate(addedAt);
   return (

@@ -19,7 +19,6 @@
 @source "../../js/features/**/*.{js,jsx,ts,tsx}";
 @source "../../js/islands/**/*.{js,jsx,ts,tsx}";
 @source "../../js/job/**/*.{js,ts}";
-@source "../../js/job-status/**/*.{js,ts}";
 @source "../../js/api/**/*.{js,ts}";
 @source "../../js/config/**/*.{js,ts}";
 @source "../../js/contracts/**/*.{js,ts}";

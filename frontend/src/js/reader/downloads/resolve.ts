@@ -4,7 +4,7 @@ import {
 } from "../../job/artifacts.js";
 import { createReaderDialogRuntimePort } from "../../bootstrap/reader-dialog-runtime-port.js";
 import type { JobLike, ManifestPayload } from "../../job/types.js";
-import { resolveReaderSourcePdf } from "../resource-resolver.js";
+import { resolveReaderSourcePdf } from "../../../pages/reader/legacy/resource-resolver.js";
 
 export const READER_DOWNLOAD_ACTIONS = Object.freeze({
   source: {

@@ -38,6 +38,5 @@ pub struct LibraryDeps<'a> {
     pub output_root: &'a Path,
     pub downloads_dir: &'a Path,
     /// Used for document cover/thumbnail generation via derived_artifacts.
-    pub scripts_dir: &'a Path,
-    pub python_bin: &'a str,
+    pub render_rs_bin: &'a Path,
 }

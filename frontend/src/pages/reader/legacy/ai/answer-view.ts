@@ -6,8 +6,8 @@
 // message view 句柄:{ root, body } 指向 React 已提交的气泡元素
 // (root=article,body=.reader-ai-message-body-el),由组件 ref 回调填充。
 
-import { renderAiMarkdownFragment } from "../../../../js/reader/markdown-render.js";
-import type { PageAnchor } from "../../../../js/reader/types.js";
+import { renderAiMarkdownFragment } from "../markdown-render.js";
+import type { PageAnchor } from "../types.js";
 
 // agentic 工具事件的语义化文案(/api/v1/ai/ask 的 tool 事件)
 // 整本问答前端会过滤 list_documents；文案也避免「图书馆」感

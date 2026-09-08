@@ -6,41 +6,41 @@ import path from "node:path";
 import {
   collectStageProgressByKey,
   resolveDisplayedStagePresentation,
-} from "../src/js/job-status/job-stage-presentation.js";
-import { resolveJobDisplayState } from "../src/js/job-status/job-display-state.js";
+} from "../src/pages/home/features/status/job-stage-presentation.js";
+import { resolveJobDisplayState } from "../src/pages/home/features/status/job-display-state.js";
 import {
   publicStageKeyOf,
   summarizeStageKey,
-} from "../src/js/job-status/job-status-summary.js";
+} from "../src/pages/home/features/status/job-status-summary.js";
 import {
   publicSubstageKeyOf,
   stageSubtypeOfPayload,
-} from "../src/js/job-status/job-stage-substage-adapter.js";
+} from "../src/pages/home/features/status/job-stage-substage-adapter.js";
 import {
   eventStageForMatch,
   normalizedStageEventRecord,
   stagePayloadFromEventRecord,
-} from "../src/js/job-status/job-stage-event-record.js";
-import { progressFromEvent } from "../src/js/job-status/job-stage-event-progress.js";
+} from "../src/pages/home/features/status/job-stage-event-record.js";
+import { progressFromEvent } from "../src/pages/home/features/status/job-stage-event-progress.js";
 import {
   jobProgressRecord,
-} from "../src/js/job-status/job-stage-job-progress.js";
+} from "../src/pages/home/features/status/job-stage-job-progress.js";
 import {
   publicProgressOf,
   structuredProgressOf,
   legacyProgressOf,
-} from "../src/js/job-status/job-stage-progress-adapter.js";
-import { normalizeProgressRecordFromEventRecord } from "../src/js/job-status/job-stage-progress-record-normalizer.js";
+} from "../src/pages/home/features/status/job-stage-progress-adapter.js";
+import { normalizeProgressRecordFromEventRecord } from "../src/pages/home/features/status/job-stage-progress-record-normalizer.js";
 import {
   adaptJobEventStageSnapshot,
   adaptJobStageSnapshot,
-} from "../src/js/job-status/job-stage-contract-adapter.js";
+} from "../src/pages/home/features/status/job-stage-contract-adapter.js";
 import {
   hasCanonicalEventContract,
   progressUnitOf,
   structuredPublicStageOf,
-} from "../src/js/job-status/job-stage-event-contract.js";
-import { publicStageOf } from "../src/js/job-status/job-stage-presentation-utils.js";
+} from "../src/pages/home/features/status/job-stage-event-contract.js";
+import { publicStageOf } from "../src/pages/home/features/status/job-stage-presentation-utils.js";
 
 function collectSourceFiles(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -352,23 +352,6 @@ test("production status code does not import legacy compatibility facades", () =
       return blockedImports
         .filter((blocked) => source.includes(`/${blocked}`) || source.includes(`./${blocked}`) || source.includes(`../${blocked}`))
         .map((blocked) => `${path.relative(sourceRoot, file)} -> ${blocked}`);
-    });
-
-  assert.deepEqual(offenders, []);
-});
-
-test("production status code keeps legacy stage payload adapter isolated", () => {
-  const sourceRoot = path.resolve("src/js/job-status");
-  const allowedFiles = new Set([
-    "job-stage-event-record.js",
-  ]);
-  const offenders = collectSourceFiles(sourceRoot)
-    .filter((file) => !allowedFiles.has(path.relative(sourceRoot, file)))
-    .flatMap((file) => {
-      const source = fs.readFileSync(file, "utf8");
-      return source.includes("legacyStagePayloadFromEventRecord")
-        ? [path.relative(sourceRoot, file)]
-        : [];
     });
 
   assert.deepEqual(offenders, []);

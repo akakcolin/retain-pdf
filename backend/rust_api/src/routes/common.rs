@@ -92,7 +92,7 @@ pub struct UploadRouteDeps<'a> {
     pub upload_max_bytes: u64,
     pub upload_max_pages: u32,
     pub upload_max_complexity: u64,
-    pub python_bin: &'a str,
+    pub render_rs_bin: &'a Path,
 }
 
 pub fn build_upload_route_deps(state: &AppState) -> UploadRouteDeps<'_> {
@@ -102,7 +102,7 @@ pub fn build_upload_route_deps(state: &AppState) -> UploadRouteDeps<'_> {
         upload_max_bytes: state.config.upload_max_bytes,
         upload_max_pages: state.config.upload_max_pages,
         upload_max_complexity: state.config.upload_max_complexity,
-        python_bin: &state.config.python_bin,
+        render_rs_bin: &state.config.render_rs_bin,
     }
 }
 
@@ -130,8 +130,7 @@ pub fn build_library_route_deps(state: &AppState) -> LibraryRouteDeps<'_> {
             data_root: &state.config.data_root,
             output_root: &state.config.output_root,
             downloads_dir: &state.config.downloads_dir,
-            scripts_dir: &state.config.scripts_dir,
-            python_bin: &state.config.python_bin,
+            render_rs_bin: &state.config.render_rs_bin,
         },
         jobs: build_jobs_facade_from_state(state),
         default_port: state.config.port,

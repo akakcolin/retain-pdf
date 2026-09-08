@@ -27,8 +27,7 @@ fn ensure_document_image(
     source_pdf: &std::path::Path,
     kind: BookImageKind,
 ) -> Result<PathBuf, AppError> {
-    let artifact_deps =
-        derived_artifacts::DerivedArtifactDeps::new(deps.scripts_dir, deps.python_bin);
+    let artifact_deps = derived_artifacts::DerivedArtifactDeps::new(deps.render_rs_bin);
     derived_artifacts::preview::ensure_document_book_image(
         artifact_deps,
         deps.data_root,

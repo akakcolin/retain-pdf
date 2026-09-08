@@ -23,7 +23,7 @@ Regenerate with:
 
 | Import | Package | Runtime | Test | Example refs |
 | --- | --- | --- | --- | --- |
-| `fitz` | `PyMuPDF` | yes | no | `services/derived_artifacts/side_by_side_pdf.py`, `services/translation/llm/domain_context.py` |
+| `fitz` | `PyMuPDF` | yes | no | `services/translation/llm/domain_context.py` |
 | `pytest` | `pytest` | no | yes | `devtools/tests/d5_baseline/test_d5_baseline.py`, `devtools/tests/document_schema/test_document_v1_schema_parity.py`, `devtools/tests/document_schema/test_pipeline_shared_io_streaming.py` |
 | `requests` | `requests` | yes | yes | `services/network/retry.py`, `services/translation/llm/providers/deepseek/client.py`, `services/translation/llm/providers/deepseek/transport.py` |
 | `urllib3` | `urllib3` | yes | no | `services/network/retry.py`, `services/translation/llm/providers/deepseek/transport.py` |

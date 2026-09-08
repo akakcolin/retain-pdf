@@ -52,9 +52,17 @@ jobs:
           node -e "require('@tailwindcss/oxide')" \
             || npm install --no-save --no-package-lock "@tailwindcss/oxide@$(node -p "require('./node_modules/@tailwindcss/oxide/package.json').version")"
 
-      - name: Check `: any` budget does not grow
+      - name: "Check `: any` budget does not grow"
         working-directory: frontend
         run: npm run check:any-budget
+
+      - name: Check js/ ownership manifest is complete
+        working-directory: frontend
+        run: npm run check:js-ownership
+
+      - name: Typecheck frontend
+        working-directory: frontend
+        run: npm run typecheck
 
       - name: Verify desktop frontend generation
         env:

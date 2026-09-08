@@ -9,16 +9,13 @@ pub(crate) mod side_by_side;
 
 #[derive(Clone, Copy)]
 pub(crate) struct DerivedArtifactDeps<'a> {
-    pub(crate) scripts_dir: &'a Path,
-    pub(crate) python_bin: &'a str,
+    /// Native `render_rs` binary; derived-artifact rendering spawns it.
+    pub(crate) render_rs_bin: &'a Path,
 }
 
 impl<'a> DerivedArtifactDeps<'a> {
-    pub(crate) fn new(scripts_dir: &'a Path, python_bin: &'a str) -> Self {
-        Self {
-            scripts_dir,
-            python_bin,
-        }
+    pub(crate) fn new(render_rs_bin: &'a Path) -> Self {
+        Self { render_rs_bin }
     }
 }
 

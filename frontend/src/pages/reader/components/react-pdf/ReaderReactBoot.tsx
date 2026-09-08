@@ -1,3 +1,5 @@
+import type { ReactElement } from "react";
+
 export type ReaderReactBootProps = {
   loading: boolean;
   failed: boolean;
@@ -10,7 +12,7 @@ export function ReaderReactBoot({
   failed,
   text,
   percent,
-}: ReaderReactBootProps): JSX.Element | null {
+}: ReaderReactBootProps): ReactElement | null {
   if (!loading && !failed) {
     return null;
   }

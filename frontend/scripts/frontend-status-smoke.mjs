@@ -5,8 +5,8 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { resolveDisplayedStagePresentation } from "../src/js/job-status/job-stage-presentation.js";
-import { summarizeStageDetail, summarizeStageLabel } from "../src/js/job-status/job-status-summary.js";
+import { resolveDisplayedStagePresentation } from "../src/pages/home/features/status/job-stage-presentation.js";
+import { summarizeStageDetail, summarizeStageLabel } from "../src/pages/home/features/status/job-status-summary.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

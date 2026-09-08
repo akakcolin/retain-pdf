@@ -1,4 +1,4 @@
-import type { DragRectInput, PixelRect, RelativeRect } from "../types.js";
+import type { DragRectInput, PixelRect, RelativeRect } from "../../../pages/reader/legacy/types.js";
 
 export function clampRect(rect: DragRectInput): PixelRect {
   const left = Math.min(rect.startX, rect.endX);

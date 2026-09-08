@@ -2,9 +2,13 @@ use std::path::{Path, PathBuf};
 
 use crate::error::AppError;
 use crate::models::domain::JobSnapshot;
-use crate::process::python::PythonCommand;
 
 use super::{job_artifacts_dir, DerivedArtifactDeps};
+
+/// fitz `pix.save(output)` default JPEG quality (cover/thumbnail).
+const JPEG_QUALITY_DEFAULT: u8 = 95;
+/// fitz `pix.save(output, jpg_quality=82)` (page preview).
+const JPEG_QUALITY_PREVIEW: u8 = 82;
 
 #[derive(Clone, Copy)]
 pub(crate) enum BookImageKind {
@@ -62,7 +66,7 @@ fn ensure_book_image_at_path(
     if output_path.exists() && output_path.is_file() {
         return Ok(output_path.to_path_buf());
     }
-    render_book_image(deps.python_bin, source_pdf, output_path, kind.width_px())?;
+    render_book_image(deps.render_rs_bin, source_pdf, output_path, kind.width_px())?;
     Ok(output_path.to_path_buf())
 }
 
@@ -78,7 +82,7 @@ pub(crate) fn ensure_page_preview(
         return Ok(output_path.to_path_buf());
     }
     render_pdf_page_preview(
-        deps.python_bin,
+        deps.render_rs_bin,
         source_pdf,
         output_path,
         page_index,
@@ -89,86 +93,67 @@ pub(crate) fn ensure_page_preview(
 }
 
 fn render_book_image(
-    python_bin: &str,
+    render_rs_bin: &Path,
     source_pdf: &Path,
     output_path: &Path,
     width_px: u32,
 ) -> Result<(), AppError> {
-    let script = r#"
-import sys
-from pathlib import Path
-import fitz
-
-source = Path(sys.argv[1])
-output = Path(sys.argv[2])
-width_px = int(sys.argv[3])
-
-with fitz.open(source) as doc:
-    if doc.page_count < 1:
-        raise RuntimeError("source pdf has no pages")
-    page = doc[0]
-    scale = width_px / max(float(page.rect.width), 1.0)
-    pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    pix.save(output)
-"#;
-    let status = PythonCommand::new(python_bin)
-        .inline(script)
-        .arg(source_pdf)
-        .arg(output_path)
-        .arg(width_px.to_string())
-        .to_std_command()
-        .status()
-        .map_err(|error| AppError::internal(format!("failed to render book image: {error}")))?;
-    if !status.success() || !output_path.exists() {
-        return Err(AppError::internal("failed to render book image"));
-    }
-    Ok(())
+    // First page, scaled to width_px; fitz's default JPEG quality.
+    run_render_page_jpeg(
+        render_rs_bin,
+        source_pdf,
+        output_path,
+        0,
+        width_px,
+        0,
+        JPEG_QUALITY_DEFAULT,
+        "failed to render book image",
+    )
 }
 
 fn render_pdf_page_preview(
-    python_bin: &str,
+    render_rs_bin: &Path,
     source_pdf: &Path,
     output_path: &Path,
     page_index: u32,
     width_px: u32,
     dpi: u32,
 ) -> Result<(), AppError> {
-    let script = r#"
-import sys
-from pathlib import Path
-import fitz
+    run_render_page_jpeg(
+        render_rs_bin,
+        source_pdf,
+        output_path,
+        page_index,
+        width_px,
+        dpi,
+        JPEG_QUALITY_PREVIEW,
+        "failed to render page preview",
+    )
+}
 
-source = Path(sys.argv[1])
-output = Path(sys.argv[2])
-page_index = int(sys.argv[3])
-width_px = int(sys.argv[4])
-dpi = int(sys.argv[5])
-
-with fitz.open(source) as doc:
-    if page_index < 0 or page_index >= doc.page_count:
-        raise RuntimeError(f"page out of range: {page_index + 1}/{doc.page_count}")
-    page = doc[page_index]
-    if dpi > 0:
-        scale = dpi / 72.0
-    else:
-        scale = width_px / max(float(page.rect.width), 1.0)
-    pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    pix.save(output, jpg_quality=82)
-"#;
-    let status = PythonCommand::new(python_bin)
-        .inline(script)
+#[allow(clippy::too_many_arguments)]
+fn run_render_page_jpeg(
+    render_rs_bin: &Path,
+    source_pdf: &Path,
+    output_path: &Path,
+    page_index: u32,
+    width_px: u32,
+    dpi: u32,
+    quality: u8,
+    failure: &str,
+) -> Result<(), AppError> {
+    let status = std::process::Command::new(render_rs_bin)
+        .arg("--render-page-jpeg")
         .arg(source_pdf)
         .arg(output_path)
         .arg(page_index.to_string())
         .arg(width_px.to_string())
         .arg(dpi.to_string())
-        .to_std_command()
+        .arg(quality.to_string())
         .status()
-        .map_err(|error| AppError::internal(format!("failed to render page preview: {error}")))?;
+        .map_err(|error| AppError::internal(format!("{failure}: {error}")))?;
     if !status.success() || !output_path.exists() {
-        return Err(AppError::internal("failed to render page preview"));
+        return Err(AppError::internal(failure));
     }
     Ok(())
 }

@@ -9,6 +9,7 @@
 import {
   loadBrowserStoredConfig,
   loadDeveloperStoredConfig,
+  normalizeBrowserStoredConfig,
   createDeveloperState,
   setDeveloperConfig,
   createDesktopState,
@@ -62,7 +63,7 @@ export function createHomeComposition({
   fetchGlossaries = fetchGlossariesApi,
   submitUploadRequest = submitUploadRequestHttp,
   loadPersistedDeveloperConfig = () => safeLoad(loadDeveloperStoredConfig, {}),
-  loadPersistedBrowserConfig = () => safeLoad(loadBrowserStoredConfig, {}),
+  loadPersistedBrowserConfig = () => safeLoad(loadBrowserStoredConfig, normalizeBrowserStoredConfig()),
   validateOcrToken: validateOcrTokenOverride = null,
   validateDeepSeekToken: validateDeepSeekTokenOverride = validateDeepSeekToken,
   queryDeepSeekBalance: queryDeepSeekBalanceOverride = queryDeepSeekBalance,

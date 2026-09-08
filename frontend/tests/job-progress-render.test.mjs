@@ -4,10 +4,10 @@ import assert from "node:assert/strict";
 import {
   collectStageProgressByKey,
   resolveDisplayedStagePresentation,
-} from "../src/js/job-status/job-stage-presentation.js";
-import { compositeRenderProgressFromEvents } from "../src/js/job-status/job-stage-render-progress.js";
-import { shouldReplaceCurrentStageProgress } from "../src/js/job-status/job-stage-progress-replacement.js";
-import { stageProgressAdapterFor } from "../src/js/job-status/stage-progress-adapters.js";
+} from "../src/pages/home/features/status/job-stage-presentation.js";
+import { compositeRenderProgressFromEvents } from "../src/pages/home/features/status/job-stage-render-progress.js";
+import { shouldReplaceCurrentStageProgress } from "../src/pages/home/features/status/job-stage-progress-replacement.js";
+import { stageProgressAdapterFor } from "../src/pages/home/features/status/stage-progress-adapters.js";
 
 test("resolveDisplayedStagePresentation exposes composite render compile progress", () => {
   const job = {

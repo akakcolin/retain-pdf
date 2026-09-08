@@ -3,7 +3,7 @@
 // 语义拷贝自 components/status/job-status-card-selection.js 的
 // createStatusCardSelectionState(该文件属"死,由 StatusCard.jsx 家族替代"
 // 清单,js/components/ 禁止 import——这里重写为 useState 驱动,resolve 逻辑
-// 本身直接调 job-status/stage-flow-model.js 的 resolveSelectedStatusStage,
+// 本身直接调 stage-flow-model.js(自 js/job-status 迁入)的 resolveSelectedStatusStage,
 // 纯函数原样复用,不拷贝):
 // - 换 job(jobId 变化):selectedStageKey/manualStageSelection 复位;
 // - currentStageKey 推进(轮询命中新阶段):manualStageSelection 复位,除非

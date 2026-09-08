@@ -20,7 +20,7 @@ fn seed_document(state: &crate::AppState, content: &[u8]) -> String {
         fs::create_dir_all(parent).expect("upload dir");
     }
     // Prefer a tiny real PDF when content is not already PDF bytes so cover
-    // rendering (PyMuPDF) and source download both work in integration tests.
+    // rendering (render_rs) and source download both work in integration tests.
     let file_bytes = if content.starts_with(b"%PDF") {
         content.to_vec()
     } else {
@@ -1010,7 +1010,7 @@ async fn document_source_pdf_and_media_urls_work_without_job() {
         )
         .await
         .expect("cover response");
-    // Cover rendering depends on local PyMuPDF; accept 200 or skip soft if python missing.
+    // Cover rendering depends on a local render_rs binary; accept 200 or skip soft if missing.
     if response.status() == StatusCode::OK {
         assert_eq!(
             response.headers().get("content-type").unwrap(),

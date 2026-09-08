@@ -66,7 +66,7 @@ export function createStatusDomain({
       apiPrefix?: string,
       limit?: number,
       offset?: number,
-    ) => Promise<import("../../../js/job-status/types.js").EventsPayload | null | undefined>,
+    ) => Promise<import("../features/status/types.js").EventsPayload | null | undefined>,
     fetchJobDiagnostics,
     fetchResumePlan,
     fetchTranslationDiagnostics,

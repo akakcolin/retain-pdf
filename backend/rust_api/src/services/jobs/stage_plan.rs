@@ -1,8 +1,13 @@
 use std::path::{Component, Path};
 
 use crate::models::api::RetryStageKind;
-use crate::models::domain::{JobArtifacts, JobSnapshot, JobStatusKind, WorkflowKind};
-use crate::storage_paths::{resolve_data_path, TRANSLATION_MANIFEST_FILE_NAME};
+use crate::models::domain::{
+    JobArtifactRecord, JobArtifacts, JobSnapshot, JobStatusKind, WorkflowKind,
+};
+use crate::storage_paths::{
+    artifact_checksum, resolve_data_path, ARTIFACT_KEY_NORMALIZED_DOCUMENT_JSON,
+    ARTIFACT_KEY_SOURCE_PDF, ARTIFACT_KEY_TRANSLATIONS_DIR, TRANSLATION_MANIFEST_FILE_NAME,
+};
 
 #[derive(Debug, Clone)]
 pub(crate) struct JobStagePlan {
@@ -26,11 +31,15 @@ pub(crate) struct JobResumePlan {
     pub reason: Option<String>,
 }
 
-pub(crate) fn stage_plans(job: &JobSnapshot, data_root: &Path) -> Vec<JobStagePlan> {
+pub(crate) fn stage_plans(
+    job: &JobSnapshot,
+    data_root: &Path,
+    entries: &[JobArtifactRecord],
+) -> Vec<JobStagePlan> {
     vec![
-        stage_plan(job, RetryStageKind::Ocr, data_root),
-        stage_plan(job, RetryStageKind::Translation, data_root),
-        stage_plan(job, RetryStageKind::Render, data_root),
+        stage_plan(job, RetryStageKind::Ocr, data_root, entries),
+        stage_plan(job, RetryStageKind::Translation, data_root, entries),
+        stage_plan(job, RetryStageKind::Render, data_root, entries),
     ]
 }
 
@@ -38,8 +47,9 @@ pub(crate) fn stage_plan(
     job: &JobSnapshot,
     stage: RetryStageKind,
     data_root: &Path,
+    entries: &[JobArtifactRecord],
 ) -> JobStagePlan {
-    let availability = StageArtifactAvailability::from_job(job, data_root);
+    let availability = StageArtifactAvailability::from_job(job, data_root, entries);
     let running = matches!(job.status, JobStatusKind::Queued | JobStatusKind::Running);
     let mut plan = base_stage_plan(stage, &availability);
 
@@ -53,8 +63,12 @@ pub(crate) fn stage_plan(
     plan
 }
 
-pub(crate) fn resume_plan(job: &JobSnapshot, data_root: &Path) -> JobResumePlan {
-    let availability = StageArtifactAvailability::from_job(job, data_root);
+pub(crate) fn resume_plan(
+    job: &JobSnapshot,
+    data_root: &Path,
+    entries: &[JobArtifactRecord],
+) -> JobResumePlan {
+    let availability = StageArtifactAvailability::from_job(job, data_root, entries);
     if availability.translations_available {
         return JobResumePlan {
             can_resume: true,
@@ -189,26 +203,58 @@ struct StageArtifactAvailability {
 }
 
 impl StageArtifactAvailability {
-    fn from_job(job: &JobSnapshot, data_root: &Path) -> Self {
+    fn from_job(job: &JobSnapshot, data_root: &Path, entries: &[JobArtifactRecord]) -> Self {
         let artifacts = job.artifacts.as_ref();
         let has_request_source = has_request_source(job);
-        let source_artifact_available = has_artifact(artifacts, |item| &item.source_pdf);
+        // 路径存在还不够：磁盘现值必须与存盘时的 sha256 基线一致，否则产物可能被
+        // 断电写坏或被外部改动。基线缺失（旧行）或不匹配都降级重跑。
+        let source_artifact_available = has_artifact(artifacts, |item| &item.source_pdf)
+            && checkpoint_checksum_ok(entries, data_root, ARTIFACT_KEY_SOURCE_PDF);
         let source_available = has_request_source || source_artifact_available;
         Self {
             has_request_source,
             source_available,
             source_retryable_from_request: source_available && has_request_source,
             ocr_available: source_artifact_available
-                && has_artifact(artifacts, |item| &item.normalized_document_json),
+                && has_artifact(artifacts, |item| &item.normalized_document_json)
+                && checkpoint_checksum_ok(
+                    entries,
+                    data_root,
+                    ARTIFACT_KEY_NORMALIZED_DOCUMENT_JSON,
+                ),
             // 不仅要求 translations_dir 路径非空，还要求其内容完整（manifest 声明的
-            // 每页文件存在且非空）。断电/中断可能留下半个 translated 目录，若仅按路径
-            // 存在判定可续跑，resume 会信任残缺产物并产出损坏结果——这里校验失败即
-            // 降级到 translate 分支，而不是信任。
+            // 每页文件存在且非空）且目录摘要与基线一致。断电/中断可能留下半个
+            // translated 目录，若仅按路径存在判定可续跑，resume 会信任残缺产物并产出
+            // 损坏结果——这里校验失败即降级到 translate 分支，而不是信任。
             translations_available: source_artifact_available
                 && has_artifact(artifacts, |item| &item.translations_dir)
-                && translations_dir_intact(job, data_root),
+                && translations_dir_intact(job, data_root)
+                && checkpoint_checksum_ok(entries, data_root, ARTIFACT_KEY_TRANSLATIONS_DIR),
         }
     }
+}
+
+/// 磁盘现值是否等于存盘时记录的 sha256 基线。基线缺失（checksum 为 NULL，多为
+/// 本次改动前的旧行）也视为不可复用。
+fn checkpoint_checksum_ok(
+    entries: &[JobArtifactRecord],
+    data_root: &Path,
+    artifact_key: &str,
+) -> bool {
+    let Some(entry) = entries
+        .iter()
+        .find(|item| item.artifact_key == artifact_key)
+    else {
+        return false;
+    };
+    let Some(stored) = entry.checksum.as_deref().filter(|value| !value.is_empty()) else {
+        return false;
+    };
+    let Ok(path) = resolve_data_path(data_root, &entry.relative_path) else {
+        return false;
+    };
+    artifact_checksum(artifact_key, &path, &entry.artifact_kind)
+        .is_some_and(|current| current == stored)
 }
 
 /// translations_dir 是否完整：`translation-manifest.json` 存在且可解析，且其中

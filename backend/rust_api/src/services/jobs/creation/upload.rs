@@ -6,7 +6,10 @@ use tokio::io::AsyncWriteExt;
 use crate::db::Db;
 use crate::error::AppError;
 use crate::models::domain::{build_job_id, now_iso, UploadRecord};
-use crate::process::python::PythonCommand;
+
+/// Hard cap on the native repair subprocess (a hostile PDF must not pin the
+/// worker indefinitely).
+const PDF_REPAIR_TIMEOUT_SECS: u64 = 30;
 
 #[derive(Debug)]
 pub struct UploadedPdfInput {
@@ -48,13 +51,21 @@ pub async fn store_pdf_upload(
     upload_max_bytes: u64,
     upload_max_pages: u32,
     upload_max_complexity: u64,
-    python_bin: &str,
+    render_rs_bin: &Path,
     upload: UploadedPdfInput,
 ) -> Result<UploadRecord, AppError> {
     if !upload.filename.to_lowercase().ends_with(".pdf") {
         return Err(AppError::bad_request("uploaded file must be a PDF"));
     }
     let byte_count = upload.bytes.len() as u64;
+    // Size gate runs before the repair subprocess: a hostile oversized upload
+    // must not buy 30s of worker time.
+    if upload_max_bytes > 0 && byte_count > upload_max_bytes {
+        return Err(AppError::bad_request(format!(
+            "当前服务限制：PDF 文件大小必须不超过 {:.2}MB",
+            upload_max_bytes as f64 / 1024.0 / 1024.0
+        )));
+    }
     let upload_id = build_job_id();
     let upload_dir = uploads_dir.join(&upload_id);
     tokio::fs::create_dir_all(&upload_dir).await?;
@@ -64,14 +75,14 @@ pub async fn store_pdf_upload(
     f.write_all(&upload.bytes).await?;
     f.flush().await?;
 
-    let page_count = load_pdf_page_count_or_repair(&upload_path, python_bin).await?;
+    let page_count = load_pdf_page_count_or_repair(
+        &upload_path,
+        render_rs_bin,
+        upload_max_bytes,
+        upload_max_pages,
+    )
+    .await?;
 
-    if upload_max_bytes > 0 && byte_count > upload_max_bytes {
-        return Err(AppError::bad_request(format!(
-            "当前服务限制：PDF 文件大小必须不超过 {:.2}MB",
-            upload_max_bytes as f64 / 1024.0 / 1024.0
-        )));
-    }
     if upload_max_pages > 0 && page_count > upload_max_pages {
         return Err(AppError::bad_request(format!(
             "当前服务限制：PDF 页数必须不超过 {} 页",
@@ -107,11 +118,16 @@ pub async fn store_pdf_upload(
     Ok(record)
 }
 
-async fn load_pdf_page_count_or_repair(path: &Path, python_bin: &str) -> Result<u32, AppError> {
+async fn load_pdf_page_count_or_repair(
+    path: &Path,
+    render_rs_bin: &Path,
+    max_output_bytes: u64,
+    max_pages: u32,
+) -> Result<u32, AppError> {
     match load_pdf_page_count(path) {
         Ok(page_count) => Ok(page_count),
         Err(original_error) => {
-            repair_pdf_with_pymupdf(path, python_bin)
+            repair_pdf_via_render_rs(path, render_rs_bin, max_output_bytes, max_pages)
                 .await
                 .map_err(|repair_error| {
                     AppError::bad_request(format!(
@@ -132,29 +148,36 @@ fn load_pdf_object_count(path: &Path) -> Result<u64, lopdf::Error> {
     Document::load(path).map(|doc| doc.objects.len() as u64)
 }
 
-async fn repair_pdf_with_pymupdf(path: &Path, python_bin: &str) -> Result<(), String> {
+async fn repair_pdf_via_render_rs(
+    path: &Path,
+    render_rs_bin: &Path,
+    max_output_bytes: u64,
+    max_pages: u32,
+) -> Result<(), String> {
     let repaired_path = path.with_extension("repairing.pdf");
     let _ = tokio::fs::remove_file(&repaired_path).await;
-    let script = r#"
-import pathlib
-import sys
-
-import fitz
-
-source = pathlib.Path(sys.argv[1])
-target = pathlib.Path(sys.argv[2])
-doc = fitz.open(source)
-doc.save(target, garbage=4, deflate=True)
-doc.close()
-"#;
-    let output = PythonCommand::new(python_bin)
-        .inline(script)
+    let mut command = tokio::process::Command::new(render_rs_bin);
+    command
+        .arg("--repair-pdf")
         .arg(path)
         .arg(&repaired_path)
-        .to_tokio_command()
-        .output()
-        .await
-        .map_err(|e| e.to_string())?;
+        .arg(max_output_bytes.to_string())
+        .arg(max_pages.to_string())
+        .kill_on_drop(true);
+    let output = match tokio::time::timeout(
+        std::time::Duration::from_secs(PDF_REPAIR_TIMEOUT_SECS),
+        command.output(),
+    )
+    .await
+    {
+        Ok(result) => result.map_err(|e| e.to_string())?,
+        Err(_) => {
+            let _ = tokio::fs::remove_file(&repaired_path).await;
+            return Err(format!(
+                "render_rs repair timed out after {PDF_REPAIR_TIMEOUT_SECS}s"
+            ));
+        }
+    };
     if !output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -165,7 +188,7 @@ doc.close()
             .join("\n");
         let _ = tokio::fs::remove_file(&repaired_path).await;
         return Err(if detail.is_empty() {
-            format!("python repair exited with {}", output.status)
+            format!("render_rs repair exited with {}", output.status)
         } else {
             detail
         });

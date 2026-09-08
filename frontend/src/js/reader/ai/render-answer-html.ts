@@ -10,7 +10,7 @@
 // 唯一的消毒关卡——改动必须过 tests/render-answer-html.test.mjs 的向量锁。
 
 import { Marked } from "marked";
-import { parseMarkdownWithMath } from "../markdown-math.js";
+import { parseMarkdownWithMath } from "../../../pages/reader/legacy/markdown-math.js";
 
 const CITE_PREFIX = "\uE010CITE_";
 const CITE_SUFFIX = "\uE011";

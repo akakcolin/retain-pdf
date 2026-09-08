@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 
 const PROJECT_ROOT = process.cwd();
 const JS_ROOT = join(PROJECT_ROOT, "src/js");
@@ -16,7 +16,8 @@ const SOURCE_ROOTS = {
   desktop: join(JS_ROOT, "desktop"),
   features: FEATURE_ROOT,
   job: join(JS_ROOT, "job"),
-  jobDetail: join(JS_ROOT, "job-detail"),
+  // ADR 0009 ⑤：job-detail 已迁 pages/detail/legacy，扫描根随之搬家
+  jobDetail: join(PROJECT_ROOT, "src/pages/detail/legacy"),
   jobStatus: join(JS_ROOT, "job-status"),
   reader: join(JS_ROOT, "reader"),
   state: join(JS_ROOT, "state"),
@@ -325,18 +326,24 @@ test("job helpers keep job-runtime feature access behind explicit runtime ports"
 
 test("job stage history presentation helpers are owned by the job layer", () => {
   const stageHistorySource = readSource(join(SOURCE_ROOTS.job, "stage-history.js"));
-  const statusDetailUtilsSource = readSource(join(SOURCE_ROOTS.statusDetail, "utils.js"));
-  const jobDetailOffenders = walkFiles(SOURCE_ROOTS.jobDetail)
+  const statusDetailUtilsSource = readSource(join(PROJECT_ROOT, "src/pages/home/features/status-detail/utils.js"));
+  const statusDetailPortSource = readSource(join(PROJECT_ROOT, "src/pages/home/features/status-detail/external.js"));
+  const jobDetailFiles = walkFiles(SOURCE_ROOTS.jobDetail);
+  assert.ok(jobDetailFiles.length > 0, "jobDetail 扫描根为空——模块迁址后需同步本门禁");
+  const jobDetailOffenders = jobDetailFiles
     .filter((file) => {
       const source = readSource(file);
+      // 路径匹配用后缀，不写死相对层级：utils.ts 已随 ADR 0009 迁往 pages/，
+      // job-detail 若回头依赖它，相对路径会变成 ../../pages/...，仍要被拦下。
       return source.includes("stageHistoryDisplay")
-        && source.includes("../status-detail/utils.js");
+        && source.includes("status-detail/utils.js");
     })
     .map((file) => relativeToProject(file));
 
   assert.match(stageHistorySource, /stageHistoryDisplay/);
   assert.match(stageHistorySource, /resolveStageHistoryDuration/);
-  assert.match(statusDetailUtilsSource, /..\/job\/stage-history\.js/);
+  assert.match(statusDetailPortSource, /job\/stage-history\.js/);
+  assert.match(statusDetailUtilsSource, /\.\/external\.js/);
   assert.deepEqual(jobDetailOffenders, []);
 });
 
@@ -534,6 +541,7 @@ test("React 新世界禁止 import 旧视图层(防回弹)", () => {
     // 只拦旧世界的 src/js/components/;新世界页面自身的 components/ 子目录
     // (src/pages/*/components/,目录约定)不在此列
     [/from\s+["'][^"']*\/js\/components\//, "src/js/components/(自定义元素/对话框视图)"],
+    [/from\s+["'][^"']*\/js\/ui\//, "src/js/ui/(旧 UI 适配层)"],
     [/from\s+["'][^"']*\/generated\//, "src/js/generated/(预编译产物)"],
     [/from\s+["'][^"']*\/bootstrap\//, "src/js/bootstrap/(旧 DI 装配层)"],
     [/from\s+["'][^"']*\/features\/[^"']*\/view\.js["']/, "features/*/view.js(旧 DOM 视图)"],
@@ -541,7 +549,6 @@ test("React 新世界禁止 import 旧视图层(防回弹)", () => {
     [/from\s+["'][^"']*\/features\/[^"']*dom-contract\.js["']/, "features/*dom-contract.js(旧 DOM 契约)"],
     [/from\s+["'][^"']*\/features\/[^"']*card-markup\.js["']/, "features/*card-markup.js(字符串模板)"],
     [/from\s+["'][^"']*\/features\/[^"']*card-template\.js["']/, "features/*card-template.js(字符串模板)"],
-    [/from\s+["'][^"']*\/js\/dom\//, "src/js/dom/(旧 DOM 工具)"],
   ];
 
   function walkReactFiles(root) {
@@ -610,6 +617,7 @@ test("纯逻辑核心(src/js/{api,contracts,config,job,state,status-detail,utils
     .filter((root) => existsSync(root));
   const FORBIDDEN_PRESENTATION_PATTERNS = [
     [/from\s+["'][^"']*\.\.\/dom\//, "src/js/dom/(旧 DOM 工具)"],
+    [/from\s+["'][^"']*shared\/dom\//, "src/shared/dom/(DOM 工具,仅 UI 层可用)"],
     [/from\s+["'][^"']*\.\.\/components\//, "src/js/components/(旧视图组件)"],
     [/from\s+["'][^"']*\.\.\/ui\//, "src/js/ui/(旧 UI 适配层)"],
     [REACT_FAMILY_IMPORT_PATTERN, "react/react-dom"],
@@ -654,7 +662,12 @@ function pageHasDirectJsImport(source) {
 test("home features must not import src/js/* directly (use composition/external)", () => {
   const offenders = walkFiles(HOME_FEATURES_ROOT)
     .filter((file) => /\.(?:ts|tsx|js|jsx)$/.test(file))
-    .filter((file) => pageHasDirectJsImport(readSource(file)))
+    .filter((file) => {
+      // 每个 feature 可有自己的 external.ts 端口（ADR 0009 收敛）；其余文件仍只走端口。
+      const base = relative(HOME_FEATURES_ROOT, file).replace(/\\/g, "/");
+      if (base === "external.ts" || base.endsWith("/external.ts")) return false;
+      return pageHasDirectJsImport(readSource(file));
+    })
     .map((file) => relative(HOME_FEATURES_ROOT, file));
 
   assert.deepEqual(
@@ -672,6 +685,7 @@ test("detail page must not import src/js/* directly (use pages/detail/external)"
     .filter((file) => {
       const base = relative(DETAIL_PAGE_ROOT, file).replace(/\\/g, "/");
       if (base === "external.ts") return false;
+      if (base.startsWith("legacy/")) return false; // legacy 可直接依赖 js/(照 reader 先例)
       return pageHasDirectJsImport(readSource(file));
     })
     .map((file) => relative(DETAIL_PAGE_ROOT, file).replace(/\\/g, "/"));
@@ -759,5 +773,27 @@ test("global state singleton stays retired (no state/store.ts, no default-target
     /= state[,)]/.test(actionsSource),
     false,
     "state/actions.ts 的 target 必须显式传入，不得再默认到全局单例",
+  );
+});
+
+
+// ── js/ 归属标注（ADR 0009）────────────────────────────────────────
+// js-ownership.json 是 js/ 存量的唯一登记处；check-js-ownership.mjs 在 CI 跑，
+// 这里再本地兜底一次：任何未登记的新模块都不得进 src/js。
+test("every src/js source file is labeled in js-ownership.json", () => {
+  const manifestPath = join(PROJECT_ROOT, "js-ownership.json");
+  assert.ok(existsSync(manifestPath), "缺少 frontend/js-ownership.json（ADR 0009 归属清单）");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  assert.equal(manifest.schema, "frontend_js_ownership_v1");
+  const labels = manifest.files || {};
+  const files = walkFiles(JS_ROOT)
+    .filter((file) => !basename(file).startsWith("._"))
+    .map((file) => relative(PROJECT_ROOT, file));
+  const unlabeled = files.filter((file) => !(file in labels));
+  assert.deepEqual(unlabeled, [], `以下 js/ 文件未登记归属：${unlabeled.join(", ")}`);
+  const keep = files.filter((file) => labels[file] === "keep").length;
+  assert.ok(
+    keep <= Number(manifest.keepBudget),
+    `js/ keep 数量 ${keep} 超出预算 ${manifest.keepBudget}；新逻辑请写 pages/`,
   );
 });

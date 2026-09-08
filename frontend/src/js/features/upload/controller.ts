@@ -1,4 +1,4 @@
-import { TEXT_KEYS } from "../../dom/text-keys.js";
+import { TEXT_KEYS } from "../../../shared/dom/text-keys.js";
 import { withTimeout } from "../../utils/async-timeout.js";
 import { buildErrorDiagnostic } from "../../utils/error-diagnostics.js";
 import {

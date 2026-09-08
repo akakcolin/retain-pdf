@@ -1,6 +1,6 @@
 use crate::error::AppError;
 use crate::models::api::JobSubmissionView;
-use crate::models::domain::{now_iso, JobSnapshot, JobStatusKind, WorkflowKind};
+use crate::models::domain::{now_iso, JobArtifactRecord, JobSnapshot, JobStatusKind, WorkflowKind};
 use crate::models::request::{CreateJobInput, JobSourceInput};
 use crate::services::jobs::stage_plan::resume_plan;
 
@@ -16,7 +16,11 @@ impl<'a> JobsFacade<'a> {
         source_job_id: &str,
     ) -> Result<JobSubmissionView, AppError> {
         let source_job = load_job_or_404(self.command.db, source_job_id)?;
-        if resume_plan(&source_job, self.command.control.data_root).resume_workflow
+        let entries = self
+            .command
+            .db
+            .list_job_artifact_entries(&source_job.job_id)?;
+        if resume_plan(&source_job, self.command.control.data_root, &entries).resume_workflow
             == Some(WorkflowKind::Render)
         {
             let job = prepare_in_place_render_job(source_job)?;
@@ -28,7 +32,7 @@ impl<'a> JobsFacade<'a> {
                 WorkflowKind::Render,
             ));
         }
-        let request = build_rerun_request(&source_job, self.command.control.data_root)?;
+        let request = build_rerun_request(&source_job, self.command.control.data_root, &entries)?;
         let workflow = request.workflow.clone();
         let job = create_translation_job(&self.command.submit, &request)?;
         Ok(self.build_submission_view(base_url, &job, JobStatusKind::Queued, workflow))
@@ -85,8 +89,9 @@ fn reset_render_artifacts(job: &mut JobSnapshot) {
 fn build_rerun_request(
     source_job: &JobSnapshot,
     data_root: &std::path::Path,
+    entries: &[JobArtifactRecord],
 ) -> Result<CreateJobInput, AppError> {
-    let plan = resume_plan(source_job, data_root);
+    let plan = resume_plan(source_job, data_root, entries);
     let workflow = plan.resume_workflow.ok_or_else(|| {
         AppError::bad_request(
             plan.reason

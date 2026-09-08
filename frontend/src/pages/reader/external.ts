@@ -22,19 +22,19 @@ export {
 } from "../../js/runtime/vendor-url.js";
 
 // —— js/reader 共享 ports（新引擎允许依赖的子集）——
-export { defaultReaderDataPort } from "../../js/reader/data-port.js";
+export { defaultReaderDataPort } from "./legacy/data-port.js";
 export {
   defaultReaderPageConfigPort,
   resolveReaderAnchor,
   resolveReaderDocumentId,
   resolveReaderJobId,
-} from "../../js/reader/config-port.js";
-export { resolveReaderArtifactUrl } from "../../js/reader/pdf-document.js";
+} from "./legacy/config-port.js";
+export { resolveReaderArtifactUrl } from "./legacy/pdf-document.js";
 export {
   resolveReaderSourcePdf,
   resolveReaderTranslatedPdfUrl,
-} from "../../js/reader/resource-resolver.js";
-export { READER_PROGRESS_COPY } from "../../js/reader/page-state.js";
+} from "./legacy/resource-resolver.js";
+export { READER_PROGRESS_COPY } from "./legacy/page-state.js";
 
 // —— 下载（与 legacy 共用解析 / 受保护下载）——
 export {
@@ -49,7 +49,7 @@ export { failDownloadToast } from "../../js/utils/download-feedback.js";
 
 // —— markdown 面板 ——
 export { resolveMarkdownAssetUrl } from "../../js/job/artifacts.js";
-export { parseMarkdownWithMath } from "../../js/reader/markdown-math.js";
+export { parseMarkdownWithMath } from "./legacy/markdown-math.js";
 
 // —— AI 追问（react-pdf assistant）——
 export {
@@ -126,5 +126,5 @@ export { fetchFavorites } from "../../js/api/favorites.js";
 export {
   createReaderServerFavoritesPort,
   normalizeServerFavorite,
-} from "../../js/reader/server-favorites-port.js";
-export type { ServerFavorite } from "../../js/reader/types.js";
+} from "./legacy/server-favorites-port.js";
+export type { ServerFavorite } from "./legacy/types.js";

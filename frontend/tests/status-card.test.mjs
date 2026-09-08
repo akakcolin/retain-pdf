@@ -3,24 +3,24 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-import { resolveDisplayedStagePresentation } from "../src/js/job-status/job-stage-presentation.js";
-import { resolveRenderStagePresentation } from "../src/js/job-status/job-render-stage-presentation.js";
+import { resolveDisplayedStagePresentation } from "../src/pages/home/features/status/job-stage-presentation.js";
+import { resolveRenderStagePresentation } from "../src/pages/home/features/status/job-render-stage-presentation.js";
 import {
   shouldReplaceCurrentStageProgress,
   shouldReplaceStageProgress,
-} from "../src/js/job-status/job-stage-progress-replacement.js";
+} from "../src/pages/home/features/status/job-stage-progress-replacement.js";
 import {
   compositeRenderProgressFromEvents,
-} from "../src/js/job-status/job-stage-render-progress.js";
-import { summarizeStageProgressText } from "../src/js/job-status/job-status-summary-progress.js";
-import { resolveSelectedStageContext } from "../src/js/job-status/selected-stage-view-model.js";
-import { buildSelectedStageDisplay } from "../src/js/job-status/selected-stage-display-view-model.js";
-import { currentStageProgressViewModel } from "../src/js/job-status/stage-progress-view-model.js";
+} from "../src/pages/home/features/status/job-stage-render-progress.js";
+import { summarizeStageProgressText } from "../src/pages/home/features/status/job-status-summary-progress.js";
+import { resolveSelectedStageContext } from "../src/pages/home/features/status/selected-stage-view-model.js";
+import { buildSelectedStageDisplay } from "../src/pages/home/features/status/selected-stage-display-view-model.js";
+import { currentStageProgressViewModel } from "../src/pages/home/features/status/stage-progress-view-model.js";
 import {
   buildProgressOptions,
   buildStatusCardProgressPresentation,
   capRunningStagePercent,
-} from "../src/js/job-status/status-card-progress-view-model.js";
+} from "../src/pages/home/features/status/status-card-progress-view-model.js";
 // buildProgressRenderModel 随 cutover 从 components/status/job-status-card-rendering.js
 // (死,已删除)迁移指向 src/pages/home/features/status/progress-model.js(蓝图判决:
 // 45-164 行纯函数拷贝,归属改在新世界,断言口径不变)。
@@ -30,20 +30,20 @@ import {
 import {
   buildSubstageViewModel,
   translationSubstageKeyForSnapshot,
-} from "../src/js/job-status/substage-view-model.js";
-import { buildStatusCardPrimaryActions } from "../src/js/job-status/status-card-actions-view-model.js";
-import { buildStatusCardResultActions } from "../src/js/job-status/status-card-result-actions-view-model.js";
-import { buildStatusCardRetryActions } from "../src/js/job-status/status-card-retry-actions-view-model.js";
-import { normalizeStageRetryActions } from "../src/js/job-status/stage-actions.js";
-import { buildStatusCardTaskActions } from "../src/js/job-status/status-card-task-actions-view-model.js";
-import { buildStatusCardErrorState } from "../src/js/job-status/status-card-error-view-model.js";
+} from "../src/pages/home/features/status/substage-view-model.js";
+import { buildStatusCardPrimaryActions } from "../src/pages/home/features/status/status-card-actions-view-model.js";
+import { buildStatusCardResultActions } from "../src/pages/home/features/status/status-card-result-actions-view-model.js";
+import { buildStatusCardRetryActions } from "../src/pages/home/features/status/status-card-retry-actions-view-model.js";
+import { normalizeStageRetryActions } from "../src/pages/home/features/status/stage-actions.js";
+import { buildStatusCardTaskActions } from "../src/pages/home/features/status/status-card-task-actions-view-model.js";
+import { buildStatusCardErrorState } from "../src/pages/home/features/status/status-card-error-view-model.js";
 import {
   effectiveStatusFlowStageKey,
   isSelectableStatusStage,
   resolveSelectedStatusStage,
   STATUS_STAGE_FLOW,
   statusStageLabel,
-} from "../src/js/job-status/stage-flow-model.js";
+} from "../src/pages/home/features/status/stage-flow-model.js";
 import {
   normalizeSubstageKey,
   substageCardLabel,
@@ -53,22 +53,21 @@ import {
   substageProgressRange,
   substagesForStage,
   visualStageKeyForSubstage,
-} from "../src/js/job-status/job-stage-substage-contract.js";
+} from "../src/pages/home/features/status/job-stage-substage-contract.js";
 import { createInitialState } from "../src/js/state/slices.js";
-import { buildStatusCardSnapshot } from "../src/js/job-status/status-card-snapshot.js";
 import {
   buildStatusCardPatchPayload,
   buildStatusCardRenderModel,
   createStatusCardViewModelSelector,
   resolveStatusCardStagePresentation,
-} from "../src/js/job-status/status-card-context.js";
+} from "../src/pages/home/features/status/status-card-context.js";
 import {
   buildRuntimeStatusCardPatchPayload,
   buildRuntimeStatusCardSnapshot,
   buildRuntimeStatusCardViewModel,
   finishedAtFallbackForStatusCardRuntime,
   secondaryPayloadForStatusCardJob,
-} from "../src/js/job-status/status-card-runtime-source.js";
+} from "../src/pages/home/features/status/status-card-runtime-source.js";
 
 test("status substage badges do not infer translation substages from display text", () => {
   assert.equal(

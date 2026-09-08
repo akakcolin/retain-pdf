@@ -53,7 +53,9 @@ export function ReaderFavoritesPanel({
         const port = createReaderServerFavoritesPort({ jobId });
         list = await port.loadServerFavorites();
       } else if (documentId) {
-        const { favorites = [] } = await fetchFavorites(API_PREFIX, { documentId });
+        const { favorites = [] } = (await fetchFavorites(API_PREFIX, { documentId })) as {
+          favorites?: ServerFavorite[];
+        };
         list = (Array.isArray(favorites) ? favorites : [])
           .map((raw) => normalizeServerFavorite(raw))
           .filter(Boolean) as ServerFavorite[];

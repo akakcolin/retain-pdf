@@ -27,6 +27,28 @@ use crate::contents::{page_contents_bytes, resolve};
 pub const IMAGE_RECOMPRESS_MIN_BYTES: usize = 20_000;
 pub const IMAGE_JPEG_QUALITY: u8 = 78;
 
+/// Encode tightly packed RGB samples (3 bytes per pixel, row-major) as JPEG.
+/// Shared with the derived-artifact page renderer (`render_rs --render-page-jpeg`).
+pub fn encode_jpeg_rgb(
+    samples: &[u8],
+    width: u32,
+    height: u32,
+    quality: u8,
+) -> Result<Vec<u8>, Error> {
+    let expected = width as usize * height as usize * 3;
+    if samples.len() != expected {
+        return Err(Error::InvalidArgument(format!(
+            "rgb samples length {} != {width}x{height}x3",
+            samples.len()
+        )));
+    }
+    let mut out = Vec::new();
+    JpegEncoder::new_with_quality(&mut out, quality)
+        .encode(samples, width, height, ExtendedColorType::Rgb8)
+        .map_err(|e| Error::InvalidArgument(format!("jpeg encode: {e}")))?;
+    Ok(out)
+}
+
 /// Per-image recompression outcome, mirroring production's `changed` flag and
 /// `skipped_*` counters.
 #[derive(Debug, Default, Clone, PartialEq, serde::Serialize)]

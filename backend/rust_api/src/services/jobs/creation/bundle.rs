@@ -27,7 +27,7 @@ async fn create_translation_bundle_job_with_resources(
         ctx.submit.uploads.upload_max_bytes,
         ctx.submit.uploads.upload_max_pages,
         ctx.submit.uploads.upload_max_complexity,
-        ctx.submit.uploads.python_bin,
+        ctx.submit.uploads.render_rs_bin,
         upload,
     )
     .await?;

@@ -7,6 +7,7 @@ import type {
   HomeServicesDomains,
   HomeServicesViews,
 } from "./types.js";
+import type { LibraryCardItem } from "../features/library/types.js";
 
 export function buildHomeServices({
   bridge,
@@ -78,11 +79,12 @@ export function buildHomeServices({
           library.libraryController.selectJobForDetail(jobId, {
             findItem: (id) => {
               const items = library.recentJobsStatePort.getSnapshot().items || [];
-              return (
+              const found =
                 items.find((row) => `${row?.job_id || ""}`.trim() === id)
                 || items.find((row) => `${row?.active_job_id || ""}`.trim() === id)
-                || null
-              );
+                || null;
+              // recent-jobs 运行时 item 与图书馆卡片 item 同形，仅嵌套字段类型声明不同
+              return found as LibraryCardItem | null;
             },
           });
         },

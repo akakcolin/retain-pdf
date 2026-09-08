@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const ANY_BUDGET = 157;
+const ANY_BUDGET = 127;
 
 const frontendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scanRoot = path.join(frontendRoot, "src", "js");

@@ -17,19 +17,19 @@ import { useEffect, useState } from "react";
 import {
   bindResizeRefresh,
   scheduleScaleRefresh,
-} from "../../../../js/reader/pdf-controller.js";
+} from "../pdf-controller.js";
 import {
   setReaderBootLoading,
   setReaderModeHud,
   showBothReaderEmpty,
   showReaderPaneEmpty,
-} from "../../../../js/reader/view.js";
+} from "../view.js";
 import {
   defaultReaderPageConfigPort,
   resolveReaderAnchor,
   resolveReaderDocumentId,
-} from "../../../../js/reader/config-port.js";
-import { defaultReaderDataPort } from "../../../../js/reader/data-port.js";
+} from "../config-port.js";
+import { defaultReaderDataPort } from "../data-port.js";
 import { resolveResourceUrl } from "../../../../js/job/artifacts.js";
 import { isMockMode } from "../../../../js/config/runtime.js";
 import { MOCK_DOCUMENT_SOURCE_PDF_URL } from "../../../../js/mock/documents.js";
@@ -37,31 +37,31 @@ import {
   READER_PROGRESS_COPY,
   createReaderPageState,
   resetReaderProgressState,
-} from "../../../../js/reader/page-state.js";
+} from "../page-state.js";
 import {
   defaultReaderProgressPresenter,
-} from "../../../../js/reader/progress-presenter.js";
-import { bindReaderInteractions } from "../../../../js/reader/interaction-flow.js";
+} from "../progress-presenter.js";
+import { bindReaderInteractions } from "../interaction-flow.js";
 import {
   jumpToReaderAnchor,
   resolveSelectionQuote,
-} from "../../../../js/reader/region-interactions.js";
-import { createReaderAiContext } from "../../../../js/reader/ai-context.js";
+} from "../region-interactions.js";
+import { createReaderAiContext } from "../ai-context.js";
 import { createReaderAskAnswerer } from "../../../../js/reader/ai/ask-answerer.js";
-import { createReaderChromeController } from "../../../../js/reader/chrome-controller.js";
-import { createReaderColumnResizer } from "../../../../js/reader/column-resizer.js";
-import { createReaderMarkdownPreview } from "../../../../js/reader/markdown-preview.js";
-import { createReaderModeController } from "../../../../js/reader/mode-controller.js";
-import { createReaderPanelCollapse } from "../../../../js/reader/panel-collapse.js";
-import { createReaderSelectionFavorites } from "../../../../js/reader/selection-favorites.js";
-import { createReaderServerFavoritesPort } from "../../../../js/reader/server-favorites-port.js";
+import { createReaderChromeController } from "../controllers/chrome-controller.js";
+import { createReaderColumnResizer } from "../controllers/column-resizer.js";
+import { createReaderMarkdownPreview } from "../markdown-preview.js";
+import { createReaderModeController } from "../controllers/mode-controller.js";
+import { createReaderPanelCollapse } from "../controllers/panel-collapse.js";
+import { createReaderSelectionFavorites } from "../selection-favorites.js";
+import { createReaderServerFavoritesPort } from "../server-favorites-port.js";
 import {
   resolveReaderJobId,
   resolveReaderSourcePdf,
   resolveReaderTranslatedPdfUrl,
-} from "../../../../js/reader/resource-resolver.js";
-import { mountReaderPdfPair } from "../../../../js/reader/viewer-mount-flow.js";
-import type { ReaderMetadata, RegionsPayload } from "../../../../js/reader/types.js";
+} from "../resource-resolver.js";
+import { mountReaderPdfPair } from "../viewer-mount-flow.js";
+import type { ReaderMetadata, RegionsPayload } from "../types.js";
 
 let bootStarted = false;
 

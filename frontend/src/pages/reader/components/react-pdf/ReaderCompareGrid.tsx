@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { PdfDocumentPane } from "../../pdf/PdfDocumentPane.js";
 import type { ProtectedPdfFile } from "../../pdf/useProtectedPdfFile.js";
 import type { PageRowHeights } from "../../pdf/usePageRowSync.js";
@@ -30,7 +31,7 @@ export type ReaderCompareGridProps = {
   onNumPagesChange: (pages: number, pane: "source" | "translated") => void;
 };
 
-export function ReaderCompareGrid(props: ReaderCompareGridProps): JSX.Element {
+export function ReaderCompareGrid(props: ReaderCompareGridProps): ReactElement {
   const {
     mode,
     bindShell,

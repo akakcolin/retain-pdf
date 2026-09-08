@@ -1,4 +1,4 @@
-// 过程时间线列表:src/js/status-detail/history.js 的 buildStageHistoryPresentation
+// 过程时间线列表:history.js(自 src/js/status-detail 迁入)的 buildStageHistoryPresentation
 // (字符串模板拼接)的 JSX 重写,类名/结构照搬(蓝图 §1.1 判决表:history.js
 // markup 拼接部分不用,改读原始数据数组;逐条断言取代 markup 断言)。
 //

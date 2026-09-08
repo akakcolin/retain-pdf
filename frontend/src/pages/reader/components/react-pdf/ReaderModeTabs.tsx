@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { Columns2, FileText, Languages } from "lucide-react";
 import type { ReaderMode } from "../../hooks/use-reader-session.js";
 
@@ -21,7 +22,7 @@ export function ReaderModeTabs({
   mode,
   sourceOnly,
   onModeChange,
-}: ReaderModeTabsProps): JSX.Element {
+}: ReaderModeTabsProps): ReactElement {
   return (
     <header className="reader-topbar reader-react-topbar">
       <div className="reader-tabs" role="tablist" aria-label="阅读模式">

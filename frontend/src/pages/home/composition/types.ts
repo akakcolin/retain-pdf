@@ -7,6 +7,7 @@ import type {
   HomeStatePort,
   UploadStatePort,
   TranslationWorkflowDialogStatePort,
+  RecentJobsStatePort,
 } from "./external.js";
 import type { DialogStore } from "../state/dialog-store.js";
 import type { ArtifactDownloadBusyStore } from "../state/artifact-download-busy-store.js";
@@ -68,6 +69,7 @@ export type BrowserCredentialsFeature = {
   ensureOcrCredentialsReady: (options?: unknown) => Promise<boolean> | boolean | unknown;
   hasBrowserCredentials: (options?: { skipOcr?: boolean }) => boolean;
   openBrowserCredentialsDialog: (options?: unknown) => void;
+  prepareCredentialsPanels: () => void;
   refreshDeepSeekBalance: (options?: unknown) => Promise<unknown> | unknown;
   setDialogStatus: (message?: string, tone?: string) => void;
   updateCredentialGate: (options?: unknown) => void;
@@ -101,7 +103,7 @@ export type JobRuntimeFeature = {
   cancelCurrentJob: () => unknown;
   currentJobId: () => string;
   fetchJob: (jobId?: string) => Promise<unknown> | unknown;
-  retryStage: (stage: string) => unknown;
+  retryStage: (stage: string, options?: { jobId?: string }) => unknown;
   returnToHome: () => void;
   startPolling: (jobId: string, options?: StartPollingOptions) => unknown;
   stopPolling: () => void;
@@ -492,7 +494,7 @@ export type HomeServicesDomains = {
   };
   library: {
     recentJobsViewPort: RecentJobsReactViewPort;
-    recentJobsStatePort: { store: AppStore };
+    recentJobsStatePort: RecentJobsStatePort;
     recentJobActions: RecentJobActions;
     libraryController: LibraryController;
     bookDetailStore: DialogStore<LibraryCardItem | null>;

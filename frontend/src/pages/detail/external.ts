@@ -11,18 +11,18 @@ export {
 export { stageHistoryDisplay } from "../../js/job/stage-history.js";
 
 // —— job-detail ——
-export { getJobIdFromQuery } from "../../js/job-detail/routing.js";
-export { defaultJobDetailConfigPort } from "../../js/job-detail/config-port.js";
-export { defaultJobDetailDataPort } from "../../js/job-detail/data-port.js";
-export { defaultJobDetailResumePort } from "../../js/job-detail/resume-port.js";
-export { bindRerunButton } from "../../js/job-detail/resume.js";
-export { renderJobDetailOverview } from "../../js/job-detail/overview-renderer.js";
-export { loadAndRenderMarkdownFlow } from "../../js/job-detail/markdown-flow.js";
+export { getJobIdFromQuery } from "./legacy/routing.js";
+export { defaultJobDetailConfigPort } from "./legacy/config-port.js";
+export { defaultJobDetailDataPort } from "./legacy/data-port.js";
+export { defaultJobDetailResumePort } from "./legacy/resume-port.js";
+export { bindRerunButton } from "./legacy/resume.js";
+export { renderJobDetailOverview } from "./legacy/overview-renderer.js";
+export { loadAndRenderMarkdownFlow } from "./legacy/markdown-flow.js";
 export {
   createJobDetailPageState,
   revokeJobDetailMarkdownImageUrls,
-} from "../../js/job-detail/page-state.js";
-export { buildJobDetailEventViewModel } from "../../js/job-detail/status-view-model.js";
+} from "./legacy/page-state.js";
+export { buildJobDetailEventViewModel } from "./legacy/status-view-model.js";
 
 // —— downloads ——
 export {

@@ -30,7 +30,7 @@ pub use path_ops::{
     normalize_job_artifacts_for_storage, normalize_job_paths_for_storage,
     normalize_relative_data_path, resolve_data_path, to_relative_data_path,
 };
-pub use registry::collect_job_artifact_entries;
+pub use registry::{artifact_checksum, collect_job_artifact_entries};
 pub use resolvers::{
     resolve_events_jsonl, resolve_job_root, resolve_markdown_bundle_zip,
     resolve_markdown_images_dir, resolve_markdown_path, resolve_normalization_report,
@@ -286,6 +286,45 @@ mod tests {
         assert!(!items
             .iter()
             .any(|item| item.artifact_key == ARTIFACT_KEY_MARKDOWN_BUNDLE_ZIP && item.ready));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn artifact_checksum_hashes_checkpoints_and_ignores_temp_files() {
+        let root = std::env::temp_dir().join(format!("rust-api-checksum-{}", fastrand::u64(..)));
+        let dir = root.join("translated");
+        fs::create_dir_all(&dir).expect("dir");
+        fs::write(dir.join("page-001.json"), br#"{"a":1}"#).expect("page");
+        fs::write(dir.join("page-002.json"), br#"{"b":2}"#).expect("page");
+        fs::write(dir.join("page-003.json.tmp"), b"half written").expect("temp");
+        fs::write(dir.join(".hidden"), b"hidden").expect("hidden");
+
+        let baseline = artifact_checksum(ARTIFACT_KEY_TRANSLATIONS_DIR, &dir, ARTIFACT_KIND_DIR)
+            .expect("dir checksum");
+
+        // 临时文件与隐藏文件不参与摘要。
+        fs::write(dir.join("page-004.json.tmp"), b"another temp").expect("temp2");
+        fs::write(dir.join(".another"), b"hidden2").expect("hidden2");
+        assert_eq!(
+            artifact_checksum(ARTIFACT_KEY_TRANSLATIONS_DIR, &dir, ARTIFACT_KIND_DIR),
+            Some(baseline.clone())
+        );
+
+        // 内容变化 → 摘要变化。
+        fs::write(dir.join("page-001.json"), br#"{"a":9999}"#).expect("mutated");
+        assert_ne!(
+            artifact_checksum(ARTIFACT_KEY_TRANSLATIONS_DIR, &dir, ARTIFACT_KIND_DIR),
+            Some(baseline)
+        );
+
+        // 非 checkpoint 产物不算哈希。
+        assert!(artifact_checksum(
+            ARTIFACT_KEY_TRANSLATED_PDF,
+            &dir.join("page-001.json"),
+            ARTIFACT_KIND_FILE
+        )
+        .is_none());
 
         let _ = fs::remove_dir_all(root);
     }

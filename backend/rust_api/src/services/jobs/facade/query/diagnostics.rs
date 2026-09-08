@@ -1,7 +1,7 @@
 use crate::error::AppError;
 use crate::job_failure::classify_job_failure;
 use crate::models::api::{JobDiagnosticsView, JobResumePlanView};
-use crate::models::domain::{JobFailureInfo, JobSnapshot, JobStatusKind};
+use crate::models::domain::{JobArtifactRecord, JobFailureInfo, JobSnapshot, JobStatusKind};
 use crate::services::jobs::stage_plan::resume_plan;
 use crate::storage_paths::resolve_pipeline_summary;
 
@@ -11,21 +11,28 @@ use super::super::JobsFacade;
 impl<'a> JobsFacade<'a> {
     pub fn job_diagnostics_view(&self, job_id: &str) -> Result<JobDiagnosticsView, AppError> {
         let job = load_supported_job(self.query.db, self.query.data_root, job_id)?;
-        Ok(build_job_diagnostics_view(&job, self.query.data_root))
+        let entries = self.query.db.list_job_artifact_entries(&job.job_id)?;
+        Ok(build_job_diagnostics_view(
+            &job,
+            self.query.data_root,
+            &entries,
+        ))
     }
 
     pub fn resume_plan_view(&self, job_id: &str) -> Result<JobResumePlanView, AppError> {
         let job = load_supported_job(self.query.db, self.query.data_root, job_id)?;
-        Ok(build_resume_plan_view(&job, self.query.data_root))
+        let entries = self.query.db.list_job_artifact_entries(&job.job_id)?;
+        Ok(build_resume_plan_view(&job, self.query.data_root, &entries))
     }
 }
 
 fn build_job_diagnostics_view(
     job: &JobSnapshot,
     data_root: &std::path::Path,
+    entries: &[JobArtifactRecord],
 ) -> JobDiagnosticsView {
     let failure = resolved_failure(job);
-    let resume_plan = build_resume_plan_view(job, data_root);
+    let resume_plan = build_resume_plan_view(job, data_root, entries);
     let render_diagnostics = load_render_diagnostics(job, data_root);
     match failure {
         Some(failure) => JobDiagnosticsView {
@@ -77,8 +84,12 @@ fn load_render_diagnostics(
     Some(diagnostics.clone())
 }
 
-fn build_resume_plan_view(job: &JobSnapshot, data_root: &std::path::Path) -> JobResumePlanView {
-    let plan = resume_plan(job, data_root);
+fn build_resume_plan_view(
+    job: &JobSnapshot,
+    data_root: &std::path::Path,
+    entries: &[JobArtifactRecord],
+) -> JobResumePlanView {
+    let plan = resume_plan(job, data_root, entries);
     JobResumePlanView {
         can_resume: plan.can_resume,
         job_id: job.job_id.clone(),

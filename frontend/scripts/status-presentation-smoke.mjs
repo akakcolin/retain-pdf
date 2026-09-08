@@ -3,7 +3,7 @@
 import {
   collectStageProgressByKey,
   resolveDisplayedStagePresentation,
-} from "../src/js/job-status/job-stage-presentation.js";
+} from "../src/pages/home/features/status/job-stage-presentation.js";
 import { resolveVisualStageKeyForSnapshot } from "../src/js/components/status/job-status-card-visuals.js";
 
 function assertEqual(actual, expected, label) {

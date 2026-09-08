@@ -2,7 +2,7 @@
 //
 // #detail-artifacts-summary / #detail-artifacts-list 与
 // #detail-markdown-image-grid / #detail-markdown-image-empty 是「命令式孤岛」:
-// 内容由保留的旧模块 src/js/job-detail/artifacts.js(经 overview-renderer.js /
+// 内容由保留的旧模块 src/pages/detail/legacy/artifacts.js(经 overview-renderer.js /
 // markdown-flow.js)在数据加载后以 innerHTML / classList 写入。React 侧只渲染
 // 与旧 detail.html 一致的静态初始骨架,且虚拟 DOM 恒定不变,重渲染不会
 // 覆盖命令式写入。Markdown 卡片其余文本字段走 setText 适配(React state)。

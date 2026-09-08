@@ -2,22 +2,22 @@
 
 import { btn } from "./ui.jsx";
 
-/**
- * @param {object} props
- * @param {boolean} props.editing
- * @param {string} props.titleText
- * @param {string} props.tagsText
- * @param {string[]} props.tags
- * @param {string[]} props.authors
- * @param {string|number|null|undefined} props.year
- * @param {string} props.displayTitle 展示用标题
- * @param {string} props.busy
- * @param {() => void} props.onStartEdit
- * @param {() => void} props.onCancelEdit
- * @param {() => void} props.onSave
- * @param {(v: string) => void} props.onTitleChange
- * @param {(v: string) => void} props.onTagsTextChange
- */
+export type TitleMetaPanelProps = {
+  editing: boolean;
+  titleText: string;
+  tagsText: string;
+  tags: string[];
+  authors: string[];
+  year?: string | number | null;
+  displayTitle: string;
+  busy: string;
+  onStartEdit: () => void;
+  onCancelEdit: () => void;
+  onSave: () => void;
+  onTitleChange: (v: string) => void;
+  onTagsTextChange: (v: string) => void;
+};
+
 export function TitleMetaPanel({
   editing,
   titleText,
@@ -32,7 +32,7 @@ export function TitleMetaPanel({
   onSave,
   onTitleChange,
   onTagsTextChange,
-}) {
+}: TitleMetaPanelProps) {
   return (
     <div className="flex items-start justify-between gap-3 pr-8">
       <div className="min-w-0 flex-1">

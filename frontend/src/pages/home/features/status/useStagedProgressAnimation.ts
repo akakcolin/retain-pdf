@@ -4,7 +4,7 @@
 // 拷贝自 components/status/job-status-card-progress-animation.js 的
 // createStatusCardProgressAnimation(该文件属"死,由 StatusCard.jsx 家族
 // 替代"清单,js/components/ 禁止 import;buildProgressOptions/
-// shouldAnimateRenderPageProgress 是 job-status/ 纯 VM,原样 import)。
+// shouldAnimateRenderPageProgress 是纯 VM(自 js/job-status 迁入),原样 import)。
 //
 // 铁律(风险 §8.1):displayedProgressByStage 与 timer 必须是 useRef,不是
 // useState——每 120ms 跳一页的动画如果改用 useState,会导致每 tick 触发一次

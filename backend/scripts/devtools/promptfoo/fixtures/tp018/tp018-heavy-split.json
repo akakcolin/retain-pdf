@@ -1,0 +1,172 @@
+{
+  "schema": "translation_case_bundle_v1",
+  "captured_at": "2026-09-08",
+  "fixture": {
+    "job_root": "synthetic-tp018",
+    "item_id": "tp018-heavy-split-b000",
+    "description": "Formula-saturated long block (heavy formula split route)",
+    "case_artifact": "",
+    "expected_contains": [],
+    "required_terms": [],
+    "forbidden_substrings": [],
+    "require_cjk": true,
+    "min_cjk_chars": 1,
+    "min_output_chars": 1,
+    "notes": "Synthetic formula-dense case; original TP-018 job 20260412152452-4abf73 is unreproducible."
+  },
+  "saved": {
+    "snapshot": {},
+    "item": {
+      "item_id": "tp018-heavy-split-b000",
+      "page_idx": 0,
+      "block_idx": 0,
+      "block_type": "text",
+      "math_mode": "placeholder",
+      "should_translate": true,
+      "classification_label": "",
+      "skip_reason": "",
+      "final_status": "",
+      "source_text": "The quantity [[FORMULA_1]] is denoted as the coefficient that controls step 1 of the diffusion process, while the term <f1-b01/> is expressed as its normalization factor and the operator <f101-c01/> is defined as the transition kernel used in experiment 1. The quantity [[FORMULA_2]] is denoted as the coefficient that controls step 2 of the diffusion process, while the term <f2-b02/> is expressed as its normalization factor and the operator <f102-c02/> is defined as the transition kernel used in experiment 2. The quantity [[FORMULA_3]] is denoted as the coefficient that controls step 3 of the diffusion process, while the term <f3-b03/> is expressed as its normalization factor and the operator <f103-c03/> is defined as the transition kernel used in experiment 3. The quantity [[FORMULA_4]] is denoted as the coefficient that controls step 4 of the diffusion process, while the term <f4-b04/> is expressed as its normalization factor and the operator <f104-c04/> is defined as the transition kernel used in experiment 4. The quantity [[FORMULA_5]] is denoted as the coefficient that controls step 5 of the diffusion process, while the term <f5-b05/> is expressed as its normalization factor and the operator <f105-c05/> is defined as the transition kernel used in experiment 5. The quantity [[FORMULA_6]] is denoted as the coefficient that controls step 6 of the diffusion process, while the term <f6-b06/> is expressed as its normalization factor and the operator <f106-c06/> is defined as the transition kernel used in experiment 6. The quantity [[FORMULA_7]] is denoted as the coefficient that controls step 7 of the diffusion process, while the term <f7-b07/> is expressed as its normalization factor and the operator <f107-c07/> is defined as the transition kernel used in experiment 7. The quantity [[FORMULA_8]] is denoted as the coefficient that controls step 8 of the diffusion process, while the term <f8-b08/> is expressed as its normalization factor and the operator <f108-c08/> is defined as the transition kernel used in experiment 8. The quantity [[FORMULA_9]] is denoted as the coefficient that controls step 9 of the diffusion process, while the term <f9-b09/> is expressed as its normalization factor and the operator <f109-c09/> is defined as the transition kernel used in experiment 9. The quantity [[FORMULA_10]] is denoted as the coefficient that controls step 10 of the diffusion process, while the term <f10-b10/> is expressed as its normalization factor and the operator <f110-c10/> is defined as the transition kernel used in experiment 10. The quantity [[FORMULA_11]] is denoted as the coefficient that controls step 11 of the diffusion process, while the term <f11-b11/> is expressed as its normalization factor and the operator <f111-c11/> is defined as the transition kernel used in experiment 11. The quantity [[FORMULA_12]] is denoted as the coefficient that controls step 12 of the diffusion process, while the term <f12-b12/> is expressed as its normalization factor and the operator <f112-c12/> is defined as the transition kernel used in experiment 12.",
+      "protected_source_text": "The quantity [[FORMULA_1]] is denoted as the coefficient that controls step 1 of the diffusion process, while the term <f1-b01/> is expressed as its normalization factor and the operator <f101-c01/> is defined as the transition kernel used in experiment 1. The quantity [[FORMULA_2]] is denoted as the coefficient that controls step 2 of the diffusion process, while the term <f2-b02/> is expressed as its normalization factor and the operator <f102-c02/> is defined as the transition kernel used in experiment 2. The quantity [[FORMULA_3]] is denoted as the coefficient that controls step 3 of the diffusion process, while the term <f3-b03/> is expressed as its normalization factor and the operator <f103-c03/> is defined as the transition kernel used in experiment 3. The quantity [[FORMULA_4]] is denoted as the coefficient that controls step 4 of the diffusion process, while the term <f4-b04/> is expressed as its normalization factor and the operator <f104-c04/> is defined as the transition kernel used in experiment 4. The quantity [[FORMULA_5]] is denoted as the coefficient that controls step 5 of the diffusion process, while the term <f5-b05/> is expressed as its normalization factor and the operator <f105-c05/> is defined as the transition kernel used in experiment 5. The quantity [[FORMULA_6]] is denoted as the coefficient that controls step 6 of the diffusion process, while the term <f6-b06/> is expressed as its normalization factor and the operator <f106-c06/> is defined as the transition kernel used in experiment 6. The quantity [[FORMULA_7]] is denoted as the coefficient that controls step 7 of the diffusion process, while the term <f7-b07/> is expressed as its normalization factor and the operator <f107-c07/> is defined as the transition kernel used in experiment 7. The quantity [[FORMULA_8]] is denoted as the coefficient that controls step 8 of the diffusion process, while the term <f8-b08/> is expressed as its normalization factor and the operator <f108-c08/> is defined as the transition kernel used in experiment 8. The quantity [[FORMULA_9]] is denoted as the coefficient that controls step 9 of the diffusion process, while the term <f9-b09/> is expressed as its normalization factor and the operator <f109-c09/> is defined as the transition kernel used in experiment 9. The quantity [[FORMULA_10]] is denoted as the coefficient that controls step 10 of the diffusion process, while the term <f10-b10/> is expressed as its normalization factor and the operator <f110-c10/> is defined as the transition kernel used in experiment 10. The quantity [[FORMULA_11]] is denoted as the coefficient that controls step 11 of the diffusion process, while the term <f11-b11/> is expressed as its normalization factor and the operator <f111-c11/> is defined as the transition kernel used in experiment 11. The quantity [[FORMULA_12]] is denoted as the coefficient that controls step 12 of the diffusion process, while the term <f12-b12/> is expressed as its normalization factor and the operator <f112-c12/> is defined as the transition kernel used in experiment 12.",
+      "protected_translated_text": "",
+      "translation_unit_id": "tp018-heavy-split-b000",
+      "translation_unit_kind": "single",
+      "translation_unit_member_ids": [
+        "tp018-heavy-split-b000"
+      ],
+      "translation_unit_protected_source_text": "The quantity [[FORMULA_1]] is denoted as the coefficient that controls step 1 of the diffusion process, while the term <f1-b01/> is expressed as its normalization factor and the operator <f101-c01/> is defined as the transition kernel used in experiment 1. The quantity [[FORMULA_2]] is denoted as the coefficient that controls step 2 of the diffusion process, while the term <f2-b02/> is expressed as its normalization factor and the operator <f102-c02/> is defined as the transition kernel used in experiment 2. The quantity [[FORMULA_3]] is denoted as the coefficient that controls step 3 of the diffusion process, while the term <f3-b03/> is expressed as its normalization factor and the operator <f103-c03/> is defined as the transition kernel used in experiment 3. The quantity [[FORMULA_4]] is denoted as the coefficient that controls step 4 of the diffusion process, while the term <f4-b04/> is expressed as its normalization factor and the operator <f104-c04/> is defined as the transition kernel used in experiment 4. The quantity [[FORMULA_5]] is denoted as the coefficient that controls step 5 of the diffusion process, while the term <f5-b05/> is expressed as its normalization factor and the operator <f105-c05/> is defined as the transition kernel used in experiment 5. The quantity [[FORMULA_6]] is denoted as the coefficient that controls step 6 of the diffusion process, while the term <f6-b06/> is expressed as its normalization factor and the operator <f106-c06/> is defined as the transition kernel used in experiment 6. The quantity [[FORMULA_7]] is denoted as the coefficient that controls step 7 of the diffusion process, while the term <f7-b07/> is expressed as its normalization factor and the operator <f107-c07/> is defined as the transition kernel used in experiment 7. The quantity [[FORMULA_8]] is denoted as the coefficient that controls step 8 of the diffusion process, while the term <f8-b08/> is expressed as its normalization factor and the operator <f108-c08/> is defined as the transition kernel used in experiment 8. The quantity [[FORMULA_9]] is denoted as the coefficient that controls step 9 of the diffusion process, while the term <f9-b09/> is expressed as its normalization factor and the operator <f109-c09/> is defined as the transition kernel used in experiment 9. The quantity [[FORMULA_10]] is denoted as the coefficient that controls step 10 of the diffusion process, while the term <f10-b10/> is expressed as its normalization factor and the operator <f110-c10/> is defined as the transition kernel used in experiment 10. The quantity [[FORMULA_11]] is denoted as the coefficient that controls step 11 of the diffusion process, while the term <f11-b11/> is expressed as its normalization factor and the operator <f111-c11/> is defined as the transition kernel used in experiment 11. The quantity [[FORMULA_12]] is denoted as the coefficient that controls step 12 of the diffusion process, while the term <f12-b12/> is expressed as its normalization factor and the operator <f112-c12/> is defined as the transition kernel used in experiment 12.",
+      "translation_unit_protected_translated_text": "",
+      "translation_unit_translated_text": "",
+      "group_protected_source_text": "",
+      "group_protected_translated_text": "",
+      "group_translated_text": "",
+      "protected_map": [],
+      "formula_map": [],
+      "translation_unit_protected_map": [],
+      "group_protected_map": [],
+      "group_formula_map": [],
+      "translation_diagnostics": {},
+      "continuation_group": "",
+      "continuation_prev_text": "",
+      "continuation_next_text": "",
+      "continuation_decision": "",
+      "layout_mode": "single",
+      "layout_zone": "body",
+      "bbox": [
+        42,
+        88,
+        500,
+        200
+      ],
+      "metadata": {
+        "structure_role": "body",
+        "ocr_sub_type": "body",
+        "normalized_sub_type": "body"
+      },
+      "lines": [
+        {
+          "bbox": [
+            42,
+            88,
+            500,
+            200
+          ],
+          "spans": [
+            {
+              "type": "text",
+              "content": "The quantity [[FORMULA_1]] is denoted as the coefficient that controls step 1 of the diffusion process, while the term <f1-b01/> is expressed as its normalization factor and the operator <f101-c01/> is defined as the transition kernel used in experiment 1. The quantity [[FORMULA_2]] is denoted as the coefficient that controls step 2 of the diffusion process, while the term <f2-b02/> is expressed as its normalization factor and the operator <f102-c02/> is defined as the transition kernel used in experiment 2. The quantity [[FORMULA_3]] is denoted as the coefficient that controls step 3 of the diffusion process, while the term <f3-b03/> is expressed as its normalization factor and the operator <f103-c03/> is defined as the transition kernel used in experiment 3. The quantity [[FORMULA_4]] is denoted as the coefficient that controls step 4 of the diffusion process, while the term <f4-b04/> is expressed as its normalization factor and the operator <f104-c04/> is defined as the transition kernel used in experiment 4. The quantity [[FORMULA_5]] is denoted as the coefficient that controls step 5 of the diffusion process, while the term <f5-b05/> is expressed as its normalization factor and the operator <f105-c05/> is defined as the transition kernel used in experiment 5. The quantity [[FORMULA_6]] is denoted as the coefficient that controls step 6 of the diffusion process, while the term <f6-b06/> is expressed as its normalization factor and the operator <f106-c06/> is defined as the transition kernel used in experiment 6. The quantity [[FORMULA_7]] is denoted as the coefficient that controls step 7 of the diffusion process, while the term <f7-b07/> is expressed as its normalization factor and the operator <f107-c07/> is defined as the transition kernel used in experiment 7. The quantity [[FORMULA_8]] is denoted as the coefficient that controls step 8 of the diffusion process, while the term <f8-b08/> is expressed as its normalization factor and the operator <f108-c08/> is defined as the transition kernel used in experiment 8. The quantity [[FORMULA_9]] is denoted as the coefficient that controls step 9 of the diffusion process, while the term <f9-b09/> is expressed as its normalization factor and the operator <f109-c09/> is defined as the transition kernel used in experiment 9. The quantity [[FORMULA_10]] is denoted as the coefficient that controls step 10 of the diffusion process, while the term <f10-b10/> is expressed as its normalization factor and the operator <f110-c10/> is defined as the transition kernel used in experiment 10. The quantity [[FORMULA_11]] is denoted as the coefficient that controls step 11 of the diffusion process, while the term <f11-b11/> is expressed as its normalization factor and the operator <f111-c11/> is defined as the transition kernel used in experiment 11. The quantity [[FORMULA_12]] is denoted as the coefficient that controls step 12 of the diffusion process, while the term <f12-b12/> is expressed as its normalization factor and the operator <f112-c12/> is defined as the transition kernel used in experiment 12."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "replay_input": {
+    "job_root": "synthetic-tp018",
+    "job_id": "synthetic-tp018",
+    "item_id": "tp018-heavy-split-b000",
+    "page_idx": 0,
+    "page_path": "synthetic/page-001.json",
+    "spec": {
+      "mode": "sci",
+      "math_mode": "placeholder",
+      "skip_title_translation": false,
+      "rule_profile_name": "general_sci",
+      "custom_rules_text": "",
+      "classify_batch_size": 12,
+      "workers": 1,
+      "model": "deepseek-chat",
+      "base_url": "https://api.deepseek.com/v1",
+      "glossary_entries": [],
+      "credential_ref": "env:RETAIN_TRANSLATION_API_KEY"
+    },
+    "page_payload": [
+      {
+        "item_id": "tp018-heavy-split-b000",
+        "page_idx": 0,
+        "block_idx": 0,
+        "block_type": "text",
+        "math_mode": "placeholder",
+        "should_translate": true,
+        "classification_label": "",
+        "skip_reason": "",
+        "final_status": "",
+        "source_text": "The quantity [[FORMULA_1]] is denoted as the coefficient that controls step 1 of the diffusion process, while the term <f1-b01/> is expressed as its normalization factor and the operator <f101-c01/> is defined as the transition kernel used in experiment 1. The quantity [[FORMULA_2]] is denoted as the coefficient that controls step 2 of the diffusion process, while the term <f2-b02/> is expressed as its normalization factor and the operator <f102-c02/> is defined as the transition kernel used in experiment 2. The quantity [[FORMULA_3]] is denoted as the coefficient that controls step 3 of the diffusion process, while the term <f3-b03/> is expressed as its normalization factor and the operator <f103-c03/> is defined as the transition kernel used in experiment 3. The quantity [[FORMULA_4]] is denoted as the coefficient that controls step 4 of the diffusion process, while the term <f4-b04/> is expressed as its normalization factor and the operator <f104-c04/> is defined as the transition kernel used in experiment 4. The quantity [[FORMULA_5]] is denoted as the coefficient that controls step 5 of the diffusion process, while the term <f5-b05/> is expressed as its normalization factor and the operator <f105-c05/> is defined as the transition kernel used in experiment 5. The quantity [[FORMULA_6]] is denoted as the coefficient that controls step 6 of the diffusion process, while the term <f6-b06/> is expressed as its normalization factor and the operator <f106-c06/> is defined as the transition kernel used in experiment 6. The quantity [[FORMULA_7]] is denoted as the coefficient that controls step 7 of the diffusion process, while the term <f7-b07/> is expressed as its normalization factor and the operator <f107-c07/> is defined as the transition kernel used in experiment 7. The quantity [[FORMULA_8]] is denoted as the coefficient that controls step 8 of the diffusion process, while the term <f8-b08/> is expressed as its normalization factor and the operator <f108-c08/> is defined as the transition kernel used in experiment 8. The quantity [[FORMULA_9]] is denoted as the coefficient that controls step 9 of the diffusion process, while the term <f9-b09/> is expressed as its normalization factor and the operator <f109-c09/> is defined as the transition kernel used in experiment 9. The quantity [[FORMULA_10]] is denoted as the coefficient that controls step 10 of the diffusion process, while the term <f10-b10/> is expressed as its normalization factor and the operator <f110-c10/> is defined as the transition kernel used in experiment 10. The quantity [[FORMULA_11]] is denoted as the coefficient that controls step 11 of the diffusion process, while the term <f11-b11/> is expressed as its normalization factor and the operator <f111-c11/> is defined as the transition kernel used in experiment 11. The quantity [[FORMULA_12]] is denoted as the coefficient that controls step 12 of the diffusion process, while the term <f12-b12/> is expressed as its normalization factor and the operator <f112-c12/> is defined as the transition kernel used in experiment 12.",
+        "protected_source_text": "The quantity [[FORMULA_1]] is denoted as the coefficient that controls step 1 of the diffusion process, while the term <f1-b01/> is expressed as its normalization factor and the operator <f101-c01/> is defined as the transition kernel used in experiment 1. The quantity [[FORMULA_2]] is denoted as the coefficient that controls step 2 of the diffusion process, while the term <f2-b02/> is expressed as its normalization factor and the operator <f102-c02/> is defined as the transition kernel used in experiment 2. The quantity [[FORMULA_3]] is denoted as the coefficient that controls step 3 of the diffusion process, while the term <f3-b03/> is expressed as its normalization factor and the operator <f103-c03/> is defined as the transition kernel used in experiment 3. The quantity [[FORMULA_4]] is denoted as the coefficient that controls step 4 of the diffusion process, while the term <f4-b04/> is expressed as its normalization factor and the operator <f104-c04/> is defined as the transition kernel used in experiment 4. The quantity [[FORMULA_5]] is denoted as the coefficient that controls step 5 of the diffusion process, while the term <f5-b05/> is expressed as its normalization factor and the operator <f105-c05/> is defined as the transition kernel used in experiment 5. The quantity [[FORMULA_6]] is denoted as the coefficient that controls step 6 of the diffusion process, while the term <f6-b06/> is expressed as its normalization factor and the operator <f106-c06/> is defined as the transition kernel used in experiment 6. The quantity [[FORMULA_7]] is denoted as the coefficient that controls step 7 of the diffusion process, while the term <f7-b07/> is expressed as its normalization factor and the operator <f107-c07/> is defined as the transition kernel used in experiment 7. The quantity [[FORMULA_8]] is denoted as the coefficient that controls step 8 of the diffusion process, while the term <f8-b08/> is expressed as its normalization factor and the operator <f108-c08/> is defined as the transition kernel used in experiment 8. The quantity [[FORMULA_9]] is denoted as the coefficient that controls step 9 of the diffusion process, while the term <f9-b09/> is expressed as its normalization factor and the operator <f109-c09/> is defined as the transition kernel used in experiment 9. The quantity [[FORMULA_10]] is denoted as the coefficient that controls step 10 of the diffusion process, while the term <f10-b10/> is expressed as its normalization factor and the operator <f110-c10/> is defined as the transition kernel used in experiment 10. The quantity [[FORMULA_11]] is denoted as the coefficient that controls step 11 of the diffusion process, while the term <f11-b11/> is expressed as its normalization factor and the operator <f111-c11/> is defined as the transition kernel used in experiment 11. The quantity [[FORMULA_12]] is denoted as the coefficient that controls step 12 of the diffusion process, while the term <f12-b12/> is expressed as its normalization factor and the operator <f112-c12/> is defined as the transition kernel used in experiment 12.",
+        "protected_translated_text": "",
+        "translation_unit_id": "tp018-heavy-split-b000",
+        "translation_unit_kind": "single",
+        "translation_unit_member_ids": [
+          "tp018-heavy-split-b000"
+        ],
+        "translation_unit_protected_source_text": "The quantity [[FORMULA_1]] is denoted as the coefficient that controls step 1 of the diffusion process, while the term <f1-b01/> is expressed as its normalization factor and the operator <f101-c01/> is defined as the transition kernel used in experiment 1. The quantity [[FORMULA_2]] is denoted as the coefficient that controls step 2 of the diffusion process, while the term <f2-b02/> is expressed as its normalization factor and the operator <f102-c02/> is defined as the transition kernel used in experiment 2. The quantity [[FORMULA_3]] is denoted as the coefficient that controls step 3 of the diffusion process, while the term <f3-b03/> is expressed as its normalization factor and the operator <f103-c03/> is defined as the transition kernel used in experiment 3. The quantity [[FORMULA_4]] is denoted as the coefficient that controls step 4 of the diffusion process, while the term <f4-b04/> is expressed as its normalization factor and the operator <f104-c04/> is defined as the transition kernel used in experiment 4. The quantity [[FORMULA_5]] is denoted as the coefficient that controls step 5 of the diffusion process, while the term <f5-b05/> is expressed as its normalization factor and the operator <f105-c05/> is defined as the transition kernel used in experiment 5. The quantity [[FORMULA_6]] is denoted as the coefficient that controls step 6 of the diffusion process, while the term <f6-b06/> is expressed as its normalization factor and the operator <f106-c06/> is defined as the transition kernel used in experiment 6. The quantity [[FORMULA_7]] is denoted as the coefficient that controls step 7 of the diffusion process, while the term <f7-b07/> is expressed as its normalization factor and the operator <f107-c07/> is defined as the transition kernel used in experiment 7. The quantity [[FORMULA_8]] is denoted as the coefficient that controls step 8 of the diffusion process, while the term <f8-b08/> is expressed as its normalization factor and the operator <f108-c08/> is defined as the transition kernel used in experiment 8. The quantity [[FORMULA_9]] is denoted as the coefficient that controls step 9 of the diffusion process, while the term <f9-b09/> is expressed as its normalization factor and the operator <f109-c09/> is defined as the transition kernel used in experiment 9. The quantity [[FORMULA_10]] is denoted as the coefficient that controls step 10 of the diffusion process, while the term <f10-b10/> is expressed as its normalization factor and the operator <f110-c10/> is defined as the transition kernel used in experiment 10. The quantity [[FORMULA_11]] is denoted as the coefficient that controls step 11 of the diffusion process, while the term <f11-b11/> is expressed as its normalization factor and the operator <f111-c11/> is defined as the transition kernel used in experiment 11. The quantity [[FORMULA_12]] is denoted as the coefficient that controls step 12 of the diffusion process, while the term <f12-b12/> is expressed as its normalization factor and the operator <f112-c12/> is defined as the transition kernel used in experiment 12.",
+        "translation_unit_protected_translated_text": "",
+        "translation_unit_translated_text": "",
+        "group_protected_source_text": "",
+        "group_protected_translated_text": "",
+        "group_translated_text": "",
+        "protected_map": [],
+        "formula_map": [],
+        "translation_unit_protected_map": [],
+        "group_protected_map": [],
+        "group_formula_map": [],
+        "translation_diagnostics": {},
+        "continuation_group": "",
+        "continuation_prev_text": "",
+        "continuation_next_text": "",
+        "continuation_decision": "",
+        "layout_mode": "single",
+        "layout_zone": "body",
+        "bbox": [
+          42,
+          88,
+          500,
+          200
+        ],
+        "metadata": {
+          "structure_role": "body",
+          "ocr_sub_type": "body",
+          "normalized_sub_type": "body"
+        },
+        "lines": [
+          {
+            "bbox": [
+              42,
+              88,
+              500,
+              200
+            ],
+            "spans": [
+              {
+                "type": "text",
+                "content": "The quantity [[FORMULA_1]] is denoted as the coefficient that controls step 1 of the diffusion process, while the term <f1-b01/> is expressed as its normalization factor and the operator <f101-c01/> is defined as the transition kernel used in experiment 1. The quantity [[FORMULA_2]] is denoted as the coefficient that controls step 2 of the diffusion process, while the term <f2-b02/> is expressed as its normalization factor and the operator <f102-c02/> is defined as the transition kernel used in experiment 2. The quantity [[FORMULA_3]] is denoted as the coefficient that controls step 3 of the diffusion process, while the term <f3-b03/> is expressed as its normalization factor and the operator <f103-c03/> is defined as the transition kernel used in experiment 3. The quantity [[FORMULA_4]] is denoted as the coefficient that controls step 4 of the diffusion process, while the term <f4-b04/> is expressed as its normalization factor and the operator <f104-c04/> is defined as the transition kernel used in experiment 4. The quantity [[FORMULA_5]] is denoted as the coefficient that controls step 5 of the diffusion process, while the term <f5-b05/> is expressed as its normalization factor and the operator <f105-c05/> is defined as the transition kernel used in experiment 5. The quantity [[FORMULA_6]] is denoted as the coefficient that controls step 6 of the diffusion process, while the term <f6-b06/> is expressed as its normalization factor and the operator <f106-c06/> is defined as the transition kernel used in experiment 6. The quantity [[FORMULA_7]] is denoted as the coefficient that controls step 7 of the diffusion process, while the term <f7-b07/> is expressed as its normalization factor and the operator <f107-c07/> is defined as the transition kernel used in experiment 7. The quantity [[FORMULA_8]] is denoted as the coefficient that controls step 8 of the diffusion process, while the term <f8-b08/> is expressed as its normalization factor and the operator <f108-c08/> is defined as the transition kernel used in experiment 8. The quantity [[FORMULA_9]] is denoted as the coefficient that controls step 9 of the diffusion process, while the term <f9-b09/> is expressed as its normalization factor and the operator <f109-c09/> is defined as the transition kernel used in experiment 9. The quantity [[FORMULA_10]] is denoted as the coefficient that controls step 10 of the diffusion process, while the term <f10-b10/> is expressed as its normalization factor and the operator <f110-c10/> is defined as the transition kernel used in experiment 10. The quantity [[FORMULA_11]] is denoted as the coefficient that controls step 11 of the diffusion process, while the term <f11-b11/> is expressed as its normalization factor and the operator <f111-c11/> is defined as the transition kernel used in experiment 11. The quantity [[FORMULA_12]] is denoted as the coefficient that controls step 12 of the diffusion process, while the term <f12-b12/> is expressed as its normalization factor and the operator <f112-c12/> is defined as the transition kernel used in experiment 12."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "replay": {},
+  "drift": {}
+}

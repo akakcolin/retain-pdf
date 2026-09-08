@@ -1,4 +1,4 @@
-import { $ } from "../../dom/query.js";
+import { $ } from "../../../shared/dom/query.js";
 import { TRANSLATION_PROVIDER_DEFINITION, getOcrProviderDefinition } from "../../config/providers.js";
 import {
   browserValidationIdForProvider,

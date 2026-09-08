@@ -4,8 +4,8 @@ import assert from "node:assert/strict";
 import {
   progressTextForStageProgress,
   summarizeStageProgressText,
-} from "../src/js/job-status/job-status-summary-progress.js";
-import { buildJobStatusSummaryViewModel } from "../src/js/job-status/job-status-summary-view-model.js";
+} from "../src/pages/home/features/status/job-status-summary-progress.js";
+import { buildJobStatusSummaryViewModel } from "../src/pages/home/features/status/job-status-summary-view-model.js";
 
 test("summarizeStageProgressText formats stable user-facing progress copy", () => {
   assert.equal(

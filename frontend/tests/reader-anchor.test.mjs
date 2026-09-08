@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { resolveReaderAnchor } from "../src/js/reader/page-config.js";
+import { resolveReaderAnchor } from "../src/pages/reader/legacy/page-config.js";
 import { buildReaderPageUrl } from "../src/js/job/action-model.js";
 import { pageNumberFromUrlAnchor } from "../src/pages/reader/hooks/use-url-anchor-jump.ts";
 

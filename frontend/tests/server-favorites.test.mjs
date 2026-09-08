@@ -4,7 +4,7 @@ import {
   createReaderServerFavoritesPort,
   dedupeServerFavorites,
   normalizeServerFavorite,
-} from "../src/js/reader/server-favorites-port.js";
+} from "../src/pages/reader/legacy/server-favorites-port.js";
 import { deleteFavorite } from "../src/js/api/favorites.js";
 
 const API_FAVORITE = {

@@ -5,7 +5,7 @@ import type {
   ReaderAiChatSession,
   ReaderAiSessionSummary,
   ReaderAiSessionsBag,
-} from "../types.js";
+} from "../../../pages/reader/legacy/types.js";
 
 export const MAX_SESSIONS = 20;
 const TITLE_MAX = 18;

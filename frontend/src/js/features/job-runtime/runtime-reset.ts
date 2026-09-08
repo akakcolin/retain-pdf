@@ -1,4 +1,4 @@
-import { TEXT_KEYS } from "../../dom/text-keys.js";
+import { TEXT_KEYS } from "../../../shared/dom/text-keys.js";
 import { resetStatusDetailRuntimeView } from "../app-shell/idle-reset.js";
 import { clearActiveJobId } from "./active-job-storage.js";
 import { createJobRuntimeShellViewPort } from "./shell-view-port.js";

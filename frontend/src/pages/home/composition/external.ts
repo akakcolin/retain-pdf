@@ -28,6 +28,7 @@ export {
   savePersistedBrowserStoredConfig,
   savePersistedDeveloperStoredConfig,
 } from "../../../js/config/persisted-config.js";
+export { normalizeBrowserStoredConfig } from "../../../js/config/storage.js";
 export { openDesktopOutputDirectory } from "../../../js/config/desktop-persistence.js";
 export { DEFAULT_MODEL_VERSION } from "../../../js/config/model-constants.js";
 export {
@@ -115,10 +116,10 @@ export {
 export type { JobLike, JobPayload } from "../../../js/job/types.js";
 
 // —— job-status ——
-export { adaptJobStageSnapshot } from "../../../js/job-status/job-stage-contract-adapter.js";
-export { normalizedStageEventRecord } from "../../../js/job-status/job-stage-event-record.js";
-export { buildJobStatusSummaryViewModel } from "../../../js/job-status/job-status-summary-view-model.js";
-export { buildSelectedStageDisplay } from "../../../js/job-status/selected-stage-display-view-model.js";
+export { adaptJobStageSnapshot } from "../features/status/job-stage-contract-adapter.js";
+export { normalizedStageEventRecord } from "../features/status/job-stage-event-record.js";
+export { buildJobStatusSummaryViewModel } from "../features/status/job-status-summary-view-model.js";
+export { buildSelectedStageDisplay } from "../features/status/selected-stage-display-view-model.js";
 export {
   STATUS_STAGE_FLOW,
   STATUS_STAGE_LABELS,
@@ -126,21 +127,21 @@ export {
   resolveSelectedStatusStage,
   statusStageIndex,
   statusStageLabel,
-} from "../../../js/job-status/stage-flow-model.js";
+} from "../features/status/stage-flow-model.js";
 export {
   buildProgressOptions,
   shouldAnimateRenderPageProgress,
-} from "../../../js/job-status/status-card-progress-view-model.js";
-export { buildRuntimeStatusCardSnapshot } from "../../../js/job-status/status-card-runtime-source.js";
-export { buildSubstageViewModel } from "../../../js/job-status/substage-view-model.js";
-export type { EventsPayload } from "../../../js/job-status/types.js";
+} from "../features/status/status-card-progress-view-model.js";
+export { buildRuntimeStatusCardSnapshot } from "../features/status/status-card-runtime-source.js";
+export { buildSubstageViewModel } from "../features/status/substage-view-model.js";
+export type { EventsPayload } from "../features/status/types.js";
 
 // —— status-detail (non-feature path) ——
-export { buildStatusDetailSnapshot } from "../../../js/status-detail/snapshot.js";
+export { buildStatusDetailSnapshot } from "../features/status-detail/snapshot.js";
 export {
   formatEventTimestamp,
   formatRuntimeDuration,
-} from "../../../js/status-detail/utils.js";
+} from "../features/status-detail/utils.js";
 
 // —— runtime ——
 export { resolveLottieVendorUrl } from "../../../js/runtime/vendor-url.js";
@@ -287,6 +288,7 @@ export { readActiveJobId } from "../../../js/features/job-runtime/active-job-sto
 // recent-jobs / documents-library
 export { mountRecentJobsFeature } from "../../../js/features/recent-jobs/controller.js";
 export { createRecentJobsStatePort } from "../../../js/features/recent-jobs/state.js";
+export type { RecentJobsStatePort } from "../../../js/features/recent-jobs/state.js";
 export { createRecentJobActions } from "../../../js/features/recent-jobs/actions.js";
 export { createRecentJobsRuntimePort } from "../../../js/features/recent-jobs/job-runtime-port.js";
 export { createRecentJobsReaderPort } from "../../../js/features/recent-jobs/reader-port.js";

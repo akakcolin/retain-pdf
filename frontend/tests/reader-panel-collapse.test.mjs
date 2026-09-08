@@ -4,7 +4,7 @@ import {
   loadCollapseState,
   saveCollapseState,
   createReaderPanelCollapse,
-} from "../src/js/reader/panel-collapse.js";
+} from "../src/pages/reader/legacy/controllers/panel-collapse.js";
 
 function memoryStorage(seed) {
   const map = new Map(seed ? Object.entries(seed) : []);

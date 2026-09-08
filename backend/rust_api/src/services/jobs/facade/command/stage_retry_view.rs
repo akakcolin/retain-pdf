@@ -4,17 +4,18 @@ use crate::models::api::{
     build_job_actions, build_job_links_with_workflow, RetryStageKind, RetryStageSubmissionView,
     StageActionsView, StageRetryActionLinkView, StageRetryActionView,
 };
-use crate::models::domain::{JobSnapshot, JobStatusKind, WorkflowKind};
+use crate::models::domain::{JobArtifactRecord, JobSnapshot, JobStatusKind, WorkflowKind};
 use crate::services::jobs::stage_plan::{stage_name, stage_plans, JobStagePlan};
 
 pub(super) fn build_stage_actions_view(
     base_url: &str,
     job: &JobSnapshot,
     data_root: &std::path::Path,
+    entries: &[JobArtifactRecord],
 ) -> StageActionsView {
     StageActionsView {
         job_id: job.job_id.clone(),
-        stages: stage_plans(job, data_root)
+        stages: stage_plans(job, data_root, entries)
             .into_iter()
             .map(|plan| build_stage_action(base_url, job, plan))
             .collect(),
