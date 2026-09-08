@@ -7,7 +7,6 @@
 
 | 用途 | 模块 | 谁 import |
 |------|------|-----------|
-| **favorites** | `favorites/*` | `pages/reader/legacy/selection-favorites` |
 | **annotations** | `annotations/view-model.ts` | `pages/reader/legacy/region-*` |
 | **legacy AI** | `ai/*`（`ask-answerer`、`chat-history-store`…） | `pages/reader/legacy/ai`、`hooks/use-reader-boot` |
 | **downloads** | `downloads/resolve.ts` | `pages/reader/legacy` 下载链路 |
@@ -17,6 +16,7 @@
 | 文件 | 去向 |
 |------|------|
 | 顶层 `*.ts`（引擎 / 共享 ports / view / markdown-*） | `pages/reader/legacy/`（ADR 0009 第 ⑤ 批） |
+| `favorites/*`（7 文件） | `pages/reader/legacy/favorites/`（第 ⑥ 批） |
 | `chrome-controller.ts`、`column-resizer.ts`、`mode-controller.ts`、`panel-collapse.ts` | `pages/reader/legacy/controllers/`（ADR 0009） |
 
 ## 已删除

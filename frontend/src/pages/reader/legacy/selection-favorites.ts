@@ -4,8 +4,8 @@ import {
 } from "./page-geometry.js";
 import { isReaderTranslatedRegionEvent, jumpToReaderAnchor } from "./region-interactions.js";
 import { copyText } from "../../../js/utils/clipboard.js";
-import { renderFavorites } from "../../../js/reader/favorites/drawer-renderer.js";
-import { renderServerFavorites } from "../../../js/reader/favorites/server-drawer-renderer.js";
+import { renderFavorites } from "./favorites/drawer-renderer.js";
+import { renderServerFavorites } from "./favorites/server-drawer-renderer.js";
 import { dedupeServerFavorites } from "./server-favorites-port.js";
 import {
   clampRect,
@@ -14,7 +14,7 @@ import {
   rectFromViewportRelative,
   relativeRect,
   viewportRelativeRect,
-} from "../../../js/reader/favorites/geometry.js";
+} from "./favorites/geometry.js";
 import {
   attachSelectionClose,
   createPinnedOverlay,
@@ -24,9 +24,9 @@ import {
   showSelectionToast,
   showSourceLocator,
   updateSelectionOverlay,
-} from "../../../js/reader/favorites/overlays.js";
-import { captureSelectionPreview } from "../../../js/reader/favorites/preview.js";
-import { clearTextSelection } from "../../../js/reader/favorites/text-selection.js";
+} from "./favorites/overlays.js";
+import { captureSelectionPreview } from "./favorites/preview.js";
+import { clearTextSelection } from "./favorites/text-selection.js";
 import type {
   ClearActiveSelectionOptions,
   CreateReaderSelectionFavoritesOptions,

@@ -82,11 +82,11 @@ frontend/src/
 |----|-------------|-------------|
 | **A 新引擎（默认）** | `ReaderAppReactPdf` + `hooks/` `pdf/` `annotations/` `components/react-pdf/` | 只经 **`pages/reader/external.ts`** |
 | **B 共享 ports** | `pages/reader/legacy` 子集：data/config/resource/pdf-document/page-state… | 经 external 出口；勿塞进 pdf-controller |
-| **C legacy** | `?engine=legacy` → **`pages/reader/legacy/**`**（引擎主力）+ `js/reader/{favorites,annotations,ai,downloads}` | legacy 可直接 import `js/reader/**` |
+| **C legacy** | `?engine=legacy` → **`pages/reader/legacy/**`**（引擎主力）+ `js/reader/{annotations,ai,downloads}` | legacy 可直接 import `js/reader/**` |
 
 详情：`pages/reader/README.md`、`js/reader/README.md`。
 
-**新功能不要写进 `legacy/` 或 `js/reader/favorites*`。**
+**新功能不要写进 `legacy/` 或 `js/reader/annotations`。**
 
 ## 详情页
 
@@ -115,11 +115,11 @@ frontend/src/
 ## 死代码策略
 
 - **先文档、再删**：`rg` 无 importer 仍可能是动态路径或测试专用。
-- `js/reader` 顶层引擎已迁 `pages/reader/legacy/`；余下 `{favorites,annotations,ai,downloads}` 子目录仍被 legacy 链路引用（含内部引用）。
+- `js/reader` 顶层引擎与 `favorites/` 已迁 `pages/reader/legacy/`；余下 `{annotations,ai,downloads}` 子目录仍被 legacy 链路引用（含内部引用）。
 - **`pages/home/features` → `src/js/*`**：经 `pages/home/composition/external.ts`。
 - **`pages/detail` → `src/js/*`**：经 `pages/detail/external.ts`。
 - **`pages/reader` 非 legacy → `src/js/*`**：经 `pages/reader/external.ts`；`legacy/**` 除外。
-- **不要**批量删除 `js/reader/favorites/*`——它们经 `pages/reader/legacy/selection-favorites` 服务 `?engine=legacy`。
+- **不要**批量删除 `pages/reader/legacy/favorites/*`——它们经 `selection-favorites` 服务 `?engine=legacy`。
 
 ---
 

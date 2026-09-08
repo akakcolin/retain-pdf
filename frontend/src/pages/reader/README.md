@@ -25,7 +25,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │  C. 旧命令式引擎（?engine=legacy）                            │
 │     pages/reader/legacy/**（引擎主力）                          │
-│     + js/reader/{favorites,annotations,ai,downloads}          │
+│     + js/reader/{annotations,ai,downloads}                    │
 │     pdf-controller / pdf-renderer / regions…                  │
 │     允许直接 import js/reader（不要塞进 external 冒充共享）    │
 └─────────────────────────────────────────────────────────────┘
@@ -35,7 +35,7 @@
 |----|------|------------|
 | **A 新引擎** | `hooks/`、`pdf/`、`annotations/`、`components/react-pdf/` | 批注、缩放、对照、滚动锚点 |
 | **B 共享** | `external.ts` → `legacy/{data-port,config-port,resource-resolver,…}` | 仅会话/资源/URL，不写 UI |
-| **C legacy** | `legacy/**`（引擎主力）+ `js/reader/{favorites,annotations,ai,downloads}` | **不要**加新功能 |
+| **C legacy** | `legacy/**`（引擎主力）+ `js/reader/{annotations,ai,downloads}` | **不要**加新功能 |
 
 ## 布局
 
@@ -66,7 +66,7 @@ pages/reader/
 
 ## 不要
 
-- 新功能接到 `legacy/selection-favorites` / `js/reader/favorites/*`  
+- 新功能接到 `legacy/selection-favorites` / `legacy/favorites/*`  
 - 把 `pdf-controller` 引进 `external.ts` 给新引擎用  
 - 假设组件仍在扁平 `components/*`（旧 UI 已在 `legacy/components/`）
 

@@ -52,8 +52,8 @@ const PAGES = [
     jsxDir: "src/pages/reader",
   },
   {
-    // 顶层 reader 纯逻辑已随 ADR 0009 迁入 pages/reader/legacy;子目录
-    // (favorites/annotations/ai/downloads)仍留 js/reader,故两者都要扫。
+    // 顶层 reader 纯逻辑与 favorites/ 已随 ADR 0009 迁入 pages/reader/legacy;
+    // (annotations/ai/downloads)仍留 js/reader,故两者都要扫。
     jsDir: "src/pages/reader/legacy",
     prefix: "reader",
     htmlFile: "reader.html",

@@ -3,7 +3,7 @@ import type {
   AttachSelectionCloseOptions,
   PixelRect,
   ReaderSelection,
-} from "../../../pages/reader/legacy/types.js";
+} from "../types.js";
 
 export function showDeleteConfirmation(control, onConfirm, documentRef = control?.ownerDocument || globalThis.document) {
   if (!control || typeof onConfirm !== "function") {

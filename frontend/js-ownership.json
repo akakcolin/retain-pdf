@@ -2,11 +2,11 @@
   "schema": "frontend_js_ownership_v1",
   "updatedAt": "2026-09-08",
   "policy": "ADR 0009: js/ 不再承接新逻辑。keep=长期保留的基础设施/领域端口；migrate=迁往 pages/（React）。keepBudget 只降不升。",
-  "pilotNote": "五批迁入 pages/：①零依赖模块（status-card-progress-view-model、js/reader 四控制器）；②js/job-status 全目录 44 文件 → pages/home/features/status/；③js/status-detail 全目录 4 文件 → pages/home/features/status-detail/；④删除 2 个仅测试引用的死模块（status-card-snapshot、status-detail/presenter）；⑤js/job-detail 13 文件 → pages/detail/legacy/、js/reader 顶层 27 文件 → pages/reader/legacy/，js/dom 两个纯工具（query/text-keys）上移 src/shared/dom/ 以解开反回弹门禁，detail/reader 门禁照 reader 先例放行各自 legacy/ 子目录。①②③以目标目录内嵌套 external.ts 端口消费 js/ 纯逻辑层，门禁放行 features/**/external.ts。js/job、job-detail/reader 子目录暂留 js/ 并反向引用新址；剩余 12 个 migrate 文件（components 4 + reader 子目录 8）仍被 js/ 内部互引，按季度排期。",
+  "pilotNote": "六批迁入 pages/：①零依赖模块（status-card-progress-view-model、js/reader 四控制器）；②js/job-status 全目录 44 文件 → pages/home/features/status/；③js/status-detail 全目录 4 文件 → pages/home/features/status-detail/；④删除 2 个仅测试引用的死模块（status-card-snapshot、status-detail/presenter）；⑤js/job-detail 13 文件 → pages/detail/legacy/、js/reader 顶层 27 文件 → pages/reader/legacy/，js/dom 两个纯工具（query/text-keys）上移 src/shared/dom/ 以解开反回弹门禁，detail/reader 门禁照 reader 先例放行各自 legacy/ 子目录；⑥js/reader/favorites 7 文件 → pages/reader/legacy/favorites/（消费者已全在 legacy 内，仅剩 type 导入跨目录）。①②③以目标目录内嵌套 external.ts 端口消费 js/ 纯逻辑层，门禁放行 features/**/external.ts。js/job、reader 子目录暂留 js/ 并反向引用新址；剩余 5 个 migrate 文件（components 4 + annotations 1）仍被 js/ 内部互引，按季度排期。",
   "keepBudget": 217,
   "migrateTargets": {
     "src/js/components": "pages/home/features/library + pages/home/features/reader",
-    "src/js/reader/annotations + src/js/reader/favorites": "pages/reader/legacy"
+    "src/js/reader/annotations": "pages/reader/legacy"
   },
   "files": {
     "src/js/api/ai.ts": "keep",
@@ -214,13 +214,6 @@
     "src/js/reader/ai/ui-interaction-lock.ts": "keep",
     "src/js/reader/annotations/view-model.ts": "migrate",
     "src/js/reader/downloads/resolve.ts": "keep",
-    "src/js/reader/favorites/drawer-renderer.ts": "migrate",
-    "src/js/reader/favorites/geometry.ts": "migrate",
-    "src/js/reader/favorites/overlays.ts": "migrate",
-    "src/js/reader/favorites/preview.ts": "migrate",
-    "src/js/reader/favorites/server-drawer-renderer.ts": "migrate",
-    "src/js/reader/favorites/tags.ts": "migrate",
-    "src/js/reader/favorites/text-selection.ts": "migrate",
     "src/js/runtime/vendor-url.ts": "keep",
     "src/js/state/actions.ts": "keep",
     "src/js/state/credential-state.ts": "keep",
