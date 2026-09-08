@@ -51,6 +51,9 @@ const MODEL_CONSTANTS_FROM_ROOT_PATTERN = /import\s*{[^}]*(?:DEFAULT_MODEL|DEFAU
 const STORAGE_KEYS_FROM_ROOT_PATTERN = /import\s*{[^}]*(?:BROWSER_CONFIG_STORAGE_KEY|DEVELOPER_CONFIG_STORAGE_KEY)[^}]*}\s*from\s+["'](?:\.\.\/)+constants\.js["']/s;
 const WORKFLOW_DEFAULTS_FROM_ROOT_PATTERN = /import\s*{[^}]*(?:DEFAULT_MODE|DEFAULT_LANGUAGE|DEFAULT_RULE_PROFILE|DEFAULT_RENDER_MODE|DEFAULT_TYPST_FONT_FAMILY|DEFAULT_PDF_COMPRESS_DPI|DEFAULT_TRANSLATED_PDF_NAME|DEFAULT_BODY_FONT_SIZE_FACTOR|DEFAULT_BODY_LEADING_FACTOR|DEFAULT_INNER_BBOX_SHRINK_X|DEFAULT_INNER_BBOX_SHRINK_Y|DEFAULT_INNER_BBOX_DENSE_SHRINK_X|DEFAULT_INNER_BBOX_DENSE_SHRINK_Y|DEFAULT_FONT_UNIFY_MODE|DEFAULT_WORKERS|DEFAULT_BATCH_SIZE|DEFAULT_CLASSIFY_BATCH_SIZE|DEFAULT_COMPILE_WORKERS|DEFAULT_TIMEOUT_SECONDS)[^}]*}\s*from\s+["'](?:\.\.\/)+constants\.js["']/s;
 const BOOTSTRAP_EXTERNAL_IMPORT_PATTERN = /from\s+["']\.\.\/(?:features|ui|api|state)\/|from\s+["']\.\.\/(?:config|constants)\.js["']/;
+// 任意导入形式的前缀:静态 from / 动态 import() / 副作用 import "" / require()。
+// 只写 `from\s+["']` 会漏掉后三种写法(门禁洞)。
+const IMPORT_SPEC_OPEN = String.raw`(?:from\s*|import\s*\(?\s*|require\s*\(\s*)["']`;
 // Phase 3 home cutover 删掉了绝大部分 src/js/bootstrap/(227 个手工 DI 端口文件里的
 // 226 个);现存唯一文件是 reader-dialog-runtime-port.js(reader iframe 契约仍需要,
 // 见 src/js/reader/downloads/resolve.js)。以下两份清单曾各有 30~130 个条目对应
@@ -540,15 +543,14 @@ test("React 新世界禁止 import 旧视图层(防回弹)", () => {
   const FORBIDDEN_IMPORT_PATTERNS = [
     // 只拦旧世界的 src/js/components/;新世界页面自身的 components/ 子目录
     // (src/pages/*/components/,目录约定)不在此列
-    [/from\s+["'][^"']*\/js\/components\//, "src/js/components/(自定义元素/对话框视图)"],
-    [/from\s+["'][^"']*\/js\/ui\//, "src/js/ui/(旧 UI 适配层)"],
-    [/from\s+["'][^"']*\/generated\//, "src/js/generated/(预编译产物)"],
-    [/from\s+["'][^"']*\/bootstrap\//, "src/js/bootstrap/(旧 DI 装配层)"],
-    [/from\s+["'][^"']*\/features\/[^"']*\/view\.js["']/, "features/*/view.js(旧 DOM 视图)"],
-    [/from\s+["'][^"']*\/features\/[^"']*view-port\.js["']/, "features/*view-port.js(旧 DOM 端口)"],
-    [/from\s+["'][^"']*\/features\/[^"']*dom-contract\.js["']/, "features/*dom-contract.js(旧 DOM 契约)"],
-    [/from\s+["'][^"']*\/features\/[^"']*card-markup\.js["']/, "features/*card-markup.js(字符串模板)"],
-    [/from\s+["'][^"']*\/features\/[^"']*card-template\.js["']/, "features/*card-template.js(字符串模板)"],
+    [new RegExp(IMPORT_SPEC_OPEN + String.raw`[^"']*/js/components/`), "src/js/components/(自定义元素/对话框视图)"],
+    [new RegExp(IMPORT_SPEC_OPEN + String.raw`[^"']*/generated/`), "src/js/generated/(预编译产物)"],
+    [new RegExp(IMPORT_SPEC_OPEN + String.raw`[^"']*/bootstrap/`), "src/js/bootstrap/(旧 DI 装配层)"],
+    [new RegExp(IMPORT_SPEC_OPEN + String.raw`[^"']*/features/[^"']*/view\.js["']`), "features/*/view.js(旧 DOM 视图)"],
+    [new RegExp(IMPORT_SPEC_OPEN + String.raw`[^"']*/features/[^"']*view-port\.js["']`), "features/*view-port.js(旧 DOM 端口)"],
+    [new RegExp(IMPORT_SPEC_OPEN + String.raw`[^"']*/features/[^"']*dom-contract\.js["']`), "features/*dom-contract.js(旧 DOM 契约)"],
+    [new RegExp(IMPORT_SPEC_OPEN + String.raw`[^"']*/features/[^"']*card-markup\.js["']`), "features/*card-markup.js(字符串模板)"],
+    [new RegExp(IMPORT_SPEC_OPEN + String.raw`[^"']*/features/[^"']*card-template\.js["']`), "features/*card-template.js(字符串模板)"],
   ];
 
   function walkReactFiles(root) {
@@ -616,10 +618,8 @@ test("纯逻辑核心(src/js/{api,contracts,config,job,state,status-detail,utils
     .map((name) => SOURCE_ROOTS[name])
     .filter((root) => existsSync(root));
   const FORBIDDEN_PRESENTATION_PATTERNS = [
-    [/from\s+["'][^"']*\.\.\/dom\//, "src/js/dom/(旧 DOM 工具)"],
-    [/from\s+["'][^"']*shared\/dom\//, "src/shared/dom/(DOM 工具,仅 UI 层可用)"],
-    [/from\s+["'][^"']*\.\.\/components\//, "src/js/components/(旧视图组件)"],
-    [/from\s+["'][^"']*\.\.\/ui\//, "src/js/ui/(旧 UI 适配层)"],
+    [new RegExp(IMPORT_SPEC_OPEN + String.raw`[^"']*shared/dom/`), "src/shared/dom/(DOM 工具,仅 UI 层可用)"],
+    [new RegExp(IMPORT_SPEC_OPEN + String.raw`[^"']*\.\./components/`), "src/js/components/(旧视图组件)"],
     [REACT_FAMILY_IMPORT_PATTERN, "react/react-dom"],
   ];
 
@@ -643,15 +643,13 @@ test("纯逻辑核心(src/js/{api,contracts,config,job,state,status-detail,utils
 
 
 const HOME_FEATURES_ROOT = join(PROJECT_ROOT, "src/pages/home/features");
-/** Any import whose module path reaches src/js (…/js/…); composition/external is the only gate. */
-const HOME_FEATURES_DIRECT_JS_IMPORT =
-  /from\s+["'][^"']*(?:^|\/)js\/[^"']+["']|from\s+["'][^"']*(?:\.\.\/)+js\/[^"']+["']/;
+const DIRECT_JS_IMPORT_OPEN = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["']/;
 
 function pageHasDirectJsImport(source) {
   return source.split("\n").some((line) => {
     const code = line.split("//")[0];
     return (
-      /\bfrom\s+["']/.test(code)
+      DIRECT_JS_IMPORT_OPEN.test(code)
       && /js\//.test(code)
       && !/\/external(?:\.js)?["']/.test(code)
       && !/composition\/external/.test(code)
@@ -796,4 +794,27 @@ test("every src/js source file is labeled in js-ownership.json", () => {
     keep <= Number(manifest.keepBudget),
     `js/ keep 数量 ${keep} 超出预算 ${manifest.keepBudget}；新逻辑请写 pages/`,
   );
+});
+
+// 防回弹/逻辑核心门禁的检测器必须覆盖全部导入形式，否则动态 import()、
+// 副作用 import ""、require() 能绕过（评审发现的门禁洞）。
+test("导入门禁检测器覆盖静态/动态/副作用/require 四种写法", () => {
+  const pattern = new RegExp(IMPORT_SPEC_OPEN + String.raw`[^"']*/js/components/`);
+  const bypassForms = [
+    'import { x } from "../../js/components/foo.js";',
+    'import("../../js/components/foo.js");',
+    'import "../../js/components/foo.js";',
+    'require("../../js/components/foo.js");',
+  ];
+  for (const form of bypassForms) {
+    assert.ok(pattern.test(form), `防回弹门禁未拦下: ${form}`);
+  }
+  for (const form of [
+    'import("../../../js/job/artifacts.js")',
+    'import "../../../js/job/artifacts.js";',
+    'require("../../../js/job/artifacts.js")',
+  ]) {
+    assert.ok(pageHasDirectJsImport(form), `pageHasDirectJsImport 未拦下: ${form}`);
+  }
+  assert.ok(!pageHasDirectJsImport('import { x } from "../../shared/dom/query.js";'));
 });
