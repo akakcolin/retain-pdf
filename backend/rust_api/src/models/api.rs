@@ -1,11 +1,11 @@
 pub use super::common::{ApiResponse, UploadView};
 pub use super::graph::{
-    BlockEntityLink, EntityListView, EntityMention, EntityMentionListView, EntityPageCitation,
-    EntityPageEvidence, EntityPageLink, EntityPageRecord, EntityPageView, EntityRecord,
-    EntityRelationListView, EntitySummary, ExtractDocumentGraphView, ExtractGraphRequest,
-    GenerateEntityPageRequest,
-    LinkDocumentGraphView, ListEntitiesQuery, ListMentionsQuery, ListRelationsQuery, NewEntity,
-    NewEntityRelation, RelatedEntity,
+    BlockEntityLink, EntityBacklink, EntityBacklinkListView, EntityListView, EntityMention,
+    EntityMentionListView, EntityPageCitation, EntityPageEvidence, EntityPageLink, EntityPageRecord,
+    EntityPageView, EntityRecord, EntityRelationListView, EntitySummary, ExtractDocumentGraphView,
+    ExtractGraphRequest, GenerateEntityPageRequest, LinkDocumentGraphView, ListBacklinksQuery,
+    ListEntitiesQuery, ListMentionsQuery, ListRelationsQuery, NewEntity, NewEntityRelation,
+    RelatedEntity,
 };
 pub use super::glossary::{
     glossary_to_csv_export, glossary_to_detail, glossary_to_summary, GlossaryCsvExportView,

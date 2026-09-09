@@ -4,7 +4,8 @@ use tower::util::ServiceExt;
 
 use super::jobs_common::{read_json, test_state};
 use crate::app::build_app;
-use crate::models::api::{NewEntity, NewEntityRelation};
+use crate::models::api::{EntityPageRecord, NewEntity, NewEntityRelation};
+use crate::models::now_iso;
 
 fn entity(name: &str, entity_type: &str) -> NewEntity {
     NewEntity {
@@ -170,6 +171,63 @@ async fn generate_entity_page_requires_llm_key() {
 }
 
 #[tokio::test]
+async fn entity_backlinks_route_returns_linking_pages() {
+    let state = test_state("graph-backlinks");
+    let app = build_app(state.clone());
+    let target = state.db.upsert_entity(&entity("GNN", "method")).expect("a");
+    let source = state.db.upsert_entity(&entity("QM9", "dataset")).expect("b");
+    state
+        .db
+        .upsert_entity_page(&EntityPageRecord {
+            entity_id: source.entity_id.clone(),
+            body_md: "QM9 常用于评测 [[GNN]] 与 [[不存在]] [1]。".to_string(),
+            citations: Vec::new(),
+            evidence_sig: String::new(),
+            generated_at: now_iso(),
+        })
+        .expect("page");
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/entities/{}/backlinks", target.entity_id))
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = read_json(response).await;
+    let item = &payload["data"]["items"][0];
+    assert_eq!(item["name"], serde_json::json!("QM9"));
+    assert_eq!(item["entity_type"], serde_json::json!("dataset"));
+    assert!(
+        item["snippet"].as_str().unwrap_or("").contains("GNN"),
+        "unexpected payload: {payload}"
+    );
+}
+
+#[tokio::test]
+async fn entity_backlinks_route_404s_for_unknown_entity() {
+    let state = test_state("graph-backlinks-404");
+    let app = build_app(state);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/entities/ent-nope/backlinks")
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn graph_routes_require_api_key() {
     let state = test_state("graph-auth");
     let app = build_app(state);
@@ -187,10 +245,23 @@ async fn graph_routes_require_api_key() {
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
     let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("GET")
                 .uri("/api/v1/entities/ent-x/page")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/entities/ent-x/backlinks")
                 .body(Body::empty())
                 .expect("request"),
         )

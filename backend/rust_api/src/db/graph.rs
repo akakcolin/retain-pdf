@@ -582,6 +582,22 @@ impl Db {
         Ok(items)
     }
 
+    /// 所有已生成概念页的 (entity_id, body_md)。反链读取时现算,不建 page_links 表。
+    /// 先滤掉没有 wikilink 的页:用 instr 而非 LIKE,'[[' 在 SQLite 的 LIKE 里是字符类语法。
+    /// ponytail: 全表扫 + Rust 侧匹配,概念页上千张前够用;要快再建索引表。
+    pub fn list_entity_page_bodies(&self) -> Result<Vec<(String, String)>> {
+        let conn = self.connect()?;
+        let mut stmt = conn.prepare(
+            "SELECT entity_id, body_md FROM entity_pages WHERE instr(body_md, '[[') > 0",
+        )?;
+        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        let mut items = Vec::new();
+        for row in rows {
+            items.push(row?);
+        }
+        Ok(items)
+    }
+
     /// 证据签名:提及与关系的 (count, max(rowid))。新增/删除证据或关系都会改变它,
     /// 用来判断概念页是否 stale —— 不用在抽取路径上写标记。
     pub fn entity_page_evidence_sig(&self, entity_id: &str) -> Result<String> {

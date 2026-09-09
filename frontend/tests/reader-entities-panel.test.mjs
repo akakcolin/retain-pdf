@@ -51,6 +51,12 @@ const RELATION = {
   explanation: "卤素参与置换",
   source_document_id: "doc-1",
 };
+const BACKLINK = {
+  entity_id: "ent-3",
+  name: "元素周期表",
+  entity_type: "concept",
+  snippet: "…卤素属于 [[元素周期表]] 的第 17 族…",
+};
 
 function stubFetch() {
   const calls = [];
@@ -60,6 +66,7 @@ function stubFetch() {
     let data = { items: [ENTITY] };
     if (path.endsWith("/mentions")) data = { items: [MENTION] };
     else if (path.endsWith("/relations")) data = { items: [RELATION] };
+    else if (path.endsWith("/backlinks")) data = { items: [] };
     return {
       ok: true,
       status: 200,
@@ -128,8 +135,10 @@ test("面板：列表 → 详情 → 证据跳页", async () => {
   await waitFor(() => host.textContent.includes("置换反应"), "关系渲染");
   assert.ok(host.textContent.includes("卤素是一类元素"), "证据片段渲染");
   assert.ok(host.textContent.includes("使用 →"), "关系类型 + 方向箭头");
+  assert.ok(host.textContent.includes("还没有概念页提到它。"), "无反链时给空态提示");
   assert.ok(calls.some((c) => c.url.includes("/entities/ent-1/mentions")));
   assert.ok(calls.some((c) => c.url.includes("/entities/ent-1/relations")));
+  assert.ok(calls.some((c) => c.url.includes("/entities/ent-1/backlinks")));
 
   await act(async () => {
     findByText(host, "第 3 页").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
@@ -163,7 +172,7 @@ const PAGE = {
   ],
 };
 
-function stubFetchWithPage(page) {
+function stubFetchWithPage(page, backlinks = []) {
   const calls = [];
   globalThis.fetch = async (url, init = {}) => {
     calls.push({ url, init });
@@ -171,6 +180,7 @@ function stubFetchWithPage(page) {
     let data = { items: [ENTITY] };
     if (path.endsWith("/mentions")) data = { items: [MENTION] };
     else if (path.endsWith("/relations")) data = { items: [RELATION] };
+    else if (path.endsWith("/backlinks")) data = { items: backlinks };
     else if (path.endsWith("/page")) data = page;
     return {
       ok: true,
@@ -337,6 +347,49 @@ test("面板：全部未解析的 wikilink 不留括号", async () => {
   );
   assert.equal(host.querySelectorAll("button.reader-entities-wikilink").length, 0);
   assert.ok(!host.querySelector(".reader-entities-page-body").textContent.includes("[["), "括号不漏到界面");
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：反链段渲染并点击切到来源实体", async () => {
+  const calls = stubFetchWithPage(PAGE, [BACKLINK]);
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await act(async () => {
+    root.render(createElement(ReaderEntitiesPanel, {
+      open: true,
+      jobId: "job-1",
+      documentId: "doc-1",
+      onClose() {},
+      onJumpPage() {},
+    }));
+  });
+
+  await waitFor(() => host.textContent.includes("卤素"), "实体列表渲染");
+  await act(async () => {
+    findByText(host, "卤素").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+
+  await waitFor(() => host.textContent.includes("元素周期表"), "反链行渲染");
+  assert.ok(host.textContent.includes("被提及"), "反链段标题");
+  assert.ok(host.textContent.includes("第 17 族"), "反链片段渲染");
+
+  const backlinkBtn = [...host.querySelectorAll("button.reader-entities-relation-name")].find((el) =>
+    el.textContent.includes("元素周期表"),
+  );
+  assert.ok(backlinkBtn, "反链名是可点按钮");
+  await act(async () => {
+    backlinkBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  await waitFor(
+    () => calls.some((c) => c.url.includes("/entities/ent-3/mentions")),
+    "切到反链来源实体",
+  );
+  assert.ok(host.textContent.includes("元素周期表"), "详情标题换成来源实体");
 
   await act(async () => {
     root.unmount();

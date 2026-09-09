@@ -20,8 +20,10 @@ import {
   getEntityPage,
   linkDocumentGraph,
   listDocumentEntities,
+  listEntityBacklinks,
   listEntityMentions,
   listEntityRelations,
+  type EntityBacklink,
   type EntityMention,
   type EntityPage,
   type EntityPageLink,
@@ -65,6 +67,7 @@ export function ReaderEntitiesPanel({
   const [selected, setSelected] = useState<EntityRef | null>(null);
   const [mentions, setMentions] = useState<EntityMention[]>([]);
   const [relations, setRelations] = useState<RelatedEntity[]>([]);
+  const [backlinks, setBacklinks] = useState<EntityBacklink[]>([]);
   const [page, setPage] = useState<EntityPage | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -99,6 +102,7 @@ export function ReaderEntitiesPanel({
     setSelected(null);
     setMentions([]);
     setRelations([]);
+    setBacklinks([]);
     setPage(null);
     setNotice("");
     setError("");
@@ -134,18 +138,21 @@ export function ReaderEntitiesPanel({
       setSelected(entity);
       setMentions([]);
       setRelations([]);
+      setBacklinks([]);
       setPage(null);
       setLoading(true);
       setError("");
       try {
-        const [nextMentions, nextRelations, nextPage] = await Promise.all([
+        const [nextMentions, nextRelations, nextBacklinks, nextPage] = await Promise.all([
           listEntityMentions(entity.entity_id, { documentId: docId }),
           listEntityRelations(entity.entity_id),
+          listEntityBacklinks(entity.entity_id),
           getEntityPage(entity.entity_id),
         ]);
         if (detailReq.current !== token) return;
         setMentions(nextMentions);
         setRelations(nextRelations);
+        setBacklinks(nextBacklinks);
         setPage(nextPage);
       } catch (err) {
         if (detailReq.current === token) {
@@ -163,6 +170,7 @@ export function ReaderEntitiesPanel({
     setSelected(null);
     setMentions([]);
     setRelations([]);
+    setBacklinks([]);
     setPage(null);
     setError("");
   }, []);
@@ -460,6 +468,45 @@ export function ReaderEntitiesPanel({
                   </div>
                   {relation.explanation ? (
                     <p className="reader-entities-relation-why">{relation.explanation}</p>
+                  ) : null}
+                </article>
+              ))
+            )}
+          </section>
+
+          <section className="reader-entities-section">
+            <h5>
+              被提及
+              <span className="reader-entities-section-count">{backlinks.length}</span>
+            </h5>
+            {loading ? (
+              <p className="reader-notes-empty">正在加载…</p>
+            ) : backlinks.length === 0 ? (
+              <p className="reader-notes-empty">还没有概念页提到它。</p>
+            ) : (
+              backlinks.map((backlink) => (
+                <article key={backlink.entity_id} className="reader-entities-relation">
+                  <div className="reader-entities-relation-top">
+                    <button
+                      type="button"
+                      className="reader-entities-relation-name"
+                      onClick={() =>
+                        void openEntity({
+                          entity_id: backlink.entity_id,
+                          name: backlink.name,
+                          entity_type: backlink.entity_type,
+                          aliases: [],
+                        })
+                      }
+                    >
+                      {backlink.name}
+                    </button>
+                    <span className="reader-entities-type">
+                      {entityTypeLabel(backlink.entity_type)}
+                    </span>
+                  </div>
+                  {backlink.snippet ? (
+                    <p className="reader-entities-relation-why">{backlink.snippet}</p>
                   ) : null}
                 </article>
               ))

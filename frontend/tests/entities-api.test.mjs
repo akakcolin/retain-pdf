@@ -19,6 +19,7 @@ const {
   listDocumentEntities,
   listEntityMentions,
   listEntityRelations,
+  listEntityBacklinks,
   linkDocumentGraph,
   extractDocumentGraph,
   getEntityPage,
@@ -77,6 +78,21 @@ test("mentions/relations 端点与可选过滤参数", async () => {
   assert.equal(url.pathname, "/api/v1/entities/ent-9/relations");
   assert.equal(url.searchParams.get("relation_type"), "uses");
   assert.equal(url.searchParams.get("document_id"), null);
+});
+
+test("listEntityBacklinks 端点、limit 与解包", async () => {
+  const calls = stubFetch({
+    code: 0,
+    message: "ok",
+    data: { items: [{ entity_id: "ent-3", name: "QM9", entity_type: "dataset", snippet: "…[[GNN]]…" }] },
+  });
+  const items = await listEntityBacklinks("ent-9", { limit: 10 });
+  assert.equal(items.length, 1);
+  assert.equal(items[0].name, "QM9");
+  assert.equal(items[0].snippet, "…[[GNN]]…");
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/entities/ent-9/backlinks");
+  assert.equal(url.searchParams.get("limit"), "10");
 });
 
 test("非 2xx 抛带状态码的错误", async () => {

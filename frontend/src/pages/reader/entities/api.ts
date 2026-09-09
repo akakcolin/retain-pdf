@@ -88,6 +88,14 @@ export type EntityPage = {
   links: EntityPageLink[];
 };
 
+/** 反链：某个已生成的概念页正文里提到了本实体。snippet = 链接附近上下文。 */
+export type EntityBacklink = {
+  entity_id: string;
+  name: string;
+  entity_type: string;
+  snippet: string;
+};
+
 const MAX_LIMIT = 200;
 
 async function getList<T>(path: string, params: URLSearchParams): Promise<T[]> {
@@ -139,6 +147,16 @@ export function listEntityRelations(
   }
   params.set("limit", String(Math.min(Math.max(1, limit), MAX_LIMIT)));
   return getList<RelatedEntity>(`entities/${encodeURIComponent(entityId)}/relations`, params);
+}
+
+/** 哪些已生成的概念页提到了本实体（读取时现算）。 */
+export function listEntityBacklinks(
+  entityId: string,
+  { limit = 50 }: { limit?: number } = {},
+): Promise<EntityBacklink[]> {
+  const params = new URLSearchParams();
+  params.set("limit", String(Math.min(Math.max(1, limit), MAX_LIMIT)));
+  return getList<EntityBacklink>(`entities/${encodeURIComponent(entityId)}/backlinks`, params);
 }
 
 /** 读该实体的概念页（未生成时 has_page=false，不报错）。 */

@@ -3,13 +3,14 @@
 use crate::db::Db;
 use crate::error::AppError;
 use crate::models::api::{
-    EntityListView, EntityMentionListView, EntityRecord, EntityRelationListView,
-    ExtractDocumentGraphView, LinkDocumentGraphView, ListEntitiesQuery, ListMentionsQuery,
-    ListRelationsQuery,
+    EntityBacklinkListView, EntityListView, EntityMentionListView, EntityRecord,
+    EntityRelationListView, ExtractDocumentGraphView, LinkDocumentGraphView, ListBacklinksQuery,
+    ListEntitiesQuery, ListMentionsQuery, ListRelationsQuery,
 };
 use crate::services::ai::llm::Chat;
 use crate::services::graph::extract::extract_document_graph;
 use crate::services::graph::mentions::link_document_mentions;
+use crate::services::graph::page::list_entity_backlinks;
 use crate::services::graph::seed::seed_entities_from_glossaries;
 use crate::services::graph::GraphDeps;
 
@@ -69,6 +70,16 @@ pub fn list_relations_view(
         query.limit.clamp(1, MAX_LIMIT),
     )?;
     Ok(EntityRelationListView { items })
+}
+
+/// 反链:哪些已生成的概念页提到了本实体(读取时现算)。
+pub fn list_backlinks_view(
+    db: &Db,
+    entity_id: &str,
+    query: &ListBacklinksQuery,
+) -> Result<EntityBacklinkListView, AppError> {
+    let items = list_entity_backlinks(db, entity_id, query.limit.clamp(1, MAX_LIMIT))?;
+    Ok(EntityBacklinkListView { items })
 }
 
 /// 手动触发:术语表灌实体 + 该文档全块字面扫描挂证据。零 LLM 成本,可重复调用。

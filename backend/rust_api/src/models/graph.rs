@@ -239,3 +239,25 @@ pub struct EntityPageView {
 
 /// POST /api/v1/entities/:id/page 请求体:与抽取同形,按请求携带 LLM 凭据。
 pub type GenerateEntityPageRequest = ExtractGraphRequest;
+
+/// 反链:哪张概念页提到了本实体。snippet = 链接附近的一小段上下文。
+#[derive(Debug, Clone, Serialize)]
+pub struct EntityBacklink {
+    pub entity_id: String,
+    pub name: String,
+    pub entity_type: String,
+    pub snippet: String,
+}
+
+/// GET /api/v1/entities/:id/backlinks 响应。
+#[derive(Debug, Serialize)]
+pub struct EntityBacklinkListView {
+    pub items: Vec<EntityBacklink>,
+}
+
+/// GET /api/v1/entities/:id/backlinks 查询参数。
+#[derive(Debug, Deserialize)]
+pub struct ListBacklinksQuery {
+    #[serde(default = "default_graph_limit")]
+    pub limit: u32,
+}

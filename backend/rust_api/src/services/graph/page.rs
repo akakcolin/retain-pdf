@@ -11,8 +11,8 @@ use crate::db::graph::normalize_entity_name;
 use crate::db::Db;
 use crate::error::AppError;
 use crate::models::api::{
-    EntityPageCitation, EntityPageEvidence, EntityPageLink, EntityPageRecord, EntityPageView,
-    EntityRecord, RelatedEntity,
+    EntityBacklink, EntityPageCitation, EntityPageEvidence, EntityPageLink, EntityPageRecord,
+    EntityPageView, EntityRecord, RelatedEntity,
 };
 use crate::models::domain::now_iso;
 use crate::services::ai::llm::Chat;
@@ -74,6 +74,79 @@ fn resolve_page_links(db: &Db, body: &str) -> Vec<EntityPageLink> {
         });
     }
     links
+}
+
+/// 反链:哪些已生成的概念页正文里 [[...]] 解析到本实体。读取时现算,不建表。
+pub fn list_entity_backlinks(
+    db: &Db,
+    entity_id: &str,
+    limit: u32,
+) -> Result<Vec<EntityBacklink>, AppError> {
+    let entity = db
+        .get_entity(entity_id)
+        .map_err(|_| entity_not_found(entity_id))?;
+    let mut targets = vec![normalize_entity_name(&entity.name)];
+    for alias in &entity.aliases {
+        let norm = normalize_entity_name(alias);
+        if !norm.is_empty() && !targets.iter().any(|item| item == &norm) {
+            targets.push(norm);
+        }
+    }
+    let mut backlinks = Vec::new();
+    for (source_id, body) in db.list_entity_page_bodies()? {
+        if source_id == entity.entity_id {
+            continue;
+        }
+        let Some(snippet) = backlink_snippet(&body, &targets) else {
+            continue;
+        };
+        let Ok(source) = db.get_entity(&source_id) else {
+            continue;
+        };
+        backlinks.push(EntityBacklink {
+            entity_id: source.entity_id,
+            name: source.name,
+            entity_type: source.entity_type,
+            snippet,
+        });
+    }
+    backlinks.sort_by(|left, right| left.name.cmp(&right.name));
+    backlinks.truncate(limit as usize);
+    Ok(backlinks)
+}
+
+/// 正文里第一处指向目标实体的 [[...]] 附近的上下文(前后各约 30 字符)。
+fn backlink_snippet(body: &str, targets: &[String]) -> Option<String> {
+    for capture in WIKILINK_RE.captures_iter(body) {
+        let surface = normalize_entity_name(capture[1].trim());
+        if !targets.iter().any(|target| target == &surface) {
+            continue;
+        }
+        let Some(whole) = capture.get(0) else {
+            continue;
+        };
+        let start = body[..whole.start()]
+            .char_indices()
+            .rev()
+            .nth(30)
+            .map(|(index, _)| index)
+            .unwrap_or(0);
+        let end = body[whole.end()..]
+            .char_indices()
+            .nth(30)
+            .map(|(index, _)| whole.end() + index)
+            .unwrap_or(body.len());
+        let mut snippet = body[start..end].replace('\n', " ");
+        snippet = snippet.trim().to_string();
+        if start > 0 {
+            snippet.insert(0, '…');
+        }
+        if end < body.len() {
+            snippet.push('…');
+        }
+        return Some(snippet);
+    }
+    None
 }
 
 /// 生成/刷新概念页。模型调用成功后才覆盖旧页(失败保留上一次结果)。
@@ -361,6 +434,32 @@ mod tests {
         entity.entity_id
     }
 
+    /// 给指定实体写一张概念页(反链测试用)。
+    fn add_page_of(db: &Db, entity_id: &str, body: &str) {
+        db.upsert_entity_page(&EntityPageRecord {
+            entity_id: entity_id.to_string(),
+            body_md: body.to_string(),
+            citations: Vec::new(),
+            evidence_sig: String::new(),
+            generated_at: now_iso(),
+        })
+        .expect("page");
+    }
+
+    /// 建一个新实体并写页,返回 entity_id(反链测试用)。
+    fn add_page(db: &Db, name: &str, body: &str) -> String {
+        let entity = db
+            .upsert_entity(&NewEntity {
+                name: name.to_string(),
+                entity_type: "concept".to_string(),
+                aliases: Vec::new(),
+                description: String::new(),
+            })
+            .expect("entity");
+        add_page_of(db, &entity.entity_id, body);
+        entity.entity_id
+    }
+
     #[tokio::test]
     async fn page_renumbers_and_drops_out_of_range_citations() {
         let fixture = fixture("renumber");
@@ -520,6 +619,77 @@ mod tests {
         // 读取时也现算
         let read = get_entity_page(&deps, &entity_id).expect("read");
         assert_eq!(read.links.len(), 2);
+    }
+
+    #[test]
+    fn backlinks_match_name_and_alias_and_skip_unknown_and_self() {
+        let fixture = fixture("backlinks");
+        let target = fixture
+            .db
+            .upsert_entity(&NewEntity {
+                name: "GNN".to_string(),
+                entity_type: "method".to_string(),
+                aliases: vec!["图神经网络".to_string()],
+                description: String::new(),
+            })
+            .expect("target");
+        add_page(&fixture.db, "QM9", "评测 [[GNN]] 与 [[不存在]]。");
+        add_page(&fixture.db, "综述", "介绍 [[图神经网络]] 的进展。");
+        // 自链:目标实体自己的页提到自己,不算反链
+        add_page_of(&fixture.db, &target.entity_id, "GNN 也叫 [[GNN]]。");
+
+        let items = list_entity_backlinks(&fixture.db, &target.entity_id, 10).expect("backlinks");
+        let names: Vec<&str> = items.iter().map(|item| item.name.as_str()).collect();
+        assert_eq!(names, vec!["QM9", "综述"]);
+        assert!(items[0].snippet.contains("GNN"));
+        assert!(items[1].snippet.contains("图神经网络"));
+        assert!(!items.iter().any(|item| item.name == "不存在"));
+    }
+
+    #[test]
+    fn backlinks_empty_without_pages_and_error_for_unknown_entity() {
+        let fixture = fixture("backlinks-empty");
+        let target = fixture
+            .db
+            .upsert_entity(&NewEntity {
+                name: "无人提及".to_string(),
+                entity_type: "concept".to_string(),
+                aliases: Vec::new(),
+                description: String::new(),
+            })
+            .expect("target");
+        assert!(list_entity_backlinks(&fixture.db, &target.entity_id, 10)
+            .expect("ok")
+            .is_empty());
+        assert!(list_entity_backlinks(&fixture.db, "ent-nope", 10).is_err());
+    }
+
+    #[test]
+    fn backlink_snippet_keeps_utf8_boundaries() {
+        let fixture = fixture("backlinks-utf8");
+        let target = fixture
+            .db
+            .upsert_entity(&NewEntity {
+                name: "注意力".to_string(),
+                entity_type: "concept".to_string(),
+                aliases: Vec::new(),
+                description: String::new(),
+            })
+            .expect("target");
+        let prefix = "很长很长".repeat(20);
+        let suffix = "结尾结尾".repeat(20);
+        add_page(
+            &fixture.db,
+            "长文",
+            &format!("{prefix}[[注意力]]{suffix}"),
+        );
+        let items = list_entity_backlinks(&fixture.db, &target.entity_id, 10).expect("backlinks");
+        assert_eq!(items.len(), 1);
+        let snippet = &items[0].snippet;
+        assert!(snippet.contains("[[注意力]]"));
+        assert!(snippet.starts_with('…') && snippet.ends_with('…'));
+        // 前后各 31 字符 + 链接 6 字符 + 两端省略号(nth(30) 取的是第 31 个)
+        assert_eq!(snippet.chars().count(), 70);
     }
 
     #[test]
