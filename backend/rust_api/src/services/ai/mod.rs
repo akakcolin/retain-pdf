@@ -4,7 +4,7 @@
 mod agent;
 pub mod ask;
 pub(crate) mod blocks;
-mod llm;
+pub(crate) mod llm;
 mod memory;
 pub(crate) mod tools;
 

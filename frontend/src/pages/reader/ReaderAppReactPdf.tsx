@@ -11,6 +11,7 @@ import {
   ReaderFab,
   ReaderNotesPanel,
   ReaderFavoritesPanel,
+  ReaderEntitiesPanel,
   ReaderMarkdownPanel,
   ReaderAiPanel,
   ReaderSelectionToolbar,
@@ -130,6 +131,14 @@ export function ReaderAppReactPdf() {
 
       <ReaderFavoritesPanel
         open={tools.isOpen("favorites")}
+        jobId={session.jobId}
+        documentId={session.documentId}
+        onClose={closeTool}
+        onJumpPage={c.goToPage}
+      />
+
+      <ReaderEntitiesPanel
+        open={tools.isOpen("entities")}
         jobId={session.jobId}
         documentId={session.documentId}
         onClose={closeTool}

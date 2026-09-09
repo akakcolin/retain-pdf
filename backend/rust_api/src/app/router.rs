@@ -124,8 +124,16 @@ pub fn build_app(state: AppState) -> Router {
             get(graph::list_entity_mentions_route),
         )
         .route(
+            "/api/v1/entities/:entity_id/relations",
+            get(graph::list_entity_relations_route),
+        )
+        .route(
             "/api/v1/documents/:document_id/graph/link",
             post(graph::link_document_graph_route),
+        )
+        .route(
+            "/api/v1/documents/:document_id/graph/extract",
+            post(graph::extract_document_graph_route),
         )
         .route("/api/v1/ai/ask", post(ai::ask_route))
         .route(

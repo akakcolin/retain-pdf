@@ -2,8 +2,8 @@
 //! 抽取模型不产出 block_id(会幻觉),归属由这里机械完成。
 
 use crate::error::AppError;
-use crate::models::api::BlockEntityLink;
-use crate::services::ai::blocks::load_job_blocks;
+use crate::models::api::{BlockEntityLink, EntityRecord};
+use crate::services::ai::blocks::{load_job_blocks, Block};
 use crate::services::ai::tools::safe_job_root;
 
 use super::GraphDeps;
@@ -14,25 +14,30 @@ const MIN_NEEDLE_CHARS: usize = 2;
 /// 一次扫描最多遍历的实体数;超大库靠 1b 抽取而不是全表扫描。
 const MAX_ENTITIES_SCANNED: u32 = 5000;
 
-/// 扫描某文档的所有块,把命中的实体写进 block_entities。
-/// 返回本次挂载的 (entity, block) 命中数(重复挂载被唯一键忽略)。
-///
-/// ponytail: O(entities × blocks) 嵌套扫描。实体上万或文档上千时改倒排索引
-/// (按 trigram 建 entities_fts,或先给块建 token 集合)。
+/// 扫描某文档的所有块,用全库实体挂证据(glossary 链路径)。
 pub fn link_document_mentions(
     deps: &GraphDeps<'_>,
     document_id: &str,
     source: &str,
 ) -> Result<usize, AppError> {
-    let document = deps.db.get_document(document_id)?;
-    let Some(job_id) = document.active_job_id.filter(|value| !value.is_empty()) else {
-        return Ok(0);
-    };
-    let Some(job_root) = safe_job_root(deps.data_root, &job_id) else {
-        return Ok(0);
-    };
-    let blocks = load_job_blocks(&job_root)?;
     let entities = deps.db.list_entities(MAX_ENTITIES_SCANNED)?;
+    link_entities_mentions(deps, document_id, &entities, source)
+}
+
+/// 扫描某文档的块,只挂给定实体(抽取路径:刚抽出的实体不必回查全库)。
+/// 返回本次挂载的 (entity, block) 命中数(重复挂载被唯一键忽略)。
+///
+/// ponytail: O(entities × blocks) 嵌套扫描。实体上万或文档上千时改倒排索引
+/// (按 trigram 建 entities_fts,或先给块建 token 集合)。
+pub fn link_entities_mentions(
+    deps: &GraphDeps<'_>,
+    document_id: &str,
+    entities: &[EntityRecord],
+    source: &str,
+) -> Result<usize, AppError> {
+    let Some((job_id, blocks)) = load_document_blocks(deps, document_id)? else {
+        return Ok(0);
+    };
     let mut linked = 0usize;
     for entity in entities {
         let mut needles: Vec<String> = vec![entity.name.clone()];
@@ -63,6 +68,21 @@ pub fn link_document_mentions(
         }
     }
     Ok(linked)
+}
+
+/// 取文档当前任务的块;无活动任务 / job_id 非法时返回 None(不报错)。
+fn load_document_blocks(
+    deps: &GraphDeps<'_>,
+    document_id: &str,
+) -> Result<Option<(String, Vec<Block>)>, AppError> {
+    let document = deps.db.get_document(document_id)?;
+    let Some(job_id) = document.active_job_id.filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+    let Some(job_root) = safe_job_root(deps.data_root, &job_id) else {
+        return Ok(None);
+    };
+    Ok(Some((job_id, load_job_blocks(&job_root)?)))
 }
 
 /// 先原文后译文,返回 (命中所在文本, 命中的 needle)。

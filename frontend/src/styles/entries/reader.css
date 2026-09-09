@@ -45,6 +45,7 @@
 @import "../reader/selection-pop.css" layer(pages);
 @import "../reader/translate-pop.css" layer(pages);
 @import "../reader/notes-float.css" layer(pages);
+@import "../reader/entities.css" layer(pages);
 @import "../reader/float-markdown.css" layer(pages);
 @import "../reader/float-ai.css" layer(pages);
 @import "../reader/float-ai-aui.css" layer(pages);

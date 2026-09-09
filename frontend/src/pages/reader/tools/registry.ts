@@ -1,6 +1,6 @@
 // 阅读器工具定义（对齐 legacy 顶栏四件套 + 下载在 FAB 另区）
 
-export type ReaderToolId = "notes" | "favorites" | "markdown" | "ai";
+export type ReaderToolId = "notes" | "favorites" | "markdown" | "ai" | "entities";
 
 export type ReaderToolDef = {
   id: ReaderToolId;
@@ -41,5 +41,12 @@ export const READER_TOOLS: readonly ReaderToolDef[] = Object.freeze([
     subIdle: "基于文档提问",
     subOpen: "关闭悬浮窗",
     needsJob: true,
+  },
+  {
+    id: "entities",
+    label: "概念",
+    subIdle: "实体 · 证据 · 关系",
+    subOpen: "关闭悬浮窗",
+    needsJob: false,
   },
 ]);

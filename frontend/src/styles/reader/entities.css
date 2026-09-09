@@ -1,0 +1,177 @@
+/* 概念图谱悬浮窗：实体列表 / 证据 / 关系。
+ * 壳与列表项复用 notes-float.css 的 reader-notes-* 类，这里只加 entities 专属。
+ */
+
+.reader-entities-notice {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.reader-entities-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--ink) 5%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+  color: var(--ink, var(--ink));
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.reader-entities-row:hover {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.reader-entities-row-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-entities-type {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.reader-entities-row-count {
+  flex-shrink: 0;
+  min-width: 20px;
+  color: var(--muted, var(--muted));
+  font-size: 11px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.reader-entities-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.reader-entities-back {
+  min-height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.reader-entities-name {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.reader-entities-aliases {
+  margin: 0 0 10px;
+  color: var(--muted, var(--muted));
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.reader-entities-section {
+  margin-top: 14px;
+}
+
+.reader-entities-section h5 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  color: var(--muted, var(--muted));
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.reader-entities-section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.reader-entities-relation {
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 5%, transparent);
+}
+
+.reader-entities-relation-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.reader-entities-relation-name {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink, var(--ink));
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-entities-relation-name:hover {
+  color: var(--accent);
+}
+
+.reader-entities-relation-kind {
+  flex-shrink: 0;
+  color: var(--muted, var(--muted));
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.reader-entities-relation-why {
+  margin: 6px 0 0;
+  color: var(--muted, var(--muted));
+  font-size: 12px;
+  line-height: 1.4;
+}

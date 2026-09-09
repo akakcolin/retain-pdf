@@ -17,6 +17,7 @@ import {
   FileCode2,
   FileText,
   Languages,
+  Network,
   Sparkles,
   StickyNote,
   X,
@@ -39,6 +40,7 @@ const TOOL_ICONS: Record<ReaderToolId, typeof StickyNote> = {
   favorites: Bookmark,
   markdown: FileCode2,
   ai: Sparkles,
+  entities: Network,
 };
 
 const STORAGE_KEY = "retainpdf.reader.fab.pos.v1";

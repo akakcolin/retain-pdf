@@ -1,0 +1,125 @@
+// 概念图谱 HTTP 客户端（阅读器概念面板用）。
+// 只经 pages/reader/external.ts 端口消费 src/js 纯逻辑层（防回弹门禁）。
+
+import {
+  API_PREFIX,
+  buildApiEndpoint,
+  buildApiHeaders,
+  submitJson,
+  unwrapEnvelope,
+} from "../external.js";
+
+export type EntitySummary = {
+  entity_id: string;
+  name: string;
+  entity_type: string;
+  aliases: string[];
+  mention_count: number;
+  document_count: number;
+};
+
+export type EntityRecord = EntitySummary & {
+  name_norm: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EntityMention = {
+  document_id: string;
+  job_id: string;
+  page_idx: number;
+  block_id: string;
+  snippet: string;
+};
+
+export type RelatedEntity = {
+  entity_id: string;
+  name: string;
+  entity_type: string;
+  aliases: string[];
+  mention_count: number;
+  document_count: number;
+  relation_type: string;
+  /** out = 被查询实体 → 邻居；in = 邻居 → 被查询实体 */
+  direction: "out" | "in" | string;
+  confidence: number;
+  explanation: string;
+  source_document_id: string;
+};
+
+export type LinkGraphResult = { document_id: string; entities: number; mentions: number };
+export type ExtractGraphResult = LinkGraphResult & { relations: number };
+
+export type ExtractCredentials = { apiKey?: string; baseUrl?: string; model?: string };
+
+const MAX_LIMIT = 200;
+
+async function getList<T>(path: string, params: URLSearchParams): Promise<T[]> {
+  const query = params.toString();
+  const url = `${buildApiEndpoint(API_PREFIX, path)}${query ? `?${query}` : ""}`;
+  const resp = await fetch(url, { headers: buildApiHeaders() });
+  if (!resp.ok) {
+    throw new Error(`读取概念图谱失败，请稍后重试。(${resp.status})`);
+  }
+  const data = unwrapEnvelope<{ items?: T[] }>(await resp.json());
+  return Array.isArray(data?.items) ? data.items : [];
+}
+
+/** 该文档已建链的实体概览（按提及数排序）。 */
+export function listDocumentEntities(documentId: string, limit = 100): Promise<EntitySummary[]> {
+  const params = new URLSearchParams();
+  params.set("document_id", `${documentId || ""}`.trim());
+  params.set("limit", String(Math.min(Math.max(1, limit), MAX_LIMIT)));
+  return getList<EntitySummary>("entities", params);
+}
+
+export function listEntityMentions(
+  entityId: string,
+  { documentId = "", limit = 50 }: { documentId?: string; limit?: number } = {},
+): Promise<EntityMention[]> {
+  const params = new URLSearchParams();
+  if (`${documentId || ""}`.trim()) {
+    params.set("document_id", `${documentId}`.trim());
+  }
+  params.set("limit", String(Math.min(Math.max(1, limit), MAX_LIMIT)));
+  return getList<EntityMention>(`entities/${encodeURIComponent(entityId)}/mentions`, params);
+}
+
+export function listEntityRelations(
+  entityId: string,
+  { relationType = "", limit = 50 }: { relationType?: string; limit?: number } = {},
+): Promise<RelatedEntity[]> {
+  const params = new URLSearchParams();
+  if (`${relationType || ""}`.trim()) {
+    params.set("relation_type", `${relationType}`.trim());
+  }
+  params.set("limit", String(Math.min(Math.max(1, limit), MAX_LIMIT)));
+  return getList<RelatedEntity>(`entities/${encodeURIComponent(entityId)}/relations`, params);
+}
+
+/** 零 LLM 成本：术语表种子 + 该文档全块字面扫描，可重复调用。 */
+export function linkDocumentGraph(documentId: string): Promise<LinkGraphResult> {
+  return submitJson(
+    buildApiEndpoint(API_PREFIX, `documents/${encodeURIComponent(documentId)}/graph/link`),
+    {},
+  ) as Promise<LinkGraphResult>;
+}
+
+/** 一次 LLM 调用抽实体 + 关系；凭据留空由服务端回落启动配置。 */
+export function extractDocumentGraph(
+  documentId: string,
+  credentials: ExtractCredentials = {},
+): Promise<ExtractGraphResult> {
+  const payload: Record<string, string> = {};
+  const key = `${credentials.apiKey || ""}`.trim();
+  if (key) payload.llm_api_key = key.replace(/^Bearer\s+/i, "").trim();
+  const baseUrl = `${credentials.baseUrl || ""}`.trim();
+  if (baseUrl) payload.llm_base_url = baseUrl;
+  const model = `${credentials.model || ""}`.trim();
+  if (model) payload.llm_model = model;
+  return submitJson(
+    buildApiEndpoint(API_PREFIX, `documents/${encodeURIComponent(documentId)}/graph/extract`),
+    payload,
+  ) as Promise<ExtractGraphResult>;
+}

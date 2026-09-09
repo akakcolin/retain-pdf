@@ -29,6 +29,35 @@ pub struct NewEntity {
     pub description: String,
 }
 
+/// 新建有向关系入参(id / 时间戳由 Db 生成)。
+#[derive(Debug, Clone)]
+pub struct NewEntityRelation {
+    pub from_entity_id: String,
+    pub to_entity_id: String,
+    pub relation_type: String,
+    pub confidence: f64,
+    pub explanation: String,
+    pub source_document_id: String,
+    pub source_block_id: String,
+}
+
+/// 邻居实体 + 连边信息(direction 以被查询实体为参照)。
+#[derive(Debug, Clone, Serialize)]
+pub struct RelatedEntity {
+    pub entity_id: String,
+    pub name: String,
+    pub entity_type: String,
+    pub aliases: Vec<String>,
+    pub mention_count: i64,
+    pub document_count: i64,
+    pub relation_type: String,
+    /// out = 被查询实体 → 邻居;in = 邻居 → 被查询实体
+    pub direction: String,
+    pub confidence: f64,
+    pub explanation: String,
+    pub source_document_id: String,
+}
+
 /// 实体→block 证据挂载。snippet 在建链时写入,查询免回查 blocks_fts。
 #[derive(Debug, Clone)]
 pub struct BlockEntityLink {
@@ -100,10 +129,49 @@ pub struct ListMentionsQuery {
     pub limit: u32,
 }
 
+/// GET /api/v1/entities/:id/relations 响应。
+#[derive(Debug, Serialize)]
+pub struct EntityRelationListView {
+    pub items: Vec<RelatedEntity>,
+}
+
+/// GET /api/v1/entities/:id/relations 查询参数。
+#[derive(Debug, Deserialize)]
+pub struct ListRelationsQuery {
+    #[serde(default)]
+    pub relation_type: Option<String>,
+    #[serde(default = "default_graph_limit")]
+    pub limit: u32,
+}
+
+/// POST /api/v1/documents/:id/graph/extract 请求体:按请求携带 LLM 凭据,
+/// 留空回落启动期配置(与 /ai/ask 一致,前端凭据存浏览器侧)。
+#[derive(Debug, Default, Deserialize)]
+pub struct ExtractGraphRequest {
+    #[serde(default)]
+    pub llm_api_key: String,
+    #[serde(default)]
+    pub llm_base_url: String,
+    #[serde(default)]
+    pub llm_model: String,
+}
+
 /// POST /api/v1/documents/:id/graph/link 的结果。
 #[derive(Debug, Serialize)]
 pub struct LinkDocumentGraphView {
     pub document_id: String,
     pub entities: usize,
     pub mentions: usize,
+}
+
+/// POST /api/v1/documents/:id/graph/extract 的结果。
+#[derive(Debug, Serialize)]
+pub struct ExtractDocumentGraphView {
+    pub document_id: String,
+    /// 本次抽取落到的实体数
+    pub entities: usize,
+    /// 新挂的证据条数
+    pub mentions: usize,
+    /// 新写入的关系条数
+    pub relations: usize,
 }

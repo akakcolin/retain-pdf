@@ -119,6 +119,8 @@ pub fn build_glossary_route_deps(state: &AppState) -> GlossaryRouteDeps<'_> {
 
 pub struct GraphRouteDeps<'a> {
     pub graph: GraphDeps<'a>,
+    /// LLM 抽取(按请求凭据回落启动期配置)需要。
+    pub ai: &'a AiRuntimeConfig,
 }
 
 pub fn build_graph_route_deps(state: &AppState) -> GraphRouteDeps<'_> {
@@ -127,6 +129,7 @@ pub fn build_graph_route_deps(state: &AppState) -> GraphRouteDeps<'_> {
             db: state.db.as_ref(),
             data_root: &state.config.data_root,
         },
+        ai: &state.config.ai,
     }
 }
 

@@ -400,14 +400,25 @@ fn public_tool_payload(result: &Value) -> Value {
             let Some(entity_id) = entity.get("entity_id").and_then(Value::as_str) else {
                 continue;
             };
-            public_entities.push(json!({
+            let mut item = json!({
                 "entity_id": entity_id,
                 "name": entity.get("name").cloned().unwrap_or(Value::Null),
                 "entity_type": entity.get("entity_type").cloned().unwrap_or(Value::Null),
                 "aliases": entity.get("aliases").cloned().unwrap_or_else(|| json!([])),
                 "mention_count": entity.get("mention_count").cloned().unwrap_or(Value::Null),
                 "document_count": entity.get("document_count").cloned().unwrap_or(Value::Null),
-            }));
+            });
+            // related_entities 额外带连边信息;search_entities 没有这些键。
+            if let Some(relation_type) = entity.get("relation_type") {
+                item["relation_type"] = relation_type.clone();
+                item["direction"] = entity.get("direction").cloned().unwrap_or(Value::Null);
+            }
+            if let Some(explanation) = entity.get("explanation").and_then(Value::as_str) {
+                if !explanation.is_empty() {
+                    item["why"] = Value::String(explanation.to_string());
+                }
+            }
+            public_entities.push(item);
         }
         if !public_entities.is_empty() {
             public.insert("entities".to_string(), Value::Array(public_entities));
@@ -688,6 +699,26 @@ mod tests {
             json!("ent-20260909123456-a1b2c3")
         );
         assert_eq!(public["entities"][0]["mention_count"], json!(3));
+    }
+
+    /// related_entities 的连边字段要透给模型,否则工具只剩邻居名字。
+    #[test]
+    fn public_payload_carries_relation_fields() {
+        let result = json!({"entities": [{
+            "entity_id": "ent-20260909123456-a1b2c3",
+            "name": "GNN",
+            "entity_type": "method",
+            "aliases": [],
+            "mention_count": 1,
+            "document_count": 1,
+            "relation_type": "uses",
+            "direction": "out",
+            "explanation": "同句出现",
+        }]});
+        let public = public_tool_payload(&result);
+        assert_eq!(public["entities"][0]["relation_type"], json!("uses"));
+        assert_eq!(public["entities"][0]["direction"], json!("out"));
+        assert_eq!(public["entities"][0]["why"], json!("同句出现"));
     }
 
     #[test]

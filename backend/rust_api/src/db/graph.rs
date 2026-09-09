@@ -5,7 +5,10 @@ use anyhow::{Context, Result};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 
 use crate::models::domain::{build_job_id, now_iso};
-use crate::models::api::{BlockEntityLink, EntityMention, EntityRecord, EntitySummary, NewEntity};
+use crate::models::api::{
+    BlockEntityLink, EntityMention, EntityRecord, EntitySummary, NewEntity, NewEntityRelation,
+    RelatedEntity,
+};
 
 use super::Db;
 
@@ -43,8 +46,43 @@ fn row_to_summary(row: &rusqlite::Row<'_>) -> rusqlite::Result<EntitySummary> {
     })
 }
 
+fn row_to_related(row: &rusqlite::Row<'_>) -> rusqlite::Result<RelatedEntity> {
+    let aliases_json: String = row.get(3)?;
+    Ok(RelatedEntity {
+        entity_id: row.get(0)?,
+        name: row.get(1)?,
+        entity_type: row.get(2)?,
+        aliases: serde_json::from_str(&aliases_json).unwrap_or_default(),
+        mention_count: row.get(4)?,
+        document_count: row.get(5)?,
+        relation_type: row.get(6)?,
+        direction: row.get(7)?,
+        confidence: row.get(8)?,
+        explanation: row.get(9)?,
+        source_document_id: row.get(10)?,
+    })
+}
+
 const ENTITY_COLUMNS: &str =
     "entity_id, name, name_norm, entity_type, aliases_json, description, created_at, updated_at";
+
+/// 实体邻居查询:?1 实体 id,?2 关系类型('' = 不过滤),?3 limit。
+const RELATED_ENTITIES_SQL: &str = r#"
+    SELECT e.entity_id, e.name, e.entity_type, e.aliases_json,
+        (SELECT COUNT(*) FROM block_entities b WHERE b.entity_id = e.entity_id),
+        (SELECT COUNT(DISTINCT b.document_id) FROM block_entities b
+         WHERE b.entity_id = e.entity_id),
+        r.relation_type,
+        CASE WHEN r.from_entity_id = ?1 THEN 'out' ELSE 'in' END,
+        r.confidence, r.explanation, r.source_document_id
+    FROM entity_relations r
+    JOIN entities e ON e.entity_id =
+        CASE WHEN r.from_entity_id = ?1 THEN r.to_entity_id ELSE r.from_entity_id END
+    WHERE (r.from_entity_id = ?1 OR r.to_entity_id = ?1)
+      AND (?2 = '' OR r.relation_type = ?2)
+    ORDER BY r.confidence DESC, e.name ASC
+    LIMIT ?3
+    "#;
 
 /// 实体摘要的计数子查询(提及数 / 覆盖文档数)。
 const SUMMARY_COLUMNS: &str = "e.entity_id, e.name, e.entity_type, e.aliases_json,
@@ -63,6 +101,35 @@ fn find_entity_exact_conn(
         .query_row(&sql, params![name_norm, entity_type], row_to_entity)
         .optional()?;
     Ok(record)
+}
+
+fn escape_like(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
+}
+
+/// 按别名精确解析实体:aliases_json 用首个词做 LIKE 预筛,再在 Rust 侧按归一化名
+/// 精确比对。预筛只取首词是因为词内无空白,折叠空白不会改变它——直接 LIKE 整个
+/// 归一化名会漏掉 `halogen  lithium`(双空格)这类写法。
+fn find_entity_by_alias_conn(conn: &Connection, name_norm: &str) -> Result<Option<EntityRecord>> {
+    let needle = name_norm.split(' ').next().unwrap_or(name_norm);
+    let like = format!("%{}%", escape_like(needle));
+    let sql = format!("SELECT {ENTITY_COLUMNS} FROM entities WHERE aliases_json LIKE ?1 ESCAPE '\\'");
+    let mut stmt = conn.prepare(&sql)?;
+    let mut rows = stmt.query(params![like])?;
+    while let Some(row) = rows.next()? {
+        let record = row_to_entity(row)?;
+        if record
+            .aliases
+            .iter()
+            .any(|alias| normalize_entity_name(alias) == name_norm)
+        {
+            return Ok(Some(record));
+        }
+    }
+    Ok(None)
 }
 
 /// 清洗别名:trim、丢弃空串与归一化后等于规范名本身的项、按归一化去重。
@@ -164,6 +231,23 @@ impl Db {
     ) -> Result<Option<EntityRecord>> {
         let conn = self.connect()?;
         find_entity_exact_conn(&conn, name_norm, entity_type)
+    }
+
+    /// 按归一化名/别名解析实体(不限类型):先规范名精确,再别名精确。
+    /// 抽取消歧(新写法并进已有实体)与关系端点解析都用它。
+    pub fn resolve_entity(&self, name_norm: &str) -> Result<Option<EntityRecord>> {
+        if name_norm.is_empty() {
+            return Ok(None);
+        }
+        let conn = self.connect()?;
+        let sql = format!("SELECT {ENTITY_COLUMNS} FROM entities WHERE name_norm = ?1 LIMIT 1");
+        let by_name = conn
+            .query_row(&sql, params![name_norm], row_to_entity)
+            .optional()?;
+        if by_name.is_some() {
+            return Ok(by_name);
+        }
+        find_entity_by_alias_conn(&conn, name_norm)
     }
 
     pub fn get_entity(&self, entity_id: &str) -> Result<EntityRecord> {
@@ -277,11 +361,83 @@ impl Db {
         Ok(())
     }
 
-    /// 清空某文档的图谱产物(重抽取前调用),并重置抽取状态。
+    /// 写一条有向关系。同 (from, to, type) 已存在则忽略——多次抽取/多文档
+    /// 断言同一关系只留第一条(关系是启发式产物,不追多来源)。
+    /// 返回是否真的写入。
+    ///
+    /// 查-写在 `BEGIN IMMEDIATE` 里完成,并发抽取不会插出重复三元组。
+    ///
+    /// ponytail: 只留首条来源,清掉首条所在文档的抽取产物会连带丢掉其他文档
+    /// 也断言过的同一关系;要保多来源时改成按 (doc, triple) 存 + 读取去重。
+    pub fn add_entity_relation(&self, relation: &NewEntityRelation) -> Result<bool> {
+        let mut conn = self.connect()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let changed = tx.execute(
+            r#"
+            INSERT INTO entity_relations (
+                relation_id, from_entity_id, to_entity_id, relation_type, confidence,
+                explanation, source_document_id, source_block_id, created_at
+            )
+            SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9
+            WHERE NOT EXISTS (
+                SELECT 1 FROM entity_relations
+                WHERE from_entity_id = ?2 AND to_entity_id = ?3 AND relation_type = ?4
+            )
+            "#,
+            params![
+                format!("rel-{}", build_job_id()),
+                relation.from_entity_id,
+                relation.to_entity_id,
+                relation.relation_type,
+                relation.confidence,
+                relation.explanation,
+                relation.source_document_id,
+                relation.source_block_id,
+                now_iso(),
+            ],
+        )?;
+        tx.commit()?;
+        Ok(changed > 0)
+    }
+
+    /// 某实体的邻居:出边 + 入边,按 confidence 降序。
+    pub fn related_entities(
+        &self,
+        entity_id: &str,
+        relation_type: Option<&str>,
+        limit: u32,
+    ) -> Result<Vec<RelatedEntity>> {
+        let relation_type = relation_type.map(str::trim).filter(|value| !value.is_empty());
+        let conn = self.connect()?;
+        let mut stmt = conn.prepare(RELATED_ENTITIES_SQL)?;
+        let mut rows = if let Some(relation_type) = relation_type {
+            stmt.query(params![entity_id, relation_type, limit as i64])?
+        } else {
+            stmt.query(params![entity_id, "", limit as i64])?
+        };
+        let mut items = Vec::new();
+        while let Some(row) = rows.next()? {
+            items.push(row_to_related(row)?);
+        }
+        Ok(items)
+    }
+
+    /// 清空某文档的术语表证据(重建 glossary 链前调用)。抽取证据与关系不动。
     pub fn clear_document_graph(&self, document_id: &str) -> Result<()> {
         let conn = self.connect()?;
         conn.execute(
-            "DELETE FROM block_entities WHERE document_id = ?1",
+            "DELETE FROM block_entities WHERE document_id = ?1 AND source = 'glossary'",
+            params![document_id],
+        )?;
+        Ok(())
+    }
+
+    /// 清空某文档的抽取产物(重新抽取前调用):抽取来源的证据 + 该文档发起的关系,
+    /// 并重置抽取状态。
+    pub fn clear_document_extraction(&self, document_id: &str) -> Result<()> {
+        let conn = self.connect()?;
+        conn.execute(
+            "DELETE FROM block_entities WHERE document_id = ?1 AND source = 'extraction'",
             params![document_id],
         )?;
         conn.execute(
@@ -567,6 +723,146 @@ mod tests {
         let by_alias = db.search_entities("aryllithium", None, 10).expect("search alias");
         assert_eq!(by_alias[0].entity_id, exact.entity_id);
         assert_eq!(by_name.iter().find(|item| item.entity_id == fuzzy.entity_id).unwrap().mention_count, 1);
+    }
+
+    #[test]
+    fn resolve_entity_matches_name_and_alias() {
+        let fs = TestDbFs::new("resolve");
+        let db = fs.db();
+        let entity = db
+            .upsert_entity(&new_entity(
+                "卤素锂交换",
+                "term",
+                &["HLE", "halogen  lithium exchange"],
+            ))
+            .expect("entity");
+        assert_eq!(
+            db.resolve_entity("卤素锂交换")
+                .expect("by name")
+                .expect("hit")
+                .entity_id,
+            entity.entity_id
+        );
+        assert_eq!(
+            db.resolve_entity("hle").expect("by alias").expect("hit").entity_id,
+            entity.entity_id
+        );
+        // 别名里的多空格按归一化名命中
+        assert_eq!(
+            db.resolve_entity("halogen lithium exchange")
+                .expect("norm alias")
+                .expect("hit")
+                .entity_id,
+            entity.entity_id
+        );
+        assert!(db.resolve_entity("nope").expect("miss").is_none());
+    }
+
+    #[test]
+    fn relations_dedupe_and_read_both_directions() {
+        let fs = TestDbFs::new("relations");
+        let db = fs.db();
+        seed_document(&db, "doc-1");
+        let method = db.upsert_entity(&new_entity("方法A", "method", &[])).expect("a");
+        let material = db.upsert_entity(&new_entity("材料B", "material", &[])).expect("b");
+        let metric = db.upsert_entity(&new_entity("指标C", "metric", &[])).expect("c");
+        let rel = |from: &str, to: &str, kind: &str| NewEntityRelation {
+            from_entity_id: from.to_string(),
+            to_entity_id: to.to_string(),
+            relation_type: kind.to_string(),
+            confidence: 0.9,
+            explanation: "依据".to_string(),
+            source_document_id: "doc-1".to_string(),
+            source_block_id: String::new(),
+        };
+        assert!(db
+            .add_entity_relation(&rel(&method.entity_id, &material.entity_id, "uses"))
+            .expect("insert"));
+        // 同 (from,to,type) 重复写入被忽略
+        assert!(!db
+            .add_entity_relation(&rel(&method.entity_id, &material.entity_id, "uses"))
+            .expect("dup"));
+        assert!(db
+            .add_entity_relation(&rel(&metric.entity_id, &method.entity_id, "evaluates"))
+            .expect("insert2"));
+
+        let related = db.related_entities(&method.entity_id, None, 10).expect("related");
+        assert_eq!(related.len(), 2);
+        let out = related
+            .iter()
+            .find(|item| item.entity_id == material.entity_id)
+            .expect("out edge");
+        assert_eq!(out.direction, "out");
+        assert_eq!(out.relation_type, "uses");
+        assert_eq!(out.source_document_id, "doc-1");
+        let incoming = related
+            .iter()
+            .find(|item| item.entity_id == metric.entity_id)
+            .expect("in edge");
+        assert_eq!(incoming.direction, "in");
+
+        let filtered = db
+            .related_entities(&method.entity_id, Some("uses"), 10)
+            .expect("filtered");
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].entity_id, material.entity_id);
+
+        // 两种来源的证据分别可清:抽取清空不动 glossary 证据
+        for (source, block) in [("glossary", "p001-b0000"), ("extraction", "p001-b0001")] {
+            db.link_block_entity(&BlockEntityLink {
+                document_id: "doc-1".to_string(),
+                entity_id: method.entity_id.clone(),
+                page_idx: 0,
+                block_id: block.to_string(),
+                job_id: "job-1".to_string(),
+                surface_form: "方法A".to_string(),
+                snippet: "方法A…".to_string(),
+                confidence: 1.0,
+                source: source.to_string(),
+            })
+            .expect("link");
+        }
+        db.clear_document_extraction("doc-1").expect("clear extraction");
+        assert!(db
+            .related_entities(&method.entity_id, None, 10)
+            .expect("after")
+            .is_empty());
+        assert_eq!(
+            db.list_entity_mentions(&method.entity_id, None, 10)
+                .expect("mentions")
+                .len(),
+            1
+        );
+        db.clear_document_graph("doc-1").expect("clear glossary");
+        assert!(db
+            .list_entity_mentions(&method.entity_id, None, 10)
+            .expect("after glossary clear")
+            .is_empty());
+
+        // 删文档:证据走 FK 级联,关系无 document FK 需显式清,否则留下死出处
+        db.add_entity_relation(&rel(&method.entity_id, &material.entity_id, "uses"))
+            .expect("reinsert");
+        db.link_block_entity(&BlockEntityLink {
+            document_id: "doc-1".to_string(),
+            entity_id: method.entity_id.clone(),
+            page_idx: 0,
+            block_id: "p001-b0002".to_string(),
+            job_id: "job-1".to_string(),
+            surface_form: "方法A".to_string(),
+            snippet: "方法A…".to_string(),
+            confidence: 1.0,
+            source: "glossary".to_string(),
+        })
+        .expect("link");
+        assert!(db.delete_document("doc-1").expect("delete doc"));
+        assert!(db
+            .related_entities(&method.entity_id, None, 10)
+            .expect("after delete")
+            .is_empty());
+        assert!(db
+            .list_entity_mentions(&method.entity_id, None, 10)
+            .expect("after delete mentions")
+            .is_empty());
     }
 
     #[test]

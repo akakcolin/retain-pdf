@@ -313,12 +313,18 @@ impl Db {
         Ok(count as u64)
     }
 
-    /// 删除文档行(FK 级联清 favorites/document_tags/collection_documents,
+    /// 删除文档行(FK 级联清 favorites/document_tags/collection_documents/block_entities,
     /// ai_conversations.document_id 置 NULL)+ 派生的 blocks_fts 行。
+    /// entity_relations 无 document FK,按 source_document_id 显式清(只留首条来源,
+    /// 来源文档没了这条关系也就没了出处)。
     pub fn delete_document(&self, document_id: &str) -> Result<bool> {
         let conn = self.connect()?;
         conn.execute(
             "DELETE FROM blocks_fts WHERE document_id = ?1",
+            params![document_id],
+        )?;
+        conn.execute(
+            "DELETE FROM entity_relations WHERE source_document_id = ?1",
             params![document_id],
         )?;
         let changed = conn.execute(

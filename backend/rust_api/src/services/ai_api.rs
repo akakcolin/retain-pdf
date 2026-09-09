@@ -15,29 +15,40 @@ pub fn resolve_llm_settings(
     config: &AiRuntimeConfig,
     request: &AskRequest,
 ) -> Result<(String, String, String), AppError> {
-    let api_key = if request.llm_api_key.trim().is_empty() {
+    resolve_llm_credentials(
+        config,
+        &request.llm_api_key,
+        &request.llm_base_url,
+        &request.llm_model,
+    )
+}
+
+/// 凭据合并的通用形式:抽取等非问答入口按请求携带同名三字段。
+pub fn resolve_llm_credentials(
+    config: &AiRuntimeConfig,
+    api_key: &str,
+    base_url: &str,
+    model: &str,
+) -> Result<(String, String, String), AppError> {
+    let api_key = if api_key.trim().is_empty() {
         config.llm_api_key.trim().to_string()
     } else {
-        request.llm_api_key.trim().to_string()
+        api_key.trim().to_string()
     };
     if api_key.is_empty() {
         return Err(AppError::bad_request(
             "缺少 LLM API Key:请在前端凭据设置中填写模型 API Key。",
         ));
     }
-    let base_url = if request.llm_base_url.trim().is_empty() {
+    let base_url = if base_url.trim().is_empty() {
         config.llm_base_url.trim_end_matches('/').to_string()
     } else {
-        request
-            .llm_base_url
-            .trim()
-            .trim_end_matches('/')
-            .to_string()
+        base_url.trim().trim_end_matches('/').to_string()
     };
-    let model = if request.llm_model.trim().is_empty() {
+    let model = if model.trim().is_empty() {
         config.llm_model.clone()
     } else {
-        request.llm_model.trim().to_string()
+        model.trim().to_string()
     };
     Ok((api_key, base_url, model))
 }

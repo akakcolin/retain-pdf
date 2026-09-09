@@ -206,6 +206,26 @@ impl<'a> AiTools<'a> {
                     }
                 }
             }),
+            serde_json::json!({
+                "type": "function",
+                "function": {
+                    "name": "related_entities",
+                    "description": "查某个实体在图谱中的关联实体(有向关系:uses/improves_on/contradicts/part_of/related_to/defines/evaluates/produces)。用于回答'X 与什么相关''哪些方法用了 X'。需要先由 search_entities 拿到 entity_id。",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "entity_id": {"type": "string", "description": "search_entities 返回的 entity_id"},
+                            "relation_type": {
+                                "type": "string",
+                                "enum": crate::services::graph::extract::RELATION_TYPES,
+                                "description": "按关系类型过滤,可选"
+                            },
+                            "limit": {"type": "integer", "minimum": 1, "maximum": 50}
+                        },
+                        "required": ["entity_id"]
+                    }
+                }
+            }),
         ];
         if !scoped_document_id.trim().is_empty() {
             specs
@@ -223,6 +243,7 @@ impl<'a> AiTools<'a> {
             "search_favorites" => self.search_favorites(arguments),
             "search_entities" => self.search_entities(arguments),
             "find_mentions" => self.find_mentions(arguments),
+            "related_entities" => self.related_entities(arguments),
             other => serde_json::json!({"error": format!("unknown tool: {other}")}),
         }
     }
@@ -439,6 +460,30 @@ impl<'a> AiTools<'a> {
             Err(err) => serde_json::json!({"error": format!("find mentions failed: {err}")}),
         }
     }
+
+    /// 也返回 entities 键(与 search_entities 同形,多带关系字段)。
+    fn related_entities(&self, arguments: &Map<String, Value>) -> Value {
+        let entity_id = string_arg(arguments, "entity_id").trim().to_string();
+        if entity_id.is_empty() {
+            return serde_json::json!({"error": "entity_id must not be empty"});
+        }
+        let relation_type = string_arg(arguments, "relation_type").trim().to_string();
+        let limit = int_arg(arguments, "limit").unwrap_or(20).clamp(1, 50) as u32;
+        match self.db.related_entities(
+            &entity_id,
+            if relation_type.is_empty() {
+                None
+            } else {
+                Some(&relation_type)
+            },
+            limit,
+        ) {
+            Ok(items) => serde_json::json!({
+                "entities": items.iter().map(project_related).collect::<Vec<_>>()
+            }),
+            Err(err) => serde_json::json!({"error": format!("related entities failed: {err}")}),
+        }
+    }
 }
 
 fn string_arg(arguments: &Map<String, Value>, key: &str) -> String {
@@ -475,6 +520,20 @@ fn project_entity(entity: &crate::models::api::EntitySummary) -> Value {
         "aliases": entity.aliases,
         "mention_count": entity.mention_count,
         "document_count": entity.document_count,
+    })
+}
+
+fn project_related(item: &crate::models::api::RelatedEntity) -> Value {
+    serde_json::json!({
+        "entity_id": item.entity_id,
+        "name": item.name,
+        "entity_type": item.entity_type,
+        "aliases": item.aliases,
+        "mention_count": item.mention_count,
+        "document_count": item.document_count,
+        "relation_type": item.relation_type,
+        "direction": item.direction,
+        "explanation": item.explanation,
     })
 }
 

@@ -125,6 +125,12 @@ export {
 // —— 服务端收藏面板 ——
 export { API_PREFIX } from "../../js/config/api-constants.js";
 export { fetchFavorites } from "../../js/api/favorites.js";
+
+// —— 概念图谱面板（entities/）——
+export { buildApiEndpoint, submitJson } from "../../js/api/http.js";
+export { buildApiHeaders } from "../../js/config/runtime.js";
+export { unwrapEnvelope } from "../../js/job/core.js";
+export { fetchDocumentByJobId } from "../../js/api/documents.js";
 export {
   createReaderServerFavoritesPort,
   normalizeServerFavorite,

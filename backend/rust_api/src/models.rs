@@ -38,7 +38,9 @@ pub use glossary::{
 };
 pub use graph::{
     BlockEntityLink, EntityListView, EntityMention, EntityMentionListView, EntityRecord,
-    EntitySummary, LinkDocumentGraphView, ListEntitiesQuery, ListMentionsQuery, NewEntity,
+    EntityRelationListView, EntitySummary, ExtractDocumentGraphView, ExtractGraphRequest,
+    LinkDocumentGraphView, ListEntitiesQuery, ListMentionsQuery, ListRelationsQuery, NewEntity,
+    NewEntityRelation, RelatedEntity,
 };
 pub use input::{
     CreateJobInput, GlossaryEntryInput, JobSourceInput, OcrInput, RenderInput, ResolvedJobSpec,

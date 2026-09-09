@@ -1,11 +1,14 @@
-//! 概念图谱 HTTP 视图:实体检索 / 提及 / 文档建链。
+//! 概念图谱 HTTP 视图:实体检索 / 提及 / 关系 / 文档建链 / LLM 抽取。
 
 use crate::db::Db;
 use crate::error::AppError;
 use crate::models::api::{
-    EntityListView, EntityMentionListView, EntityRecord, LinkDocumentGraphView, ListEntitiesQuery,
-    ListMentionsQuery,
+    EntityListView, EntityMentionListView, EntityRecord, EntityRelationListView,
+    ExtractDocumentGraphView, LinkDocumentGraphView, ListEntitiesQuery, ListMentionsQuery,
+    ListRelationsQuery,
 };
+use crate::services::ai::llm::Chat;
+use crate::services::graph::extract::extract_document_graph;
 use crate::services::graph::mentions::link_document_mentions;
 use crate::services::graph::seed::seed_entities_from_glossaries;
 use crate::services::graph::GraphDeps;
@@ -52,9 +55,25 @@ pub fn list_mentions_view(
     Ok(EntityMentionListView { items })
 }
 
+/// 实体关系(出边 + 入边),按关系类型过滤可选。
+pub fn list_relations_view(
+    db: &Db,
+    entity_id: &str,
+    query: &ListRelationsQuery,
+) -> Result<EntityRelationListView, AppError> {
+    db.get_entity(entity_id)
+        .map_err(|_| AppError::not_found(format!("entity not found: {entity_id}")))?;
+    let items = db.related_entities(
+        entity_id,
+        query.relation_type.as_deref(),
+        query.limit.clamp(1, MAX_LIMIT),
+    )?;
+    Ok(EntityRelationListView { items })
+}
+
 /// 手动触发:术语表灌实体 + 该文档全块字面扫描挂证据。零 LLM 成本,可重复调用。
-/// 先清空本文档旧证据再按当前全部实体重挂(实体本身不删,所以删词条只影响
-/// 新扫描,不会回收已建的实体行)。
+/// 只重建 glossary 来源的证据,抽取来源的证据与关系不动(实体本身也不删,
+/// 所以删词条只影响新扫描,不会回收已建的实体行)。
 pub fn link_document_graph_view(
     deps: &GraphDeps<'_>,
     document_id: &str,
@@ -70,5 +89,23 @@ pub fn link_document_graph_view(
         document_id: document_id.to_string(),
         entities,
         mentions,
+    })
+}
+
+/// LLM 抽取实体 + 关系(按请求携带的凭据构建 client)。
+pub async fn extract_document_graph_view<C: Chat>(
+    deps: &GraphDeps<'_>,
+    client: &C,
+    document_id: &str,
+) -> Result<ExtractDocumentGraphView, AppError> {
+    deps.db
+        .get_document(document_id)
+        .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
+    let outcome = extract_document_graph(deps, client, document_id).await?;
+    Ok(ExtractDocumentGraphView {
+        document_id: document_id.to_string(),
+        entities: outcome.entities,
+        mentions: outcome.mentions,
+        relations: outcome.relations,
     })
 }
