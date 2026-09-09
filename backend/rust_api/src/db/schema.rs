@@ -156,6 +156,18 @@ const VERSIONED_MIGRATIONS: &[&str] = &[
     CREATE INDEX IF NOT EXISTS idx_entity_relations_to   ON entity_relations(to_entity_id);
     ALTER TABLE documents ADD COLUMN graph_extracted_at TEXT;
     "#,
+    // v5: 概念页 —— 每个实体一份维护式综述(带引用的 Markdown)。
+    // 证据不另建表:block_entities 本身就是 page_evidence。evidence_sig 记录
+    // 生成时的证据签名,读取时现算对比得出 stale,不侵入抽取路径、不落标记列。
+    r#"
+    CREATE TABLE IF NOT EXISTS entity_pages (
+        entity_id      TEXT PRIMARY KEY REFERENCES entities(entity_id) ON DELETE CASCADE,
+        body_md        TEXT NOT NULL DEFAULT '',
+        citations_json TEXT NOT NULL DEFAULT '[]',
+        evidence_sig   TEXT NOT NULL DEFAULT '',
+        generated_at   TEXT NOT NULL
+    );
+    "#,
 ];
 
 pub(super) fn run_versioned_migrations(conn: &Connection) -> Result<()> {

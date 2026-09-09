@@ -3,12 +3,14 @@ use axum::Json;
 
 use crate::error::AppError;
 use crate::models::api::{
-    ApiResponse, EntityListView, EntityMentionListView, EntityRecord, EntityRelationListView,
-    ExtractDocumentGraphView, ExtractGraphRequest, LinkDocumentGraphView, ListEntitiesQuery,
-    ListMentionsQuery, ListRelationsQuery,
+    ApiResponse, EntityListView, EntityMentionListView, EntityPageView, EntityRecord,
+    EntityRelationListView, ExtractDocumentGraphView, ExtractGraphRequest,
+    GenerateEntityPageRequest, LinkDocumentGraphView, ListEntitiesQuery, ListMentionsQuery,
+    ListRelationsQuery,
 };
 use crate::routes::common::{build_graph_route_deps, ok_json};
 use crate::services::ai_api::{resolve_llm_credentials, LlmClient};
+use crate::services::graph::page::{generate_entity_page, get_entity_page};
 use crate::services::graph_api::{
     extract_document_graph_view, get_entity_view, link_document_graph_view, list_entities_view,
     list_mentions_view, list_relations_view,
@@ -55,6 +57,34 @@ pub async fn list_entity_relations_route(
         &entity_id,
         &query,
     )?))
+}
+
+/// 读概念页。未生成时 has_page=false(实体存在,不是 404)。
+pub async fn get_entity_page_route(
+    State(state): State<AppState>,
+    AxumPath(entity_id): AxumPath<String>,
+) -> Result<Json<ApiResponse<EntityPageView>>, AppError> {
+    let deps = build_graph_route_deps(&state);
+    Ok(ok_json(get_entity_page(&deps.graph, &entity_id)?))
+}
+
+/// 生成/刷新概念页(按请求携带的凭据构建 client)。
+pub async fn generate_entity_page_route(
+    State(state): State<AppState>,
+    AxumPath(entity_id): AxumPath<String>,
+    Json(request): Json<GenerateEntityPageRequest>,
+) -> Result<Json<ApiResponse<EntityPageView>>, AppError> {
+    let deps = build_graph_route_deps(&state);
+    let (api_key, base_url, model) = resolve_llm_credentials(
+        deps.ai,
+        &request.llm_api_key,
+        &request.llm_base_url,
+        &request.llm_model,
+    )?;
+    let client = LlmClient::new(base_url, model, api_key, deps.ai.llm_timeout_s);
+    Ok(ok_json(
+        generate_entity_page(&deps.graph, &client, &entity_id).await?,
+    ))
 }
 
 pub async fn link_document_graph_route(

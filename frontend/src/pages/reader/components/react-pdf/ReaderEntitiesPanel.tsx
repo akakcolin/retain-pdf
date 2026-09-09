@@ -7,16 +7,23 @@ import {
   API_PREFIX,
   fetchDocumentByJobId,
   hasChatModelApiKey,
+  injectCitationMarkers,
   MISSING_MODEL_API_KEY_MESSAGE,
+  renderCitationFooter,
+  renderFinalAnswerHtml,
   resolveReaderChatConfig,
+  type AiCitationLike,
 } from "../../external.js";
 import {
   extractDocumentGraph,
+  generateEntityPage,
+  getEntityPage,
   linkDocumentGraph,
   listDocumentEntities,
   listEntityMentions,
   listEntityRelations,
   type EntityMention,
+  type EntityPage,
   type EntitySummary,
   type RelatedEntity,
 } from "../../entities/api.js";
@@ -53,12 +60,15 @@ export function ReaderEntitiesPanel({
   const [selected, setSelected] = useState<EntitySummary | null>(null);
   const [mentions, setMentions] = useState<EntityMention[]>([]);
   const [relations, setRelations] = useState<RelatedEntity[]>([]);
+  const [page, setPage] = useState<EntityPage | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
+  const [pageBusy, setPageBusy] = useState(false);
   const listReq = useRef(0);
   const detailReq = useRef(0);
+  const pageBodyRef = useRef<HTMLDivElement | null>(null);
 
   const loadList = useCallback(async (id: string) => {
     const token = ++listReq.current;
@@ -84,6 +94,7 @@ export function ReaderEntitiesPanel({
     setSelected(null);
     setMentions([]);
     setRelations([]);
+    setPage(null);
     setNotice("");
     setError("");
     void (async () => {
@@ -118,16 +129,19 @@ export function ReaderEntitiesPanel({
       setSelected(entity);
       setMentions([]);
       setRelations([]);
+      setPage(null);
       setLoading(true);
       setError("");
       try {
-        const [nextMentions, nextRelations] = await Promise.all([
+        const [nextMentions, nextRelations, nextPage] = await Promise.all([
           listEntityMentions(entity.entity_id, { documentId: docId }),
           listEntityRelations(entity.entity_id),
+          getEntityPage(entity.entity_id),
         ]);
         if (detailReq.current !== token) return;
         setMentions(nextMentions);
         setRelations(nextRelations);
+        setPage(nextPage);
       } catch (err) {
         if (detailReq.current === token) {
           setError(errText(err, "读取实体详情失败"));
@@ -144,8 +158,74 @@ export function ReaderEntitiesPanel({
     setSelected(null);
     setMentions([]);
     setRelations([]);
+    setPage(null);
     setError("");
   }, []);
+
+  const jumpToCitation = useCallback(
+    (citation: AiCitationLike) => {
+      const citationDoc = `${citation.document_id || ""}`.trim();
+      if (citationDoc && docId && citationDoc !== docId) {
+        setNotice(`引用来自《${citation.document_title || "其他文档"}》，不在当前文档中`);
+        return;
+      }
+      const idx = Number(citation.page_idx);
+      onJumpPage(Number.isFinite(idx) && idx >= 0 ? idx + 1 : 1);
+    },
+    [docId, onJumpPage],
+  );
+
+  // 概念页正文渲染成安全 HTML 后注入容器，再把 [n] 换成可跳页按钮。
+  useEffect(() => {
+    const host = pageBodyRef.current;
+    if (!host || !page?.has_page) return;
+    let cancelled = false;
+    void (async () => {
+      const html = await renderFinalAnswerHtml(page.body_md);
+      if (cancelled || !pageBodyRef.current) return;
+      pageBodyRef.current.innerHTML = html;
+      const citationByRef = new Map<string, AiCitationLike>();
+      for (const citation of page.citations) {
+        citationByRef.set(`${citation.ref}`, citation);
+      }
+      injectCitationMarkers(pageBodyRef.current, citationByRef, jumpToCitation);
+      renderCitationFooter(pageBodyRef.current, page.citations, {
+        onJump: jumpToCitation,
+        answerText: page.body_md,
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [page, jumpToCitation]);
+
+  const runGeneratePage = useCallback(async () => {
+    if (!selected || pageBusy) return;
+    if (!hasChatModelApiKey()) {
+      setError(MISSING_MODEL_API_KEY_MESSAGE);
+      return;
+    }
+    if (!window.confirm("生成概念页会调用一次模型（消耗 token），并覆盖该实体的综述。继续？")) {
+      return;
+    }
+    setPageBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const config = resolveReaderChatConfig();
+      const next = await generateEntityPage(selected.entity_id, {
+        apiKey: config.apiKey,
+        baseUrl: config.baseUrl,
+        model: config.model,
+      });
+      setPage(next);
+      setNotice("概念页已更新");
+    } catch (err) {
+      setError(errText(err, "生成概念页失败"));
+    } finally {
+      setPageBusy(false);
+    }
+  }, [selected, pageBusy]);
 
   const runLink = useCallback(async () => {
     if (!docId || busy) return;
@@ -255,6 +335,49 @@ export function ReaderEntitiesPanel({
               别名：{selected.aliases.join(" / ")}
             </p>
           ) : null}
+
+          <section className="reader-entities-section">
+            <h5>
+              概念页
+              {page?.has_page ? (
+                <span className="reader-entities-section-count">{page.citations.length}</span>
+              ) : null}
+            </h5>
+            {!page ? (
+              <p className="reader-notes-empty">正在加载…</p>
+            ) : !page.has_page ? (
+              <>
+                <p className="reader-notes-empty">
+                  还没有概念页。生成后会把跨文档证据合成为一份带引用的综述。
+                </p>
+                <button
+                  type="button"
+                  className="reader-notes-export"
+                  disabled={pageBusy}
+                  onClick={() => void runGeneratePage()}
+                >
+                  {pageBusy ? "生成中…" : "生成概念页"}
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="reader-entities-page-meta">
+                  {page.stale ? (
+                    <span className="reader-entities-stale">证据已更新</span>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="reader-notes-export"
+                    disabled={pageBusy}
+                    onClick={() => void runGeneratePage()}
+                  >
+                    {pageBusy ? "生成中…" : page.stale ? "重新生成" : "刷新"}
+                  </button>
+                </div>
+                <div className="reader-entities-page-body" ref={pageBodyRef} />
+              </>
+            )}
+          </section>
 
           <section className="reader-entities-section">
             <h5>

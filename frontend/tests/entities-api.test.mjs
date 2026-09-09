@@ -21,6 +21,8 @@ const {
   listEntityRelations,
   linkDocumentGraph,
   extractDocumentGraph,
+  getEntityPage,
+  generateEntityPage,
 } = await import("../src/pages/reader/entities/api.js");
 const {
   entityTypeLabel,
@@ -111,6 +113,39 @@ test("extractDocumentGraph 上传凭据：Bearer 前缀剥掉、空字段不带"
   assert.equal(body.llm_base_url, "https://api.example.com");
   assert.equal("llm_model" in body, false);
   assert.equal(new URL(calls[0].url).pathname, "/api/v1/documents/doc-1/graph/extract");
+});
+
+test("getEntityPage GET 并解包概念页", async () => {
+  const calls = stubFetch({
+    code: 0,
+    message: "ok",
+    data: {
+      entity_id: "ent-1",
+      has_page: true,
+      stale: false,
+      body_md: "正文 [1]。",
+      citations: [{ ref: 1, document_id: "doc-1", page_idx: 3 }],
+    },
+  });
+  const page = await getEntityPage("ent-1");
+  assert.equal(page.has_page, true);
+  assert.equal(page.citations[0].ref, 1);
+  assert.equal(new URL(calls[0].url).pathname, "/api/v1/entities/ent-1/page");
+});
+
+test("generateEntityPage POST 带凭据：Bearer 剥掉、空字段不带", async () => {
+  const calls = stubFetch({
+    code: 0,
+    message: "ok",
+    data: { entity_id: "ent-1", has_page: true, citations: [] },
+  });
+  await generateEntityPage("ent-1", { apiKey: "Bearer sk-x", baseUrl: "", model: "m1" });
+  const body = JSON.parse(calls[0].init.body);
+  assert.equal(body.llm_api_key, "sk-x");
+  assert.equal(body.llm_model, "m1");
+  assert.equal("llm_base_url" in body, false);
+  assert.equal(calls[0].init.method, "POST");
+  assert.equal(new URL(calls[0].url).pathname, "/api/v1/entities/ent-1/page");
 });
 
 test("展示文案：词表命中翻译，未知值原样回显", () => {

@@ -280,7 +280,7 @@ fn parse_extraction(content: &str) -> Result<ExtractionPayload, AppError> {
         .map_err(|err| AppError::bad_gateway(format!("解析抽取结果失败: {err}")))
 }
 
-fn strip_code_fence(text: &str) -> &str {
+pub(super) fn strip_code_fence(text: &str) -> &str {
     if !text.starts_with("```") {
         return text;
     }

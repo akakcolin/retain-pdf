@@ -6,8 +6,8 @@ use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 
 use crate::models::domain::{build_job_id, now_iso};
 use crate::models::api::{
-    BlockEntityLink, EntityMention, EntityRecord, EntitySummary, NewEntity, NewEntityRelation,
-    RelatedEntity,
+    BlockEntityLink, EntityMention, EntityPageEvidence, EntityPageRecord, EntityRecord,
+    EntitySummary, NewEntity, NewEntityRelation, RelatedEntity,
 };
 
 use super::Db;
@@ -83,6 +83,20 @@ const RELATED_ENTITIES_SQL: &str = r#"
     ORDER BY r.confidence DESC, e.name ASC
     LIMIT ?3
     "#;
+
+const ENTITY_PAGE_COLUMNS: &str =
+    "entity_id, body_md, citations_json, evidence_sig, generated_at";
+
+fn row_to_entity_page(row: &rusqlite::Row<'_>) -> rusqlite::Result<EntityPageRecord> {
+    let citations_json: String = row.get(2)?;
+    Ok(EntityPageRecord {
+        entity_id: row.get(0)?,
+        body_md: row.get(1)?,
+        citations: serde_json::from_str(&citations_json).unwrap_or_default(),
+        evidence_sig: row.get(3)?,
+        generated_at: row.get(4)?,
+    })
+}
 
 /// 实体摘要的计数子查询(提及数 / 覆盖文档数)。
 const SUMMARY_COLUMNS: &str = "e.entity_id, e.name, e.entity_type, e.aliases_json,
@@ -535,6 +549,88 @@ impl Db {
         }
         Ok(items)
     }
+
+    /// 概念页的证据片段:block_entities 挂文档标题,按文档/页码/块排序。
+    pub fn list_entity_page_evidence(
+        &self,
+        entity_id: &str,
+        limit: u32,
+    ) -> Result<Vec<EntityPageEvidence>> {
+        let conn = self.connect()?;
+        let mut stmt = conn.prepare(
+            "SELECT b.document_id, COALESCE(d.title, ''), b.job_id, b.page_idx, b.block_id, b.snippet
+             FROM block_entities b
+             LEFT JOIN documents d ON d.document_id = b.document_id
+             WHERE b.entity_id = ?1
+             ORDER BY b.document_id, b.page_idx, b.block_id
+             LIMIT ?2",
+        )?;
+        let rows = stmt.query_map(params![entity_id, limit as i64], |row| {
+            Ok(EntityPageEvidence {
+                document_id: row.get(0)?,
+                document_title: row.get(1)?,
+                job_id: row.get(2)?,
+                page_idx: row.get(3)?,
+                block_id: row.get(4)?,
+                snippet: row.get(5)?,
+            })
+        })?;
+        let mut items = Vec::new();
+        for row in rows {
+            items.push(row?);
+        }
+        Ok(items)
+    }
+
+    /// 证据签名:提及与关系的 (count, max(rowid))。新增/删除证据或关系都会改变它,
+    /// 用来判断概念页是否 stale —— 不用在抽取路径上写标记。
+    pub fn entity_page_evidence_sig(&self, entity_id: &str) -> Result<String> {
+        let conn = self.connect()?;
+        let (mentions, mention_row): (i64, i64) = conn.query_row(
+            "SELECT COUNT(*), COALESCE(MAX(rowid), 0) FROM block_entities WHERE entity_id = ?1",
+            params![entity_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        let (relations, relation_row): (i64, i64) = conn.query_row(
+            "SELECT COUNT(*), COALESCE(MAX(rowid), 0) FROM entity_relations
+             WHERE from_entity_id = ?1 OR to_entity_id = ?1",
+            params![entity_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        Ok(format!("m{mentions}:{mention_row}:r{relations}:{relation_row}"))
+    }
+
+    pub fn get_entity_page(&self, entity_id: &str) -> Result<Option<EntityPageRecord>> {
+        let conn = self.connect()?;
+        let sql =
+            format!("SELECT {ENTITY_PAGE_COLUMNS} FROM entity_pages WHERE entity_id = ?1");
+        let page = conn
+            .query_row(&sql, params![entity_id], row_to_entity_page)
+            .optional()?;
+        Ok(page)
+    }
+
+    /// 整页覆盖写(生成/刷新都是全量替换)。
+    pub fn upsert_entity_page(&self, page: &EntityPageRecord) -> Result<()> {
+        let conn = self.connect()?;
+        conn.execute(
+            "INSERT INTO entity_pages (entity_id, body_md, citations_json, evidence_sig, generated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(entity_id) DO UPDATE SET
+                 body_md = excluded.body_md,
+                 citations_json = excluded.citations_json,
+                 evidence_sig = excluded.evidence_sig,
+                 generated_at = excluded.generated_at",
+            params![
+                page.entity_id,
+                page.body_md,
+                serde_json::to_string(&page.citations).unwrap_or_else(|_| "[]".to_string()),
+                page.evidence_sig,
+                page.generated_at,
+            ],
+        )?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -903,5 +999,88 @@ mod tests {
 
         db.clear_document_graph("doc-1").expect("clear");
         assert_eq!(db.list_entity_mentions(&entity.entity_id, None, 10).expect("after").len(), 1);
+    }
+
+    #[test]
+    fn entity_page_roundtrip_and_stale_signature() {
+        let fs = TestDbFs::new("entity-page");
+        let db = fs.db();
+        seed_document(&db, "doc-1");
+        let entity = db.upsert_entity(&new_entity("方法A", "method", &[])).expect("entity");
+        assert!(db.get_entity_page(&entity.entity_id).expect("no page").is_none());
+
+        // 无证据时签名为全零
+        let empty_sig = db.entity_page_evidence_sig(&entity.entity_id).expect("sig");
+        assert_eq!(empty_sig, "m0:0:r0:0");
+
+        let link = |block: &str| BlockEntityLink {
+            document_id: "doc-1".to_string(),
+            entity_id: entity.entity_id.clone(),
+            page_idx: 0,
+            block_id: block.to_string(),
+            job_id: "job-1".to_string(),
+            surface_form: "方法A".to_string(),
+            snippet: "方法A 的片段".to_string(),
+            confidence: 1.0,
+            source: "glossary".to_string(),
+        };
+        db.link_block_entity(&link("p001-b0000")).expect("link");
+        let after_mention = db.entity_page_evidence_sig(&entity.entity_id).expect("sig");
+        assert_ne!(empty_sig, after_mention);
+
+        let page = EntityPageRecord {
+            entity_id: entity.entity_id.clone(),
+            body_md: "方法A 是一种方法 [1]。".to_string(),
+            citations: vec![crate::models::api::EntityPageCitation {
+                ref_num: 1,
+                document_id: "doc-1".to_string(),
+                document_title: "paper".to_string(),
+                job_id: "job-1".to_string(),
+                page_idx: 0,
+                block_id: "p001-b0000".to_string(),
+                snippet: "方法A 的片段".to_string(),
+            }],
+            evidence_sig: after_mention.clone(),
+            generated_at: "2026-09-09T00:00:00Z".to_string(),
+        };
+        db.upsert_entity_page(&page).expect("upsert");
+        let loaded = db
+            .get_entity_page(&entity.entity_id)
+            .expect("load")
+            .expect("some");
+        assert_eq!(loaded.body_md, page.body_md);
+        assert_eq!(loaded.citations.len(), 1);
+        assert_eq!(loaded.citations[0].ref_num, 1);
+        assert_eq!(loaded.citations[0].document_title, "paper");
+        // 签名一致 = 不算 stale
+        assert_eq!(loaded.evidence_sig, db.entity_page_evidence_sig(&entity.entity_id).expect("sig"));
+
+        // 新增证据 → 签名变化(调用方据此判定 stale)
+        db.link_block_entity(&link("p001-b0001")).expect("link2");
+        assert_ne!(
+            loaded.evidence_sig,
+            db.entity_page_evidence_sig(&entity.entity_id).expect("sig2")
+        );
+
+        // 覆盖写整页
+        let mut updated = page.clone();
+        updated.body_md = "重写 [1]。".to_string();
+        db.upsert_entity_page(&updated).expect("re-upsert");
+        assert_eq!(
+            db.get_entity_page(&entity.entity_id).expect("load2").expect("some").body_md,
+            "重写 [1]。"
+        );
+
+        // 证据列表带文档标题
+        let evidence = db.list_entity_page_evidence(&entity.entity_id, 10).expect("evidence");
+        assert_eq!(evidence.len(), 2);
+        assert_eq!(evidence[0].document_title, "paper");
+        assert_eq!(evidence[0].document_id, "doc-1");
+
+        // 删实体 → 页随 FK 级联删除
+        let conn = db.connect().expect("connect");
+        conn.execute("DELETE FROM entities WHERE entity_id = ?1", params![entity.entity_id])
+            .expect("delete entity");
+        assert!(db.get_entity_page(&entity.entity_id).expect("after delete").is_none());
     }
 }

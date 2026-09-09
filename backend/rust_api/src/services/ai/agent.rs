@@ -431,6 +431,26 @@ fn public_tool_payload(result: &Value) -> Value {
             );
         }
     }
+    // get_entity_page:综述正文 + 引用证据。正文里的 [n] 已被剥掉,
+    // 模型要用 blocks[].ref 重新编号引用。
+    if let Some(page) = result.get("entity_page").and_then(Value::as_object) {
+        let mut item = Map::new();
+        for key in ["entity_id", "name", "entity_type", "stale", "body_md"] {
+            if let Some(value) = page.get(key) {
+                item.insert(key.to_string(), value.clone());
+            }
+        }
+        if !item.is_empty() {
+            public.insert("entity_page".to_string(), Value::Object(item));
+            public.insert(
+                "how_to_use_page".to_string(),
+                Value::String(
+                    "这是该实体已生成的概念页,可直接作为回答依据;引用请用 blocks[].ref 写成 [n]。"
+                        .to_string(),
+                ),
+            );
+        }
+    }
     let mut public_blocks: Vec<Value> = Vec::new();
     if let Some(blocks) = result.get("blocks").and_then(Value::as_array) {
         for block in blocks {
@@ -823,7 +843,9 @@ mod tests {
     use crate::db::documents::sha256_hex;
     use crate::db::Db;
     use crate::error::AppError;
-    use crate::models::api::{BlockEntityLink, FtsBlockRow, NewEntity};
+    use crate::models::api::{
+        BlockEntityLink, EntityPageCitation, EntityPageRecord, FtsBlockRow, NewEntity,
+    };
     use crate::models::{now_iso, UploadRecord};
 
     /// 脚本化 fake chat:按调用顺序返回预设 assistant 消息,并记录每次收到的上下文。
@@ -1098,6 +1120,81 @@ mod tests {
         let second: Value = serde_json::from_str(seen.last().unwrap()["content"].as_str().unwrap())
             .unwrap();
         assert_eq!(second["blocks"][0]["ref"], json!(1));
+    }
+
+    #[tokio::test]
+    async fn ask_loop_uses_entity_page_tool() {
+        let fs = TestDb::new("entity-page");
+        let db = fs.db();
+        db.init().expect("init");
+        seed_search_doc(&db, "entity-page");
+        let document_id = sha256_hex("ai-agent-entity-page".as_bytes());
+        let entity = db
+            .upsert_entity(&NewEntity {
+                name: "选择性".to_string(),
+                entity_type: "term".to_string(),
+                aliases: Vec::new(),
+                description: String::new(),
+            })
+            .expect("entity");
+        db.link_block_entity(&BlockEntityLink {
+            document_id: document_id.clone(),
+            entity_id: entity.entity_id.clone(),
+            page_idx: 7,
+            block_id: "p008-b0001".to_string(),
+            job_id: "job-1".to_string(),
+            surface_form: "选择性".to_string(),
+            snippet: "选择性来自共轭效应".to_string(),
+            confidence: 1.0,
+            source: "glossary".to_string(),
+        })
+        .expect("link");
+        let sig = db
+            .entity_page_evidence_sig(&entity.entity_id)
+            .expect("sig");
+        db.upsert_entity_page(&EntityPageRecord {
+            entity_id: entity.entity_id.clone(),
+            body_md: "选择性是反应倾向的度量 [1]。".to_string(),
+            citations: vec![EntityPageCitation {
+                ref_num: 1,
+                document_id: document_id.clone(),
+                document_title: "paper.pdf".to_string(),
+                job_id: "job-1".to_string(),
+                page_idx: 7,
+                block_id: "p008-b0001".to_string(),
+                snippet: "选择性来自共轭效应".to_string(),
+            }],
+            evidence_sig: sig,
+            generated_at: now_iso(),
+        })
+        .expect("page");
+        let tools = AiTools::new(&db, &fs.data_root);
+        let fake = ScriptedChat::new(vec![
+            ScriptedChat::tool_call("c1", "search_entities", r#"{"query":"选择性"}"#),
+            ScriptedChat::tool_call(
+                "c2",
+                "get_entity_page",
+                &format!(r#"{{"entity_id":"{}"}}"#, entity.entity_id),
+            ),
+            ScriptedChat::answer("选择性是反应倾向的度量 [1]。"),
+        ]);
+        let agent = RetrievalAgent::new(tools, 5);
+        let result = agent
+            .ask(&fake, "选择性是什么?", "", "", &[], |_| {})
+            .await
+            .expect("ask");
+        assert_eq!(result.citations.len(), 1);
+        assert_eq!(result.citations[0].block_id, "p008-b0001");
+        let seen = fake.seen_tool_messages();
+        let page_payload: Value =
+            serde_json::from_str(seen.last().unwrap()["content"].as_str().unwrap()).unwrap();
+        // 正文里的 [1] 已剥掉,模型必须用 blocks[].ref 重新编号
+        assert_eq!(
+            page_payload["entity_page"]["body_md"],
+            json!("选择性是反应倾向的度量 。")
+        );
+        assert_eq!(page_payload["entity_page"]["stale"], json!(false));
+        assert_eq!(page_payload["blocks"][0]["ref"], json!(1));
     }
 
     #[tokio::test]

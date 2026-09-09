@@ -128,6 +128,10 @@ pub fn build_app(state: AppState) -> Router {
             get(graph::list_entity_relations_route),
         )
         .route(
+            "/api/v1/entities/:entity_id/page",
+            get(graph::get_entity_page_route).post(graph::generate_entity_page_route),
+        )
+        .route(
             "/api/v1/documents/:document_id/graph/link",
             post(graph::link_document_graph_route),
         )

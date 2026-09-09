@@ -88,6 +88,18 @@ function findByText(host, text) {
   return [...host.querySelectorAll("button")].find((el) => el.textContent.includes(text));
 }
 
+// 注入的 [n] 按钮会过滤 isTrusted=false 的合成事件（防幽灵点击）；真实用户点击不受影响。
+// 测试里临时隐藏全局 MouseEvent，让 jsdom 的合成点击穿过这层守卫。
+function clickCitation(el) {
+  const saved = globalThis.MouseEvent;
+  try {
+    delete globalThis.MouseEvent;
+    el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  } finally {
+    globalThis.MouseEvent = saved;
+  }
+}
+
 test("面板：列表 → 详情 → 证据跳页", async () => {
   const calls = stubFetch();
   const jumps = [];
@@ -123,6 +135,125 @@ test("面板：列表 → 详情 → 证据跳页", async () => {
     findByText(host, "第 3 页").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
   });
   assert.deepEqual(jumps, [3]);
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+const PAGE = {
+  entity_id: "ent-1",
+  name: "卤素",
+  entity_type: "term",
+  has_page: true,
+  stale: false,
+  generated_at: "2026-09-09T00:00:00Z",
+  body_md: "卤素是一类元素 [1]。",
+  citations: [
+    {
+      ref: 1,
+      document_id: "doc-1",
+      document_title: "化学",
+      job_id: "job-1",
+      page_idx: 4,
+      block_id: "p005-b0000",
+      snippet: "卤素是一类元素",
+    },
+  ],
+};
+
+function stubFetchWithPage(page) {
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url, init });
+    const path = new URL(url).pathname;
+    let data = { items: [ENTITY] };
+    if (path.endsWith("/mentions")) data = { items: [MENTION] };
+    else if (path.endsWith("/relations")) data = { items: [RELATION] };
+    else if (path.endsWith("/page")) data = page;
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      json: async () => ({ code: 0, message: "ok", data }),
+      text: async () => "",
+    };
+  };
+  return calls;
+}
+
+test("面板：概念页正文渲染 + [n] 跳页", async () => {
+  const calls = stubFetchWithPage(PAGE);
+  const jumps = [];
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await act(async () => {
+    root.render(createElement(ReaderEntitiesPanel, {
+      open: true,
+      jobId: "job-1",
+      documentId: "doc-1",
+      onClose() {},
+      onJumpPage: (page) => jumps.push(page),
+    }));
+  });
+
+  await waitFor(() => host.textContent.includes("卤素"), "实体列表渲染");
+  await act(async () => {
+    findByText(host, "卤素").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+
+  await waitFor(
+    () => host.querySelector(".reader-entities-page-body")?.textContent.includes("卤素是一类元素"),
+    "概念页正文渲染",
+  );
+  assert.ok(calls.some((c) => c.url.includes("/entities/ent-1/page")), "详情并行拉概念页");
+  const citeBtn = host.querySelector("button.reader-ai-citation-ref");
+  assert.ok(citeBtn, "正文 [1] 变成可点击引用");
+  await act(async () => {
+    clickCitation(citeBtn);
+  });
+  assert.deepEqual(jumps, [5]);
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：跨文档引用不跳页，提示来源", async () => {
+  stubFetchWithPage({
+    ...PAGE,
+    citations: [{ ...PAGE.citations[0], document_id: "doc-2", document_title: "其他文献" }],
+  });
+  const jumps = [];
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await act(async () => {
+    root.render(createElement(ReaderEntitiesPanel, {
+      open: true,
+      jobId: "job-1",
+      documentId: "doc-1",
+      onClose() {},
+      onJumpPage: (page) => jumps.push(page),
+    }));
+  });
+
+  await waitFor(() => host.textContent.includes("卤素"), "实体列表渲染");
+  await act(async () => {
+    findByText(host, "卤素").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  await waitFor(
+    () => host.querySelector("button.reader-ai-citation-ref"),
+    "引用按钮渲染",
+  );
+  await act(async () => {
+    clickCitation(host.querySelector("button.reader-ai-citation-ref"));
+  });
+  assert.deepEqual(jumps, [], "跨文档引用不跳当前文档");
+  assert.ok(host.textContent.includes("其他文献"), "提示引用来源文档");
 
   await act(async () => {
     root.unmount();

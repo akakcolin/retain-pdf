@@ -175,3 +175,55 @@ pub struct ExtractDocumentGraphView {
     /// 新写入的关系条数
     pub relations: usize,
 }
+
+/// 概念页引用:正文 [n] 对应的证据锚点。ref 与正文编号一一对应(1 基)。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EntityPageCitation {
+    #[serde(rename = "ref")]
+    pub ref_num: i64,
+    pub document_id: String,
+    pub document_title: String,
+    pub job_id: String,
+    pub page_idx: i64,
+    pub block_id: String,
+    pub snippet: String,
+}
+
+/// 概念页的证据片段(block_entities + 文档标题)。
+#[derive(Debug, Clone)]
+pub struct EntityPageEvidence {
+    pub document_id: String,
+    pub document_title: String,
+    pub job_id: String,
+    pub page_idx: i64,
+    pub block_id: String,
+    pub snippet: String,
+}
+
+/// 概念页记录(一实体一页,整体覆盖写)。
+#[derive(Debug, Clone)]
+pub struct EntityPageRecord {
+    pub entity_id: String,
+    pub body_md: String,
+    pub citations: Vec<EntityPageCitation>,
+    /// 生成时的证据签名,用于读取时判断 stale。
+    pub evidence_sig: String,
+    pub generated_at: String,
+}
+
+/// GET/POST /api/v1/entities/:id/page 响应。无页时 has_page=false,其余为空。
+#[derive(Debug, Serialize)]
+pub struct EntityPageView {
+    pub entity_id: String,
+    pub name: String,
+    pub entity_type: String,
+    pub has_page: bool,
+    /// 证据签名与生成时不一致 = 页内容可能过时。
+    pub stale: bool,
+    pub generated_at: String,
+    pub body_md: String,
+    pub citations: Vec<EntityPageCitation>,
+}
+
+/// POST /api/v1/entities/:id/page 请求体:与抽取同形,按请求携带 LLM 凭据。
+pub type GenerateEntityPageRequest = ExtractGraphRequest;

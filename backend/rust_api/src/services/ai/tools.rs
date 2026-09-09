@@ -226,6 +226,20 @@ impl<'a> AiTools<'a> {
                     }
                 }
             }),
+            serde_json::json!({
+                "type": "function",
+                "function": {
+                    "name": "get_entity_page",
+                    "description": "读某实体已生成的概念页——跨文档综述,带引用证据。回答'X 是什么''总结一下 X'时优先用它。需要先由 search_entities 拿到 entity_id。",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "entity_id": {"type": "string", "description": "search_entities 返回的 entity_id"}
+                        },
+                        "required": ["entity_id"]
+                    }
+                }
+            }),
         ];
         if !scoped_document_id.trim().is_empty() {
             specs
@@ -244,6 +258,7 @@ impl<'a> AiTools<'a> {
             "search_entities" => self.search_entities(arguments),
             "find_mentions" => self.find_mentions(arguments),
             "related_entities" => self.related_entities(arguments),
+            "get_entity_page" => self.get_entity_page(arguments),
             other => serde_json::json!({"error": format!("unknown tool: {other}")}),
         }
     }
@@ -484,6 +499,45 @@ impl<'a> AiTools<'a> {
             Err(err) => serde_json::json!({"error": format!("related entities failed: {err}")}),
         }
     }
+
+    /// 返回 entity_page(综述正文,已剥掉 [n])+ blocks(引用证据,走既有编号机制)。
+    fn get_entity_page(&self, arguments: &Map<String, Value>) -> Value {
+        let entity_id = string_arg(arguments, "entity_id").trim().to_string();
+        if entity_id.is_empty() {
+            return serde_json::json!({"error": "entity_id must not be empty"});
+        }
+        let entity = match self.db.get_entity(&entity_id) {
+            Ok(entity) => entity,
+            Err(_) => return serde_json::json!({"error": "entity not found"}),
+        };
+        let page = match self.db.get_entity_page(&entity_id) {
+            Ok(page) => page,
+            Err(err) => {
+                return serde_json::json!({"error": format!("get entity page failed: {err}")})
+            }
+        };
+        let Some(page) = page else {
+            return serde_json::json!({
+                "error": "该实体还没有概念页",
+                "hint": "用 find_mentions 取证据直接回答,或让用户在概念面板生成后再问",
+            });
+        };
+        let stale = self
+            .db
+            .entity_page_evidence_sig(&entity_id)
+            .map(|sig| sig != page.evidence_sig)
+            .unwrap_or(false);
+        serde_json::json!({
+            "entity_page": {
+                "entity_id": page.entity_id,
+                "name": entity.name,
+                "entity_type": entity.entity_type,
+                "stale": stale,
+                "body_md": crate::services::graph::page::strip_citation_markers(&page.body_md),
+            },
+            "blocks": page.citations.iter().map(project_page_citation).collect::<Vec<_>>(),
+        })
+    }
 }
 
 fn string_arg(arguments: &Map<String, Value>, key: &str) -> String {
@@ -534,6 +588,16 @@ fn project_related(item: &crate::models::api::RelatedEntity) -> Value {
         "relation_type": item.relation_type,
         "direction": item.direction,
         "explanation": item.explanation,
+    })
+}
+
+fn project_page_citation(citation: &crate::models::api::EntityPageCitation) -> Value {
+    serde_json::json!({
+        "document_id": citation.document_id,
+        "job_id": citation.job_id,
+        "page_idx": citation.page_idx,
+        "block_id": citation.block_id,
+        "snippet": citation.snippet,
     })
 }
 

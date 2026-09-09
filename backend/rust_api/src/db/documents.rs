@@ -1027,8 +1027,47 @@ mod tests {
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .expect("user_version");
-        // 与迁移数组长度同步:v1 图书馆地基 + v2 资产/会话 + v3 AI 消息树分支 + v4 概念图谱
-        assert_eq!(version, 4);
+        // 与迁移数组长度同步:v1 图书馆地基 + v2 资产/会话 + v3 AI 消息树分支
+        // + v4 概念图谱 + v5 概念页
+        assert_eq!(version, 5);
+    }
+
+    #[test]
+    fn v4_database_upgrades_to_v5_without_losing_data() {
+        let fs = TestDbFs::new("migrate-v5");
+        let db = fs.db();
+        db.init().expect("init");
+        let hash = sha256_hex(b"legacy doc");
+        let upload = upload_with_hash("up-1", &hash);
+        db.save_upload(&upload).expect("save upload");
+        db.upsert_document_from_upload(&upload).expect("seed document");
+        // 回退成 v4 库:删掉 v5 表、把版本号退回去,再用新实例模拟进程重启。
+        let conn = db.connect().expect("connect");
+        conn.execute_batch("DROP TABLE entity_pages; PRAGMA user_version = 4;")
+            .expect("downgrade");
+        drop(conn);
+
+        // 迁移只在每个 Db 实例首次 connect 时跑一次,必须换实例才能复跑。
+        let reopened = Db::new(fs.db_path.clone(), fs.data_root.clone());
+        reopened.init().expect("re-init");
+        let conn = reopened.connect().expect("connect");
+        let version: i64 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .expect("user_version");
+        assert_eq!(version, 5);
+        let pages: i64 = conn
+            .query_row("SELECT COUNT(*) FROM entity_pages", [], |row| row.get(0))
+            .expect("entity_pages exists");
+        assert_eq!(pages, 0);
+        drop(conn);
+        assert_eq!(
+            reopened
+                .list_documents(10, 0, None, None, None)
+                .expect("list")
+                .len(),
+            1,
+            "升级不能丢旧数据"
+        );
     }
 
     #[test]
