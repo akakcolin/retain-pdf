@@ -21,9 +21,11 @@ import {
   linkDocumentGraph,
   listDocumentEntities,
   listEntityBacklinks,
+  listEntityFavorites,
   listEntityMentions,
   listEntityRelations,
   type EntityBacklink,
+  type EntityFavorite,
   type EntityMention,
   type EntityPage,
   type EntityPageLink,
@@ -68,6 +70,7 @@ export function ReaderEntitiesPanel({
   const [mentions, setMentions] = useState<EntityMention[]>([]);
   const [relations, setRelations] = useState<RelatedEntity[]>([]);
   const [backlinks, setBacklinks] = useState<EntityBacklink[]>([]);
+  const [favorites, setFavorites] = useState<EntityFavorite[]>([]);
   const [page, setPage] = useState<EntityPage | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -103,6 +106,7 @@ export function ReaderEntitiesPanel({
     setMentions([]);
     setRelations([]);
     setBacklinks([]);
+    setFavorites([]);
     setPage(null);
     setNotice("");
     setError("");
@@ -139,20 +143,24 @@ export function ReaderEntitiesPanel({
       setMentions([]);
       setRelations([]);
       setBacklinks([]);
+      setFavorites([]);
       setPage(null);
       setLoading(true);
       setError("");
       try {
-        const [nextMentions, nextRelations, nextBacklinks, nextPage] = await Promise.all([
-          listEntityMentions(entity.entity_id, { documentId: docId }),
-          listEntityRelations(entity.entity_id),
-          listEntityBacklinks(entity.entity_id),
-          getEntityPage(entity.entity_id),
-        ]);
+        const [nextMentions, nextRelations, nextBacklinks, nextFavorites, nextPage] =
+          await Promise.all([
+            listEntityMentions(entity.entity_id, { documentId: docId }),
+            listEntityRelations(entity.entity_id),
+            listEntityBacklinks(entity.entity_id),
+            listEntityFavorites(entity.entity_id),
+            getEntityPage(entity.entity_id),
+          ]);
         if (detailReq.current !== token) return;
         setMentions(nextMentions);
         setRelations(nextRelations);
         setBacklinks(nextBacklinks);
+        setFavorites(nextFavorites);
         setPage(nextPage);
       } catch (err) {
         if (detailReq.current === token) {
@@ -171,6 +179,7 @@ export function ReaderEntitiesPanel({
     setMentions([]);
     setRelations([]);
     setBacklinks([]);
+    setFavorites([]);
     setPage(null);
     setError("");
   }, []);
@@ -434,6 +443,39 @@ export function ReaderEntitiesPanel({
                     </button>
                   </div>
                   <p className="reader-notes-quote">{mention.snippet}</p>
+                </article>
+              ))
+            )}
+          </section>
+
+          <section className="reader-entities-section">
+            <h5>
+              我的标注
+              <span className="reader-entities-section-count">{favorites.length}</span>
+            </h5>
+            {loading ? (
+              <p className="reader-notes-empty">正在加载…</p>
+            ) : favorites.length === 0 ? (
+              <p className="reader-notes-empty">还没有关于它的标注。</p>
+            ) : (
+              favorites.map((favorite) => (
+                <article key={favorite.favorite_id} className="reader-notes-item">
+                  <div className="reader-notes-item-top">
+                    <button
+                      type="button"
+                      className="reader-notes-link"
+                      onClick={() => jumpToCitation(favorite)}
+                    >
+                      {favorite.document_title || "未命名文献"} · {mentionPageLabel(favorite.page_idx)}
+                    </button>
+                  </div>
+                  <p className="reader-notes-quote">{favorite.quote_text}</p>
+                  {favorite.translated_quote_text ? (
+                    <p className="reader-notes-note">译文：{favorite.translated_quote_text}</p>
+                  ) : null}
+                  {favorite.note ? (
+                    <p className="reader-notes-note">备注：{favorite.note}</p>
+                  ) : null}
                 </article>
               ))
             )}

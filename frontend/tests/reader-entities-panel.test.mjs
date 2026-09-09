@@ -57,6 +57,17 @@ const BACKLINK = {
   entity_type: "concept",
   snippet: "…卤素属于 [[元素周期表]] 的第 17 族…",
 };
+const FAVORITE = {
+  favorite_id: "fav-1",
+  document_id: "doc-1",
+  document_title: "化学",
+  job_id: "job-1",
+  page_idx: 2,
+  block_id: "p003-b0000",
+  quote_text: "卤素是一类元素",
+  translated_quote_text: "",
+  note: "重点",
+};
 
 function stubFetch() {
   const calls = [];
@@ -67,6 +78,7 @@ function stubFetch() {
     if (path.endsWith("/mentions")) data = { items: [MENTION] };
     else if (path.endsWith("/relations")) data = { items: [RELATION] };
     else if (path.endsWith("/backlinks")) data = { items: [] };
+    else if (path.endsWith("/favorites")) data = { items: [] };
     return {
       ok: true,
       status: 200,
@@ -172,7 +184,7 @@ const PAGE = {
   ],
 };
 
-function stubFetchWithPage(page, backlinks = []) {
+function stubFetchWithPage(page, backlinks = [], favorites = []) {
   const calls = [];
   globalThis.fetch = async (url, init = {}) => {
     calls.push({ url, init });
@@ -181,6 +193,7 @@ function stubFetchWithPage(page, backlinks = []) {
     if (path.endsWith("/mentions")) data = { items: [MENTION] };
     else if (path.endsWith("/relations")) data = { items: [RELATION] };
     else if (path.endsWith("/backlinks")) data = { items: backlinks };
+    else if (path.endsWith("/favorites")) data = { items: favorites };
     else if (path.endsWith("/page")) data = page;
     return {
       ok: true,
@@ -390,6 +403,91 @@ test("面板：反链段渲染并点击切到来源实体", async () => {
     "切到反链来源实体",
   );
   assert.ok(host.textContent.includes("元素周期表"), "详情标题换成来源实体");
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：标注段渲染并跳页", async () => {
+  stubFetchWithPage(PAGE, [], [FAVORITE]);
+  const jumps = [];
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await act(async () => {
+    root.render(createElement(ReaderEntitiesPanel, {
+      open: true,
+      jobId: "job-1",
+      documentId: "doc-1",
+      onClose() {},
+      onJumpPage: (page) => jumps.push(page),
+    }));
+  });
+
+  await waitFor(() => host.textContent.includes("卤素"), "实体列表渲染");
+  await act(async () => {
+    findByText(host, "卤素").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+
+  await waitFor(() => host.textContent.includes("我的标注"), "标注段渲染");
+  assert.ok(host.textContent.includes("重点"), "备注渲染");
+  assert.ok(host.textContent.includes("化学"), "来源文档标题渲染");
+
+  const favBtn = [...host.querySelectorAll(".reader-notes-item button.reader-notes-link")].find(
+    (el) => el.textContent.includes("化学"),
+  );
+  assert.ok(favBtn, "标注跳页按钮渲染");
+  await act(async () => {
+    favBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  assert.deepEqual(jumps, [3]);
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：跨文档标注不跳页，提示来源", async () => {
+  stubFetchWithPage(PAGE, [], [
+    { ...FAVORITE, document_id: "doc-2", document_title: "其他文献" },
+  ]);
+  const jumps = [];
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await act(async () => {
+    root.render(createElement(ReaderEntitiesPanel, {
+      open: true,
+      jobId: "job-1",
+      documentId: "doc-1",
+      onClose() {},
+      onJumpPage: (page) => jumps.push(page),
+    }));
+  });
+
+  await waitFor(() => host.textContent.includes("卤素"), "实体列表渲染");
+  await act(async () => {
+    findByText(host, "卤素").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+
+  await waitFor(
+    () =>
+      [...host.querySelectorAll(".reader-notes-item button.reader-notes-link")].some((el) =>
+        el.textContent.includes("其他文献"),
+      ),
+    "标注跳页按钮渲染",
+  );
+  const favBtn = [...host.querySelectorAll(".reader-notes-item button.reader-notes-link")].find(
+    (el) => el.textContent.includes("其他文献"),
+  );
+  await act(async () => {
+    favBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  assert.deepEqual(jumps, [], "跨文档标注不跳当前文档");
+  assert.ok(host.textContent.includes("其他文献"), "提示来源文档");
 
   await act(async () => {
     root.unmount();

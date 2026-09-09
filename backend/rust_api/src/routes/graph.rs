@@ -3,9 +3,10 @@ use axum::Json;
 
 use crate::error::AppError;
 use crate::models::api::{
-    ApiResponse, EntityBacklinkListView, EntityListView, EntityMentionListView, EntityPageView,
-    EntityRecord, EntityRelationListView, ExtractDocumentGraphView, ExtractGraphRequest,
-    GenerateEntityPageRequest, LinkDocumentGraphView, ListBacklinksQuery, ListEntitiesQuery,
+    ApiResponse, EntityBacklinkListView, EntityFavoriteListView, EntityListView,
+    EntityMentionListView, EntityPageView, EntityRecord, EntityRelationListView,
+    ExtractDocumentGraphView, ExtractGraphRequest, GenerateEntityPageRequest,
+    LinkDocumentGraphView, ListBacklinksQuery, ListEntitiesQuery, ListEntityFavoritesQuery,
     ListMentionsQuery, ListRelationsQuery,
 };
 use crate::routes::common::{build_graph_route_deps, ok_json};
@@ -13,7 +14,7 @@ use crate::services::ai_api::{resolve_llm_credentials, LlmClient};
 use crate::services::graph::page::{generate_entity_page, get_entity_page};
 use crate::services::graph_api::{
     extract_document_graph_view, get_entity_view, link_document_graph_view, list_backlinks_view,
-    list_entities_view, list_mentions_view, list_relations_view,
+    list_entities_view, list_entity_favorites_view, list_mentions_view, list_relations_view,
 };
 use crate::AppState;
 
@@ -67,6 +68,20 @@ pub async fn list_entity_backlinks_route(
 ) -> Result<Json<ApiResponse<EntityBacklinkListView>>, AppError> {
     let deps = build_graph_route_deps(&state);
     Ok(ok_json(list_backlinks_view(
+        deps.graph.db,
+        &entity_id,
+        &query,
+    )?))
+}
+
+/// 标注反查:收藏的引文/译文/备注里提到本实体的那些(读取时现算)。
+pub async fn list_entity_favorites_route(
+    State(state): State<AppState>,
+    AxumPath(entity_id): AxumPath<String>,
+    Query(query): Query<ListEntityFavoritesQuery>,
+) -> Result<Json<ApiResponse<EntityFavoriteListView>>, AppError> {
+    let deps = build_graph_route_deps(&state);
+    Ok(ok_json(list_entity_favorites_view(
         deps.graph.db,
         &entity_id,
         &query,

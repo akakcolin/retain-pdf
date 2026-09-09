@@ -4,8 +4,8 @@ use tower::util::ServiceExt;
 
 use super::jobs_common::{read_json, test_state};
 use crate::app::build_app;
-use crate::models::api::{EntityPageRecord, NewEntity, NewEntityRelation};
-use crate::models::now_iso;
+use crate::models::api::{EntityPageRecord, FavoriteRecord, NewEntity, NewEntityRelation};
+use crate::models::{now_iso, UploadRecord};
 
 fn entity(name: &str, entity_type: &str) -> NewEntity {
     NewEntity {
@@ -13,6 +13,42 @@ fn entity(name: &str, entity_type: &str) -> NewEntity {
         entity_type: entity_type.to_string(),
         aliases: Vec::new(),
         description: String::new(),
+    }
+}
+
+fn seed_document(state: &crate::AppState) {
+    state
+        .db
+        .upsert_document_from_upload(&UploadRecord {
+            upload_id: "up-1".to_string(),
+            filename: "化学.pdf".to_string(),
+            stored_path: "uploads/x/chem.pdf".to_string(),
+            bytes: 10,
+            page_count: 1,
+            uploaded_at: now_iso(),
+            developer_mode: false,
+            content_hash: "doc-1".to_string(),
+        })
+        .expect("document");
+}
+
+fn favorite(id: &str, quote: &str, note: &str) -> FavoriteRecord {
+    FavoriteRecord {
+        favorite_id: id.to_string(),
+        document_id: "doc-1".to_string(),
+        job_id: "job-1".to_string(),
+        page_idx: 2,
+        block_id: format!("p003-b{id}"),
+        char_start: None,
+        char_end: None,
+        kind: "sentence".to_string(),
+        quote_text: quote.to_string(),
+        translated_quote_text: String::new(),
+        note: note.to_string(),
+        asset_id: String::new(),
+        rect_json: String::new(),
+        created_at: now_iso(),
+        updated_at: now_iso(),
     }
 }
 
@@ -228,6 +264,68 @@ async fn entity_backlinks_route_404s_for_unknown_entity() {
 }
 
 #[tokio::test]
+async fn entity_favorites_route_returns_matching_annotations() {
+    let state = test_state("graph-favorites");
+    let app = build_app(state.clone());
+    seed_document(&state);
+    let target = state.db.upsert_entity(&entity("GNN", "method")).expect("a");
+    state
+        .db
+        .save_favorite(&favorite("fav-1", "GNN 的表示学习", ""))
+        .expect("f1");
+    state
+        .db
+        .save_favorite(&favorite("fav-2", "无关句子", "提到 GNN 一次"))
+        .expect("f2");
+    state
+        .db
+        .save_favorite(&favorite("fav-3", "完全无关", ""))
+        .expect("f3");
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/entities/{}/favorites", target.entity_id))
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = read_json(response).await;
+    let items = payload["data"]["items"].as_array().expect("items");
+    assert_eq!(items.len(), 2, "unexpected payload: {payload}");
+    let quotes: Vec<&str> = items
+        .iter()
+        .filter_map(|item| item["quote_text"].as_str())
+        .collect();
+    assert!(quotes.contains(&"GNN 的表示学习"));
+    assert!(quotes.contains(&"无关句子"));
+    assert_eq!(items[0]["document_title"], serde_json::json!("化学"));
+    assert_eq!(items[0]["page_idx"], serde_json::json!(2));
+}
+
+#[tokio::test]
+async fn entity_favorites_route_404s_for_unknown_entity() {
+    let state = test_state("graph-favorites-404");
+    let app = build_app(state);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/entities/ent-nope/favorites")
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn graph_routes_require_api_key() {
     let state = test_state("graph-auth");
     let app = build_app(state);
@@ -258,10 +356,23 @@ async fn graph_routes_require_api_key() {
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
     let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("GET")
                 .uri("/api/v1/entities/ent-x/backlinks")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/entities/ent-x/favorites")
                 .body(Body::empty())
                 .expect("request"),
         )

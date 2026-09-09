@@ -342,15 +342,23 @@ fn assign_refs(
 }
 
 /// 模型可见的锚点:只有 ref / page(1 基) / snippet,无内部 ID。
+/// 用户标注额外带 note(非空才给),否则模型看不到「我为什么标它」。
 fn public_anchor(entry: &Value) -> Option<Value> {
     let ref_num = entry.get("ref").and_then(Value::as_i64)?;
     let page_idx = entry.get("page_idx").and_then(Value::as_i64).unwrap_or(0);
     let snippet = pick_snippet(entry);
-    Some(json!({
+    let mut anchor = json!({
         "ref": ref_num,
         "page": page_idx + 1,
         "snippet": snippet.chars().take(280).collect::<String>(),
-    }))
+    });
+    if let Some(note) = entry.get("note").and_then(Value::as_str) {
+        let note = note.trim();
+        if !note.is_empty() {
+            anchor["note"] = Value::String(note.chars().take(200).collect());
+        }
+    }
+    Some(anchor)
 }
 
 /// 工具原始结果 → 模型上下文。剥离 block_id/job_id 等,避免抄进回答。
@@ -678,6 +686,29 @@ mod tests {
         assert!(public["hits"][0].get("block_id").is_none());
         assert!(public["hits"][0].get("document_id").is_none());
         assert!(public["hits"][0]["snippet"].as_str().is_some());
+    }
+
+    /// 标注的备注必须透给模型,否则「我在 X 上标过什么」只剩引文。
+    #[test]
+    fn public_payload_exposes_favorite_note() {
+        let mut result = json!({
+            "favorites": [{
+                "favorite_id": "fav-1",
+                "document_id": "doc-1",
+                "job_id": "job-1",
+                "page_idx": 2,
+                "block_id": "p003-b0000",
+                "quote_text": "GNN 的表示学习",
+                "translated_quote_text": "",
+                "note": "  我的备注  ",
+            }],
+        });
+        let mut citations: BTreeMap<i64, Citation> = BTreeMap::new();
+        assign_refs(&mut result, &mut citations, 1);
+        let public = public_tool_payload(&result);
+        assert_eq!(public["favorites"][0]["note"], json!("我的备注"));
+        assert_eq!(public["favorites"][0]["snippet"], json!("GNN 的表示学习"));
+        assert!(public["favorites"][0].get("favorite_id").is_none());
     }
 
     #[test]

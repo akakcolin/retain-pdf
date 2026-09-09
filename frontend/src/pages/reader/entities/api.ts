@@ -96,6 +96,19 @@ export type EntityBacklink = {
   snippet: string;
 };
 
+/** 标注反查：某条收藏的引文/译文/备注提到了本实体（读取时现算）。 */
+export type EntityFavorite = {
+  favorite_id: string;
+  document_id: string;
+  document_title: string;
+  job_id: string;
+  page_idx: number;
+  block_id: string;
+  quote_text: string;
+  translated_quote_text: string;
+  note: string;
+};
+
 const MAX_LIMIT = 200;
 
 async function getList<T>(path: string, params: URLSearchParams): Promise<T[]> {
@@ -157,6 +170,16 @@ export function listEntityBacklinks(
   const params = new URLSearchParams();
   params.set("limit", String(Math.min(Math.max(1, limit), MAX_LIMIT)));
   return getList<EntityBacklink>(`entities/${encodeURIComponent(entityId)}/backlinks`, params);
+}
+
+/** 哪些收藏（引文/译文/备注）提到了本实体（读取时现算）。 */
+export function listEntityFavorites(
+  entityId: string,
+  { limit = 50 }: { limit?: number } = {},
+): Promise<EntityFavorite[]> {
+  const params = new URLSearchParams();
+  params.set("limit", String(Math.min(Math.max(1, limit), MAX_LIMIT)));
+  return getList<EntityFavorite>(`entities/${encodeURIComponent(entityId)}/favorites`, params);
 }
 
 /** 读该实体的概念页（未生成时 has_page=false，不报错）。 */

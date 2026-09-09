@@ -240,6 +240,21 @@ impl<'a> AiTools<'a> {
                     }
                 }
             }),
+            serde_json::json!({
+                "type": "function",
+                "function": {
+                    "name": "find_entity_favorites",
+                    "description": "查用户标注(收藏的引文/译文/备注)里提到某实体的那些。回答'我在 X 上标过什么''我对 X 的记录'时使用。需要先由 search_entities 拿到 entity_id。",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "entity_id": {"type": "string", "description": "search_entities 返回的 entity_id"},
+                            "limit": {"type": "integer", "minimum": 1, "maximum": 50}
+                        },
+                        "required": ["entity_id"]
+                    }
+                }
+            }),
         ];
         if !scoped_document_id.trim().is_empty() {
             specs
@@ -259,6 +274,7 @@ impl<'a> AiTools<'a> {
             "find_mentions" => self.find_mentions(arguments),
             "related_entities" => self.related_entities(arguments),
             "get_entity_page" => self.get_entity_page(arguments),
+            "find_entity_favorites" => self.find_entity_favorites(arguments),
             other => serde_json::json!({"error": format!("unknown tool: {other}")}),
         }
     }
@@ -540,6 +556,23 @@ impl<'a> AiTools<'a> {
             "blocks": page.citations.iter().map(project_page_citation).collect::<Vec<_>>(),
         })
     }
+
+    /// 返回 favorites 键:走既有 citation 编号机制(public_anchor 会带上 note)。
+    fn find_entity_favorites(&self, arguments: &Map<String, Value>) -> Value {
+        let entity_id = string_arg(arguments, "entity_id").trim().to_string();
+        if entity_id.is_empty() {
+            return serde_json::json!({"error": "entity_id must not be empty"});
+        }
+        let limit = int_arg(arguments, "limit").unwrap_or(20).clamp(1, 50) as u32;
+        match crate::services::graph::favorites::list_entity_favorites(self.db, &entity_id, limit) {
+            Ok(items) => serde_json::json!({
+                "favorites": items.iter().map(project_entity_favorite).collect::<Vec<_>>()
+            }),
+            Err(err) => {
+                serde_json::json!({"error": format!("find entity favorites failed: {err}")})
+            }
+        }
+    }
 }
 
 fn string_arg(arguments: &Map<String, Value>, key: &str) -> String {
@@ -613,6 +646,19 @@ fn project_mention(mention: &crate::models::api::EntityMention) -> Value {
     })
 }
 
+fn project_entity_favorite(favorite: &crate::models::api::EntityFavorite) -> Value {
+    serde_json::json!({
+        "favorite_id": favorite.favorite_id,
+        "document_id": favorite.document_id,
+        "job_id": favorite.job_id,
+        "page_idx": favorite.page_idx,
+        "block_id": favorite.block_id,
+        "quote_text": favorite.quote_text,
+        "translated_quote_text": favorite.translated_quote_text,
+        "note": favorite.note,
+    })
+}
+
 fn project_block(block: &Block) -> Value {
     let source: String = block.source_text.chars().take(600).collect();
     let translated: String = block.translated_text.chars().take(600).collect();
@@ -644,5 +690,74 @@ mod tests {
         assert_eq!(percent_encode_segment("page-1"), "page-1");
         assert_eq!(percent_encode_segment("a b.png"), "a%20b.png");
         assert_eq!(percent_encode_segment("图1"), "%E5%9B%BE1");
+    }
+
+    #[test]
+    fn find_entity_favorites_returns_matching_annotations() {
+        use crate::models::api::{FavoriteRecord, NewEntity};
+        use crate::models::{now_iso, UploadRecord};
+
+        let root = std::env::temp_dir().join(format!(
+            "ai-tools-favorites-{}-{}",
+            std::process::id(),
+            fastrand::u64(..)
+        ));
+        let data_root = root.join("data");
+        std::fs::create_dir_all(&data_root).expect("data root");
+        std::fs::create_dir_all(root.join("db")).expect("db dir");
+        let db = Db::new(root.join("db").join("jobs.db"), data_root);
+        db.init().expect("init");
+        db.upsert_document_from_upload(&UploadRecord {
+            upload_id: "up-1".to_string(),
+            filename: "化学.pdf".to_string(),
+            stored_path: "uploads/x/chem.pdf".to_string(),
+            bytes: 10,
+            page_count: 1,
+            uploaded_at: now_iso(),
+            developer_mode: false,
+            content_hash: "doc-1".to_string(),
+        })
+        .expect("document");
+        let entity = db
+            .upsert_entity(&NewEntity {
+                name: "GNN".to_string(),
+                entity_type: "method".to_string(),
+                aliases: Vec::new(),
+                description: String::new(),
+            })
+            .expect("entity");
+        db.save_favorite(&FavoriteRecord {
+            favorite_id: "fav-1".to_string(),
+            document_id: "doc-1".to_string(),
+            job_id: "job-1".to_string(),
+            page_idx: 2,
+            block_id: "p003-b0000".to_string(),
+            char_start: None,
+            char_end: None,
+            kind: "sentence".to_string(),
+            quote_text: "GNN 片段".to_string(),
+            translated_quote_text: String::new(),
+            note: "我的备注".to_string(),
+            asset_id: String::new(),
+            rect_json: String::new(),
+            created_at: now_iso(),
+            updated_at: now_iso(),
+        })
+        .expect("favorite");
+
+        let tools = AiTools::new(&db, Path::new("/data"));
+        let mut arguments = Map::new();
+        arguments.insert(
+            "entity_id".to_string(),
+            Value::String(entity.entity_id.clone()),
+        );
+        let result = tools.invoke("find_entity_favorites", &arguments);
+        assert_eq!(result["favorites"].as_array().map(Vec::len), Some(1));
+        assert_eq!(result["favorites"][0]["note"], serde_json::json!("我的备注"));
+        assert_eq!(
+            result["favorites"][0]["quote_text"],
+            serde_json::json!("GNN 片段")
+        );
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

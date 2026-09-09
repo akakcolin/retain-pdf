@@ -3,12 +3,14 @@
 use crate::db::Db;
 use crate::error::AppError;
 use crate::models::api::{
-    EntityBacklinkListView, EntityListView, EntityMentionListView, EntityRecord,
-    EntityRelationListView, ExtractDocumentGraphView, LinkDocumentGraphView, ListBacklinksQuery,
-    ListEntitiesQuery, ListMentionsQuery, ListRelationsQuery,
+    EntityBacklinkListView, EntityFavoriteListView, EntityListView, EntityMentionListView,
+    EntityRecord, EntityRelationListView, ExtractDocumentGraphView, LinkDocumentGraphView,
+    ListBacklinksQuery, ListEntitiesQuery, ListEntityFavoritesQuery, ListMentionsQuery,
+    ListRelationsQuery,
 };
 use crate::services::ai::llm::Chat;
 use crate::services::graph::extract::extract_document_graph;
+use crate::services::graph::favorites::list_entity_favorites;
 use crate::services::graph::mentions::link_document_mentions;
 use crate::services::graph::page::list_entity_backlinks;
 use crate::services::graph::seed::seed_entities_from_glossaries;
@@ -80,6 +82,16 @@ pub fn list_backlinks_view(
 ) -> Result<EntityBacklinkListView, AppError> {
     let items = list_entity_backlinks(db, entity_id, query.limit.clamp(1, MAX_LIMIT))?;
     Ok(EntityBacklinkListView { items })
+}
+
+/// 标注反查:收藏的引文/译文/备注里提到本实体的那些(读取时现算)。
+pub fn list_entity_favorites_view(
+    db: &Db,
+    entity_id: &str,
+    query: &ListEntityFavoritesQuery,
+) -> Result<EntityFavoriteListView, AppError> {
+    let items = list_entity_favorites(db, entity_id, query.limit.clamp(1, MAX_LIMIT))?;
+    Ok(EntityFavoriteListView { items })
 }
 
 /// 手动触发:术语表灌实体 + 该文档全块字面扫描挂证据。零 LLM 成本,可重复调用。

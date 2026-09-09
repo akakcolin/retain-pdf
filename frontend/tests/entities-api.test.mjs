@@ -20,6 +20,7 @@ const {
   listEntityMentions,
   listEntityRelations,
   listEntityBacklinks,
+  listEntityFavorites,
   linkDocumentGraph,
   extractDocumentGraph,
   getEntityPage,
@@ -92,6 +93,33 @@ test("listEntityBacklinks 端点、limit 与解包", async () => {
   assert.equal(items[0].snippet, "…[[GNN]]…");
   const url = new URL(calls[0].url);
   assert.equal(url.pathname, "/api/v1/entities/ent-9/backlinks");
+  assert.equal(url.searchParams.get("limit"), "10");
+});
+
+test("listEntityFavorites 端点、limit 与解包", async () => {
+  const calls = stubFetch({
+    code: 0,
+    message: "ok",
+    data: {
+      items: [
+        {
+          favorite_id: "fav-1",
+          document_id: "doc-1",
+          document_title: "化学",
+          page_idx: 2,
+          quote_text: "卤素是一类元素",
+          note: "重点",
+        },
+      ],
+    },
+  });
+  const items = await listEntityFavorites("ent-9", { limit: 10 });
+  assert.equal(items.length, 1);
+  assert.equal(items[0].favorite_id, "fav-1");
+  assert.equal(items[0].document_title, "化学");
+  assert.equal(items[0].note, "重点");
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/entities/ent-9/favorites");
   assert.equal(url.searchParams.get("limit"), "10");
 });
 

@@ -2,6 +2,7 @@
 //! 文档级 LLM 抽取(实体 + 关系),以及实体概念页(跨文档综述)。
 
 pub mod extract;
+pub mod favorites;
 pub mod mentions;
 pub mod page;
 pub mod seed;

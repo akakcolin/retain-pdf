@@ -261,3 +261,31 @@ pub struct ListBacklinksQuery {
     #[serde(default = "default_graph_limit")]
     pub limit: u32,
 }
+
+/// 标注反查:某条收藏的引文/译文/备注提到了本实体(读取时现算)。
+#[derive(Debug, Clone, Serialize)]
+pub struct EntityFavorite {
+    pub favorite_id: String,
+    pub document_id: String,
+    pub document_title: String,
+    pub job_id: String,
+    pub page_idx: i64,
+    pub block_id: String,
+    pub quote_text: String,
+    pub translated_quote_text: String,
+    pub note: String,
+}
+
+/// GET /api/v1/entities/:id/favorites 响应。
+#[derive(Debug, Serialize)]
+pub struct EntityFavoriteListView {
+    pub items: Vec<EntityFavorite>,
+}
+
+/// GET /api/v1/entities/:id/favorites 查询参数。
+/// 注意:不叫 ListFavoritesQuery——那个已被图书馆收藏占用。
+#[derive(Debug, Deserialize)]
+pub struct ListEntityFavoritesQuery {
+    #[serde(default = "default_graph_limit")]
+    pub limit: u32,
+}
