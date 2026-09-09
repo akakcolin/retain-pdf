@@ -43,6 +43,9 @@ export function loadBrowserStoredConfig() {
     mineruToken: preferNonEmpty(fromSnap.mineruToken, fromStorage.mineruToken),
     paddleToken: preferNonEmpty(fromSnap.paddleToken, fromStorage.paddleToken),
     modelApiKey: preferNonEmpty(fromSnap.modelApiKey, fromStorage.modelApiKey),
+    chatModelApiKey: preferNonEmpty(fromSnap.chatModelApiKey, fromStorage.chatModelApiKey),
+    chatModelName: preferNonEmpty(fromSnap.chatModelName, fromStorage.chatModelName),
+    chatModelBaseUrl: preferNonEmpty(fromSnap.chatModelBaseUrl, fromStorage.chatModelBaseUrl),
   });
 }
 

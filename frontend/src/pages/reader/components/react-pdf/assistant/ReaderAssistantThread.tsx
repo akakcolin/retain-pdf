@@ -50,7 +50,7 @@ import {
   renderStreamingPreviewHtml,
   shouldIgnoreReaderAiNavEvent,
   CREDENTIALS_CHANGED_EVENT,
-  hasModelApiKey,
+  hasChatModelApiKey,
   MISSING_MODEL_API_KEY_MESSAGE,
   type AiCitationLike,
 } from "../../../external.js";
@@ -653,7 +653,7 @@ export function ReaderAssistantThread({
     };
   }, []);
   void credTick;
-  const missingLlmKey = !hasModelApiKey();
+  const missingLlmKey = !hasChatModelApiKey();
 
   return (
     <AskUiContext.Provider value={ctx}>

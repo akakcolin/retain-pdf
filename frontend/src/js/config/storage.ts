@@ -11,6 +11,10 @@ export interface BrowserStoredConfig {
   mineruToken: string;
   paddleToken: string;
   modelApiKey: string;
+  /** AI 对话模型：留空时回落到翻译模型的 Key/BaseURL/模型名。 */
+  chatModelApiKey: string;
+  chatModelName: string;
+  chatModelBaseUrl: string;
   [key: string]: unknown;
 }
 
@@ -34,6 +38,9 @@ export interface RuntimeConfig {
   mineruToken?: string;
   paddleToken?: string;
   modelApiKey?: string;
+  chatModelApiKey?: string;
+  chatModelName?: string;
+  chatModelBaseUrl?: string;
   model?: string;
   baseUrl?: string;
   apiBase?: string;
@@ -89,6 +96,9 @@ export function normalizeBrowserStoredConfig(
     mineruToken: typeof source.mineruToken === "string" ? source.mineruToken : "",
     paddleToken: typeof source.paddleToken === "string" ? source.paddleToken : "",
     modelApiKey: typeof source.modelApiKey === "string" ? source.modelApiKey : "",
+    chatModelApiKey: typeof source.chatModelApiKey === "string" ? source.chatModelApiKey : "",
+    chatModelName: typeof source.chatModelName === "string" ? source.chatModelName : "",
+    chatModelBaseUrl: typeof source.chatModelBaseUrl === "string" ? source.chatModelBaseUrl : "",
   };
 }
 
@@ -108,6 +118,9 @@ export function desktopRuntimeToBrowserConfig(
     mineruToken: source.mineruToken as string | undefined,
     paddleToken: source.paddleToken as string | undefined,
     modelApiKey: source.modelApiKey as string | undefined,
+    chatModelApiKey: source.chatModelApiKey as string | undefined,
+    chatModelName: source.chatModelName as string | undefined,
+    chatModelBaseUrl: source.chatModelBaseUrl as string | undefined,
   });
 }
 
@@ -125,6 +138,9 @@ export function buildRuntimeConfig(
     mineruToken: nextBrowserConfig.mineruToken,
     paddleToken: nextBrowserConfig.paddleToken,
     modelApiKey: nextBrowserConfig.modelApiKey,
+    chatModelApiKey: nextBrowserConfig.chatModelApiKey,
+    chatModelName: nextBrowserConfig.chatModelName,
+    chatModelBaseUrl: nextBrowserConfig.chatModelBaseUrl,
     developerConfig: nextDeveloperConfig,
   };
   if (typeof nextDeveloperConfig.model === "string" && nextDeveloperConfig.model.trim()) {

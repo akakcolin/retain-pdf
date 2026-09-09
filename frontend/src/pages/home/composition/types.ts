@@ -172,6 +172,9 @@ export type CredentialsElementsRef = {
   apiKeyInput: HTMLInputElement | null;
   modelBaseUrlInput: HTMLInputElement | null;
   modelNameInput: HTMLInputElement | null;
+  chatModelApiKeyInput: HTMLInputElement | null;
+  chatModelBaseUrlInput: HTMLInputElement | null;
+  chatModelNameInput: HTMLInputElement | null;
   mathModeSelect: HTMLSelectElement | null;
   translationProviderSelect: HTMLSelectElement | null;
   tokenInputs: Record<string, HTMLInputElement | null | undefined>;

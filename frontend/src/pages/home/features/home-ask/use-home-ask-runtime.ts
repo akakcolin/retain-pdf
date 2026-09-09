@@ -9,9 +9,9 @@ import {
   listConversations,
   patchConversation,
   type ConversationRecord,
-  hasModelApiKey,
+  hasChatModelApiKey,
   MISSING_MODEL_API_KEY_MESSAGE,
-  resolveReaderAiConfig,
+  resolveReaderChatConfig,
   sanitizeAssistantAnswer,
 } from "../../composition/external.js";
 import { resolveCollectionDocuments } from "./document-picker.js";
@@ -336,7 +336,7 @@ export function useHomeAskRuntime() {
     if (!question || runningRef.current) return;
 
     // 门禁：无 LLM Key 不发起任何检索/会话写，避免「先忙活再报错」
-    const config = resolveReaderAiConfig();
+    const config = resolveReaderChatConfig();
     const apiKey = `${config.apiKey || ""}`.trim();
     if (!apiKey) {
       setMessages((prev) => [
@@ -507,8 +507,8 @@ export function useHomeAskRuntime() {
     sessions,
     sessionsLoading,
     sessionBusy,
-    /** 是否已配置模型 Key（门禁；每次调用现读 storage） */
-    hasLlmKey: hasModelApiKey,
+    /** 是否已配置对话模型 Key（门禁；每次调用现读 storage） */
+    hasLlmKey: hasChatModelApiKey,
     send,
     stop,
     newSession,

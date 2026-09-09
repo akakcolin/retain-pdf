@@ -20,6 +20,9 @@ pub fn create_default_config() -> Value {
         "translationProvider": DEFAULT_TRANSLATION_PROVIDER,
         "mineruToken": "",
         "modelApiKey": "",
+        "chatModelApiKey": "",
+        "chatModelName": "",
+        "chatModelBaseUrl": "",
         "model": DEFAULT_MODEL,
         "baseUrl": DEFAULT_BASE_URL,
         "developerConfig": {},
@@ -75,7 +78,13 @@ fn normalize_config(raw: &Value) -> Value {
             },
         );
     }
-    for key in ["mineruToken", "modelApiKey"] {
+    for key in [
+        "mineruToken",
+        "modelApiKey",
+        "chatModelApiKey",
+        "chatModelName",
+        "chatModelBaseUrl",
+    ] {
         if let Some(value) = map.get(key) {
             result[key] = Value::String(as_string(value));
         }
@@ -116,6 +125,9 @@ fn merge_config(current: &Value, payload: &Value) -> Value {
         "translationProvider",
         "mineruToken",
         "modelApiKey",
+        "chatModelApiKey",
+        "chatModelName",
+        "chatModelBaseUrl",
         "model",
         "baseUrl",
         "closeToTrayHintShown",
@@ -150,6 +162,9 @@ fn build_browser_config(config: &Value) -> Value {
         "translationProvider": config.get("translationProvider").and_then(Value::as_str).unwrap_or(DEFAULT_TRANSLATION_PROVIDER),
         "mineruToken": config.get("mineruToken").and_then(Value::as_str).unwrap_or(""),
         "modelApiKey": config.get("modelApiKey").and_then(Value::as_str).unwrap_or(""),
+        "chatModelApiKey": config.get("chatModelApiKey").and_then(Value::as_str).unwrap_or(""),
+        "chatModelName": config.get("chatModelName").and_then(Value::as_str).unwrap_or(""),
+        "chatModelBaseUrl": config.get("chatModelBaseUrl").and_then(Value::as_str).unwrap_or(""),
     })
 }
 
@@ -244,6 +259,19 @@ mod tests {
         assert_eq!(normalized["ocrProvider"], "mineru");
         assert_eq!(normalized["mineruToken"], "mineru-secret");
         assert!(normalized.get("paddleToken").is_none());
+    }
+
+    #[test]
+    fn chat_model_fields_survive_normalize_and_reach_browser_config() {
+        let normalized = normalize_config(&json!({
+            "chatModelApiKey": "chat-secret",
+            "chatModelName": "gpt-4o-mini",
+            "chatModelBaseUrl": "https://api.example.com/v1",
+        }));
+        let browser = build_browser_config(&normalized);
+        assert_eq!(browser["chatModelApiKey"], "chat-secret");
+        assert_eq!(browser["chatModelName"], "gpt-4o-mini");
+        assert_eq!(browser["chatModelBaseUrl"], "https://api.example.com/v1");
     }
 
     #[test]

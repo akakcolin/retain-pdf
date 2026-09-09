@@ -132,6 +132,9 @@ export function createCredentialsViewFeature({
     apiKeyInput: null,
     modelBaseUrlInput: null,
     modelNameInput: null,
+    chatModelApiKeyInput: null,
+    chatModelBaseUrlInput: null,
+    chatModelNameInput: null,
     mathModeSelect: null,
     translationProviderSelect: null,
     tokenInputs: {}, // { [providerId]: HTMLInputElement }
@@ -144,6 +147,9 @@ export function createCredentialsViewFeature({
       apiKeyInput: elementsRef.apiKeyInput,
       modelBaseUrlInput: elementsRef.modelBaseUrlInput,
       modelNameInput: elementsRef.modelNameInput,
+      chatModelApiKeyInput: elementsRef.chatModelApiKeyInput,
+      chatModelBaseUrlInput: elementsRef.chatModelBaseUrlInput,
+      chatModelNameInput: elementsRef.chatModelNameInput,
       mathModeSelect: elementsRef.mathModeSelect,
       translationProviderSelect: elementsRef.translationProviderSelect,
     };

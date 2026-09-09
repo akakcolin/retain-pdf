@@ -391,6 +391,7 @@ export function mountBrowserCredentialsFeature({
       mineruToken: `${raw.mineruToken || ""}`.trim() || `${existing.mineruToken || ""}`.trim(),
       paddleToken: `${raw.paddleToken || ""}`.trim() || `${existing.paddleToken || ""}`.trim(),
       modelApiKey: `${raw.modelApiKey || ""}`.trim() || `${existing.modelApiKey || ""}`.trim(),
+      chatModelApiKey: `${raw.chatModelApiKey || ""}`.trim() || `${existing.chatModelApiKey || ""}`.trim(),
     };
     // 本地 PaddleX 无 token：token 缺失只对带 tokenField 的 provider 报错。
     const ocrToken = ocrTokenFromDialogValues(values, currentOcrProvider());
@@ -416,6 +417,9 @@ export function mountBrowserCredentialsFeature({
       mineruToken: values.mineruToken,
       paddleToken: values.paddleToken,
       modelApiKey,
+      chatModelApiKey: `${values.chatModelApiKey || ""}`.trim(),
+      chatModelName: `${values.chatModelName || ""}`.trim(),
+      chatModelBaseUrl: `${values.chatModelBaseUrl || ""}`.trim(),
     };
 
     // 保存只做落盘；联网校验留给「检测」按钮。

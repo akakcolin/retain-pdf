@@ -1264,6 +1264,47 @@ test("reader ai model key comes only from settings (no runtime secret fallback)"
   setRuntimeConfig({ modelApiKey: "", baseUrl: "", model: "" });
 });
 
+test("reader chat config prefers dedicated chat model, falls back to translation model", () => {
+  const dedicated = readerAiConfig.resolveReaderChatConfig({
+    browserConfig: {
+      modelApiKey: "sk-translate",
+      chatModelApiKey: "sk-chat",
+      chatModelName: "gpt-4o-mini",
+      chatModelBaseUrl: "https://chat.example.com/v1",
+    },
+    developerConfig: {
+      baseUrl: "https://translate.local/v1",
+      model: "deepseek-chat",
+    },
+  });
+  assert.deepEqual(dedicated, {
+    apiKey: "sk-chat",
+    baseUrl: "https://chat.example.com/v1",
+    model: "gpt-4o-mini",
+    provider: "deepseek",
+  });
+
+  // 对话模型三项留空 → 逐项回落翻译模型（老用户零配置不回归）
+  const fallback = readerAiConfig.resolveReaderChatConfig({
+    browserConfig: {
+      modelApiKey: "sk-translate",
+      chatModelApiKey: "",
+      chatModelName: "",
+      chatModelBaseUrl: "",
+    },
+    developerConfig: {
+      baseUrl: "https://translate.local/v1",
+      model: "deepseek-chat",
+    },
+  });
+  assert.deepEqual(fallback, {
+    apiKey: "sk-translate",
+    baseUrl: "https://translate.local/v1",
+    model: "deepseek-chat",
+    provider: "deepseek",
+  });
+});
+
 // 502 回退本地 Markdown 检索的语义迁移至 React 组件测试:
 // 见 tests/reader-ai-conversations.test.mjs「后端 502 时回退本地检索」。
 

@@ -7,7 +7,7 @@ import {
 } from "../../config/providers.js";
 import { normalizeBrowserStoredConfig } from "../../config/storage.js";
 import { CREDENTIAL_DOM_IDS } from "./credentials-dom-contract.js";
-import type { CredentialsFields, CredentialsStatePort } from "./state.js";
+import type { CredentialsFields } from "./state.js";
 
 const { hidden: HIDDEN_CREDENTIAL_IDS } = CREDENTIAL_DOM_IDS;
 
@@ -18,14 +18,16 @@ function hiddenInputValue(id = "") {
   return ($(id) as HTMLInputElement | null)?.value || "";
 }
 
-export function readHiddenCredentialDomInputs(): CredentialsFields {
+// 只是隐藏 input 的部分快照，不含对话模型字段。禁止直接喂给替换语义的
+// setCredentials（会静默清空 chatModel*）；要更新状态请用完整 payload 或 patchCredentials。
+export function readHiddenCredentialDomInputs(): Partial<CredentialsFields> {
   return normalizeBrowserStoredConfig({
     ocrProvider: hiddenInputValue(HIDDEN_CREDENTIAL_IDS.ocrProvider) || DEFAULT_OCR_PROVIDER,
     translationProvider: hiddenInputValue(HIDDEN_CREDENTIAL_IDS.translationProvider) || DEFAULT_TRANSLATION_PROVIDER,
     mineruToken: hiddenInputValue(HIDDEN_CREDENTIAL_IDS.mineruToken),
     paddleToken: hiddenInputValue(HIDDEN_CREDENTIAL_IDS.paddleToken),
     modelApiKey: hiddenInputValue(HIDDEN_CREDENTIAL_IDS.modelApiKey),
-  }) as CredentialsFields;
+  }) as Partial<CredentialsFields>;
 }
 
 export function normalizeHiddenCredentialPayload(
@@ -76,23 +78,4 @@ export function mirrorCredentialsToHiddenInputs(
   if (apiKeyInput) {
     apiKeyInput.value = modelApiKey;
   }
-}
-
-export function bindHiddenCredentialInputPersistence({
-  credentialsStatePort,
-  readCredentials = () => credentialsStatePort?.getCredentials?.() || {},
-  saveBrowserStoredConfig,
-}: {
-  credentialsStatePort?: Pick<CredentialsStatePort, "getCredentials" | "setCredentials"> | null;
-  readCredentials?: () => CredentialsFields | Partial<CredentialsFields>;
-  saveBrowserStoredConfig?: (credentials: CredentialsFields | Partial<CredentialsFields>) => void;
-} = {}) {
-  const saveCurrentBrowserCredentials = () => {
-    credentialsStatePort?.setCredentials?.(readHiddenCredentialDomInputs());
-    saveBrowserStoredConfig?.(readCredentials());
-  };
-  $(HIDDEN_CREDENTIAL_IDS.ocrProvider)?.addEventListener("input", saveCurrentBrowserCredentials);
-  $(HIDDEN_CREDENTIAL_IDS.mineruToken)?.addEventListener("input", saveCurrentBrowserCredentials);
-  $(HIDDEN_CREDENTIAL_IDS.paddleToken)?.addEventListener("input", saveCurrentBrowserCredentials);
-  $(HIDDEN_CREDENTIAL_IDS.modelApiKey)?.addEventListener("input", saveCurrentBrowserCredentials);
 }

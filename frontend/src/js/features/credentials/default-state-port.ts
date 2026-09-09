@@ -4,7 +4,6 @@ import {
   type CredentialsStatePort,
 } from "./state.js";
 import {
-  bindHiddenCredentialInputPersistence as bindHiddenCredentialDomInputPersistence,
   mirrorCredentialsToHiddenInputs,
   normalizeHiddenCredentialPayload,
   readHiddenCredentialDomInputs,
@@ -22,16 +21,4 @@ export function applyDefaultCredentialInputs(
   return defaultCredentialsStatePort.setCredentials(
     normalizeHiddenCredentialPayload(credentialsOrLegacy, legacyModelApiKey),
   );
-}
-
-export function bindDefaultHiddenCredentialInputPersistence({
-  saveBrowserStoredConfig,
-}: {
-  saveBrowserStoredConfig?: (credentials: CredentialsFields) => void;
-} = {}) {
-  bindHiddenCredentialDomInputPersistence({
-    credentialsStatePort: defaultCredentialsStatePort,
-    readCredentials: defaultCredentialsStatePort.getCredentials,
-    saveBrowserStoredConfig,
-  });
 }

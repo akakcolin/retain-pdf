@@ -84,6 +84,9 @@ async function saveDesktopPersistedConfig(partial: any = {}) {
     mineruToken: merged.browserConfig.mineruToken,
     paddleToken: merged.browserConfig.paddleToken,
     modelApiKey: merged.browserConfig.modelApiKey,
+    chatModelApiKey: merged.browserConfig.chatModelApiKey,
+    chatModelName: merged.browserConfig.chatModelName,
+    chatModelBaseUrl: merged.browserConfig.chatModelBaseUrl,
     developerConfig: merged.developerConfig,
     runtimeConfig: merged.runtimeConfig,
   };

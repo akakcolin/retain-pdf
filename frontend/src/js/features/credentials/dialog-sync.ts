@@ -14,6 +14,9 @@ export function syncCredentialDialogFields({
     apiKeyInput,
     modelBaseUrlInput,
     modelNameInput,
+    chatModelApiKeyInput,
+    chatModelBaseUrlInput,
+    chatModelNameInput,
     mathModeSelect,
   } = elementsPort.elements();
 
@@ -33,6 +36,16 @@ export function syncCredentialDialogFields({
   }
   if (modelNameInput) {
     modelNameInput.value = taskOptions.model || "";
+  }
+  // 对话模型三项都来自 credentials(不是 taskOptions):留空即回落到翻译模型
+  if (chatModelApiKeyInput) {
+    chatModelApiKeyInput.value = `${credentials.chatModelApiKey || ""}`.trim();
+  }
+  if (chatModelBaseUrlInput) {
+    chatModelBaseUrlInput.value = `${credentials.chatModelBaseUrl || ""}`.trim();
+  }
+  if (chatModelNameInput) {
+    chatModelNameInput.value = `${credentials.chatModelName || ""}`.trim();
   }
   if (mathModeSelect) {
     mathModeSelect.value = taskOptions.mathMode === "placeholder" ? "placeholder" : "direct_typst";

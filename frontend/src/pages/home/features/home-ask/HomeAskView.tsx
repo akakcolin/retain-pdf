@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 import {
   CREDENTIALS_CHANGED_EVENT,
-  hasModelApiKey,
+  hasChatModelApiKey,
 } from "../../composition/external.js";
 import { useStoreSnapshot } from "../../../../shared/react/use-store.js";
 import { useHomeServices } from "../../home-services-context.js";
@@ -74,7 +74,7 @@ export function HomeAskView() {
   }, []);
   void credTick;
   void credentialsSnap;
-  const missingLlmKey = !hasModelApiKey();
+  const missingLlmKey = !hasChatModelApiKey();
 
   return (
     <section

@@ -13,6 +13,10 @@ export interface CredentialsFields {
   mineruToken: string;
   paddleToken: string;
   modelApiKey: string;
+  /** AI 对话模型：留空时回落到翻译模型的 Key/BaseURL/模型名。 */
+  chatModelApiKey: string;
+  chatModelName: string;
+  chatModelBaseUrl: string;
 }
 
 export interface OcrValidationCache {
@@ -113,6 +117,9 @@ function normalizeCredentials(payload: Partial<CredentialsFields> = {}): Credent
     mineruToken: payload.mineruToken,
     paddleToken: payload.paddleToken,
     modelApiKey: payload.modelApiKey,
+    chatModelApiKey: payload.chatModelApiKey,
+    chatModelName: payload.chatModelName,
+    chatModelBaseUrl: payload.chatModelBaseUrl,
   }) as CredentialsFields;
 }
 

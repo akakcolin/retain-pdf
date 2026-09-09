@@ -366,6 +366,47 @@ test("CredentialsDialog：保存 MinerU 时 paddleToken 不被 mineru token 污�
   host.remove();
 });
 
+test("CredentialsDialog：AI 对话模型字段随保存落库并可回填", async () => {
+  const services = createServices();
+  const { host, root } = await mountHome(services);
+  defaultCredentialsStatePort.setCredentials({
+    ocrProvider: "mineru",
+    mineruToken: "",
+    paddleToken: "",
+    modelApiKey: "",
+    chatModelApiKey: "",
+    chatModelName: "",
+    chatModelBaseUrl: "",
+  });
+
+  services.workflowDialog.openUpload();
+  await waitFor(() => byId("mineru_token"), "工作流对话框打开后隐藏 input 挂载");
+
+  dom.window.document.dispatchEvent(new dom.window.CustomEvent(APP_EVENTS.openBrowserCredentials));
+  await waitFor(() => byId("browser-chat-model-api-key") !== null, "对话模型卡片就绪");
+
+  typeInput(byId("browser-mineru-token"), "mineru-secret");
+  typeInput(byId("browser-api-key"), "deepseek-secret");
+  typeInput(byId("browser-chat-model-api-key"), "chat-secret");
+  typeInput(byId("browser-chat-model-name"), "gpt-4o-mini");
+  typeInput(byId("browser-chat-model-base-url"), "https://chat.example.com/v1");
+
+  click(byId("browser-credentials-save-btn"));
+  await waitFor(
+    () => defaultCredentialsStatePort.getCredentials().chatModelApiKey === "chat-secret",
+    "保存后对话模型凭据落库",
+  );
+
+  const credentials = defaultCredentialsStatePort.getCredentials();
+  assert.equal(credentials.chatModelName, "gpt-4o-mini");
+  assert.equal(credentials.chatModelBaseUrl, "https://chat.example.com/v1");
+  assert.equal(byId("browser-chat-model-name").value, "gpt-4o-mini", "保存后可见输入框回填");
+
+  root.unmount();
+  services.dispose();
+  host.remove();
+});
+
 test("CredentialsDialog：保存(桌面模式)——走 saveDesktopConfig 分支", async () => {
   const desktopCalls = [];
   const services = createServices({

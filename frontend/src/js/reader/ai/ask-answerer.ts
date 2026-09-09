@@ -4,7 +4,7 @@ import { fetchDocumentByJobId } from "../../api/documents.js";
 import {
   hasModelApiKey,
   MISSING_MODEL_API_KEY_MESSAGE,
-  resolveReaderAiConfig,
+  resolveReaderChatConfig,
 } from "./config.js";
 import {
   clearStoredConversationId,
@@ -53,8 +53,8 @@ export function createReaderAskAnswerer({
   ask = askLibraryAi,
   documentByJobId = fetchDocumentByJobId,
   resolveQuote = null,
-  // 前端凭据设置里的模型 API Key(与翻译流程同源),按请求随问答一起传给后端
-  llmConfig = resolveReaderAiConfig,
+  // AI 对话模型凭据（独立于翻译模型，留空回落翻译模型），按请求随问答传给后端
+  llmConfig = resolveReaderChatConfig,
 } = {}) {
   let documentIdPromise = null;
   // 内存优先,localStorage 兜底(跨刷新)

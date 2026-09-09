@@ -8,6 +8,9 @@ export interface CredentialDialogValues {
   modelApiKey: string;
   modelBaseUrl: string;
   modelName: string;
+  chatModelApiKey: string;
+  chatModelName: string;
+  chatModelBaseUrl: string;
   mathMode: string;
   translationProvider: string;
 }
@@ -18,6 +21,9 @@ export interface CredentialDialogElementsLike {
   apiKeyInput?: { value?: string } | null;
   modelBaseUrlInput?: { value?: string } | null;
   modelNameInput?: { value?: string } | null;
+  chatModelApiKeyInput?: { value?: string } | null;
+  chatModelNameInput?: { value?: string } | null;
+  chatModelBaseUrlInput?: { value?: string } | null;
   mathModeSelect?: { value?: string } | null;
   translationProviderSelect?: { value?: string } | null;
 }
@@ -29,7 +35,16 @@ export interface ReadCredentialDialogValuesOptions {
 }
 
 export interface BuildBrowserCredentialConfigOptions {
-  values: Pick<CredentialDialogValues, "mineruToken" | "paddleToken" | "modelApiKey" | "translationProvider">;
+  values: Pick<
+    CredentialDialogValues,
+    | "mineruToken"
+    | "paddleToken"
+    | "modelApiKey"
+    | "chatModelApiKey"
+    | "chatModelName"
+    | "chatModelBaseUrl"
+    | "translationProvider"
+  >;
   currentOcrProvider: () => string;
   defaultModelApiKey?: () => string;
 }
@@ -48,6 +63,9 @@ export function readCredentialDialogValues({
     apiKeyInput,
     modelBaseUrlInput,
     modelNameInput,
+    chatModelApiKeyInput,
+    chatModelNameInput,
+    chatModelBaseUrlInput,
     mathModeSelect,
     translationProviderSelect,
   } = elementsPort.elements();
@@ -57,6 +75,9 @@ export function readCredentialDialogValues({
     modelApiKey: apiKeyInput?.value?.trim() || "",
     modelBaseUrl: modelBaseUrlInput?.value?.trim() || "",
     modelName: modelNameInput?.value?.trim() || "",
+    chatModelApiKey: chatModelApiKeyInput?.value?.trim() || "",
+    chatModelName: chatModelNameInput?.value?.trim() || "",
+    chatModelBaseUrl: chatModelBaseUrlInput?.value?.trim() || "",
     mathMode: mathModeSelect?.value || "direct_typst",
     translationProvider: `${translationProviderSelect?.value || ""}`.trim(),
   };
@@ -74,6 +95,9 @@ export function buildBrowserCredentialConfig({
     mineruToken: `${values.mineruToken || ""}`.trim(),
     paddleToken: values.paddleToken,
     modelApiKey: `${values.modelApiKey || ""}`.trim(),
+    chatModelApiKey: `${values.chatModelApiKey || ""}`.trim(),
+    chatModelName: `${values.chatModelName || ""}`.trim(),
+    chatModelBaseUrl: `${values.chatModelBaseUrl || ""}`.trim(),
   };
 }
 

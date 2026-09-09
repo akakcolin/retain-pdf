@@ -359,9 +359,11 @@ export { createTranslationState } from "../../../js/features/status-detail/trans
 // —— reader ai（主页「图书馆级 AI 问答」复用阅读器回答管线）——
 export {
   CREDENTIALS_CHANGED_EVENT,
+  hasChatModelApiKey,
   hasModelApiKey,
   MISSING_MODEL_API_KEY_MESSAGE,
   resolveReaderAiConfig,
+  resolveReaderChatConfig,
 } from "../../../js/reader/ai/config.js";
 export { sanitizeAssistantAnswer } from "../../../js/reader/ai/sanitize-answer.js";
 export {

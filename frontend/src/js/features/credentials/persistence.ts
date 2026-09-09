@@ -55,6 +55,9 @@ export async function persistDesktopCredentialsFromDialog({
       mineruToken,
       paddleToken,
       modelApiKey,
+      chatModelApiKey: `${values.chatModelApiKey || ""}`.trim(),
+      chatModelName: `${values.chatModelName || ""}`.trim(),
+      chatModelBaseUrl: `${values.chatModelBaseUrl || ""}`.trim(),
       markConfigured: setupModePort.currentSetupMode(),
     },
     async () => {

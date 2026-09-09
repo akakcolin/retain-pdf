@@ -49,7 +49,7 @@ fi
 echo "[build] 打包 macOS 桌面版 (前端构建 + prepare-app + prepare-tauri + tauri build)..."
 export RETAIN_PDF_BUNDLE_MAC_PYTHON=1
 export RETAIN_PDF_DESKTOP_PLATFORM=darwin
-# 缺省版本取 desktop/package.json 的 4.1.10;如要覆盖可: export RETAIN_PDF_VERSION=4.1.10
+# 缺省版本取 desktop/package.json 的 4.1.11;如要覆盖可: export RETAIN_PDF_VERSION=4.1.11
 (cd "$DESKTOP" && npm run dist:tauri)
 
 APP="$DESKTOP/src-tauri/target/release/bundle/macos/RetainPDF.app"
