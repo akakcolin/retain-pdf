@@ -5,7 +5,8 @@ pub use super::graph::{
     EntityPageLink, EntityPageRecord, EntityPageView, EntityRecord, EntityRelationListView,
     EntitySummary, ExtractDocumentGraphView, ExtractGraphRequest, GenerateEntityPageRequest,
     LinkDocumentGraphView, ListBacklinksQuery, ListEntitiesQuery, ListEntityFavoritesQuery,
-    ListMentionsQuery, ListRelationsQuery, NewEntity, NewEntityRelation, RelatedEntity,
+    ListMentionsQuery, ListPendingPagesQuery, ListRelationsQuery, NewEntity, NewEntityRelation,
+    PendingEntityPage, PendingEntityPageListView, RelatedEntity,
 };
 pub use super::glossary::{
     glossary_to_csv_export, glossary_to_detail, glossary_to_summary, GlossaryCsvExportView,

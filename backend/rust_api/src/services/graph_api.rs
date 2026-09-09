@@ -6,13 +6,13 @@ use crate::models::api::{
     EntityBacklinkListView, EntityFavoriteListView, EntityListView, EntityMentionListView,
     EntityRecord, EntityRelationListView, ExtractDocumentGraphView, LinkDocumentGraphView,
     ListBacklinksQuery, ListEntitiesQuery, ListEntityFavoritesQuery, ListMentionsQuery,
-    ListRelationsQuery,
+    ListPendingPagesQuery, ListRelationsQuery, PendingEntityPageListView,
 };
 use crate::services::ai::llm::Chat;
 use crate::services::graph::extract::extract_document_graph;
 use crate::services::graph::favorites::list_entity_favorites;
 use crate::services::graph::mentions::link_document_mentions;
-use crate::services::graph::page::list_entity_backlinks;
+use crate::services::graph::page::{list_entity_backlinks, list_pending_entity_pages};
 use crate::services::graph::seed::seed_entities_from_glossaries;
 use crate::services::graph::GraphDeps;
 
@@ -92,6 +92,18 @@ pub fn list_entity_favorites_view(
 ) -> Result<EntityFavoriteListView, AppError> {
     let items = list_entity_favorites(db, entity_id, query.limit.clamp(1, MAX_LIMIT))?;
     Ok(EntityFavoriteListView { items })
+}
+
+/// 待维护的概念页清单:该文档缺页或页已陈旧的实体(读取时现算)。
+pub fn list_pending_pages_view(
+    db: &Db,
+    document_id: &str,
+    query: &ListPendingPagesQuery,
+) -> Result<PendingEntityPageListView, AppError> {
+    db.get_document(document_id)
+        .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
+    let items = list_pending_entity_pages(db, document_id, query.limit.clamp(1, MAX_LIMIT))?;
+    Ok(PendingEntityPageListView { items })
 }
 
 /// 手动触发:术语表灌实体 + 该文档全块字面扫描挂证据。零 LLM 成本,可重复调用。

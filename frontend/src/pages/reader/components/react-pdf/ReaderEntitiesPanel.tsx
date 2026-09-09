@@ -24,6 +24,7 @@ import {
   listEntityFavorites,
   listEntityMentions,
   listEntityRelations,
+  listPendingEntityPages,
   type EntityBacklink,
   type EntityFavorite,
   type EntityMention,
@@ -77,8 +78,12 @@ export function ReaderEntitiesPanel({
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
   const [pageBusy, setPageBusy] = useState(false);
+  const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
   const listReq = useRef(0);
   const detailReq = useRef(0);
+  // token 失效（切文档/卸载）+ 用户停止，两个信号分开：前者不写状态，后者要报「已停止」。
+  const batchReq = useRef(0);
+  const batchStop = useRef(false);
   const pageBodyRef = useRef<HTMLDivElement | null>(null);
 
   const loadList = useCallback(async (id: string) => {
@@ -108,6 +113,7 @@ export function ReaderEntitiesPanel({
     setBacklinks([]);
     setFavorites([]);
     setPage(null);
+    setBatch(null);
     setNotice("");
     setError("");
     void (async () => {
@@ -133,6 +139,7 @@ export function ReaderEntitiesPanel({
     return () => {
       cancelled = true;
       listReq.current += 1;
+      batchReq.current += 1;
     };
   }, [open, jobId, documentId, loadList]);
 
@@ -266,6 +273,71 @@ export function ReaderEntitiesPanel({
     }
   }, [selected, pageBusy]);
 
+  // 批量维护：顺序给本文档缺页/陈旧的实体生成概念页，可中止、单个失败不中断。
+  const runBatchPages = useCallback(async () => {
+    if (batch) {
+      batchStop.current = true;
+      return;
+    }
+    if (!docId || busy || pageBusy) return;
+    if (!hasChatModelApiKey()) {
+      setError(MISSING_MODEL_API_KEY_MESSAGE);
+      return;
+    }
+    setError("");
+    setNotice("");
+    let pending;
+    try {
+      pending = await listPendingEntityPages(docId);
+    } catch (err) {
+      setError(errText(err, "读取待维护概念页失败"));
+      return;
+    }
+    if (pending.length === 0) {
+      setNotice("本文档实体都已有最新概念页。");
+      return;
+    }
+    if (
+      !window.confirm(
+        `将为 ${pending.length} 个实体生成/刷新概念页，每个消耗一次模型调用。继续？`,
+      )
+    ) {
+      return;
+    }
+    const config = resolveReaderChatConfig();
+    const credentials = {
+      apiKey: config.apiKey,
+      baseUrl: config.baseUrl,
+      model: config.model,
+    };
+    batchStop.current = false;
+    const token = ++batchReq.current;
+    let ok = 0;
+    let failed = 0;
+    let stopped = false;
+    setBatch({ done: 0, total: pending.length });
+    for (const [index, item] of pending.entries()) {
+      if (batchReq.current !== token) return;
+      if (batchStop.current) {
+        stopped = true;
+        break;
+      }
+      setBatch({ done: index, total: pending.length });
+      try {
+        await generateEntityPage(item.entity_id, credentials);
+        ok += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    if (batchReq.current !== token) return;
+    setBatch(null);
+    setNotice(
+      `${stopped ? "已停止：" : ""}更新 ${ok} 个概念页${failed > 0 ? `，${failed} 个失败` : ""}`,
+    );
+    if (selected) void openEntity(selected);
+  }, [batch, docId, busy, pageBusy, selected, openEntity]);
+
   const runLink = useCallback(async () => {
     if (!docId || busy) return;
     setBusy("link");
@@ -317,12 +389,16 @@ export function ReaderEntitiesPanel({
   const toolbar = (
     <>
       <span className="reader-notes-count">
-        {loading && !selected ? "加载中…" : `${entities.length} 个实体`}
+        {batch
+          ? `生成中 ${batch.done}/${batch.total}`
+          : loading && !selected
+            ? "加载中…"
+            : `${entities.length} 个实体`}
       </span>
       <button
         type="button"
         className="reader-notes-export"
-        disabled={!docId || Boolean(busy)}
+        disabled={!docId || Boolean(busy) || Boolean(batch)}
         title="术语表种子 + 全文扫描，不调用模型"
         onClick={() => void runLink()}
       >
@@ -331,11 +407,20 @@ export function ReaderEntitiesPanel({
       <button
         type="button"
         className="reader-notes-export"
-        disabled={!docId || Boolean(busy)}
+        disabled={!docId || Boolean(busy) || Boolean(batch)}
         title="调用一次模型抽取实体与关系"
         onClick={() => void runExtract()}
       >
         {busy === "extract" ? "抽取中…" : "AI 抽取"}
+      </button>
+      <button
+        type="button"
+        className="reader-notes-export"
+        disabled={!docId || Boolean(busy) || pageBusy}
+        title="为本文档缺页或已陈旧的实体逐个生成概念页"
+        onClick={() => void runBatchPages()}
+      >
+        {batch ? "停止" : "批量概念页"}
       </button>
     </>
   );
@@ -392,7 +477,7 @@ export function ReaderEntitiesPanel({
                 <button
                   type="button"
                   className="reader-notes-export"
-                  disabled={pageBusy}
+                  disabled={pageBusy || Boolean(batch)}
                   onClick={() => void runGeneratePage()}
                 >
                   {pageBusy ? "生成中…" : "生成概念页"}
@@ -407,7 +492,7 @@ export function ReaderEntitiesPanel({
                   <button
                     type="button"
                     className="reader-notes-export"
-                    disabled={pageBusy}
+                    disabled={pageBusy || Boolean(batch)}
                     onClick={() => void runGeneratePage()}
                   >
                     {pageBusy ? "生成中…" : page.stale ? "重新生成" : "刷新"}

@@ -21,6 +21,7 @@ const {
   listEntityRelations,
   listEntityBacklinks,
   listEntityFavorites,
+  listPendingEntityPages,
   linkDocumentGraph,
   extractDocumentGraph,
   getEntityPage,
@@ -121,6 +122,32 @@ test("listEntityFavorites 端点、limit 与解包", async () => {
   const url = new URL(calls[0].url);
   assert.equal(url.pathname, "/api/v1/entities/ent-9/favorites");
   assert.equal(url.searchParams.get("limit"), "10");
+});
+
+test("listPendingEntityPages 端点、limit 与解包", async () => {
+  const calls = stubFetch({
+    code: 0,
+    message: "ok",
+    data: {
+      items: [
+        { entity_id: "ent-2", name: "QM9", entity_type: "dataset", has_page: true, stale: true },
+        { entity_id: "ent-1", name: "GNN", entity_type: "method", has_page: false, stale: false },
+      ],
+    },
+  });
+  const items = await listPendingEntityPages("doc-1");
+  assert.equal(items.length, 2);
+  assert.equal(items[0].entity_id, "ent-2");
+  assert.equal(items[0].stale, true);
+  assert.equal(items[1].has_page, false);
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/documents/doc-1/graph/pending-pages");
+  assert.equal(url.searchParams.get("limit"), "20");
+});
+
+test("listPendingEntityPages 非 2xx 抛错", async () => {
+  stubFetch({ code: 1, message: "boom" }, 500);
+  await assert.rejects(() => listPendingEntityPages("doc-1"), /500/);
 });
 
 test("非 2xx 抛带状态码的错误", async () => {

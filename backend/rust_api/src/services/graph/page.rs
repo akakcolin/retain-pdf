@@ -12,7 +12,7 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::models::api::{
     EntityBacklink, EntityPageCitation, EntityPageEvidence, EntityPageLink, EntityPageRecord,
-    EntityPageView, EntityRecord, RelatedEntity,
+    EntityPageView, EntityRecord, PendingEntityPage, RelatedEntity,
 };
 use crate::models::domain::now_iso;
 use crate::services::ai::llm::Chat;
@@ -22,6 +22,9 @@ use super::GraphDeps;
 
 const PAGE_MAX_EVIDENCE: u32 = 40;
 const PAGE_MAX_RELATIONS: u32 = 30;
+
+/// 待维护清单最多扫这么多候选实体(每实体 1~2 次查询)。
+const PENDING_SCAN_CAP: u32 = 500;
 
 const PAGE_SYSTEM_PROMPT: &str = "\
 你是文献库的综述编辑。根据用户给出的证据片段,为指定实体写一份中文 Markdown 综述页。
@@ -147,6 +150,40 @@ fn backlink_snippet(body: &str, targets: &[String]) -> Option<String> {
         return Some(snippet);
     }
     None
+}
+
+/// 待维护的概念页:该文档里缺页或页已陈旧的实体,陈旧的排前。
+/// 候选来自该文档的 block_entities,所以只在关系里出现、本文档无提及的实体看不见。
+/// ponytail: 每实体 1~2 次查询的线性扫描,候选集几千前够用;要快再一条 SQL 现算签名。
+pub fn list_pending_entity_pages(
+    db: &Db,
+    document_id: &str,
+    limit: u32,
+) -> Result<Vec<PendingEntityPage>, AppError> {
+    let mut items = Vec::new();
+    for summary in db.entities_for_document(document_id, PENDING_SCAN_CAP)? {
+        let page = db.get_entity_page(&summary.entity_id)?;
+        let has_page = page.is_some();
+        // 只对有页的实体算签名:缺页必然要生成,不必多查两次。
+        let stale = match &page {
+            Some(page) => page.evidence_sig != db.entity_page_evidence_sig(&summary.entity_id)?,
+            None => false,
+        };
+        if has_page && !stale {
+            continue;
+        }
+        items.push(PendingEntityPage {
+            entity_id: summary.entity_id,
+            name: summary.name,
+            entity_type: summary.entity_type,
+            has_page,
+            stale,
+        });
+    }
+    // 稳定排序:陈旧的排前,组内保持 entities_for_document 的提及数降序。
+    items.sort_by_key(|item| !item.stale);
+    items.truncate(limit as usize);
+    Ok(items)
 }
 
 /// 生成/刷新概念页。模型调用成功后才覆盖旧页(失败保留上一次结果)。
@@ -690,6 +727,98 @@ mod tests {
         assert!(snippet.starts_with('…') && snippet.ends_with('…'));
         // 前后各 31 字符 + 链接 6 字符 + 两端省略号(nth(30) 取的是第 31 个)
         assert_eq!(snippet.chars().count(), 70);
+    }
+
+    /// 给实体在 doc-1 挂一条证据(待维护清单的候选来源)。
+    fn link_doc(db: &Db, entity_id: &str, block: &str) {
+        db.link_block_entity(&BlockEntityLink {
+            document_id: "doc-1".to_string(),
+            entity_id: entity_id.to_string(),
+            page_idx: 0,
+            block_id: block.to_string(),
+            job_id: "job-1".to_string(),
+            surface_form: "x".to_string(),
+            snippet: "x 片段".to_string(),
+            confidence: 1.0,
+            source: "extraction".to_string(),
+        })
+        .expect("link");
+    }
+
+    fn new_entity(db: &Db, name: &str) -> String {
+        db.upsert_entity(&NewEntity {
+            name: name.to_string(),
+            entity_type: "concept".to_string(),
+            aliases: Vec::new(),
+            description: String::new(),
+        })
+        .expect("entity")
+        .entity_id
+    }
+
+    #[test]
+    fn pending_pages_include_missing_and_stale_exclude_fresh() {
+        let fixture = fixture("pending");
+        let missing_id = seed(&fixture.db);
+
+        // 有页但签名对不上 = 陈旧
+        let stale_id = new_entity(&fixture.db, "陈旧实体");
+        link_doc(&fixture.db, &stale_id, "p001-b0000");
+        add_page_of(&fixture.db, &stale_id, "旧正文");
+
+        // 有页且签名一致 = 新鲜,不该进清单
+        let fresh_id = new_entity(&fixture.db, "新鲜实体");
+        link_doc(&fixture.db, &fresh_id, "p001-b0001");
+        let fresh_sig = fixture
+            .db
+            .entity_page_evidence_sig(&fresh_id)
+            .expect("sig");
+        fixture
+            .db
+            .upsert_entity_page(&EntityPageRecord {
+                entity_id: fresh_id.clone(),
+                body_md: "新正文".to_string(),
+                citations: Vec::new(),
+                evidence_sig: fresh_sig,
+                generated_at: now_iso(),
+            })
+            .expect("fresh page");
+
+        let items = list_pending_entity_pages(&fixture.db, "doc-1", 10).expect("pending");
+        let ids: Vec<&str> = items.iter().map(|item| item.entity_id.as_str()).collect();
+        assert!(ids.contains(&stale_id.as_str()), "ids: {ids:?}");
+        assert!(ids.contains(&missing_id.as_str()), "ids: {ids:?}");
+        assert!(!ids.contains(&fresh_id.as_str()), "ids: {ids:?}");
+        // 陈旧的排最前,且带 has_page=true
+        assert!(items[0].stale);
+        assert_eq!(items[0].entity_id, stale_id);
+        assert!(items[0].has_page);
+        // 缺页实体 has_page=false / stale=false
+        let missing = items
+            .iter()
+            .find(|item| item.entity_id == missing_id)
+            .expect("missing present");
+        assert!(!missing.has_page && !missing.stale);
+    }
+
+    #[test]
+    fn pending_pages_stale_first_and_limit_truncates() {
+        let fixture = fixture("pending-order");
+        // 缺页实体有 2 条提及,自然序在陈旧实体(1 条)之前
+        let _missing_id = seed(&fixture.db);
+        let stale_id = new_entity(&fixture.db, "陈旧实体");
+        link_doc(&fixture.db, &stale_id, "p001-b0000");
+        add_page_of(&fixture.db, &stale_id, "旧正文");
+
+        let items = list_pending_entity_pages(&fixture.db, "doc-1", 1).expect("limit");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].entity_id, stale_id);
+        assert!(items[0].stale);
+
+        // 未知文档 = 空清单(404 由视图层负责)
+        assert!(list_pending_entity_pages(&fixture.db, "doc-nope", 10)
+            .expect("unknown doc")
+            .is_empty());
     }
 
     #[test]

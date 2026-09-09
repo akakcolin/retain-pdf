@@ -109,6 +109,16 @@ export type EntityFavorite = {
   note: string;
 };
 
+/** 待维护的概念页候选：缺页，或页的证据签名已变。 */
+export type PendingEntityPage = {
+  entity_id: string;
+  name: string;
+  entity_type: string;
+  has_page: boolean;
+  /** 有页但证据已更新 = 需要刷新。 */
+  stale: boolean;
+};
+
 const MAX_LIMIT = 200;
 
 async function getList<T>(path: string, params: URLSearchParams): Promise<T[]> {
@@ -180,6 +190,19 @@ export function listEntityFavorites(
   const params = new URLSearchParams();
   params.set("limit", String(Math.min(Math.max(1, limit), MAX_LIMIT)));
   return getList<EntityFavorite>(`entities/${encodeURIComponent(entityId)}/favorites`, params);
+}
+
+/** 该文档里缺页或页已陈旧的实体（批量维护用）。 */
+export function listPendingEntityPages(
+  documentId: string,
+  { limit = 20 }: { limit?: number } = {},
+): Promise<PendingEntityPage[]> {
+  const params = new URLSearchParams();
+  params.set("limit", String(Math.min(Math.max(1, limit), MAX_LIMIT)));
+  return getList<PendingEntityPage>(
+    `documents/${encodeURIComponent(documentId)}/graph/pending-pages`,
+    params,
+  );
 }
 
 /** 读该实体的概念页（未生成时 has_page=false，不报错）。 */

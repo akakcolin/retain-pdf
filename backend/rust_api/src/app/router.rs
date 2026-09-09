@@ -147,6 +147,10 @@ pub fn build_app(state: AppState) -> Router {
             "/api/v1/documents/:document_id/graph/extract",
             post(graph::extract_document_graph_route),
         )
+        .route(
+            "/api/v1/documents/:document_id/graph/pending-pages",
+            get(graph::list_pending_pages_route),
+        )
         .route("/api/v1/ai/ask", post(ai::ask_route))
         .route(
             "/api/v1/translate/text",

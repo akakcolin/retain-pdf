@@ -289,3 +289,27 @@ pub struct ListEntityFavoritesQuery {
     #[serde(default = "default_graph_limit")]
     pub limit: u32,
 }
+
+/// 待维护的概念页候选:该文档里的实体,缺页,或页的证据签名已变。
+#[derive(Debug, Clone, Serialize)]
+pub struct PendingEntityPage {
+    pub entity_id: String,
+    pub name: String,
+    pub entity_type: String,
+    pub has_page: bool,
+    /// 有页但证据签名与生成时不一致 = 需要刷新。
+    pub stale: bool,
+}
+
+/// GET /api/v1/documents/:id/graph/pending-pages 响应。
+#[derive(Debug, Serialize)]
+pub struct PendingEntityPageListView {
+    pub items: Vec<PendingEntityPage>,
+}
+
+/// GET /api/v1/documents/:id/graph/pending-pages 查询参数。
+#[derive(Debug, Deserialize)]
+pub struct ListPendingPagesQuery {
+    #[serde(default = "default_graph_limit")]
+    pub limit: u32,
+}

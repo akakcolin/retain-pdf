@@ -4,7 +4,9 @@ use tower::util::ServiceExt;
 
 use super::jobs_common::{read_json, test_state};
 use crate::app::build_app;
-use crate::models::api::{EntityPageRecord, FavoriteRecord, NewEntity, NewEntityRelation};
+use crate::models::api::{
+    BlockEntityLink, EntityPageRecord, FavoriteRecord, NewEntity, NewEntityRelation,
+};
 use crate::models::{now_iso, UploadRecord};
 
 fn entity(name: &str, entity_type: &str) -> NewEntity {
@@ -30,6 +32,23 @@ fn seed_document(state: &crate::AppState) {
             content_hash: "doc-1".to_string(),
         })
         .expect("document");
+}
+
+fn link_block(state: &crate::AppState, entity_id: &str, block: &str) {
+    state
+        .db
+        .link_block_entity(&BlockEntityLink {
+            document_id: "doc-1".to_string(),
+            entity_id: entity_id.to_string(),
+            page_idx: 0,
+            block_id: block.to_string(),
+            job_id: "job-1".to_string(),
+            surface_form: "x".to_string(),
+            snippet: "x 片段".to_string(),
+            confidence: 1.0,
+            source: "extraction".to_string(),
+        })
+        .expect("link");
 }
 
 fn favorite(id: &str, quote: &str, note: &str) -> FavoriteRecord {
@@ -326,6 +345,68 @@ async fn entity_favorites_route_404s_for_unknown_entity() {
 }
 
 #[tokio::test]
+async fn pending_pages_route_returns_missing_and_stale() {
+    let state = test_state("graph-pending");
+    let app = build_app(state.clone());
+    seed_document(&state);
+    let missing = state.db.upsert_entity(&entity("GNN", "method")).expect("a");
+    link_block(&state, &missing.entity_id, "p001-b0000");
+    let stale = state.db.upsert_entity(&entity("QM9", "dataset")).expect("b");
+    link_block(&state, &stale.entity_id, "p001-b0001");
+    state
+        .db
+        .upsert_entity_page(&EntityPageRecord {
+            entity_id: stale.entity_id.clone(),
+            body_md: "旧正文".to_string(),
+            citations: Vec::new(),
+            evidence_sig: "old".to_string(),
+            generated_at: now_iso(),
+        })
+        .expect("page");
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/documents/doc-1/graph/pending-pages")
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = read_json(response).await;
+    let items = payload["data"]["items"].as_array().expect("items");
+    assert_eq!(items.len(), 2, "unexpected payload: {payload}");
+    // 陈旧的排前,缺页的在后
+    assert_eq!(items[0]["name"], serde_json::json!("QM9"));
+    assert_eq!(items[0]["has_page"], serde_json::json!(true));
+    assert_eq!(items[0]["stale"], serde_json::json!(true));
+    assert_eq!(items[1]["name"], serde_json::json!("GNN"));
+    assert_eq!(items[1]["has_page"], serde_json::json!(false));
+    assert_eq!(items[1]["stale"], serde_json::json!(false));
+}
+
+#[tokio::test]
+async fn pending_pages_route_404s_for_unknown_document() {
+    let state = test_state("graph-pending-404");
+    let app = build_app(state);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/documents/doc-nope/graph/pending-pages")
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn graph_routes_require_api_key() {
     let state = test_state("graph-auth");
     let app = build_app(state);
@@ -369,10 +450,23 @@ async fn graph_routes_require_api_key() {
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
     let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("GET")
                 .uri("/api/v1/entities/ent-x/favorites")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/documents/doc-1/graph/pending-pages")
                 .body(Body::empty())
                 .expect("request"),
         )

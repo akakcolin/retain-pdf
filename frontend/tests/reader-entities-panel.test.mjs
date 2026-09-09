@@ -206,6 +206,65 @@ function stubFetchWithPage(page, backlinks = [], favorites = []) {
   return calls;
 }
 
+const CONFIG_KEY = "retainpdf.browser.config.v1";
+
+function setChatKey() {
+  dom.window.localStorage.setItem(
+    CONFIG_KEY,
+    JSON.stringify({ chatModelApiKey: "sk-test" }),
+  );
+}
+
+function clearChatKey() {
+  dom.window.localStorage.removeItem(CONFIG_KEY);
+}
+
+// jsdom 的 confirm 未实现（返回假值），批量动作前必须替换，否则静默 no-op。
+async function withConfirm(answer, run) {
+  const saved = dom.window.confirm;
+  dom.window.confirm = () => answer;
+  try {
+    return await run();
+  } finally {
+    dom.window.confirm = saved;
+  }
+}
+
+// 按方法 + 路径分流：GET 候选清单、POST 单实体概念页；gate 用于挂住第一个 POST。
+function stubBatchFetch({ pending, failAt = -1, gate = null } = {}) {
+  const calls = [];
+  let postIndex = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    const method = (init.method || "GET").toUpperCase();
+    const path = new URL(url).pathname;
+    calls.push({ url, method });
+    let data = { items: [ENTITY] };
+    let status = 200;
+    if (path.endsWith("/graph/pending-pages")) {
+      data = { items: pending };
+    } else if (path.endsWith("/page") && method === "POST") {
+      const index = postIndex++;
+      if (gate && index === 0) await gate;
+      if (index === failAt) {
+        status = 500;
+        data = {};
+      } else {
+        data = { entity_id: path, has_page: true, citations: [], links: [], body_md: "" };
+      }
+    } else if (path.endsWith("/page")) {
+      data = { entity_id: "ent-1", has_page: false, stale: false, citations: [], links: [], body_md: "" };
+    }
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      headers: { get: () => "application/json" },
+      json: async () => ({ code: 0, message: "ok", data }),
+      text: async () => "",
+    };
+  };
+  return calls;
+}
+
 test("面板：概念页正文渲染 + [n] 跳页", async () => {
   const calls = stubFetchWithPage(PAGE);
   const jumps = [];
@@ -516,6 +575,272 @@ test("面板：无文档时给出提示，不发请求", async () => {
   await act(async () => {
     root.unmount();
   });
+});
+
+test("面板：批量概念页顺序生成并计数", async () => {
+  const pending = [
+    { entity_id: "ent-a", name: "A", entity_type: "term", has_page: false, stale: false },
+    { entity_id: "ent-b", name: "B", entity_type: "concept", has_page: true, stale: true },
+  ];
+  const calls = stubBatchFetch({ pending });
+  setChatKey();
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  try {
+    await withConfirm(true, async () => {
+      await act(async () => {
+        root.render(createElement(ReaderEntitiesPanel, {
+          open: true,
+          jobId: "job-1",
+          documentId: "doc-1",
+          onClose() {},
+          onJumpPage() {},
+        }));
+      });
+      await waitFor(() => findByText(host, "批量概念页"), "工具栏渲染");
+      await act(async () => {
+        findByText(host, "批量概念页").dispatchEvent(
+          new dom.window.MouseEvent("click", { bubbles: true }),
+        );
+      });
+      await waitFor(() => host.textContent.includes("更新 2 个概念页"), "批量完成提示");
+    });
+
+    const posts = calls.filter((c) => c.method === "POST");
+    assert.equal(posts.length, 2);
+    assert.ok(posts[0].url.includes("/entities/ent-a/page"), "按候选顺序：先 A");
+    assert.ok(posts[1].url.includes("/entities/ent-b/page"), "再 B");
+    assert.equal(
+      calls.filter((c) => c.url.includes("/graph/pending-pages")).length,
+      1,
+      "只取一次候选清单",
+    );
+  } finally {
+    clearChatKey();
+    await act(async () => {
+      root.unmount();
+    });
+  }
+});
+
+test("面板：批量中单个失败不中断，结束时计数", async () => {
+  const pending = [
+    { entity_id: "ent-a", name: "A", entity_type: "term", has_page: false, stale: false },
+    { entity_id: "ent-b", name: "B", entity_type: "concept", has_page: false, stale: false },
+    { entity_id: "ent-c", name: "C", entity_type: "method", has_page: false, stale: false },
+  ];
+  const calls = stubBatchFetch({ pending, failAt: 1 });
+  setChatKey();
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  try {
+    await withConfirm(true, async () => {
+      await act(async () => {
+        root.render(createElement(ReaderEntitiesPanel, {
+          open: true,
+          jobId: "job-1",
+          documentId: "doc-1",
+          onClose() {},
+          onJumpPage() {},
+        }));
+      });
+      await waitFor(() => findByText(host, "批量概念页"), "工具栏渲染");
+      await act(async () => {
+        findByText(host, "批量概念页").dispatchEvent(
+          new dom.window.MouseEvent("click", { bubbles: true }),
+        );
+      });
+      await waitFor(() => host.textContent.includes("1 个失败"), "失败计数提示");
+    });
+
+    assert.equal(calls.filter((c) => c.method === "POST").length, 3, "失败后继续处理剩余实体");
+    assert.ok(host.textContent.includes("更新 2 个概念页"), "成功数正确");
+  } finally {
+    clearChatKey();
+    await act(async () => {
+      root.unmount();
+    });
+  }
+});
+
+test("面板：没有待维护实体时不发 POST", async () => {
+  const calls = stubBatchFetch({ pending: [] });
+  setChatKey();
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  try {
+    await withConfirm(true, async () => {
+      await act(async () => {
+        root.render(createElement(ReaderEntitiesPanel, {
+          open: true,
+          jobId: "job-1",
+          documentId: "doc-1",
+          onClose() {},
+          onJumpPage() {},
+        }));
+      });
+      await waitFor(() => findByText(host, "批量概念页"), "工具栏渲染");
+      await act(async () => {
+        findByText(host, "批量概念页").dispatchEvent(
+          new dom.window.MouseEvent("click", { bubbles: true }),
+        );
+      });
+      await waitFor(() => host.textContent.includes("都已有最新概念页"), "空候选提示");
+    });
+    assert.equal(calls.filter((c) => c.method === "POST").length, 0);
+  } finally {
+    clearChatKey();
+    await act(async () => {
+      root.unmount();
+    });
+  }
+});
+
+test("面板：确认框取消后不发 POST", async () => {
+  const pending = [
+    { entity_id: "ent-a", name: "A", entity_type: "term", has_page: false, stale: false },
+  ];
+  const calls = stubBatchFetch({ pending });
+  setChatKey();
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  try {
+    await withConfirm(false, async () => {
+      await act(async () => {
+        root.render(createElement(ReaderEntitiesPanel, {
+          open: true,
+          jobId: "job-1",
+          documentId: "doc-1",
+          onClose() {},
+          onJumpPage() {},
+        }));
+      });
+      await waitFor(() => findByText(host, "批量概念页"), "工具栏渲染");
+      await act(async () => {
+        findByText(host, "批量概念页").dispatchEvent(
+          new dom.window.MouseEvent("click", { bubbles: true }),
+        );
+      });
+      await wait(30);
+    });
+    assert.equal(
+      calls.filter((c) => c.url.includes("/graph/pending-pages")).length,
+      1,
+      "已取候选清单，只是确认后被拦下",
+    );
+    assert.equal(calls.filter((c) => c.method === "POST").length, 0);
+  } finally {
+    clearChatKey();
+    await act(async () => {
+      root.unmount();
+    });
+  }
+});
+
+test("面板：缺模型 Key 时批量不发任何请求", async () => {
+  const pending = [
+    { entity_id: "ent-a", name: "A", entity_type: "term", has_page: false, stale: false },
+  ];
+  const calls = stubBatchFetch({ pending });
+  clearChatKey();
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  try {
+    await withConfirm(true, async () => {
+      await act(async () => {
+        root.render(createElement(ReaderEntitiesPanel, {
+          open: true,
+          jobId: "job-1",
+          documentId: "doc-1",
+          onClose() {},
+          onJumpPage() {},
+        }));
+      });
+      await waitFor(() => findByText(host, "批量概念页"), "工具栏渲染");
+      await act(async () => {
+        findByText(host, "批量概念页").dispatchEvent(
+          new dom.window.MouseEvent("click", { bubbles: true }),
+        );
+      });
+      await waitFor(() => host.textContent.includes("缺少模型 API Key"), "缺 Key 提示");
+    });
+    assert.equal(
+      calls.filter((c) => c.url.includes("/graph/pending-pages")).length,
+      0,
+      "门禁在取候选之前",
+    );
+    assert.equal(calls.filter((c) => c.method === "POST").length, 0);
+  } finally {
+    clearChatKey();
+    await act(async () => {
+      root.unmount();
+    });
+  }
+});
+
+test("面板：停止在当前实体之后生效", async () => {
+  const pending = [
+    { entity_id: "ent-a", name: "A", entity_type: "term", has_page: false, stale: false },
+    { entity_id: "ent-b", name: "B", entity_type: "concept", has_page: false, stale: false },
+  ];
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const calls = stubBatchFetch({ pending, gate });
+  setChatKey();
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  try {
+    await withConfirm(true, async () => {
+      await act(async () => {
+        root.render(createElement(ReaderEntitiesPanel, {
+          open: true,
+          jobId: "job-1",
+          documentId: "doc-1",
+          onClose() {},
+          onJumpPage() {},
+        }));
+      });
+      await waitFor(() => findByText(host, "批量概念页"), "工具栏渲染");
+      await act(async () => {
+        findByText(host, "批量概念页").dispatchEvent(
+          new dom.window.MouseEvent("click", { bubbles: true }),
+        );
+      });
+      await waitFor(() => findByText(host, "停止"), "批量中按钮变停止");
+      await act(async () => {
+        findByText(host, "停止").dispatchEvent(
+          new dom.window.MouseEvent("click", { bubbles: true }),
+        );
+      });
+      await act(async () => {
+        release();
+        await gate;
+      });
+      await waitFor(() => host.textContent.includes("已停止"), "停止提示");
+    });
+
+    assert.equal(calls.filter((c) => c.method === "POST").length, 1, "停止后不再发下一个");
+    assert.ok(host.textContent.includes("更新 1 个概念页"), "已完成的那个计入");
+  } finally {
+    clearChatKey();
+    await act(async () => {
+      root.unmount();
+    });
+  }
 });
 
 test("面板：解析文档失败时报错，不误报「没有文档」", async () => {
