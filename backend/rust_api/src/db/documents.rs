@@ -1028,23 +1028,50 @@ mod tests {
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .expect("user_version");
         // 与迁移数组长度同步:v1 图书馆地基 + v2 资产/会话 + v3 AI 消息树分支
-        // + v4 概念图谱 + v5 概念页
-        assert_eq!(version, 5);
+        // + v4 概念图谱 + v5 概念页 + v6 概念页人工修订
+        assert_eq!(version, 6);
     }
 
     #[test]
-    fn v4_database_upgrades_to_v5_without_losing_data() {
-        let fs = TestDbFs::new("migrate-v5");
+    fn v5_database_upgrades_to_v6_without_losing_data() {
+        use crate::models::api::{EntityPageRecord, NewEntity};
+
+        let fs = TestDbFs::new("migrate-v6");
         let db = fs.db();
         db.init().expect("init");
         let hash = sha256_hex(b"legacy doc");
         let upload = upload_with_hash("up-1", &hash);
         db.save_upload(&upload).expect("save upload");
         db.upsert_document_from_upload(&upload).expect("seed document");
-        // 回退成 v4 库:删掉 v5 表、把版本号退回去,再用新实例模拟进程重启。
+        let entity = db
+            .upsert_entity(&NewEntity {
+                name: "GNN".to_string(),
+                entity_type: "method".to_string(),
+                aliases: Vec::new(),
+                description: String::new(),
+            })
+            .expect("entity");
+        db.upsert_entity_page(
+            &EntityPageRecord {
+                entity_id: entity.entity_id.clone(),
+                body_md: "模型原文 [1]。".to_string(),
+                citations: Vec::new(),
+                evidence_sig: "m0:0:r0:0".to_string(),
+                generated_at: now_iso(),
+                edited_body_md: String::new(),
+                edited_at: String::new(),
+            },
+            true,
+        )
+        .expect("page");
+        // 回退成 v5 库:删掉 v6 两列、把版本号退回去,再用新实例模拟进程重启。
         let conn = db.connect().expect("connect");
-        conn.execute_batch("DROP TABLE entity_pages; PRAGMA user_version = 4;")
-            .expect("downgrade");
+        conn.execute_batch(
+            "ALTER TABLE entity_pages DROP COLUMN edited_body_md;
+             ALTER TABLE entity_pages DROP COLUMN edited_at;
+             PRAGMA user_version = 5;",
+        )
+        .expect("downgrade");
         drop(conn);
 
         // 迁移只在每个 Db 实例首次 connect 时跑一次,必须换实例才能复跑。
@@ -1054,11 +1081,25 @@ mod tests {
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .expect("user_version");
-        assert_eq!(version, 5);
-        let pages: i64 = conn
-            .query_row("SELECT COUNT(*) FROM entity_pages", [], |row| row.get(0))
-            .expect("entity_pages exists");
-        assert_eq!(pages, 0);
+        assert_eq!(version, 6);
+        let columns: Vec<String> = conn
+            .prepare("PRAGMA table_info(entity_pages)")
+            .expect("table_info")
+            .query_map([], |row| row.get::<_, String>(1))
+            .expect("columns")
+            .collect::<Result<_, _>>()
+            .expect("collect");
+        assert!(columns.contains(&"edited_body_md".to_string()));
+        assert!(columns.contains(&"edited_at".to_string()));
+        let (body, edited): (String, String) = conn
+            .query_row(
+                "SELECT body_md, edited_body_md FROM entity_pages WHERE entity_id = ?1",
+                params![entity.entity_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("page preserved");
+        assert_eq!(body, "模型原文 [1]。", "升级不能丢模型原文");
+        assert_eq!(edited, "", "新列默认空 = 无修订");
         drop(conn);
         assert_eq!(
             reopened

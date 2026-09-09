@@ -204,11 +204,32 @@ pub struct EntityPageEvidence {
 #[derive(Debug, Clone)]
 pub struct EntityPageRecord {
     pub entity_id: String,
+    /// 模型生成的正文,永不被人工修订改写。
     pub body_md: String,
     pub citations: Vec<EntityPageCitation>,
     /// 生成时的证据签名,用于读取时判断 stale。
     pub evidence_sig: String,
     pub generated_at: String,
+    /// 用户修订;非空即存在修订。
+    pub edited_body_md: String,
+    /// 修订时间(空 = 无修订)。
+    pub edited_at: String,
+}
+
+impl EntityPageRecord {
+    /// 生效正文:有修订用修订,否则用模型原文。所有读取点只走它,避免各自 coalesce 写歪。
+    pub fn effective_body(&self) -> &str {
+        if self.edited_body_md.is_empty() {
+            &self.body_md
+        } else {
+            &self.edited_body_md
+        }
+    }
+
+    /// 是否存在人工修订。
+    pub fn edited(&self) -> bool {
+        !self.edited_body_md.is_empty()
+    }
 }
 
 /// 概念页正文里的 [[实体名]] 解析结果。surface = 正文原样文本,前端按它建索引。
@@ -231,14 +252,39 @@ pub struct EntityPageView {
     /// 证据签名与生成时不一致 = 页内容可能过时。
     pub stale: bool,
     pub generated_at: String,
+    /// 生效正文(有修订用修订,否则模型原文)。
     pub body_md: String,
     pub citations: Vec<EntityPageCitation>,
     /// 正文 [[实体名]] 里能解析到实体的那些(读取时现算)。
     pub links: Vec<EntityPageLink>,
+    /// 是否存在人工修订。
+    pub edited: bool,
+    /// 修订时间(空 = 无修订)。
+    pub edited_at: String,
 }
 
-/// POST /api/v1/entities/:id/page 请求体:与抽取同形,按请求携带 LLM 凭据。
-pub type GenerateEntityPageRequest = ExtractGraphRequest;
+/// POST /api/v1/entities/:id/page 请求体:按请求携带 LLM 凭据 + 是否覆盖人工修订。
+#[derive(Debug, Deserialize)]
+pub struct GenerateEntityPageRequest {
+    #[serde(default)]
+    pub llm_api_key: String,
+    #[serde(default)]
+    pub llm_base_url: String,
+    #[serde(default)]
+    pub llm_model: String,
+    /// 有用户修订时必须显式置 true 才允许覆盖,否则 409。
+    #[serde(default)]
+    pub overwrite_manual: bool,
+}
+
+/// PATCH /api/v1/entities/:id/page 请求体:保存人工修订,或 revert=true 撤销修订。
+#[derive(Debug, Deserialize)]
+pub struct SaveEntityPageRequest {
+    #[serde(default)]
+    pub body_md: String,
+    #[serde(default)]
+    pub revert: bool,
+}
 
 /// 反链:哪张概念页提到了本实体。snippet = 链接附近的一小段上下文。
 #[derive(Debug, Clone, Serialize)]

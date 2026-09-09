@@ -443,7 +443,7 @@ fn public_tool_payload(result: &Value) -> Value {
     // 模型要用 blocks[].ref 重新编号引用。
     if let Some(page) = result.get("entity_page").and_then(Value::as_object) {
         let mut item = Map::new();
-        for key in ["entity_id", "name", "entity_type", "stale", "body_md"] {
+        for key in ["entity_id", "name", "entity_type", "stale", "edited", "body_md"] {
             if let Some(value) = page.get(key) {
                 item.insert(key.to_string(), value.clone());
             }
@@ -1197,7 +1197,9 @@ mod tests {
             }],
             evidence_sig: sig,
             generated_at: now_iso(),
-        })
+            edited_body_md: String::new(),
+            edited_at: String::new(),
+        }, true)
         .expect("page");
         let tools = AiTools::new(&db, &fs.data_root);
         let fake = ScriptedChat::new(vec![

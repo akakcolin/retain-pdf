@@ -26,6 +26,8 @@ const {
   extractDocumentGraph,
   getEntityPage,
   generateEntityPage,
+  saveEntityPage,
+  revertEntityPage,
 } = await import("../src/pages/reader/entities/api.js");
 const {
   entityTypeLabel,
@@ -219,6 +221,54 @@ test("generateEntityPage POST 带凭据：Bearer 剥掉、空字段不带", asyn
   assert.equal("llm_base_url" in body, false);
   assert.equal(calls[0].init.method, "POST");
   assert.equal(new URL(calls[0].url).pathname, "/api/v1/entities/ent-1/page");
+});
+
+test("saveEntityPage PATCH 到 page 并带 body_md", async () => {
+  const calls = stubFetch({
+    code: 0,
+    message: "ok",
+    data: { entity_id: "ent-1", has_page: true, edited: true, body_md: "人工修订" },
+  });
+  const page = await saveEntityPage("ent-1", "人工修订");
+  assert.equal(page.edited, true);
+  assert.equal(calls[0].init.method, "PATCH");
+  assert.equal(new URL(calls[0].url).pathname, "/api/v1/entities/ent-1/page");
+  assert.deepEqual(JSON.parse(calls[0].init.body), { body_md: "人工修订" });
+});
+
+test("revertEntityPage PATCH 并带 revert:true", async () => {
+  const calls = stubFetch({
+    code: 0,
+    message: "ok",
+    data: { entity_id: "ent-1", has_page: true, edited: false, body_md: "模型原文" },
+  });
+  const page = await revertEntityPage("ent-1");
+  assert.equal(page.edited, false);
+  assert.equal(calls[0].init.method, "PATCH");
+  assert.deepEqual(JSON.parse(calls[0].init.body), { revert: true });
+});
+
+test("saveEntityPage 非 2xx 抛带状态码的错误", async () => {
+  stubFetch({ code: 1, message: "boom" }, 500);
+  await assert.rejects(() => saveEntityPage("ent-1", "x"), /500/);
+});
+
+test("generateEntityPage 仅在要求时带 overwrite_manual", async () => {
+  let calls = stubFetch({
+    code: 0,
+    message: "ok",
+    data: { entity_id: "ent-1", has_page: true, edited: false, body_md: "x" },
+  });
+  await generateEntityPage("ent-1", { apiKey: "sk-test" });
+  assert.equal("overwrite_manual" in JSON.parse(calls[0].init.body), false);
+
+  calls = stubFetch({
+    code: 0,
+    message: "ok",
+    data: { entity_id: "ent-1", has_page: true, edited: false, body_md: "x" },
+  });
+  await generateEntityPage("ent-1", { apiKey: "sk-test" }, { overwriteManual: true });
+  assert.equal(JSON.parse(calls[0].init.body).overwrite_manual, true);
 });
 
 test("展示文案：词表命中翻译，未知值原样回显", () => {

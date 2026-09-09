@@ -163,6 +163,10 @@ pub fn list_pending_entity_pages(
     let mut items = Vec::new();
     for summary in db.entities_for_document(document_id, PENDING_SCAN_CAP)? {
         let page = db.get_entity_page(&summary.entity_id)?;
+        // 人工修订页永不进批量候选(批量是模型覆盖,会冲掉修订)。
+        if page.as_ref().is_some_and(|page| page.edited()) {
+            continue;
+        }
         let has_page = page.is_some();
         // 只对有页的实体算签名:缺页必然要生成,不必多查两次。
         let stale = match &page {
@@ -187,15 +191,24 @@ pub fn list_pending_entity_pages(
 }
 
 /// 生成/刷新概念页。模型调用成功后才覆盖旧页(失败保留上一次结果)。
+///
+/// 有用户修订且 `overwrite_manual=false` 时,发 LLM **之前**就 409(不烧 token);
+/// 写入侧还有原子守卫,防止「检查后、写前」被插队。
 pub async fn generate_entity_page<C: Chat>(
     deps: &GraphDeps<'_>,
     client: &C,
     entity_id: &str,
+    overwrite_manual: bool,
 ) -> Result<EntityPageView, AppError> {
     let entity = deps
         .db
         .get_entity(entity_id)
         .map_err(|_| entity_not_found(entity_id))?;
+    if let Some(page) = deps.db.get_entity_page(entity_id)? {
+        if page.edited() && !overwrite_manual {
+            return Err(edited_conflict());
+        }
+    }
     let evidence = deps.db.list_entity_page_evidence(entity_id, PAGE_MAX_EVIDENCE)?;
     let relations = deps.db.related_entities(entity_id, None, PAGE_MAX_RELATIONS)?;
     if evidence.is_empty() && relations.is_empty() {
@@ -224,9 +237,70 @@ pub async fn generate_entity_page<C: Chat>(
         citations,
         evidence_sig: evidence_sig.clone(),
         generated_at: now_iso(),
+        // 重新生成即回到模型原文,清掉修订(守卫会保证只在允许覆盖时生效)。
+        edited_body_md: String::new(),
+        edited_at: String::new(),
     };
-    deps.db.upsert_entity_page(&record)?;
+    if !deps.db.upsert_entity_page(&record, overwrite_manual)? {
+        return Err(edited_conflict());
+    }
     Ok(page_view(&entity, Some(record), &evidence_sig, links))
+}
+
+fn edited_conflict() -> AppError {
+    AppError::conflict("该概念页有你的修订;重新生成会覆盖它,请确认")
+}
+
+/// 保存人工修订:只改修订两列,模型原文不动。
+pub fn save_entity_page_edit(
+    deps: &GraphDeps<'_>,
+    entity_id: &str,
+    body_md: &str,
+) -> Result<EntityPageView, AppError> {
+    let entity = deps
+        .db
+        .get_entity(entity_id)
+        .map_err(|_| entity_not_found(entity_id))?;
+    if deps.db.get_entity_page(entity_id)?.is_none() {
+        return Err(AppError::bad_request("该实体还没有概念页,请先生成"));
+    }
+    let body_md = body_md.trim();
+    if body_md.is_empty() {
+        return Err(AppError::bad_request("正文不能为空"));
+    }
+    deps.db
+        .set_entity_page_edit(entity_id, body_md, &now_iso())?;
+    reload_page_view(deps, &entity)
+}
+
+/// 撤销人工修订:清空修订两列,模型原文即刻回来(不花 token)。
+pub fn revert_entity_page_edit(
+    deps: &GraphDeps<'_>,
+    entity_id: &str,
+) -> Result<EntityPageView, AppError> {
+    let entity = deps
+        .db
+        .get_entity(entity_id)
+        .map_err(|_| entity_not_found(entity_id))?;
+    if deps.db.get_entity_page(entity_id)?.is_none() {
+        return Err(AppError::bad_request("该实体还没有概念页,请先生成"));
+    }
+    deps.db.clear_entity_page_edit(entity_id)?;
+    reload_page_view(deps, &entity)
+}
+
+/// 重载页面并现算链接(保存/撤销后统一出口)。
+fn reload_page_view(
+    deps: &GraphDeps<'_>,
+    entity: &EntityRecord,
+) -> Result<EntityPageView, AppError> {
+    let page = deps.db.get_entity_page(&entity.entity_id)?;
+    let current_sig = deps.db.entity_page_evidence_sig(&entity.entity_id)?;
+    let links = page
+        .as_ref()
+        .map(|page| resolve_page_links(deps.db, page.effective_body()))
+        .unwrap_or_default();
+    Ok(page_view(entity, page, &current_sig, links))
 }
 
 /// 读概念页。无页时 has_page=false(实体存在,不是 404)。
@@ -239,7 +313,7 @@ pub fn get_entity_page(deps: &GraphDeps<'_>, entity_id: &str) -> Result<EntityPa
     let current_sig = deps.db.entity_page_evidence_sig(entity_id)?;
     let links = page
         .as_ref()
-        .map(|page| resolve_page_links(deps.db, &page.body_md))
+        .map(|page| resolve_page_links(deps.db, page.effective_body()))
         .unwrap_or_default();
     Ok(page_view(&entity, page, &current_sig, links))
 }
@@ -250,15 +324,25 @@ fn page_view(
     current_sig: &str,
     links: Vec<EntityPageLink>,
 ) -> EntityPageView {
-    let (has_page, stale, generated_at, body_md, citations) = match page {
+    let (has_page, stale, generated_at, body_md, citations, edited, edited_at) = match page {
         Some(page) => (
             true,
             page.evidence_sig != current_sig,
-            page.generated_at,
-            page.body_md,
-            page.citations,
+            page.generated_at.clone(),
+            page.effective_body().to_string(),
+            page.citations.clone(),
+            page.edited(),
+            page.edited_at.clone(),
         ),
-        None => (false, false, String::new(), String::new(), Vec::new()),
+        None => (
+            false,
+            false,
+            String::new(),
+            String::new(),
+            Vec::new(),
+            false,
+            String::new(),
+        ),
     };
     EntityPageView {
         entity_id: entity.entity_id.clone(),
@@ -270,6 +354,8 @@ fn page_view(
         body_md,
         citations,
         links,
+        edited,
+        edited_at,
     }
 }
 
@@ -411,6 +497,7 @@ mod tests {
 
     struct Fixture {
         root: PathBuf,
+        data_root: PathBuf,
         db: Db,
     }
 
@@ -429,9 +516,13 @@ mod tests {
         let data_root = root.join("data");
         fs::create_dir_all(&data_root).expect("data root");
         fs::create_dir_all(root.join("db")).expect("db dir");
-        let db = Db::new(root.join("db").join("jobs.db"), data_root);
+        let db = Db::new(root.join("db").join("jobs.db"), data_root.clone());
         db.init().expect("init");
-        Fixture { root, db }
+        Fixture {
+            root,
+            data_root,
+            db,
+        }
     }
 
     fn seed(db: &Db) -> String {
@@ -473,13 +564,18 @@ mod tests {
 
     /// 给指定实体写一张概念页(反链测试用)。
     fn add_page_of(db: &Db, entity_id: &str, body: &str) {
-        db.upsert_entity_page(&EntityPageRecord {
-            entity_id: entity_id.to_string(),
-            body_md: body.to_string(),
-            citations: Vec::new(),
-            evidence_sig: String::new(),
-            generated_at: now_iso(),
-        })
+        db.upsert_entity_page(
+            &EntityPageRecord {
+                entity_id: entity_id.to_string(),
+                body_md: body.to_string(),
+                citations: Vec::new(),
+                evidence_sig: String::new(),
+                generated_at: now_iso(),
+                edited_body_md: String::new(),
+                edited_at: String::new(),
+            },
+            true,
+        )
         .expect("page");
     }
 
@@ -510,7 +606,7 @@ mod tests {
             db: &fixture.db,
             data_root: &fixture.root.join("data"),
         };
-        let view = generate_entity_page(&deps, &client, &entity_id)
+        let view = generate_entity_page(&deps, &client, &entity_id, false)
             .await
             .expect("generate");
         assert!(view.has_page);
@@ -531,7 +627,7 @@ mod tests {
             reply: "GNN [1],还是 GNN [1]。".to_string(),
             seen: Mutex::new(Vec::new()),
         };
-        let view = generate_entity_page(&deps, &client, &entity_id)
+        let view = generate_entity_page(&deps, &client, &entity_id, false)
             .await
             .expect("regenerate");
         assert_eq!(view.citations.len(), 1);
@@ -549,7 +645,7 @@ mod tests {
             db: &fixture.db,
             data_root: &fixture.root.join("data"),
         };
-        generate_entity_page(&deps, &client, &entity_id)
+        generate_entity_page(&deps, &client, &entity_id, false)
             .await
             .expect("generate");
         assert!(!get_entity_page(&deps, &entity_id).expect("read").stale);
@@ -591,7 +687,7 @@ mod tests {
             db: &fixture.db,
             data_root: &fixture.root.join("data"),
         };
-        let error = generate_entity_page(&deps, &client, &entity.entity_id)
+        let error = generate_entity_page(&deps, &client, &entity.entity_id, false)
             .await
             .expect_err("must fail without evidence");
         assert!(error.to_string().contains("还没有证据"));
@@ -603,12 +699,12 @@ mod tests {
             reply: "GNN 简介 [1]。".to_string(),
             seen: Mutex::new(Vec::new()),
         };
-        generate_entity_page(&deps, &ok, &entity_id).await.expect("first");
+        generate_entity_page(&deps, &ok, &entity_id, false).await.expect("first");
         let broken = ScriptedChat {
             reply: String::new(),
             seen: Mutex::new(Vec::new()),
         };
-        assert!(generate_entity_page(&deps, &broken, &entity_id).await.is_err());
+        assert!(generate_entity_page(&deps, &broken, &entity_id, false).await.is_err());
         let view = get_entity_page(&deps, &entity_id).expect("read");
         assert!(view.has_page);
         assert_eq!(view.body_md, "GNN 简介 [1]。");
@@ -625,7 +721,9 @@ mod tests {
             db: &fixture.db,
             data_root: &fixture.root.join("data"),
         };
-        assert!(generate_entity_page(&deps, &client, "ent-nope").await.is_err());
+        assert!(generate_entity_page(&deps, &client, "ent-nope", false)
+            .await
+            .is_err());
         assert!(get_entity_page(&deps, "ent-nope").is_err());
     }
 
@@ -642,7 +740,7 @@ mod tests {
             db: &fixture.db,
             data_root: &fixture.root.join("data"),
         };
-        let view = generate_entity_page(&deps, &client, &entity_id)
+        let view = generate_entity_page(&deps, &client, &entity_id, false)
             .await
             .expect("generate");
         // 别名与规范名都解析到同一实体;未知名跳过;重复 surface 只出一条
@@ -775,13 +873,18 @@ mod tests {
             .expect("sig");
         fixture
             .db
-            .upsert_entity_page(&EntityPageRecord {
-                entity_id: fresh_id.clone(),
-                body_md: "新正文".to_string(),
-                citations: Vec::new(),
-                evidence_sig: fresh_sig,
-                generated_at: now_iso(),
-            })
+            .upsert_entity_page(
+                &EntityPageRecord {
+                    entity_id: fresh_id.clone(),
+                    body_md: "新正文".to_string(),
+                    citations: Vec::new(),
+                    evidence_sig: fresh_sig,
+                    generated_at: now_iso(),
+                    edited_body_md: String::new(),
+                    edited_at: String::new(),
+                },
+                true,
+            )
             .expect("fresh page");
 
         let items = list_pending_entity_pages(&fixture.db, "doc-1", 10).expect("pending");
@@ -832,5 +935,141 @@ mod tests {
             strip_wikilinks("见 [[GNN]] 与 [[图神经网络]] [1]"),
             "见 GNN 与 图神经网络 [1]"
         );
+    }
+
+    fn deps_of(fixture: &Fixture) -> GraphDeps<'_> {
+        GraphDeps {
+            db: &fixture.db,
+            data_root: &fixture.data_root,
+        }
+    }
+
+    #[tokio::test]
+    async fn manual_edit_blocks_regeneration_until_overwrite() {
+        let fixture = fixture("manual-edit");
+        let entity_id = seed(&fixture.db);
+        let deps = deps_of(&fixture);
+        let first = ScriptedChat {
+            reply: "模型原文 [1]。".to_string(),
+            seen: Mutex::new(Vec::new()),
+        };
+        generate_entity_page(&deps, &first, &entity_id, false)
+            .await
+            .expect("first");
+
+        // 保存修订:视图用生效正文,带 edited/edited_at
+        let view = save_entity_page_edit(&deps, &entity_id, "  人工修订  ").expect("save");
+        assert!(view.edited);
+        assert_eq!(view.body_md, "人工修订");
+        assert!(!view.edited_at.is_empty());
+
+        // 不覆盖时重新生成 → 409,且模型没被调用(不烧 token)
+        let blocked = ScriptedChat {
+            reply: "不该被调用".to_string(),
+            seen: Mutex::new(Vec::new()),
+        };
+        let error = generate_entity_page(&deps, &blocked, &entity_id, false)
+            .await
+            .expect_err("must conflict");
+        assert!(error.to_string().contains("修订"));
+        assert!(blocked.seen.lock().expect("lock").is_empty());
+
+        // 允许覆盖 → 回到模型原文,修订清空
+        let overwrite = ScriptedChat {
+            reply: "模型新版 [1]。".to_string(),
+            seen: Mutex::new(Vec::new()),
+        };
+        let view = generate_entity_page(&deps, &overwrite, &entity_id, true)
+            .await
+            .expect("overwrite");
+        assert!(!view.edited);
+        assert_eq!(view.body_md, "模型新版 [1]。");
+        assert_eq!(view.edited_at, "");
+        assert_eq!(overwrite.seen.lock().expect("lock").len(), 1);
+    }
+
+    #[test]
+    fn save_and_revert_edit_require_existing_page() {
+        let fixture = fixture("edit-validate");
+        let entity_id = seed(&fixture.db);
+        let deps = deps_of(&fixture);
+        // 未知实体 → 404 语义(Err)
+        assert!(save_entity_page_edit(&deps, "ent-nope", "x").is_err());
+        assert!(revert_entity_page_edit(&deps, "ent-nope").is_err());
+        // 无页 → 400「还没有概念页」
+        let error = save_entity_page_edit(&deps, &entity_id, "x").expect_err("no page");
+        assert!(error.to_string().contains("还没有概念页"));
+        assert!(revert_entity_page_edit(&deps, &entity_id).is_err());
+    }
+
+    #[tokio::test]
+    async fn empty_edit_rejected_and_revert_restores_model_body() {
+        let fixture = fixture("edit-empty");
+        let entity_id = seed(&fixture.db);
+        let deps = deps_of(&fixture);
+        let client = ScriptedChat {
+            reply: "模型原文 [1]。".to_string(),
+            seen: Mutex::new(Vec::new()),
+        };
+        generate_entity_page(&deps, &client, &entity_id, false)
+            .await
+            .expect("generate");
+
+        // 空/纯空白正文 → 400,不落库
+        let error = save_entity_page_edit(&deps, &entity_id, "   ").expect_err("empty");
+        assert!(error.to_string().contains("不能为空"));
+        assert!(!get_entity_page(&deps, &entity_id).expect("read").edited);
+
+        save_entity_page_edit(&deps, &entity_id, "人工版").expect("save");
+        let view = revert_entity_page_edit(&deps, &entity_id).expect("revert");
+        assert!(!view.edited);
+        assert_eq!(view.body_md, "模型原文 [1]。");
+        assert_eq!(view.edited_at, "");
+    }
+
+    #[test]
+    fn pending_pages_exclude_manual_edits() {
+        let fixture = fixture("pending-edited");
+        let entity_id = seed(&fixture.db);
+        link_doc(&fixture.db, &entity_id, "p001-b0000");
+        // 缺页 → 在候选里
+        assert_eq!(
+            list_pending_entity_pages(&fixture.db, "doc-1", 10)
+                .expect("p1")
+                .len(),
+            1
+        );
+        // 生成新鲜页 → 不在候选里
+        let sig = fixture
+            .db
+            .entity_page_evidence_sig(&entity_id)
+            .expect("sig");
+        fixture
+            .db
+            .upsert_entity_page(
+                &EntityPageRecord {
+                    entity_id: entity_id.clone(),
+                    body_md: "模型正文".to_string(),
+                    citations: Vec::new(),
+                    evidence_sig: sig,
+                    generated_at: now_iso(),
+                    edited_body_md: String::new(),
+                    edited_at: String::new(),
+                },
+                true,
+            )
+            .expect("page");
+        assert!(list_pending_entity_pages(&fixture.db, "doc-1", 10)
+            .expect("p2")
+            .is_empty());
+        // 加修订后再加证据(变 stale)→ 仍不进候选
+        fixture
+            .db
+            .set_entity_page_edit(&entity_id, "人工修订", "t")
+            .expect("edit");
+        link_doc(&fixture.db, &entity_id, "p001-b0001");
+        assert!(list_pending_entity_pages(&fixture.db, "doc-1", 10)
+            .expect("p3")
+            .is_empty());
     }
 }

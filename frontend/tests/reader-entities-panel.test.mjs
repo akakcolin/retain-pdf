@@ -877,3 +877,247 @@ test("面板：解析文档失败时报错，不误报「没有文档」", async
     root.unmount();
   });
 });
+
+const EDITED_PAGE = {
+  ...PAGE,
+  edited: true,
+  edited_at: "2026-09-09T01:00:00Z",
+  body_md: "人工修订 [1]。",
+};
+
+// 按方法分流：GET 拉详情、PATCH 保存/撤销（返回更新后的页）。
+function stubFetchWithEdit(page = PAGE, patchResult = null) {
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const method = (init.method || "GET").toUpperCase();
+    const path = new URL(url).pathname;
+    calls.push({ url, method, init });
+    let data = { items: [ENTITY] };
+    if (path.endsWith("/mentions")) data = { items: [MENTION] };
+    else if (path.endsWith("/relations")) data = { items: [RELATION] };
+    else if (path.endsWith("/backlinks")) data = { items: [] };
+    else if (path.endsWith("/favorites")) data = { items: [] };
+    else if (path.endsWith("/page") && method === "PATCH") {
+      const body = JSON.parse(init.body);
+      if (patchResult) data = patchResult(body);
+      else if (body.revert) {
+        data = { ...page, edited: false, edited_at: "", body_md: "模型原文。" };
+      } else {
+        data = {
+          ...page,
+          edited: true,
+          edited_at: "2026-09-09T02:00:00Z",
+          body_md: body.body_md,
+        };
+      }
+    } else if (path.endsWith("/page")) {
+      data = page;
+    }
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      json: async () => ({ code: 0, message: "ok", data }),
+      text: async () => "",
+    };
+  };
+  return calls;
+}
+
+// React 用自己的 value tracker 判断变化：必须走原生 setter 再派发 input。
+function setTextareaValue(ta, value) {
+  const setter = Object.getOwnPropertyDescriptor(
+    dom.window.HTMLTextAreaElement.prototype,
+    "value",
+  ).set;
+  setter.call(ta, value);
+  ta.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+}
+
+async function openEntityDetail(host, root) {
+  await act(async () => {
+    root.render(createElement(ReaderEntitiesPanel, {
+      open: true,
+      jobId: "job-1",
+      documentId: "doc-1",
+      onClose() {},
+      onJumpPage() {},
+    }));
+  });
+  await waitFor(() => host.textContent.includes("卤素"), "实体列表渲染");
+  await act(async () => {
+    findByText(host, "卤素").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+}
+
+test("面板：编辑保存后正文变人工版并提示", async () => {
+  const calls = stubFetchWithEdit(PAGE);
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await openEntityDetail(host, root);
+  await waitFor(
+    () => host.querySelector(".reader-entities-page-body")?.textContent.includes("卤素是一类元素"),
+    "概念页正文渲染",
+  );
+
+  await act(async () => {
+    findByText(host, "编辑").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  const ta = host.querySelector("textarea.reader-notes-textarea");
+  assert.ok(ta, "编辑态出现 textarea");
+  assert.equal(ta.value, "卤素是一类元素 [1]。", "草稿预填生效正文");
+
+  await act(async () => {
+    setTextareaValue(ta, "人工修订 [1]。");
+  });
+  await act(async () => {
+    findByText(host, "保存").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+
+  await waitFor(() => host.textContent.includes("概念页修订已保存"), "保存提示");
+  await waitFor(
+    () => host.querySelector(".reader-entities-page-body")?.textContent.includes("人工修订"),
+    "正文换成人工版",
+  );
+  const patch = calls.find((c) => c.method === "PATCH");
+  assert.ok(patch, "发出 PATCH");
+  assert.deepEqual(JSON.parse(patch.init.body), { body_md: "人工修订 [1]。" });
+  assert.ok(!host.querySelector("textarea.reader-notes-textarea"), "保存后退出编辑态");
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：取消编辑后正文仍在（回归空白 div）", async () => {
+  stubFetchWithEdit(PAGE);
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await openEntityDetail(host, root);
+  await waitFor(
+    () => host.querySelector(".reader-entities-page-body")?.textContent.includes("卤素是一类元素"),
+    "概念页正文渲染",
+  );
+  await act(async () => {
+    findByText(host, "编辑").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  assert.ok(host.querySelector("textarea.reader-notes-textarea"), "进入编辑态");
+  await act(async () => {
+    findByText(host, "取消").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  await waitFor(
+    () => !host.querySelector("textarea.reader-notes-textarea"),
+    "退出编辑态",
+  );
+  assert.ok(
+    host.querySelector(".reader-entities-page-body")?.textContent.includes("卤素是一类元素"),
+    "取消后已渲染正文还在，不空白",
+  );
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：有修订时显示徽章，撤销后回到模型原文", async () => {
+  const calls = stubFetchWithEdit(EDITED_PAGE);
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await openEntityDetail(host, root);
+  await waitFor(() => host.textContent.includes("你的修订"), "修订徽章渲染");
+  assert.ok(findByText(host, "撤销修订"), "撤销按钮渲染");
+
+  await withConfirm(true, async () => {
+    await act(async () => {
+      findByText(host, "撤销修订").dispatchEvent(
+        new dom.window.MouseEvent("click", { bubbles: true }),
+      );
+    });
+    await waitFor(() => host.textContent.includes("已回到模型原文"), "撤销提示");
+  });
+
+  assert.ok(!host.textContent.includes("你的修订"), "徽章消失");
+  assert.ok(
+    host.querySelector(".reader-entities-page-body")?.textContent.includes("模型原文"),
+    "正文回到模型原文",
+  );
+  const patch = calls.find((c) => c.method === "PATCH");
+  assert.deepEqual(JSON.parse(patch.init.body), { revert: true });
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：有修订时刷新确认并带 overwrite_manual", async () => {
+  const calls = stubFetchWithEdit(EDITED_PAGE, () => ({
+    ...PAGE,
+    edited: false,
+    edited_at: "",
+    body_md: "模型新版 [1]。",
+  }));
+  setChatKey();
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  try {
+    await openEntityDetail(host, root);
+    await waitFor(() => host.textContent.includes("你的修订"), "修订徽章渲染");
+
+    await withConfirm(true, async () => {
+      await act(async () => {
+        findByText(host, "刷新").dispatchEvent(
+          new dom.window.MouseEvent("click", { bubbles: true }),
+        );
+      });
+      await waitFor(() => host.textContent.includes("概念页已更新"), "刷新提示");
+    });
+
+    const post = calls.find((c) => c.method === "POST");
+    assert.ok(post, "发出 POST");
+    assert.equal(JSON.parse(post.init.body).overwrite_manual, true, "带覆盖标记");
+    assert.ok(!host.textContent.includes("你的修订"), "覆盖后徽章消失");
+  } finally {
+    clearChatKey();
+    await act(async () => {
+      root.unmount();
+    });
+  }
+});
+
+test("面板：空草稿不发 PATCH", async () => {
+  const calls = stubFetchWithEdit(PAGE);
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await openEntityDetail(host, root);
+  await waitFor(
+    () => host.querySelector(".reader-entities-page-body")?.textContent.includes("卤素是一类元素"),
+    "概念页正文渲染",
+  );
+  await act(async () => {
+    findByText(host, "编辑").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  const ta = host.querySelector("textarea.reader-notes-textarea");
+  await act(async () => {
+    setTextareaValue(ta, "   ");
+  });
+  await act(async () => {
+    findByText(host, "保存").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  await waitFor(() => host.textContent.includes("正文不能为空"), "空正文报错");
+  assert.equal(calls.filter((c) => c.method === "PATCH").length, 0, "空草稿不请求");
+  assert.ok(host.querySelector("textarea.reader-notes-textarea"), "仍留在编辑态");
+
+  await act(async () => {
+    root.unmount();
+  });
+});

@@ -25,6 +25,8 @@ import {
   listEntityMentions,
   listEntityRelations,
   listPendingEntityPages,
+  revertEntityPage,
+  saveEntityPage,
   type EntityBacklink,
   type EntityFavorite,
   type EntityMention,
@@ -78,6 +80,9 @@ export function ReaderEntitiesPanel({
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
   const [pageBusy, setPageBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
   const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
   const listReq = useRef(0);
   const detailReq = useRef(0);
@@ -113,6 +118,8 @@ export function ReaderEntitiesPanel({
     setBacklinks([]);
     setFavorites([]);
     setPage(null);
+    setEditing(false);
+    setDraft("");
     setBatch(null);
     setNotice("");
     setError("");
@@ -152,6 +159,8 @@ export function ReaderEntitiesPanel({
       setBacklinks([]);
       setFavorites([]);
       setPage(null);
+      setEditing(false);
+      setDraft("");
       setLoading(true);
       setError("");
       try {
@@ -188,6 +197,8 @@ export function ReaderEntitiesPanel({
     setBacklinks([]);
     setFavorites([]);
     setPage(null);
+    setEditing(false);
+    setDraft("");
     setError("");
   }, []);
 
@@ -245,13 +256,23 @@ export function ReaderEntitiesPanel({
     };
   }, [page, jumpToCitation, openWikiLink]);
 
+  // 非编辑态时把草稿同步成生效正文。只依赖正文文本与编辑态：
+  // 依赖 page 对象会在保存同内容后重渲染时覆盖用户输入。
+  useEffect(() => {
+    if (!editing) setDraft(page?.body_md ?? "");
+  }, [page?.body_md, editing]);
+
   const runGeneratePage = useCallback(async () => {
     if (!selected || pageBusy) return;
     if (!hasChatModelApiKey()) {
       setError(MISSING_MODEL_API_KEY_MESSAGE);
       return;
     }
-    if (!window.confirm("生成概念页会调用一次模型（消耗 token），并覆盖该实体的综述。继续？")) {
+    const overwriteManual = Boolean(page?.edited);
+    const message = overwriteManual
+      ? "重新生成会覆盖你的修订（模型原文与修订都会被新内容替换，消耗 token）。继续？"
+      : "生成概念页会调用一次模型（消耗 token），并覆盖该实体的综述。继续？";
+    if (!window.confirm(message)) {
       return;
     }
     setPageBusy(true);
@@ -259,19 +280,66 @@ export function ReaderEntitiesPanel({
     setNotice("");
     try {
       const config = resolveReaderChatConfig();
-      const next = await generateEntityPage(selected.entity_id, {
-        apiKey: config.apiKey,
-        baseUrl: config.baseUrl,
-        model: config.model,
-      });
+      const next = await generateEntityPage(
+        selected.entity_id,
+        {
+          apiKey: config.apiKey,
+          baseUrl: config.baseUrl,
+          model: config.model,
+        },
+        { overwriteManual },
+      );
       setPage(next);
+      setEditing(false);
       setNotice("概念页已更新");
     } catch (err) {
       setError(errText(err, "生成概念页失败"));
     } finally {
       setPageBusy(false);
     }
-  }, [selected, pageBusy]);
+  }, [selected, pageBusy, page?.edited]);
+
+  const runSavePage = useCallback(async () => {
+    if (!selected || saving) return;
+    if (!draft.trim()) {
+      setError("正文不能为空");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    setNotice("");
+    try {
+      const next = await saveEntityPage(selected.entity_id, draft);
+      setPage(next);
+      setEditing(false);
+      setNotice("概念页修订已保存");
+    } catch (err) {
+      // 失败保持编辑态，别丢用户的长文。
+      setError(errText(err, "保存概念页失败"));
+    } finally {
+      setSaving(false);
+    }
+  }, [selected, saving, draft]);
+
+  const runRevertPage = useCallback(async () => {
+    if (!selected || saving) return;
+    if (!window.confirm("撤销你的修订，回到模型生成的版本？")) {
+      return;
+    }
+    setSaving(true);
+    setError("");
+    setNotice("");
+    try {
+      const next = await revertEntityPage(selected.entity_id);
+      setPage(next);
+      setEditing(false);
+      setNotice("已回到模型原文");
+    } catch (err) {
+      setError(errText(err, "撤销修订失败"));
+    } finally {
+      setSaving(false);
+    }
+  }, [selected, saving]);
 
   // 批量维护：顺序给本文档缺页/陈旧的实体生成概念页，可中止、单个失败不中断。
   const runBatchPages = useCallback(async () => {
@@ -489,16 +557,80 @@ export function ReaderEntitiesPanel({
                   {page.stale ? (
                     <span className="reader-entities-stale">证据已更新</span>
                   ) : null}
+                  {page.edited ? (
+                    <span className="reader-entities-stale">你的修订</span>
+                  ) : null}
+                  {!editing ? (
+                    <button
+                      type="button"
+                      className="reader-notes-export"
+                      disabled={saving || Boolean(batch)}
+                      onClick={() => {
+                        setDraft(page.body_md);
+                        setEditing(true);
+                        setError("");
+                        setNotice("");
+                      }}
+                    >
+                      编辑
+                    </button>
+                  ) : null}
+                  {page.edited && !editing ? (
+                    <button
+                      type="button"
+                      className="reader-notes-export"
+                      disabled={saving || Boolean(batch)}
+                      onClick={() => void runRevertPage()}
+                    >
+                      撤销修订
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="reader-notes-export"
-                    disabled={pageBusy || Boolean(batch)}
+                    disabled={pageBusy || saving || Boolean(batch)}
                     onClick={() => void runGeneratePage()}
                   >
                     {pageBusy ? "生成中…" : page.stale ? "重新生成" : "刷新"}
                   </button>
                 </div>
-                <div className="reader-entities-page-body" ref={pageBodyRef} />
+                <div
+                  className="reader-entities-page-body"
+                  ref={pageBodyRef}
+                  style={{ display: editing ? "none" : undefined }}
+                />
+                {editing ? (
+                  <div className="reader-notes-editor">
+                    <textarea
+                      className="reader-notes-textarea"
+                      rows={10}
+                      maxLength={200000}
+                      value={draft}
+                      onChange={(event) => setDraft(event.target.value)}
+                    />
+                    <div className="reader-notes-editor-actions">
+                      <button
+                        type="button"
+                        className="reader-notes-primary"
+                        disabled={saving}
+                        onClick={() => void runSavePage()}
+                      >
+                        {saving ? "保存中…" : "保存"}
+                      </button>
+                      <button
+                        type="button"
+                        className="reader-notes-link"
+                        disabled={saving}
+                        onClick={() => {
+                          setEditing(false);
+                          setDraft(page.body_md);
+                        }}
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </>
             )}
           </section>

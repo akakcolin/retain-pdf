@@ -8,10 +8,13 @@ use crate::models::api::{
     ExtractDocumentGraphView, ExtractGraphRequest, GenerateEntityPageRequest,
     LinkDocumentGraphView, ListBacklinksQuery, ListEntitiesQuery, ListEntityFavoritesQuery,
     ListMentionsQuery, ListPendingPagesQuery, ListRelationsQuery, PendingEntityPageListView,
+    SaveEntityPageRequest,
 };
 use crate::routes::common::{build_graph_route_deps, ok_json};
 use crate::services::ai_api::{resolve_llm_credentials, LlmClient};
-use crate::services::graph::page::{generate_entity_page, get_entity_page};
+use crate::services::graph::page::{
+    generate_entity_page, get_entity_page, revert_entity_page_edit, save_entity_page_edit,
+};
 use crate::services::graph_api::{
     extract_document_graph_view, get_entity_view, link_document_graph_view, list_backlinks_view,
     list_entities_view, list_entity_favorites_view, list_mentions_view, list_pending_pages_view,
@@ -113,8 +116,23 @@ pub async fn generate_entity_page_route(
     )?;
     let client = LlmClient::new(base_url, model, api_key, deps.ai.llm_timeout_s);
     Ok(ok_json(
-        generate_entity_page(&deps.graph, &client, &entity_id).await?,
+        generate_entity_page(&deps.graph, &client, &entity_id, request.overwrite_manual).await?,
     ))
+}
+
+/// 保存/撤销概念页人工修订。`revert=true` 撤销,否则保存 body_md。
+pub async fn save_entity_page_route(
+    State(state): State<AppState>,
+    AxumPath(entity_id): AxumPath<String>,
+    Json(request): Json<SaveEntityPageRequest>,
+) -> Result<Json<ApiResponse<EntityPageView>>, AppError> {
+    let deps = build_graph_route_deps(&state);
+    let view = if request.revert {
+        revert_entity_page_edit(&deps.graph, &entity_id)?
+    } else {
+        save_entity_page_edit(&deps.graph, &entity_id, &request.body_md)?
+    };
+    Ok(ok_json(view))
 }
 
 /// 待维护的概念页清单:该文档缺页或页已陈旧的实体(读取时现算)。

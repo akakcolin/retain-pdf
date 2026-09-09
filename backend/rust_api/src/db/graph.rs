@@ -85,7 +85,7 @@ const RELATED_ENTITIES_SQL: &str = r#"
     "#;
 
 const ENTITY_PAGE_COLUMNS: &str =
-    "entity_id, body_md, citations_json, evidence_sig, generated_at";
+    "entity_id, body_md, citations_json, evidence_sig, generated_at, edited_body_md, edited_at";
 
 fn row_to_entity_page(row: &rusqlite::Row<'_>) -> rusqlite::Result<EntityPageRecord> {
     let citations_json: String = row.get(2)?;
@@ -95,6 +95,8 @@ fn row_to_entity_page(row: &rusqlite::Row<'_>) -> rusqlite::Result<EntityPageRec
         citations: serde_json::from_str(&citations_json).unwrap_or_default(),
         evidence_sig: row.get(3)?,
         generated_at: row.get(4)?,
+        edited_body_md: row.get(5)?,
+        edited_at: row.get(6)?,
     })
 }
 
@@ -582,13 +584,15 @@ impl Db {
         Ok(items)
     }
 
-    /// 所有已生成概念页的 (entity_id, body_md)。反链读取时现算,不建 page_links 表。
+    /// 所有已生成概念页的 (entity_id, 生效正文)。反链读取时现算,不建 page_links 表。
     /// 先滤掉没有 wikilink 的页:用 instr 而非 LIKE,'[[' 在 SQLite 的 LIKE 里是字符类语法。
     /// ponytail: 全表扫 + Rust 侧匹配,概念页上千张前够用;要快再建索引表。
     pub fn list_entity_page_bodies(&self) -> Result<Vec<(String, String)>> {
         let conn = self.connect()?;
         let mut stmt = conn.prepare(
-            "SELECT entity_id, body_md FROM entity_pages WHERE instr(body_md, '[[') > 0",
+            "SELECT entity_id, CASE WHEN edited_body_md <> '' THEN edited_body_md ELSE body_md END
+             FROM entity_pages
+             WHERE instr(body_md, '[[') > 0 OR instr(edited_body_md, '[[') > 0",
         )?;
         let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
         let mut items = Vec::new();
@@ -627,25 +631,60 @@ impl Db {
     }
 
     /// 整页覆盖写(生成/刷新都是全量替换)。
-    pub fn upsert_entity_page(&self, page: &EntityPageRecord) -> Result<()> {
+    ///
+    /// `allow_overwrite=false` 时,若库里已有用户修订(edited_body_md 非空)则**不写**
+    /// 并返回 false —— 这条 WHERE 是原子守卫,关掉「检查后、写前」被插队的 TOCTOU 窗口。
+    pub fn upsert_entity_page(&self, page: &EntityPageRecord, allow_overwrite: bool) -> Result<bool> {
         let conn = self.connect()?;
-        conn.execute(
-            "INSERT INTO entity_pages (entity_id, body_md, citations_json, evidence_sig, generated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)
+        let changed = conn.execute(
+            "INSERT INTO entity_pages
+                (entity_id, body_md, citations_json, evidence_sig, generated_at, edited_body_md, edited_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
              ON CONFLICT(entity_id) DO UPDATE SET
                  body_md = excluded.body_md,
                  citations_json = excluded.citations_json,
                  evidence_sig = excluded.evidence_sig,
-                 generated_at = excluded.generated_at",
+                 generated_at = excluded.generated_at,
+                 edited_body_md = excluded.edited_body_md,
+                 edited_at = excluded.edited_at
+             WHERE ?8 = 1 OR entity_pages.edited_body_md = ''",
             params![
                 page.entity_id,
                 page.body_md,
                 serde_json::to_string(&page.citations).unwrap_or_else(|_| "[]".to_string()),
                 page.evidence_sig,
                 page.generated_at,
+                page.edited_body_md,
+                page.edited_at,
+                allow_overwrite,
             ],
         )?;
-        Ok(())
+        Ok(changed > 0)
+    }
+
+    /// 保存用户修订(只改修订两列,模型原文 body_md 不动)。返回是否命中该页。
+    pub fn set_entity_page_edit(
+        &self,
+        entity_id: &str,
+        edited_body_md: &str,
+        edited_at: &str,
+    ) -> Result<bool> {
+        let conn = self.connect()?;
+        let changed = conn.execute(
+            "UPDATE entity_pages SET edited_body_md = ?1, edited_at = ?2 WHERE entity_id = ?3",
+            params![edited_body_md, edited_at, entity_id],
+        )?;
+        Ok(changed > 0)
+    }
+
+    /// 撤销修订:清空修订两列,模型原文即刻生效。返回是否命中该页。
+    pub fn clear_entity_page_edit(&self, entity_id: &str) -> Result<bool> {
+        let conn = self.connect()?;
+        let changed = conn.execute(
+            "UPDATE entity_pages SET edited_body_md = '', edited_at = '' WHERE entity_id = ?1",
+            params![entity_id],
+        )?;
+        Ok(changed > 0)
     }
 }
 
@@ -1058,8 +1097,10 @@ mod tests {
             }],
             evidence_sig: after_mention.clone(),
             generated_at: "2026-09-09T00:00:00Z".to_string(),
+            edited_body_md: String::new(),
+            edited_at: String::new(),
         };
-        db.upsert_entity_page(&page).expect("upsert");
+        assert!(db.upsert_entity_page(&page, true).expect("upsert"));
         let loaded = db
             .get_entity_page(&entity.entity_id)
             .expect("load")
@@ -1081,7 +1122,7 @@ mod tests {
         // 覆盖写整页
         let mut updated = page.clone();
         updated.body_md = "重写 [1]。".to_string();
-        db.upsert_entity_page(&updated).expect("re-upsert");
+        db.upsert_entity_page(&updated, true).expect("re-upsert");
         assert_eq!(
             db.get_entity_page(&entity.entity_id).expect("load2").expect("some").body_md,
             "重写 [1]。"
@@ -1098,5 +1139,104 @@ mod tests {
         conn.execute("DELETE FROM entities WHERE entity_id = ?1", params![entity.entity_id])
             .expect("delete entity");
         assert!(db.get_entity_page(&entity.entity_id).expect("after delete").is_none());
+    }
+
+    /// 造一条概念页记录(edited 为空串 = 无修订)。
+    fn page_record(entity_id: &str, body: &str, edited: &str) -> EntityPageRecord {
+        EntityPageRecord {
+            entity_id: entity_id.to_string(),
+            body_md: body.to_string(),
+            citations: Vec::new(),
+            evidence_sig: "sig".to_string(),
+            generated_at: now_iso(),
+            edited_body_md: edited.to_string(),
+            edited_at: if edited.is_empty() {
+                String::new()
+            } else {
+                "2026-09-09T00:00:00Z".to_string()
+            },
+        }
+    }
+
+    #[test]
+    fn guarded_upsert_preserves_manual_edit_unless_overwrite() {
+        let fs = TestDbFs::new("entity-page-guard");
+        let db = fs.db();
+        seed_document(&db, "doc-1");
+        let entity = db.upsert_entity(&new_entity("方法A", "method", &[])).expect("entity");
+        assert!(db.upsert_entity_page(&page_record(&entity.entity_id, "模型一", ""), false)
+            .expect("insert"));
+        assert!(db.set_entity_page_edit(&entity.entity_id, "人工修订", "t1").expect("edit"));
+
+        // 守卫:有修订 + 不允许覆盖 → 不写,正文不变
+        assert!(!db
+            .upsert_entity_page(&page_record(&entity.entity_id, "模型二", ""), false)
+            .expect("blocked"));
+        let loaded = db.get_entity_page(&entity.entity_id).expect("load").expect("some");
+        assert_eq!(loaded.body_md, "模型一");
+        assert_eq!(loaded.effective_body(), "人工修订");
+        assert!(loaded.edited());
+
+        // 允许覆盖 → 写入模型正文并清修订
+        assert!(db
+            .upsert_entity_page(&page_record(&entity.entity_id, "模型二", ""), true)
+            .expect("overwrite"));
+        let loaded = db.get_entity_page(&entity.entity_id).expect("load2").expect("some");
+        assert_eq!(loaded.body_md, "模型二");
+        assert_eq!(loaded.effective_body(), "模型二");
+        assert!(!loaded.edited());
+        assert_eq!(loaded.edited_at, "");
+    }
+
+    #[test]
+    fn set_and_clear_entity_page_edit_roundtrip() {
+        let fs = TestDbFs::new("entity-page-edit");
+        let db = fs.db();
+        seed_document(&db, "doc-1");
+        let entity = db.upsert_entity(&new_entity("方法A", "method", &[])).expect("entity");
+        // 无页时两列都改不到 → false
+        assert!(!db.set_entity_page_edit(&entity.entity_id, "x", "t").expect("no page"));
+        assert!(!db.clear_entity_page_edit(&entity.entity_id).expect("no page clear"));
+
+        db.upsert_entity_page(&page_record(&entity.entity_id, "模型原文", ""), true)
+            .expect("page");
+        assert!(db
+            .set_entity_page_edit(&entity.entity_id, "修订正文", "2026-09-09T01:00:00Z")
+            .expect("edit"));
+        let loaded = db.get_entity_page(&entity.entity_id).expect("load").expect("some");
+        assert_eq!(loaded.body_md, "模型原文", "修订不动模型原文");
+        assert_eq!(loaded.effective_body(), "修订正文");
+        assert_eq!(loaded.edited_at, "2026-09-09T01:00:00Z");
+
+        assert!(db.clear_entity_page_edit(&entity.entity_id).expect("clear"));
+        let loaded = db.get_entity_page(&entity.entity_id).expect("load2").expect("some");
+        assert_eq!(loaded.effective_body(), "模型原文");
+        assert!(!loaded.edited());
+        assert_eq!(loaded.edited_at, "");
+    }
+
+    #[test]
+    fn list_entity_page_bodies_uses_effective_body() {
+        let fs = TestDbFs::new("entity-page-bodies");
+        let db = fs.db();
+        seed_document(&db, "doc-1");
+        let entity = db.upsert_entity(&new_entity("方法A", "method", &[])).expect("entity");
+        // 模型原文没有 wikilink
+        db.upsert_entity_page(&page_record(&entity.entity_id, "无链接正文", ""), true)
+            .expect("page");
+        assert!(db.list_entity_page_bodies().expect("empty").is_empty());
+
+        // 修订里写了 [[X]] → 生效正文参与反链
+        db.set_entity_page_edit(&entity.entity_id, "修订提到 [[目标]]", "t")
+            .expect("edit");
+        let bodies = db.list_entity_page_bodies().expect("bodies");
+        assert_eq!(
+            bodies,
+            vec![(entity.entity_id.clone(), "修订提到 [[目标]]".to_string())]
+        );
+
+        // 撤销 → 回到无链接的模型原文 → 不再出现
+        db.clear_entity_page_edit(&entity.entity_id).expect("clear");
+        assert!(db.list_entity_page_bodies().expect("empty2").is_empty());
     }
 }

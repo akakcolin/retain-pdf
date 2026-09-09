@@ -82,10 +82,15 @@ export type EntityPage = {
   /** 证据签名与生成时不一致 = 内容可能过时。 */
   stale: boolean;
   generated_at: string;
+  /** 生效正文（有修订用修订，否则模型原文）。 */
   body_md: string;
   citations: EntityPageCitation[];
   /** 正文里能解析到实体的 [[...]]；解析不到的不在列表里。 */
   links: EntityPageLink[];
+  /** 是否存在人工修订。 */
+  edited: boolean;
+  /** 修订时间（空 = 无修订）。 */
+  edited_at: string;
 };
 
 /** 反链：某个已生成的概念页正文里提到了本实体。snippet = 链接附近上下文。 */
@@ -205,6 +210,19 @@ export function listPendingEntityPages(
   );
 }
 
+/** PATCH 一个 JSON 端点并解包信封（submitJson 只支持 POST）。 */
+async function patchJson<T>(path: string, payload: unknown): Promise<T> {
+  const resp = await fetch(buildApiEndpoint(API_PREFIX, path), {
+    method: "PATCH",
+    headers: buildApiHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) {
+    throw new Error(`保存概念页失败，请稍后重试。(${resp.status})`);
+  }
+  return unwrapEnvelope<T>(await resp.json());
+}
+
 /** 读该实体的概念页（未生成时 has_page=false，不报错）。 */
 export function getEntityPage(entityId: string): Promise<EntityPage> {
   return getOne<EntityPage>(`entities/${encodeURIComponent(entityId)}/page`);
@@ -214,18 +232,32 @@ export function getEntityPage(entityId: string): Promise<EntityPage> {
 export function generateEntityPage(
   entityId: string,
   credentials: ExtractCredentials = {},
+  { overwriteManual = false }: { overwriteManual?: boolean } = {},
 ): Promise<EntityPage> {
-  const payload: Record<string, string> = {};
+  const payload: Record<string, unknown> = {};
   const key = `${credentials.apiKey || ""}`.trim();
   if (key) payload.llm_api_key = key.replace(/^Bearer\s+/i, "").trim();
   const baseUrl = `${credentials.baseUrl || ""}`.trim();
   if (baseUrl) payload.llm_base_url = baseUrl;
   const model = `${credentials.model || ""}`.trim();
   if (model) payload.llm_model = model;
+  if (overwriteManual) payload.overwrite_manual = true;
   return submitJson(
     buildApiEndpoint(API_PREFIX, `entities/${encodeURIComponent(entityId)}/page`),
     payload,
   ) as Promise<EntityPage>;
+}
+
+/** 保存人工修订（不花 token）。 */
+export function saveEntityPage(entityId: string, bodyMd: string): Promise<EntityPage> {
+  return patchJson<EntityPage>(`entities/${encodeURIComponent(entityId)}/page`, {
+    body_md: bodyMd,
+  });
+}
+
+/** 撤销人工修订，回到模型原文（不花 token）。 */
+export function revertEntityPage(entityId: string): Promise<EntityPage> {
+  return patchJson<EntityPage>(`entities/${encodeURIComponent(entityId)}/page`, { revert: true });
 }
 
 /** 零 LLM 成本：术语表种子 + 该文档全块字面扫描，可重复调用。 */

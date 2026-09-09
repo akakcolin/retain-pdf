@@ -233,13 +233,18 @@ async fn entity_backlinks_route_returns_linking_pages() {
     let source = state.db.upsert_entity(&entity("QM9", "dataset")).expect("b");
     state
         .db
-        .upsert_entity_page(&EntityPageRecord {
-            entity_id: source.entity_id.clone(),
-            body_md: "QM9 常用于评测 [[GNN]] 与 [[不存在]] [1]。".to_string(),
-            citations: Vec::new(),
-            evidence_sig: String::new(),
-            generated_at: now_iso(),
-        })
+        .upsert_entity_page(
+            &EntityPageRecord {
+                entity_id: source.entity_id.clone(),
+                body_md: "QM9 常用于评测 [[GNN]] 与 [[不存在]] [1]。".to_string(),
+                citations: Vec::new(),
+                evidence_sig: String::new(),
+                generated_at: now_iso(),
+                edited_body_md: String::new(),
+                edited_at: String::new(),
+            },
+            true,
+        )
         .expect("page");
 
     let response = app
@@ -355,13 +360,18 @@ async fn pending_pages_route_returns_missing_and_stale() {
     link_block(&state, &stale.entity_id, "p001-b0001");
     state
         .db
-        .upsert_entity_page(&EntityPageRecord {
-            entity_id: stale.entity_id.clone(),
-            body_md: "旧正文".to_string(),
-            citations: Vec::new(),
-            evidence_sig: "old".to_string(),
-            generated_at: now_iso(),
-        })
+        .upsert_entity_page(
+            &EntityPageRecord {
+                entity_id: stale.entity_id.clone(),
+                body_md: "旧正文".to_string(),
+                citations: Vec::new(),
+                evidence_sig: "old".to_string(),
+                generated_at: now_iso(),
+                edited_body_md: String::new(),
+                edited_at: String::new(),
+            },
+            true,
+        )
         .expect("page");
 
     let response = app
@@ -404,6 +414,181 @@ async fn pending_pages_route_404s_for_unknown_document() {
         .await
         .expect("response");
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+/// 给实体写一张模型原文概念页(人工编辑路由测试用)。
+fn seed_page(state: &crate::AppState, entity_id: &str) {
+    state
+        .db
+        .upsert_entity_page(
+            &EntityPageRecord {
+                entity_id: entity_id.to_string(),
+                body_md: "模型原文 [1]。".to_string(),
+                citations: Vec::new(),
+                evidence_sig: "m0:0:r0:0".to_string(),
+                generated_at: now_iso(),
+                edited_body_md: String::new(),
+                edited_at: String::new(),
+            },
+            true,
+        )
+        .expect("page");
+}
+
+#[tokio::test]
+async fn save_entity_page_route_persists_manual_edit() {
+    let state = test_state("graph-page-save");
+    let app = build_app(state.clone());
+    let entity = state.db.upsert_entity(&entity("GNN", "method")).expect("entity");
+    seed_page(&state, &entity.entity_id);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/api/v1/entities/{}/page", entity.entity_id))
+                .header("X-API-Key", "test-key")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"body_md":"人工修订 [[GNN]]"}"#))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = read_json(response).await;
+    assert_eq!(payload["data"]["edited"], serde_json::json!(true));
+    assert_eq!(payload["data"]["body_md"], serde_json::json!("人工修订 [[GNN]]"));
+    assert_eq!(payload["data"]["links"][0]["surface"], serde_json::json!("GNN"));
+    assert!(
+        !payload["data"]["edited_at"].as_str().unwrap_or("").is_empty(),
+        "unexpected payload: {payload}"
+    );
+    // 模型原文仍保留
+    let page = state
+        .db
+        .get_entity_page(&entity.entity_id)
+        .expect("load")
+        .expect("some");
+    assert_eq!(page.body_md, "模型原文 [1]。");
+    assert_eq!(page.effective_body(), "人工修订 [[GNN]]");
+}
+
+#[tokio::test]
+async fn save_entity_page_route_revert_restores_model_body() {
+    let state = test_state("graph-page-revert");
+    let app = build_app(state.clone());
+    let entity = state.db.upsert_entity(&entity("GNN", "method")).expect("entity");
+    seed_page(&state, &entity.entity_id);
+    state
+        .db
+        .set_entity_page_edit(&entity.entity_id, "人工修订", "t")
+        .expect("edit");
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/api/v1/entities/{}/page", entity.entity_id))
+                .header("X-API-Key", "test-key")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"revert":true}"#))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = read_json(response).await;
+    assert_eq!(payload["data"]["edited"], serde_json::json!(false));
+    assert_eq!(payload["data"]["body_md"], serde_json::json!("模型原文 [1]。"));
+    assert_eq!(payload["data"]["edited_at"], serde_json::json!(""));
+}
+
+#[tokio::test]
+async fn save_entity_page_route_rejects_empty_body() {
+    let state = test_state("graph-page-empty");
+    let app = build_app(state.clone());
+    let entity = state.db.upsert_entity(&entity("GNN", "method")).expect("entity");
+    seed_page(&state, &entity.entity_id);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/api/v1/entities/{}/page", entity.entity_id))
+                .header("X-API-Key", "test-key")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"body_md":"   "}"#))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let payload = read_json(response).await;
+    assert!(
+        payload["message"].as_str().unwrap_or("").contains("不能为空"),
+        "unexpected payload: {payload}"
+    );
+}
+
+#[tokio::test]
+async fn save_entity_page_route_400s_without_page() {
+    let state = test_state("graph-page-no-page");
+    let app = build_app(state.clone());
+    let entity = state.db.upsert_entity(&entity("GNN", "method")).expect("entity");
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/api/v1/entities/{}/page", entity.entity_id))
+                .header("X-API-Key", "test-key")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"body_md":"x"}"#))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn save_entity_page_route_404s_for_unknown_entity() {
+    let state = test_state("graph-page-save-404");
+    let app = build_app(state);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri("/api/v1/entities/ent-nope/page")
+                .header("X-API-Key", "test-key")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"body_md":"x"}"#))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn generate_entity_page_409s_on_manual_edit_without_overwrite() {
+    let state = test_state("graph-page-conflict");
+    let app = build_app(state.clone());
+    let entity = state.db.upsert_entity(&entity("GNN", "method")).expect("entity");
+    seed_page(&state, &entity.entity_id);
+    state
+        .db
+        .set_entity_page_edit(&entity.entity_id, "人工修订", "t")
+        .expect("edit");
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/entities/{}/page", entity.entity_id))
+                .header("X-API-Key", "test-key")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"llm_api_key":"sk-test"}"#))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::CONFLICT);
 }
 
 #[tokio::test]
@@ -456,6 +641,20 @@ async fn graph_routes_require_api_key() {
                 .method("GET")
                 .uri("/api/v1/entities/ent-x/favorites")
                 .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri("/api/v1/entities/ent-x/page")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"body_md":"x"}"#))
                 .expect("request"),
         )
         .await

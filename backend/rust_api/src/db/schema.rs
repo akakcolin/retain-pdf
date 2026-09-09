@@ -168,6 +168,12 @@ const VERSIONED_MIGRATIONS: &[&str] = &[
         generated_at   TEXT NOT NULL
     );
     "#,
+    // v6: 概念页人工修订 —— body_md 永远保留模型原文,edited_body_md 非空即存在
+    // 用户修订(生效正文 = 修订非空 ? 修订 : 模型原文)。撤销 = 清空两列。
+    r#"
+    ALTER TABLE entity_pages ADD COLUMN edited_body_md TEXT NOT NULL DEFAULT '';
+    ALTER TABLE entity_pages ADD COLUMN edited_at      TEXT NOT NULL DEFAULT '';
+    "#,
 ];
 
 pub(super) fn run_versioned_migrations(conn: &Connection) -> Result<()> {
