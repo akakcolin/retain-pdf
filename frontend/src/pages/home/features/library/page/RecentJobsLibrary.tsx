@@ -95,7 +95,10 @@ export function RecentJobsLibrary({ onBatchModeChange }: any = {}) {
     services.collections?.controller?.listCollections().then((list) => {
       const rows = Array.isArray(list?.collections) ? list.collections : (Array.isArray(list) ? list : []);
       setCollections(rows);
-    }).catch(() => {});
+    }).catch((err) => {
+      // 静默吞掉会让"加入合集"按钮因 collections 为空一直禁用且无任何提示。
+      toast.error(err?.message || "读取合集失败");
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchMode]);
 

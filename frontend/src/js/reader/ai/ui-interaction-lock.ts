@@ -89,6 +89,7 @@ export function armReaderAiClickShield(
   const until = Date.now() + Math.max(0, durationMs);
   const overlayDelay = Math.max(0, Number(options.overlayDelayMs) || 0);
   let overlayTimer: ReturnType<typeof setTimeout> | null = null;
+  let safetyTimer: ReturnType<typeof setTimeout> | null = null;
 
   if (overlayDelay === 0) {
     ensureOverlay();
@@ -127,6 +128,10 @@ export function armReaderAiClickShield(
       clearTimeout(overlayTimer);
       overlayTimer = null;
     }
+    if (safetyTimer != null) {
+      clearTimeout(safetyTimer);
+      safetyTimer = null;
+    }
     for (const type of types) {
       document.removeEventListener(type, swallow, opts);
     }
@@ -138,7 +143,9 @@ export function armReaderAiClickShield(
     document.addEventListener(type, swallow, opts);
   }
   shieldCleanup = teardown;
-  window.setTimeout(teardown, Math.max(0, durationMs) + 48);
+  // 存住兜底定时器:重新 arm 时 shieldCleanup() 会跑旧 teardown,若不清掉
+  // 这个定时器,它稍后仍会 removeOverlay(),把新 shield 的遮罩提前摘掉。
+  safetyTimer = setTimeout(teardown, Math.max(0, durationMs) + 48);
 }
 
 export function shouldIgnoreReaderAiNavEvent(event: Event | null | undefined): boolean {

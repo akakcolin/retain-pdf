@@ -6,7 +6,7 @@
 // 数据形状和图书馆首页卡片完全一致,直接复用 BookCard,不用
 // 另外做一套"文件夹详情卡片"渲染,也不会有第二套删除确认气泡状态。
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useHomeServices } from "../../../home-services-context.js";
 import { useStoreSnapshot } from "../../../../../shared/react/use-store.js";
 import { EmptyState } from "../../../../../shared/icons/EmptyState.jsx";
@@ -117,9 +117,15 @@ export function CategoriesView() {
       });
   }, [controller]);
 
+  // 用"是否已经加载过一次"而不是 version>0 判断首屏:切到本 tab 前可能已有
+  // bump(书详情/批量加入合集等),那时 version>0 会让挂载首屏走 soft 分支——
+  // 而 soft 分支不把 listLoading 从初始 true 置回 false,列表就永远停在
+  // "正在加载合集…"。首屏永远 hard,之后的 bump 才是 soft。
+  const loadedOnceRef = useRef(false);
   useEffect(() => {
-    // 首屏 hard loading；管理弹窗 bump version 后 soft 刷新
-    reload({ soft: version > 0 });
+    const soft = loadedOnceRef.current;
+    loadedOnceRef.current = true;
+    reload({ soft });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reload, version]);
 
@@ -193,10 +199,12 @@ export function CategoriesView() {
     // 重新请求一次;更关键的是原来那版完全没有 cancelled 守卫,快速切换
     // 两个文件夹时后发的请求可能先resolve、先发的请求后resolve,导致标题
     // 显示 B 文件夹、书目列表却是 A 文件夹的旧数据。
+    // version:从书详情里增删该合集成员会 bump,此时 openFolderId 不变,
+    // 没有这个依赖就只剩封面缩略图刷新、书目列表停在旧数据。
     return () => {
       cancelled = true;
     };
-  }, [controller, openFolderId]);
+  }, [controller, openFolderId, version]);
 
   if (openFolder) {
     return (

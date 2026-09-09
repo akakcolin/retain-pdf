@@ -109,6 +109,7 @@ export function ReaderNotesPanel({
   onExport,
 }: ReaderNotesPanelProps) {
   const [copied, setCopied] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   return (
     <ReaderFloatShell
@@ -126,12 +127,18 @@ export function ReaderNotesPanel({
           <button
             type="button"
             className="reader-notes-export"
-            disabled={copied || count === 0}
+            disabled={copied || exporting || count === 0}
             onClick={async () => {
-              const ok = await onExport();
-              if (ok) {
-                setCopied(true);
-                window.setTimeout(() => setCopied(false), EXPORT_COPIED_FEEDBACK_MS);
+              if (exporting) return;
+              setExporting(true);
+              try {
+                const ok = await onExport();
+                if (ok) {
+                  setCopied(true);
+                  window.setTimeout(() => setCopied(false), EXPORT_COPIED_FEEDBACK_MS);
+                }
+              } finally {
+                setExporting(false);
               }
             }}
           >

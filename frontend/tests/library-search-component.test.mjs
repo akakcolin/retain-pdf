@@ -110,3 +110,51 @@ test("库检索面板:渲染命中高亮与文档行,状态切换调用 PATCH", 
   app.unmount();
   host.remove();
 });
+
+test("库检索面板:文档缺少 tags 字段也不崩(回归)", async () => {
+  // 回归覆盖:行内直接 doc.tags.length,后端省略 tags 时渲染期 TypeError 整块面板挂掉。
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  let deliverQuery = null;
+  const ports = {
+    subscribeQuery: (subscriber) => {
+      deliverQuery = subscriber;
+      subscriber("");
+      return () => {};
+    },
+    searchLibrary: async () => ({ hits: [] }),
+    fetchDocumentList: async () => ({
+      documents: [{
+        document_id: "doc-notags",
+        title: "无标签文档",
+        source_filename: "notags.pdf",
+        page_count: 3,
+        active_job_id: "",
+        reading_status: "unread",
+        // 故意不提供 tags
+      }],
+    }),
+    patchDocument: async () => ({}),
+    openReader: () => {},
+  };
+
+  const app = mountLibrarySearchApp(host, ports);
+  {
+    const deadline = Date.now() + 3000;
+    while (typeof deliverQuery !== "function" && Date.now() < deadline) {
+      await wait(20);
+    }
+  }
+  deliverQuery("无标签");
+  {
+    const deadline = Date.now() + 3000;
+    while (!host.querySelector(".lib-search-doc-title") && Date.now() < deadline) {
+      await wait(20);
+    }
+  }
+  assert.equal(host.querySelector(".lib-search-doc-title")?.textContent, "无标签文档");
+  assert.match(host.querySelector(".lib-search-doc-meta")?.textContent || "", /3 页/);
+
+  app.unmount();
+  host.remove();
+});

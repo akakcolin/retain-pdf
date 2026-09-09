@@ -71,6 +71,10 @@ export function ReaderMarkdownPanel({
     let cancelled = false;
 
     async function load() {
+      // 重开面板/切 job 会重新拉一批图片 blob,先释放上一批——否则整个 reader
+      // 会话期间 object URL 只增不减(唯一 revoke 在卸载 effect 里)。
+      for (const url of objectUrlsRef.current) URL.revokeObjectURL(url);
+      objectUrlsRef.current = [];
       if (sourceOnly || !jobId) {
         setStatus("源文档阅读不提供 Markdown 产物");
         if (contentRef.current) {

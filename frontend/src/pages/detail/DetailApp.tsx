@@ -86,6 +86,7 @@ export function DetailApp({
 
   // 页面加载编排:旧 index.js initializePage 的 hooks 重建
   const startedRef = useRef(false);
+  const downloadInFlightRef = useRef(false);
   useEffect(() => {
     if (startedRef.current) {
       return;
@@ -262,10 +263,22 @@ export function DetailApp({
       return;
     }
     event.preventDefault();
+    // 双击会并发跑两次 fetch+保存(aria-disabled 只在任务未就绪时置位)
+    if (downloadInFlightRef.current) {
+      return;
+    }
+    downloadInFlightRef.current = true;
     const state = pageStateRef.current;
     const fallbackName = fallbackNameFactory(state.job?.job_id || "job");
-    const downloadTarget = await prepareDownloadTarget(fallbackName);
+    let downloadTarget;
+    try {
+      downloadTarget = await prepareDownloadTarget(fallbackName);
+    } catch (error) {
+      downloadInFlightRef.current = false;
+      throw error;
+    }
     if (downloadTarget.kind === "aborted") {
+      downloadInFlightRef.current = false;
       return;
     }
     try {
@@ -292,6 +305,8 @@ export function DetailApp({
     } catch (error) {
       setText("detail-head-note", error.message || "下载失败");
       failDownloadToast(error.message || "下载失败");
+    } finally {
+      downloadInFlightRef.current = false;
     }
   }, [dataPort, setText]);
 

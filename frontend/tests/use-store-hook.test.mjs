@@ -89,6 +89,20 @@ test("selector 浅比较:无关切片变化不触发重渲染", () => {
   probe2.unmount();
 });
 
+test("卸载期间写入不丢:重新挂载渲染最新快照(回归)", () => {
+  // 回归覆盖:旧实现把快照缓存在模块级 WeakMap,只在 subscribe 回调里刷新。
+  // 组件卸载(无订阅者)期间 store 继续写入,重挂载时读到的仍是陈旧快照。
+  const store = createStore({ name: "t4", initialState: { n: 1 }, actions: { bump: (d) => ({ ...d, n: d.n + 1 }) } });
+  const first = renderProbe(store);
+  assert.equal(first.renders.at(-1).value.n, 1);
+  first.unmount();
+  store.actions.bump();
+  store.actions.bump();
+  const second = renderProbe(store);
+  assert.equal(second.renders.at(-1).value.n, 3, "重挂载应拿到最新快照");
+  second.unmount();
+});
+
 test("shallowEqual 语义", () => {
   assert.equal(shallowEqual({ a: 1 }, { a: 1 }), true);
   assert.equal(shallowEqual({ a: 1 }, { a: 2 }), false);

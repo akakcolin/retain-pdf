@@ -45,7 +45,7 @@ function DocumentRow({ doc, onOpenReader, onCycleStatus }) {
       >
         <span className="lib-search-doc-title">{doc.title || doc.source_filename}</span>
         <span className="lib-search-doc-meta">
-          {doc.page_count} 页{doc.tags.length ? ` · ${doc.tags.join(" / ")}` : ""}
+          {doc.page_count} 页{Array.isArray(doc.tags) && doc.tags.length ? ` · ${doc.tags.join(" / ")}` : ""}
         </span>
       </button>
       <button
@@ -75,6 +75,9 @@ function LibrarySearchPanel({ ports }) {
   useEffect(() => {
     const trimmed = query.trim();
     if (!trimmed) {
+      // 递增 seq 让已在飞行的请求作废——否则它稍后仍通过 seq 校验,
+      // 把旧查询的 hits 写回来,下次输入时先闪一屏陈旧结果。
+      requestSeqRef.current += 1;
       setHits([]);
       setError("");
       return undefined;

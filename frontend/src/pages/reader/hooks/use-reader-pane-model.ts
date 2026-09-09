@@ -1,6 +1,6 @@
 // 双栏挂载/可见性 + 页数 + metrics 修订：从 ReaderAppReactPdf 抽出。
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReaderMode } from "./use-reader-session.js";
 import type { ProtectedPdfFile } from "../pdf/useProtectedPdfFile.js";
 
@@ -101,6 +101,9 @@ export function useReaderPaneModel(
     metricsTimerRef.current = setTimeout(() => {
       setMetricsTick((n) => n + 1);
     }, 60);
+  }, []);
+  useEffect(() => () => {
+    if (metricsTimerRef.current) clearTimeout(metricsTimerRef.current);
   }, []);
 
   const hudNumPages = useMemo(

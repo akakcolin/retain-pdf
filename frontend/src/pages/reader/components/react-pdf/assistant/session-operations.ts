@@ -160,6 +160,7 @@ export function createReaderAskSessionOps({
     setSessionBusy(true);
     setSessionError("");
     const token = ++switchTokenRef.current;
+    const previousConversationId = activeConversationIdRef.current;
 
     // 先切 UI 选中态 + 清空，避免仍显示上一会话内容
     setActiveConversationId(id);
@@ -235,7 +236,11 @@ export function createReaderAskSessionOps({
       console.warn("[reader-ai] switch session failed", error);
       if (token === switchTokenRef.current) {
         setSessionError("加载该对话失败，请检查网络后重试。");
-        // 失败时不要假装已切换：恢复为空，避免展示错会话
+        // 失败时不要假装已切换:选中态要一并回退,否则会话条仍高亮失败的
+        // 会话,而 send 读 activeConversationIdRef,下一问会发进一个 UI
+        // 从未加载过的线程。
+        setActiveConversationId(previousConversationId);
+        activeConversationIdRef.current = previousConversationId;
         setItems([]);
         setHeadId(null);
       }

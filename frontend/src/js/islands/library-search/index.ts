@@ -72,14 +72,16 @@ class LibrarySearchIsland extends HTMLElement {
       patchDocument: (documentId, payload) => patchDocument(API_PREFIX, documentId, payload),
       openReader: (anchor) => {
         const jobId = `${anchor?.job_id || ""}`.trim();
-        if (!jobId) {
+        const documentId = `${anchor?.document_id || ""}`.trim();
+        // 仅馆藏(无 job)的文档也要能打开:ReaderDialog 支持 documentId-only 导航
+        if (!jobId && !documentId) {
           return;
         }
         island.dispatchEvent(new CustomEvent(APP_EVENTS.openReaderRequested, {
           bubbles: true,
           detail: {
             jobId,
-            documentId: `${anchor?.document_id || ""}`.trim(),
+            documentId,
             pageIdx: anchor?.page_idx,
             blockId: `${anchor?.block_id || ""}`.trim(),
           },

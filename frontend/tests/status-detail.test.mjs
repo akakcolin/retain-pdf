@@ -985,6 +985,47 @@ test("status detail translation tab coordinator applies filters and replays sele
   assert.deepEqual(renderCalls.map((call) => call[0]), ["replay-loading", "replay"]);
 });
 
+test("status detail translation tab coordinator clears item detail loading when item request fails (回归)", async () => {
+  // 回归覆盖:loadItem 里 dataPort.loadItem 失败时,changePage/applyFilter 的
+  // catch 只复位 items,itemDetailLoading 会永远停在 true,Item 详情面板一直
+  // 显示"正在读取 item 详情..."。
+  const state = createTranslationState();
+  const renderCalls = [];
+  const dataPort = createStatusDetailTranslationDataPort({
+    translationState: state,
+    apiPrefix: "/api/v1",
+    currentJobId: () => "job-tab-item-fail",
+    fetchTranslationDiagnostics: async () => ({}),
+    fetchTranslationItems: async () => ({ total: 1, items: [{ item_id: "item-fail" }] }),
+    fetchTranslationItem: async () => {
+      throw new Error("item 详情请求失败");
+    },
+    replayTranslationItem: async () => ({}),
+  });
+  const coordinator = createStatusDetailTranslationTabCoordinator({
+    dataPort,
+    renderEmpty: (message) => renderCalls.push(["empty", message]),
+    renderSummary: () => renderCalls.push(["summary"]),
+    renderItems: (options = {}) => renderCalls.push(["items", options]),
+    renderItemDetail: (options = {}) => renderCalls.push(["detail", options]),
+    renderReplay: () => renderCalls.push(["replay"]),
+    setReplayLoading: (payload) => renderCalls.push(["replay-loading", payload]),
+  });
+
+  await coordinator.ensureLoaded();
+
+  const detailCalls = renderCalls.filter((call) => call[0] === "detail");
+  assert.ok(
+    detailCalls.some((call) => call[1]?.loading === true),
+    "详情应先进入 loading 态",
+  );
+  assert.deepEqual(
+    detailCalls[detailCalls.length - 1][1],
+    { loading: false },
+    "失败后必须落 loading=false,否则面板永久停在读取中",
+  );
+});
+
 test("job detail status view model follows main lane display stage", () => {
   const snapshot = buildJobDetailStatusViewModel(
     {

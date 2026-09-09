@@ -70,15 +70,23 @@ export function useHomeReturnRestore(ready: boolean) {
     state = consumeHomeReturnState();
     if (!state) return;
 
+    const timers: number[] = [];
+    let disposed = false;
     // 双 rAF：等布局 / 图片占位后再设 scrollTop
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
+        if (disposed) return;
         applyHomeReturnScroll(state!);
         // 列表异步增高时再补一次
         for (const delay of RETURN_SCROLL_RETRY_DELAYS_MS) {
-          window.setTimeout(() => applyHomeReturnScroll(state!), delay);
+          timers.push(window.setTimeout(() => applyHomeReturnScroll(state!), delay));
         }
       });
     });
+    // 切 tab/卸载后旧定时器会对着新视图写 scrollTop
+    return () => {
+      disposed = true;
+      timers.forEach((id) => window.clearTimeout(id));
+    };
   }, [ready]);
 }

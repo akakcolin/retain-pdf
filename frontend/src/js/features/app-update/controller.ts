@@ -25,10 +25,18 @@ export function mountAppUpdateFeature({
     }
   }
 
+  let inFlight = false;
+
   async function checkForUpdates({ manual = false }: any = {}) {
     if (!enabled) {
       return false;
     }
+    // 挂载后 1200ms 的自动检查与用户点"重新检查"可能重叠,后到者会覆盖
+    // 先前结果;同一时刻只允许一次。
+    if (inFlight) {
+      return false;
+    }
+    inFlight = true;
     if (manual) {
       viewPort.setChecking();
     }
@@ -41,6 +49,8 @@ export function mountAppUpdateFeature({
       if (manual) {
         viewPort.setError(error);
       }
+    } finally {
+      inFlight = false;
     }
     return true;
   }

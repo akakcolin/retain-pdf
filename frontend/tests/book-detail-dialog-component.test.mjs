@@ -114,6 +114,43 @@ test("馆藏卡打开书籍详情:元数据 + 阅读状态切换 + 翻译/读原
   host.remove();
 });
 
+test("书籍详情:阅读状态 PATCH 失败时回滚乐观更新(回归)", async () => {
+  // 回归覆盖:withBusy 内部 catch 掉异常且不 rethrow,原来挂在 .catch 上的
+  // setReadingStatus(previous) 永远不执行——PATCH 失败后 pill 停在未保存的新值。
+  const dom = makeDom("?mock=parallel");
+  const byId = (id) => dom.window.document.getElementById(id);
+  const { services, root, host } = await bootHomeApp(dom);
+
+  const card = await waitFor(
+    () => dom.window.document.querySelector('#recent-jobs-list .recent-job-item[data-library-only="true"]'),
+    "馆藏卡就位",
+  );
+  click(dom, card);
+
+  const dlg = await waitFor(() => byId("book-detail-dialog"), "书籍详情弹窗打开");
+  await waitFor(() => dlg.querySelector(".book-detail-title")?.textContent?.trim(), "标题就位");
+
+  services.library.actions.updateDocument = () => Promise.reject(new Error("网络不可用"));
+
+  // mock 文档是模块级可变状态,前一个用例可能已把本书改成 done,这里不绑定
+  // 具体状态:挑一个当前未激活的按钮切过去即可。
+  const readBtns = Array.from(dlg.querySelectorAll(".book-detail-reading-btn"));
+  const targetBtn = readBtns.find((b) => !b.classList.contains("is-active"));
+  assert.ok(targetBtn, "存在可切换的阅读状态按钮");
+
+  click(dom, targetBtn);
+  await waitFor(() => dlg.textContent.includes("网络不可用"), "失败错误提示出现");
+  assert.equal(
+    targetBtn.classList.contains("is-active"),
+    false,
+    "PATCH 失败后必须回滚,不能停在未保存的新状态",
+  );
+
+  root.unmount();
+  services.dispose();
+  host.remove();
+});
+
 test("已翻译卡打开书籍详情:有对照阅读,可再次发起翻译", async () => {
   const dom = makeDom("?mock=parallel");
   const byId = (id) => dom.window.document.getElementById(id);
@@ -193,6 +230,47 @@ test("已翻译卡打开书籍详情:有对照阅读,可再次发起翻译", asy
     `按钮文案应为重新翻译，实际: ${translateBtn.textContent}`,
   );
   assert.ok(byId("book-detail-read-source-btn"), "仍可读原文");
+
+  root.unmount();
+  services.dispose();
+  host.remove();
+});
+
+test("书籍详情:全局 statusCard 跟踪别的 job 时不误判本书状态(回归)", async () => {
+  // 回归覆盖:statusCard 是全局单任务轮询快照。不比对 jobId 就采信它,
+  // 会在"别的书正在翻译"时把本书已翻译的对照阅读按钮藏掉、并显示处理中。
+  const dom = makeDom("?mock=parallel");
+  const byId = (id) => dom.window.document.getElementById(id);
+  const { services, root, host } = await bootHomeApp(dom);
+
+  const card = await waitFor(
+    () => dom.window.document.querySelector('#recent-jobs-list .recent-job-item[data-library-only="false"][data-status="succeeded"]'),
+    "已翻译卡就位",
+  );
+  click(dom, card);
+  const dlg = await waitFor(() => byId("book-detail-dialog"), "书籍详情弹窗打开");
+  await waitFor(() => dlg.querySelector(".book-detail-title")?.textContent?.trim(), "标题就位");
+  assert.ok(byId("book-detail-compare-btn"), "基线:本书已翻译,有对照阅读");
+
+  // 另一本书的 job 正在跑:把全局快照切到它
+  const { act } = await import("react");
+  const previousSnapshot = services.statusCard.store.getSnapshot().snapshot;
+  await act(async () => {
+    services.statusCard.store.actions.setSnapshot({
+      ...previousSnapshot,
+      jobId: "job-other-book",
+      status: "running",
+    });
+  });
+  assert.equal(
+    services.statusCard.store.getSnapshot().snapshot.jobId,
+    "job-other-book",
+    "快照已切到别的 job",
+  );
+  assert.ok(
+    byId("book-detail-compare-btn"),
+    "别的 job 的 running 不得藏掉本书的对照阅读",
+  );
 
   root.unmount();
   services.dispose();

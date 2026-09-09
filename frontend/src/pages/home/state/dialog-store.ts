@@ -39,7 +39,9 @@ export function createDialogStore<T = unknown>(initialPayload: T | null = null):
     },
     getState: () => state,
     open(payload = null) {
-      state = { open: true, payload: payload === null ? state.payload : (payload as T) };
+      // 传 null = 显式清空负载(合集"新建"模式);不再沿用旧 payload——否则
+      // 管理过某合集后再点"新建合集",弹窗仍是"管理合集"并带着上次的勾选态。
+      state = { open: true, payload: payload as T };
       notify();
       return state;
     },

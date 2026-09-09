@@ -16,7 +16,7 @@ export function createStatusDetailTranslationTabCoordinator({
 
   function renderSelectionPlaceholder(selection) {
     renderItemDetail({
-      emptyText: selection?.selectedItemId ? "请选择左侧 item" : "没有可查看的 item",
+      emptyText: selection?.selectedItemId ? "没有可查看的 item" : "请选择左侧 item",
     });
     renderReplay();
   }
@@ -47,7 +47,14 @@ export function createStatusDetailTranslationTabCoordinator({
     renderItems();
     renderItemDetail({ loading: true });
     renderReplay();
-    await dataPort.loadItem(jobId, itemId);
+    try {
+      await dataPort.loadItem(jobId, itemId);
+    } catch (error) {
+      // 详情请求失败也要落 loading=false:否则 Item 详情面板永远停在
+      // "正在读取 item 详情..."(changePage/applyFilter 的 catch 只复位 items)。
+      renderItemDetail({ loading: false });
+      throw error;
+    }
     renderItemDetail();
   }
 

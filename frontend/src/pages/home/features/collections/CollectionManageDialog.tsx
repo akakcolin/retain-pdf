@@ -41,12 +41,20 @@ export function CollectionManageDialog() {
 
   useEffect(() => {
     if (!open) {
+      // 关闭即清 busy:删除成功分支直接 close() 没有复位 saving,而对话框常驻
+      // 挂载(HomeApp 顶层),下次打开会一直显示"保存中…"且保存/删除全禁用。
       setConfirmingDelete(false);
+      setSaving(false);
+      setLoading(false);
       return undefined;
     }
     let cancelled = false;
     setError("");
     setName(editing?.name || "");
+    // 勾选态先清空再等成员列表回来:否则复用上一份 allDocuments 的旧列表会
+    // 带着上次会话的勾选闪一下(新建模式尤其明显——memberIds 恒为空)。
+    setSelectedIds([]);
+    setOriginalIds([]);
     // 已有书目数据时 soft 重拉（切编辑目标），不整表 loading 闪空
     setLoading((prev) => (allDocuments.length === 0 ? true : prev));
     const documentsPromise = controller.listAllDocuments();

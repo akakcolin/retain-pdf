@@ -64,7 +64,7 @@ export function TranslationItemDetailPanel({ translation, onReplay }) {
   const loading = translation.itemDetailLoading;
   const hasItem = Boolean(payload?.item);
   const emptyText = translation.itemErrorText
-    || (translation.selectedItemId ? "请选择左侧 item" : "没有可查看的 item");
+    || (translation.selectedItemId ? "没有可查看的 item" : "请选择左侧 item");
   const meta = loading
     ? "读取中..."
     : hasItem

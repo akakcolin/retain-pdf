@@ -10,6 +10,7 @@
 // 头注释结论：其字段 ref 在保存时被统一读取，卸载会复现"切到 API 面板点
 // 保存，任务选项静默丢失"。
 
+import { useState } from "react";
 import { Tabs as TabsPrimitive } from "radix-ui";
 import { CREDENTIAL_DOM_IDS } from "./credentials-dom-ids.js";
 import { useCredentialsController } from "./useCredentialsController.js";
@@ -30,6 +31,8 @@ const TABS = [
 
 export function CredentialsWorkbench() {
   const { view, feature, handlers } = useCredentialsController();
+  // 保存是异步写 localStorage + 桌面 snapshot/IPC,双击会并发跑两次
+  const [saving, setSaving] = useState(false);
 
   const setupMode = Boolean(view.setupMode);
   const activeTab = view.activeTab || "api";
@@ -93,7 +96,16 @@ export function CredentialsWorkbench() {
           <Button
             id={BROWSER_IDS.saveButton}
             className="app-button"
-            onClick={() => handlers?.save?.()}
+            disabled={saving}
+            onClick={async () => {
+              if (saving) return;
+              setSaving(true);
+              try {
+                await handlers?.save?.();
+              } finally {
+                setSaving(false);
+              }
+            }}
           >
             {setupMode ? "保存并启动" : "保存"}
           </Button>

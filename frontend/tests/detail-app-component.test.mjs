@@ -255,3 +255,38 @@ test("DetailApp:缺少 job_id 时提示且不发起请求", async () => {
   root.unmount();
   host.remove();
 });
+
+test("DetailApp:下载链接连点只发起一次受保护请求(回归)", async () => {
+  // 回归覆盖:aria-disabled 只在任务未就绪时置位,产物就绪后双击会并发跑
+  // 两次 fetch+保存,写出两个重复文件。守卫必须在 await 之前同步上锁。
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+
+  const ports = makePorts();
+  let protectedCalls = 0;
+  ports.dataPort.fetchProtected = () => {
+    protectedCalls += 1;
+    return new Promise(() => {}); // 挂起,模拟慢下载
+  };
+
+  const root = createRoot(host);
+  root.render(React.createElement(DetailApp, {
+    configPort: ports.configPort,
+    dataPort: ports.dataPort,
+    getJobId: ports.getJobId,
+    resumePort: ports.resumePort,
+  }));
+  await waitFor(
+    () => byId("detail-pdf-btn")?.getAttribute("aria-disabled") === "false",
+    "pdf 下载就绪",
+  );
+
+  const pdfBtn = byId("detail-pdf-btn");
+  click(pdfBtn);
+  click(pdfBtn);
+  await waitFor(() => protectedCalls > 0, "第一次下载已发起");
+  assert.equal(protectedCalls, 1, "连点只应发起一次受保护请求");
+
+  root.unmount();
+  host.remove();
+});

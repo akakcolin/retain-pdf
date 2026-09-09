@@ -51,22 +51,24 @@ export function BookDetailDialog() {
   const cardStatus = `${statusCardState?.snapshot?.status || ""}`.trim().toLowerCase();
   const cardJobId = `${statusCardState?.snapshot?.jobId || ""}`.trim();
   const documentId = `${item.document_id || ""}`.trim();
-  const jobId = `${item.job_id || item.active_job_id || cardJobId || ""}`.trim();
+  const ownJobId = `${item.job_id || item.active_job_id || ""}`.trim();
+  const jobId = `${ownJobId || cardJobId || ""}`.trim();
+  // statusCard 是全局单任务轮询快照,只有它正在跟的就是本弹窗这个 job 时才采信;
+  // 否则会把"别的书正在翻译"当成本书状态(隐藏阅读入口 / 显示处理中)。
+  const cardStatusHere = ownJobId && cardJobId === ownJobId ? cardStatus : "";
   const libraryOnly = isLibraryOnlyItem(item);
   const status = statusOf(item);
   const coverUrl = useRecentJobCover(item);
   const readerAvailable = `${item.status || ""}`.trim() === "succeeded"
-    && !["running", "queued", "pending"].includes(cardStatus);
+    && !["running", "queued", "pending"].includes(cardStatusHere);
   // 已翻译(succeeded)同样允许再次发起翻译(后端每次创建新 job);
   // running/queued/pending 期间不显示表单(isActive 分支接管)。
   const canTranslate = libraryOnly
     || ["failed", "succeeded"].includes(`${item.status || ""}`.trim());
   const isActive = isRecentJobActive(item)
-    || ["running", "queued", "pending"].includes(cardStatus);
+    || ["running", "queued", "pending"].includes(cardStatusHere);
   // 封面转圈：书架 live 行 + statusCard 正在跑（重试后 payload 可能仍是旧 succeeded）
-  const coverProcessing = isActive
-    || isLibraryCardProcessing(item)
-    || (Boolean(cardJobId) && ["running", "queued", "pending"].includes(cardStatus));
+  const coverProcessing = isActive || isLibraryCardProcessing(item);
 
   // 点「翻译整本」/ 网格选中活跃任务：强制翻译 Tab，进度在 bd-job-status-inner
   const [preferTranslateTab, setPreferTranslateTab] = useState(false);

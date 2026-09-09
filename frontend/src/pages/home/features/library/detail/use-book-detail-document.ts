@@ -78,7 +78,9 @@ export function useBookDetailDocument({
         setTags(fullTags);
         setTagsText(fullTags.join("、"));
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (!cancelled) setError(err?.message || "加载文档详情失败");
+      });
     if (collectionsCtl) {
       collectionsCtl
         .listCollections()
@@ -103,7 +105,9 @@ export function useBookDetailDocument({
           );
           if (!cancelled) setCollections(withMembership);
         })
-        .catch(() => {});
+        .catch((err) => {
+          if (!cancelled) setError(err?.message || "加载合集失败");
+        });
     }
     return () => {
       cancelled = true;
@@ -120,8 +124,10 @@ export function useBookDetailDocument({
     setError("");
     try {
       await fn();
+      return true;
     } catch (err) {
       setError(err?.message || failMessage);
+      return false;
     } finally {
       setBusy("");
     }
@@ -131,11 +137,14 @@ export function useBookDetailDocument({
     if (value === readingStatus || busy) return;
     const previous = readingStatus;
     setReadingStatus(value);
-    await withBusy(
+    // withBusy 吞掉异常并返回 false,回滚必须靠返回值——原来挂在 .catch 上
+    // 永远不执行,失败后 pill 停在未保存的新值。
+    const ok = await withBusy(
       "reading",
       () => actions.updateDocument(documentId, { reading_status: value }),
       "更新阅读状态失败",
-    ).catch(() => setReadingStatus(previous));
+    );
+    if (!ok) setReadingStatus(previous);
   }
 
   function startEdit() {

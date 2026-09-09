@@ -385,6 +385,212 @@ test("HomeApp：分类管理对话框快速切换编辑目标不被迟到响应�
   host.remove();
 });
 
+test("HomeApp：合集 tab 在 version>0 时首屏不卡在“正在加载合集…”(回归)", async () => {
+  // 回归覆盖:CategoriesView 挂载 effect 用 `version > 0` 判断是否走 soft
+  // 刷新,而 soft 分支从不把 listLoading 置回 false。若在合集 tab 未挂载期间
+  // 发生过 bump(书详情加入合集、批量加入等),切回合集 tab 首屏 listLoading
+  // 停在初始 true,列表永远显示“正在加载合集…”。
+  const host = dom.window.document.createElement("div");
+  host.id = "home-root-categories-loading";
+  dom.window.document.body.appendChild(host);
+
+  const services = createServices();
+  services.initialize();
+  services.collections.controller.listCollections = () => Promise.resolve({
+    collections: [{ collection_id: "col-1", name: "化学", document_count: 1 }],
+  });
+  services.collections.controller.fetchFolderBooks = () => Promise.resolve([]);
+
+  const root = createRoot(host);
+  root.render(React.createElement(HomeApp, { services }));
+  await waitFor(() => byId("app-shell"), "HomeApp 首帧渲染");
+  await wait(0);
+
+  // 图书馆 tab 期间发生一次 bump(此时合集视图未挂载)
+  services.collections.reloadSignal.actions.bump();
+
+  click(byId("library-top-tab-categories"));
+  await waitFor(() => byId("categories-view") !== null, "合集视图挂载");
+  await waitFor(() => byId("categories-grid") !== null, "合集列表渲染(不应停留在加载态)");
+
+  root.unmount();
+  services.dispose();
+  host.remove();
+});
+
+test("HomeApp：删除合集成功后重开弹窗不卡在“保存中…”(回归)", async () => {
+  // 回归覆盖:handleDelete 成功分支只 close() 没复位 saving,而弹窗常驻挂载,
+  // 重开后保存按钮一直显示“保存中…”且保存/删除全禁用,只能刷新页面。
+  const host = dom.window.document.createElement("div");
+  host.id = "home-root-collection-delete";
+  dom.window.document.body.appendChild(host);
+
+  const services = createServices();
+  services.initialize();
+  services.collections.controller.listCollections = () => Promise.resolve({
+    collections: [{ collection_id: "col-1", name: "化学", document_count: 1 }],
+  });
+  services.collections.controller.fetchFolderBooks = () => Promise.resolve([]);
+  services.collections.controller.listAllDocuments = () => Promise.resolve([
+    { document_id: "doc-1", title: "Doc One" },
+  ]);
+  services.collections.controller.listCollectionDocumentIds = () => Promise.resolve(["doc-1"]);
+  services.collections.controller.deleteCollection = () => Promise.resolve({});
+
+  const root = createRoot(host);
+  root.render(React.createElement(HomeApp, { services }));
+  await waitFor(() => byId("app-shell"), "HomeApp 首帧渲染");
+  await wait(0);
+
+  services.collections.dialogStore.open({ collection_id: "col-1", name: "化学" });
+  await waitFor(() => byId("collection-manage-dialog") !== null, "管理对话框打开");
+  await waitFor(() => byId("collection-delete-btn") !== null, "删除按钮挂载");
+
+  click(byId("collection-delete-btn"));
+  await waitFor(
+    () => byId("collection-delete-btn").textContent.includes("确认删除"),
+    "第一次点击进入确认态",
+  );
+  click(byId("collection-delete-btn"));
+  await waitFor(() => byId("collection-manage-dialog") === null, "删除成功后对话框关闭");
+
+  services.collections.dialogStore.open({ collection_id: "col-1", name: "化学" });
+  await waitFor(() => byId("collection-manage-dialog") !== null, "重新打开管理对话框");
+  await wait(0);
+  assert.equal(byId("collection-save-btn").textContent, "保存", "重开不应残留“保存中…”");
+  assert.equal(byId("collection-save-btn").disabled, false, "重开后保存按钮不应禁用");
+  assert.equal(byId("collection-delete-btn").disabled, false, "重开后删除按钮不应禁用");
+
+  root.unmount();
+  services.dispose();
+  host.remove();
+});
+
+test("HomeApp：合集成员变更(version bump)后已打开文件夹的书目列表刷新(回归)", async () => {
+  // 回归覆盖:文件夹书目 effect 依赖只有 [controller, openFolderId],从书详情
+  // 增删该合集成员时 openFolderId 不变,列表停在旧数据(封面缩略图却刷新了)。
+  const host = dom.window.document.createElement("div");
+  host.id = "home-root-folder-refresh";
+  dom.window.document.body.appendChild(host);
+
+  const services = createServices();
+  services.initialize();
+  let books = [];
+  services.collections.controller.listCollections = () => Promise.resolve({
+    collections: [{ collection_id: "col-1", name: "化学", document_count: 1 }],
+  });
+  services.collections.controller.fetchFolderBooks = () => Promise.resolve(books);
+
+  const root = createRoot(host);
+  root.render(React.createElement(HomeApp, { services }));
+  await waitFor(() => byId("app-shell"), "HomeApp 首帧渲染");
+  await wait(0);
+
+  click(byId("library-top-tab-categories"));
+  await waitFor(() => byId("categories-grid") !== null, "合集列表渲染");
+  click(dom.window.document.querySelector("#categories-grid .category-card-open"));
+  await waitFor(() => byId("categories-folder-view") !== null, "文件夹视图打开");
+  await waitFor(
+    () => dom.window.document.querySelector("#categories-folder-view .events-empty, #categories-folder-view .recent-jobs-list"),
+    "文件夹书目进入空态",
+  );
+  assert.equal(
+    dom.window.document.querySelector("#categories-folder-view .recent-jobs-list"),
+    null,
+    "初始空合集不渲染列表",
+  );
+
+  // 模拟从书详情把一本书加进这个合集 → reloadSignal bump
+  books = [{
+    job_id: "job-1",
+    title: "Book One",
+    display_name: "Book One",
+    status: "succeeded",
+    display_stage: "done",
+    substage: "",
+    page_count: 10,
+    updated_at: "2026-07-01T00:00:00Z",
+  }];
+  services.collections.reloadSignal.actions.bump();
+
+  await waitFor(
+    () => dom.window.document.querySelector("#categories-folder-view .recent-jobs-list") !== null,
+    "version bump 后文件夹书目列表刷新",
+  );
+
+  root.unmount();
+  services.dispose();
+  host.remove();
+});
+
+test("HomeApp：点“新建合集”不残留上次管理合集的 payload 与勾选(回归)", async () => {
+  // 回归覆盖:createDialogStore().open(null) 曾把 null 当作“保持原 payload”,
+  // 于是管理过某合集后再点“新建合集”,弹窗仍是“管理合集”并带着该合集的书目
+  // 勾选态。
+  const host = dom.window.document.createElement("div");
+  host.id = "home-root-categories-create";
+  dom.window.document.body.appendChild(host);
+
+  const services = createServices();
+  services.initialize();
+  services.collections.controller.listCollections = () => Promise.resolve({
+    collections: [{ collection_id: "col-1", name: "化学", document_count: 1 }],
+  });
+  services.collections.controller.fetchFolderBooks = () => Promise.resolve([]);
+  services.collections.controller.listAllDocuments = () => Promise.resolve([
+    { document_id: "doc-1", title: "Doc One" },
+  ]);
+  services.collections.controller.listCollectionDocumentIds = () => Promise.resolve(["doc-1"]);
+
+  const root = createRoot(host);
+  root.render(React.createElement(HomeApp, { services }));
+  await waitFor(() => byId("app-shell"), "HomeApp 首帧渲染");
+  await wait(0);
+
+  click(byId("library-top-tab-categories"));
+  await waitFor(() => byId("categories-grid") !== null, "合集列表渲染");
+
+  // 管理合集 col-1:应勾选它自己的书
+  services.collections.dialogStore.open({ collection_id: "col-1", name: "化学" });
+  await waitFor(() => byId("collection-manage-dialog") !== null, "管理对话框打开");
+  await waitFor(
+    () => dom.window.document.querySelector("#collection-manage-dialog input[type=checkbox]"),
+    "书目清单渲染",
+  );
+  assert.equal(
+    dom.window.document.querySelector("#collection-manage-dialog input[type=checkbox]").checked,
+    true,
+    "管理模式下 col-1 的书应勾选",
+  );
+
+  services.collections.dialogStore.close();
+  await waitFor(() => byId("collection-manage-dialog") === null, "关闭管理对话框");
+
+  // 点“新建合集”:必须是干净的新建态
+  click(byId("categories-create-btn"));
+  await waitFor(() => byId("collection-manage-dialog") !== null, "新建对话框打开");
+  await waitFor(
+    () => dom.window.document.querySelector("#collection-manage-dialog input[type=checkbox]"),
+    "新建模式书目清单渲染",
+  );
+  assert.equal(
+    byId("collection-manage-dialog").querySelector("h2").textContent,
+    "新建合集",
+    "标题应为新建合集,而不是管理合集",
+  );
+  assert.equal(byId("collection-name-input").value, "", "名称应清空");
+  assert.equal(byId("collection-delete-btn"), null, "新建模式不应有删除按钮");
+  assert.equal(
+    dom.window.document.querySelector("#collection-manage-dialog input[type=checkbox]").checked,
+    false,
+    "新建模式不应保留上次管理合集的勾选",
+  );
+
+  root.unmount();
+  services.dispose();
+  host.remove();
+});
+
 test("HomeApp：3b 回调桥接口定型(蓝图 §4)", () => {
   const services = createServices();
   // mountJobRuntimeFeature / status-detail / credentials 接线所需的回调名
