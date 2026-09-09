@@ -30,6 +30,7 @@ import {
   ChevronRight,
   FlaskConical,
   GitBranch,
+  Library,
   ListTree,
   Loader2,
   RefreshCw,
@@ -96,6 +97,9 @@ export type ReaderAssistantThreadProps = {
   /** 从助手答案开新会话窗口（复制到该点的历史） */
   onBranchFromAnswer?: (assistantMessageId: string) => void | Promise<boolean | void>;
   branchBusy?: boolean;
+  /** 检索范围：document=仅当前文档；library=全库 */
+  retrievalScope?: "document" | "library";
+  onRetrievalScopeChange?: (scope: "document" | "library") => void;
 };
 
 type AskUiContextValue = {
@@ -592,6 +596,8 @@ export function ReaderAssistantThread({
   onJumpCitation,
   onBranchFromAnswer,
   branchBusy = false,
+  retrievalScope = "document",
+  onRetrievalScopeChange,
 }: ReaderAssistantThreadProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   useViewportStickBottom(viewportRef, branchBusy);
@@ -696,10 +702,25 @@ export function ReaderAssistantThread({
                 submitOnEnter
               />
               <div className="aui-composer-toolbar">
-                <span className="aui-composer-chip" title="检索范围">
-                  <BookOpen size={12} strokeWidth={2.2} aria-hidden />
-                  当前文档
-                </span>
+                <button
+                  type="button"
+                  className={`aui-composer-chip aui-composer-chip--scope${retrievalScope === "library" ? " is-library" : ""}`}
+                  title={retrievalScope === "library" ? "检索范围：全库（点击切回当前文档）" : "检索范围：当前文档（点击切到全库）"}
+                  aria-label={retrievalScope === "library" ? "当前检索范围为全库，点击切换为当前文档" : "当前检索范围为当前文档，点击切换为全库"}
+                  aria-pressed={retrievalScope === "library"}
+                  onClick={() =>
+                    onRetrievalScopeChange?.(
+                      retrievalScope === "library" ? "document" : "library",
+                    )
+                  }
+                >
+                  {retrievalScope === "library" ? (
+                    <Library size={12} strokeWidth={2.2} aria-hidden />
+                  ) : (
+                    <BookOpen size={12} strokeWidth={2.2} aria-hidden />
+                  )}
+                  {retrievalScope === "library" ? "全库" : "当前文档"}
+                </button>
                 {/* 停止/发送互斥占同一位：双钮常驻会让「停止」在 95% 时间是死按钮 */}
                 <div className="aui-composer-actions">
                   <ThreadPrimitive.If running>

@@ -90,6 +90,12 @@ impl<'a> RetrievalAgent<'a> {
             user_content = format!("{prefix}{user_content}");
         }
         let mut messages: Vec<Value> = vec![json!({"role": "system", "content": SYSTEM_PROMPT})];
+        // 全库问答:确定性图谱线索先于 history 注入。单文档路径不注入(零回归)。
+        if scoped_document_id.is_empty() {
+            if let Some(seed) = self.tools.graph_seed(question.trim()) {
+                messages.push(json!({"role": "system", "content": seed}));
+            }
+        }
         // 多轮对话:只回放 role/content,工具轨迹不回放
         for turn in history {
             if matches!(turn.role.as_str(), "user" | "assistant") && !turn.content.trim().is_empty()
@@ -932,6 +938,14 @@ mod tests {
                 .map(|(_, tools)| tools.clone())
                 .unwrap_or_default()
         }
+        fn first_messages(&self) -> Vec<Value> {
+            self.calls
+                .lock()
+                .unwrap()
+                .first()
+                .map(|(messages, _)| messages.clone())
+                .unwrap_or_default()
+        }
     }
 
     impl Chat for ScriptedChat {
@@ -1298,5 +1312,79 @@ mod tests {
             "未知工具错误应回喂给模型: {contents:?}"
         );
         assert!(contents.iter().any(|content| content.contains("ref")));
+    }
+
+    #[tokio::test]
+    async fn ask_loop_injects_graph_seed_only_for_library_scope() {
+        let fs = TestDb::new("graph-seed");
+        let db = fs.db();
+        db.init().expect("init");
+        seed_search_doc(&db, "graph-seed");
+        let document_id = sha256_hex(b"ai-agent-graph-seed");
+        let entity = db
+            .upsert_entity(&NewEntity {
+                name: "选择性".to_string(),
+                entity_type: "concept".to_string(),
+                aliases: Vec::new(),
+                description: String::new(),
+            })
+            .expect("entity");
+        db.link_block_entity(&BlockEntityLink {
+            document_id,
+            entity_id: entity.entity_id.clone(),
+            page_idx: 3,
+            block_id: "p004-b0002".to_string(),
+            job_id: "job-1".to_string(),
+            surface_form: "选择性".to_string(),
+            snippet: "选择性来自共轭效应".to_string(),
+            confidence: 0.9,
+            source: "extraction".to_string(),
+        })
+        .expect("link");
+        db.upsert_entity_page(
+            &EntityPageRecord {
+                entity_id: entity.entity_id.clone(),
+                body_md: "综述正文 [1]。".to_string(),
+                citations: Vec::new(),
+                evidence_sig: "sig".to_string(),
+                generated_at: now_iso(),
+                edited_body_md: String::new(),
+                edited_at: String::new(),
+            },
+            true,
+        )
+        .expect("page");
+
+        // 全库模式(document_id/job_id 皆空)→ SYSTEM_PROMPT 之后多一条 seed system
+        let fake = ScriptedChat::new(vec![ScriptedChat::answer("答 [1]。")]);
+        RetrievalAgent::new(AiTools::new(&db, &fs.data_root), 4)
+            .ask(&fake, "为什么有选择性?", "", "", &[], |_| {})
+            .await
+            .expect("ask");
+        let messages = fake.first_messages();
+        assert_eq!(messages[0]["role"], "system");
+        assert!(messages[0]["content"].as_str().unwrap().contains("RetainPDF"));
+        assert_eq!(messages[1]["role"], "system", "全库模式注入 seed: {messages:?}");
+        let seed = messages[1]["content"].as_str().unwrap();
+        assert!(seed.contains("选择性"), "seed 含实体名: {seed}");
+        assert!(seed.contains("选择性来自共轭效应"), "seed 含提及: {seed}");
+        assert!(seed.contains("综述正文 。"), "概念页已剥 [n]: {seed}");
+        assert!(!seed.contains("[1]"), "seed 无引用编号: {seed}");
+
+        // 单文档模式 → 只有 SYSTEM_PROMPT,seed 不注入(零回归)
+        let scoped_fake = ScriptedChat::new(vec![ScriptedChat::answer("答 [1]。")]);
+        RetrievalAgent::new(AiTools::new(&db, &fs.data_root), 4)
+            .ask(&scoped_fake, "为什么有选择性?", "doc-scoped", "", &[], |_| {})
+            .await
+            .expect("ask scoped");
+        let scoped_messages = scoped_fake.first_messages();
+        assert_eq!(
+            scoped_messages
+                .iter()
+                .filter(|message| message["role"] == "system")
+                .count(),
+            1,
+            "单文档模式只有 SYSTEM_PROMPT: {scoped_messages:?}"
+        );
     }
 }

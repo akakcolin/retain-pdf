@@ -129,6 +129,25 @@
   white-space: nowrap;
 }
 
+/* 检索范围切换 chip：当前文档 / 全库 */
+.reader-float-ai .aui-composer-chip--scope {
+  border: 0;
+  background: color-mix(in srgb, var(--ink) 6%, var(--paper));
+  color: color-mix(in srgb, var(--ink) 72%, var(--muted));
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.reader-float-ai .aui-composer-chip--scope:hover {
+  background: color-mix(in srgb, var(--ink) 10%, var(--paper));
+}
+
+.reader-float-ai .aui-composer-chip--scope.is-library {
+  background: color-mix(in srgb, var(--accent) 14%, var(--paper));
+  color: var(--accent);
+  font-weight: 650;
+}
+
 .reader-float-ai .aui-composer-actions {
   display: inline-flex;
   align-items: center;

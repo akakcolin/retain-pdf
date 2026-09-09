@@ -57,8 +57,10 @@ export type ReaderAskSessionSummary = {
 export function useReaderAskRuntime(options: {
   jobId: string;
   enabled: boolean;
+  /** 检索范围：document=仅当前文档；library=全库 */
+  retrievalScope?: "document" | "library";
 }) {
-  const { jobId, enabled } = options;
+  const { jobId, enabled, retrievalScope = "document" } = options;
   const [items, setItems] = useState<TreeItem[]>([]);
   const [headId, setHeadId] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -448,6 +450,7 @@ export function useReaderAskRuntime(options: {
         result = await remoteAnswerer!.answer({
           question,
           scope: "document",
+          retrievalScope,
           parentId: opts.parentId || "",
           regenerate: Boolean(opts.regenerate),
           userMessageId: opts.userMessageId || "",
@@ -471,7 +474,10 @@ export function useReaderAskRuntime(options: {
       } catch (error) {
         // 主动取消：不降级、不报错，气泡状态已由 onCancel 定格
         if (controller.signal.aborted) return;
-        if (!localAnswerer || !shouldFallbackToLocal(error)) throw error;
+        // 全库模式不降级：本地检索是文档级，会答非所问
+        if (retrievalScope === "library" || !localAnswerer || !shouldFallbackToLocal(error)) {
+          throw error;
+        }
         usedFallback = true;
         if (!answerStartedRef.current) {
           patchAssistant(assistantId, {
@@ -537,7 +543,7 @@ export function useReaderAskRuntime(options: {
         setIsRunning(false);
       }
     }
-  }, [jobId, localAnswerer, patchAssistant, remoteAnswerer, scheduleAnswerText]);
+  }, [jobId, localAnswerer, patchAssistant, remoteAnswerer, retrievalScope, scheduleAnswerText]);
 
   const onNew = useCallback(async (message: AppendMessage) => {
     if (runningRef.current) return;

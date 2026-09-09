@@ -9,6 +9,21 @@ use crate::db::Db;
 
 use super::blocks::{read_page_blocks, Block};
 
+/// 图谱 seed 上限:最多注入几个实体、每页正文截多长、整块总长。
+const SEED_ENTITIES: usize = 3;
+const SEED_PAGE_CHARS: usize = 1200;
+const SEED_CHAR_CAP: usize = 6000;
+
+/// 按字符(非字节)截断,超出补省略号——避免切坏多字节字符。
+fn clip_chars(text: &str, max: usize) -> String {
+    if text.chars().count() <= max {
+        return text.to_string();
+    }
+    let mut out: String = text.chars().take(max).collect();
+    out.push('…');
+    out
+}
+
 /// job_id 白名单:字母数字开头 + [-._] 组成,禁止路径分隔符/..
 /// 关键安全边界——job_id 来自模型工具参数(上下文含文档内容 = 提示注入面),
 /// 直接拼进 data_root/jobs/<job_id> 前必须过这道闸,否则可目录穿越。
@@ -558,6 +573,60 @@ impl<'a> AiTools<'a> {
         })
     }
 
+    /// 全库问答的确定性图谱预检索:问题里字面命中的实体 → 概念页正文 + 提及片段 + 关系,
+    /// 拼成纯文本线索注入 system 消息。**不带 ref 编号**——引用必须来自后续工具结果。
+    /// 无命中(含空库)→ None,调用方走原路径。
+    pub(crate) fn graph_seed(&self, question: &str) -> Option<String> {
+        let hits = self.db.entities_mentioned_in(question, 20).ok()?;
+        if hits.is_empty() {
+            return None;
+        }
+        let mut out = String::from(
+            "图谱预检索线索(来自实体图谱与既有概念页;以下是线索、没有引用编号——引用必须来自后续工具结果,不得对以下内容编造 [n]):\n",
+        );
+        for entity in hits.iter().take(SEED_ENTITIES) {
+            if out.chars().count() >= SEED_CHAR_CAP {
+                break;
+            }
+            out.push_str(&format!("\n## {} ({})\n", entity.name, entity.entity_type));
+            if !entity.aliases.is_empty() {
+                out.push_str(&format!("别名: {}\n", entity.aliases.join("、")));
+            }
+            if let Ok(Some(page)) = self.db.get_entity_page(&entity.entity_id) {
+                let body = crate::services::graph::page::strip_wikilinks(
+                    &crate::services::graph::page::strip_citation_markers(page.effective_body()),
+                );
+                let body = body.trim();
+                if !body.is_empty() {
+                    out.push_str("概念页摘要: ");
+                    out.push_str(&clip_chars(body, SEED_PAGE_CHARS));
+                    out.push('\n');
+                }
+            }
+            if let Ok(mentions) = self.db.list_entity_mentions(&entity.entity_id, None, 5) {
+                for mention in mentions {
+                    let snippet = mention.snippet.trim();
+                    if !snippet.is_empty() {
+                        out.push_str(&format!("提及: {}\n", clip_chars(snippet, 200)));
+                    }
+                }
+            }
+            if let Ok(related) = self.db.related_entities(&entity.entity_id, None, 8) {
+                let names: Vec<String> = related
+                    .iter()
+                    .map(|item| format!("{}[{}]", item.name, item.relation_type))
+                    .collect();
+                if !names.is_empty() {
+                    out.push_str(&format!("关系: {}\n", names.join("、")));
+                }
+            }
+        }
+        if out.chars().count() > SEED_CHAR_CAP {
+            out = out.chars().take(SEED_CHAR_CAP).collect();
+        }
+        Some(out)
+    }
+
     /// 返回 favorites 键:走既有 citation 编号机制(public_anchor 会带上 note)。
     fn find_entity_favorites(&self, arguments: &Map<String, Value>) -> Value {
         let entity_id = string_arg(arguments, "entity_id").trim().to_string();
@@ -760,5 +829,146 @@ mod tests {
             serde_json::json!("GNN 片段")
         );
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 建一个临时库 + 一个文档,返回 (root, db)。
+    fn seed_tools_db(test_name: &str) -> (std::path::PathBuf, Db) {
+        use crate::models::{now_iso, UploadRecord};
+        let root = std::env::temp_dir().join(format!(
+            "ai-tools-{test_name}-{}-{}",
+            std::process::id(),
+            fastrand::u64(..)
+        ));
+        let data_root = root.join("data");
+        std::fs::create_dir_all(&data_root).expect("data root");
+        std::fs::create_dir_all(root.join("db")).expect("db dir");
+        let db = Db::new(root.join("db").join("jobs.db"), data_root);
+        db.init().expect("init");
+        db.upsert_document_from_upload(&UploadRecord {
+            upload_id: "up-1".to_string(),
+            filename: "化学.pdf".to_string(),
+            stored_path: "uploads/x/chem.pdf".to_string(),
+            bytes: 10,
+            page_count: 1,
+            uploaded_at: now_iso(),
+            developer_mode: false,
+            content_hash: "doc-1".to_string(),
+        })
+        .expect("document");
+        (root, db)
+    }
+
+    fn page_record(entity_id: &str, body: &str) -> crate::models::api::EntityPageRecord {
+        crate::models::api::EntityPageRecord {
+            entity_id: entity_id.to_string(),
+            body_md: body.to_string(),
+            citations: Vec::new(),
+            evidence_sig: "sig".to_string(),
+            generated_at: crate::models::now_iso(),
+            edited_body_md: String::new(),
+            edited_at: String::new(),
+        }
+    }
+
+    #[test]
+    fn graph_seed_none_when_no_entity_matches() {
+        let (root, db) = seed_tools_db("seed-none");
+        let tools = AiTools::new(&db, Path::new("/data"));
+        assert!(tools.graph_seed("关于量子纠缠的问题").is_none());
+
+        // 库里有实体、但问题没提到它 → 仍 None(字面命中才注入)
+        db.upsert_entity(&crate::models::api::NewEntity {
+            name: "GNN".to_string(),
+            entity_type: "method".to_string(),
+            aliases: Vec::new(),
+            description: String::new(),
+        })
+        .expect("entity");
+        assert!(tools.graph_seed("图神经网络是什么").is_none());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn graph_seed_includes_page_mention_and_strips_markers() {
+        use crate::models::api::{BlockEntityLink, NewEntity};
+        let (root, db) = seed_tools_db("seed-hit");
+        let entity = db
+            .upsert_entity(&NewEntity {
+                name: "GNN".to_string(),
+                entity_type: "method".to_string(),
+                aliases: vec!["图神经网络".to_string()],
+                description: String::new(),
+            })
+            .expect("entity");
+        db.link_block_entity(&BlockEntityLink {
+            document_id: "doc-1".to_string(),
+            entity_id: entity.entity_id.clone(),
+            page_idx: 0,
+            block_id: "p001-b0000".to_string(),
+            job_id: "job-1".to_string(),
+            surface_form: "GNN".to_string(),
+            snippet: "GNN 用图结构建模".to_string(),
+            confidence: 0.9,
+            source: "extraction".to_string(),
+        })
+        .expect("link");
+        db.upsert_entity_page(&page_record(&entity.entity_id, "综述正文 [[卤素]] 见 [1]。"), true)
+            .expect("page");
+
+        let tools = AiTools::new(&db, Path::new("/data"));
+        let seed = tools.graph_seed("GNN 与什么相关?").expect("seed");
+        assert!(seed.contains("GNN"), "实体名: {seed}");
+        assert!(seed.contains("图神经网络"), "别名: {seed}");
+        assert!(seed.contains("GNN 用图结构建模"), "提及: {seed}");
+        assert!(seed.contains("综述正文 卤素 见 。"), "概念页已剥标记: {seed}");
+        assert!(!seed.contains("[["), "不留 wikilink 括号: {seed}");
+        assert!(!seed.contains("[1]"), "不留引用编号: {seed}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn graph_seed_caps_total_length() {
+        use crate::models::api::{BlockEntityLink, NewEntity};
+        let (root, db) = seed_tools_db("seed-cap");
+        let long_body = "正文".repeat(2000);
+        let long_snippet = "证据".repeat(300);
+        for name in ["实体甲", "实体乙", "实体丙"] {
+            let entity = db
+                .upsert_entity(&NewEntity {
+                    name: name.to_string(),
+                    entity_type: "concept".to_string(),
+                    aliases: Vec::new(),
+                    description: String::new(),
+                })
+                .expect("entity");
+            db.upsert_entity_page(&page_record(&entity.entity_id, &long_body), true)
+                .expect("page");
+            for index in 0..5 {
+                db.link_block_entity(&BlockEntityLink {
+                    document_id: "doc-1".to_string(),
+                    entity_id: entity.entity_id.clone(),
+                    page_idx: index,
+                    block_id: format!("p{index:03}-b0000"),
+                    job_id: "job-1".to_string(),
+                    surface_form: name.to_string(),
+                    snippet: long_snippet.clone(),
+                    confidence: 0.9,
+                    source: "extraction".to_string(),
+                })
+                .expect("link");
+            }
+        }
+
+        let tools = AiTools::new(&db, Path::new("/data"));
+        let seed = tools.graph_seed("实体甲 实体乙 实体丙").expect("seed");
+        assert_eq!(seed.chars().count(), SEED_CHAR_CAP);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn clip_chars_truncates_on_char_boundary() {
+        assert_eq!(clip_chars("abc", 5), "abc");
+        assert_eq!(clip_chars("abcdef", 3), "abc…");
+        assert_eq!(clip_chars("中文字符", 2), "中文…");
     }
 }

@@ -58,3 +58,81 @@ test("aborted 的旧流禁止回写会话粘性(P0-4)", async () => {
     "aborted 不得写 storage 粘性",
   );
 });
+
+// 检索范围（retrievalScope）：library 必须同时清空 documentId 与 jobId，
+// 否则后端 resolve_document_id 会由 job_id 反查回当前文档，又变回单文档检索。
+
+test("全库模式：documentId/jobId 皆空且不反查文档", async () => {
+  const seen = {};
+  let lookupCalls = 0;
+  const answerer = createReaderAskAnswerer({
+    jobId: "job-library",
+    ask: async (args) => {
+      seen.documentId = args.documentId;
+      seen.jobId = args.jobId;
+      return { answer: "答", citations: [], conversationId: "conv-lib" };
+    },
+    documentByJobId: async () => {
+      lookupCalls += 1;
+      return { document_id: "doc-library" };
+    },
+    llmConfig: () => ({ apiKey: "test-model-key" }),
+  });
+
+  await answerer.answer({ question: "问", retrievalScope: "library" });
+  assert.equal(seen.documentId, "", "全库模式 document_id 必须为空");
+  assert.equal(seen.jobId, "", "全库模式必须清空 job_id");
+  assert.equal(lookupCalls, 0, "全库模式不应反查文档");
+});
+
+test("全库模式：文档反查失败也不 fail closed", async () => {
+  let called = false;
+  const answerer = createReaderAskAnswerer({
+    jobId: "job-library-2",
+    ask: async () => {
+      called = true;
+      return { answer: "答", citations: [], conversationId: "conv-lib-2" };
+    },
+    documentByJobId: async () => {
+      throw new Error("boom");
+    },
+    llmConfig: () => ({ apiKey: "test-model-key" }),
+  });
+
+  await answerer.answer({ question: "问", retrievalScope: "library" });
+  assert.equal(called, true, "全库模式不得因文档反查失败抛错");
+});
+
+test("单文档模式：仍传 documentId/jobId", async () => {
+  const seen = {};
+  const answerer = createReaderAskAnswerer({
+    jobId: "job-doc",
+    ask: async (args) => {
+      seen.documentId = args.documentId;
+      seen.jobId = args.jobId;
+      return { answer: "答", citations: [], conversationId: "conv-doc" };
+    },
+    documentByJobId: async () => ({ document_id: "doc-doc" }),
+    llmConfig: () => ({ apiKey: "test-model-key" }),
+  });
+
+  await answerer.answer({ question: "问" });
+  assert.equal(seen.documentId, "doc-doc");
+  assert.equal(seen.jobId, "job-doc");
+});
+
+test("单文档模式：反查不到文档仍 fail closed", async () => {
+  const answerer = createReaderAskAnswerer({
+    jobId: "job-doc-miss",
+    ask: async () => {
+      throw new Error("不应调用 ask");
+    },
+    documentByJobId: async () => null,
+    llmConfig: () => ({ apiKey: "test-model-key" }),
+  });
+
+  await assert.rejects(
+    () => answerer.answer({ question: "问" }),
+    /无法关联当前文档/,
+  );
+});

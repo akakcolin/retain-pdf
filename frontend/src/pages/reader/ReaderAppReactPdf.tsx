@@ -18,7 +18,8 @@ import {
   ReaderTranslatePopup,
 } from "./components/react-pdf/index.js";
 import { DownloadToastHost } from "../../shared/react/DownloadToastHost.jsx";
-import { isReaderAiNavigationLocked } from "./external.js";
+import { isReaderAiNavigationLocked, type AiCitationLike } from "./external.js";
+import { resolveCitationTarget } from "./citation-target.js";
 
 export function ReaderAppReactPdf() {
   const c = useReaderReactController();
@@ -28,34 +29,29 @@ export function ReaderAppReactPdf() {
     tools.close();
   }, [tools]);
 
-  // citation.page_idx 0 基；兼容 page / block_id(p00N)；阅读器页码 1 基
-  const jumpCitation = useCallback((citation: {
-    page_idx?: number;
-    page?: number;
-    block_id?: string;
-  } | number) => {
+  // citation.page_idx 0 基；兼容 page / block_id(p00N)；阅读器页码 1 基。
+  // 跨文档引用（属于另一篇文献且带 job_id）整页跳到目标文献的对应页。
+  const jumpCitation = useCallback((citation: AiCitationLike | number) => {
     // 分支/切会话锁定期：绝不跳 PDF（体感像整页刷新+跳转）
     if (isReaderAiNavigationLocked()) return;
-    let page1: number | null = null;
     if (typeof citation === "number") {
       // 约定：直接传数字时为 0 基 idx
       if (Number.isFinite(citation) && citation >= 0) {
-        page1 = Math.floor(citation) + 1;
+        c.goToPage(Math.floor(citation) + 1);
       }
-    } else if (citation && typeof citation === "object") {
-      const raw = citation.page_idx ?? citation.page;
-      if (raw !== undefined && raw !== null && `${raw}`.trim() !== "" && Number.isFinite(Number(raw))) {
-        const n = Number(raw);
-        // page_idx 常为 0 基；若像 1..N 且 block 也像 1 基则仍按 0 基 +1（与 FTS 一致）
-        page1 = Math.floor(n) + 1;
-      } else {
-        const m = `${citation.block_id || ""}`.match(/(?:^|[^0-9])p0*([1-9]\d*)(?:-|_|\b)/i);
-        if (m) page1 = Number(m[1]);
-      }
+      return;
     }
-    if (page1 == null || !Number.isFinite(page1) || page1 < 1) return;
-    c.goToPage(page1);
-  }, [c.goToPage]);
+    const target = resolveCitationTarget(citation, {
+      currentJobId: session.jobId,
+      currentDocumentId: session.documentId,
+    });
+    if (!target) return;
+    if (target.kind === "document") {
+      window.location.assign(target.url);
+      return;
+    }
+    c.goToPage(target.page1);
+  }, [c.goToPage, session.documentId, session.jobId]);
 
   return (
     <div className="reader-react-root" data-reader-engine="react-pdf">

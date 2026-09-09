@@ -86,6 +86,8 @@ export function createReaderAskAnswerer({
   async function answer({
     question = "",
     scope = "document",
+    /** 检索范围：document=仅当前文档；library=全库（与上下文 scope 正交） */
+    retrievalScope = "document",
     context = null,
     onToolEvent = null,
     onAnswerDelta = null,
@@ -106,9 +108,12 @@ export function createReaderAskAnswerer({
     if (!apiKey) {
       throw new Error(MISSING_MODEL_API_KEY_MESSAGE);
     }
-    const documentId = await resolveDocumentId();
+    const libraryScope = retrievalScope === "library";
+    // 全库模式跳过 document 反查：必须同时清空 documentId 与 jobId，
+    // 否则后端会由 job_id 反查回当前文档，又变回单文档检索。
+    const documentId = libraryScope ? "" : await resolveDocumentId();
     // 阅读器默认整本问答:反查不到文档时 fail closed,禁止静默变全库检索
-    if (!documentId && `${jobId || ""}`.trim()) {
+    if (!libraryScope && !documentId && `${jobId || ""}`.trim()) {
       throw new Error("无法关联当前文档，暂不能做整本问答。请确认任务已绑定文档后重试。");
     }
     // document 解析后若 storage 里只有 job key,再补写一份 doc key
@@ -118,7 +123,7 @@ export function createReaderAskAnswerer({
     const result = await ask({
       question: scopedQuestion,
       documentId,
-      jobId: `${jobId || ""}`.trim(),
+      jobId: libraryScope ? "" : `${jobId || ""}`.trim(),
       conversationId,
       parentId: `${parentId || ""}`.trim(),
       regenerate: Boolean(regenerate),

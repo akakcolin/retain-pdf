@@ -335,6 +335,41 @@ impl Db {
         Ok(items)
     }
 
+    /// 问题文本里「出现」的实体:实体名/别名是问题整句的子串。
+    /// 整句走 `search_entities` 的 `name LIKE %整句%` 永远不中,必须反过来用 instr。
+    /// 单字符名/空别名排除——`instr(x,'')` 恒为 1,英文短名也会在词内命中(ai 命中 retain)。
+    ///
+    /// ponytail: 全表扫描无索引;实体上万再建 FTS 或倒排表。
+    pub fn entities_mentioned_in(&self, text: &str, limit: u32) -> Result<Vec<EntitySummary>> {
+        let haystack = normalize_entity_name(text);
+        if haystack.is_empty() {
+            return Ok(Vec::new());
+        }
+        let sql = format!(
+            r#"
+            SELECT {SUMMARY_COLUMNS}
+            FROM entities e
+            WHERE length(e.name_norm) >= 2 AND (
+                instr(?1, e.name_norm) > 0
+                OR (json_valid(e.aliases_json) AND EXISTS (
+                    SELECT 1 FROM json_each(e.aliases_json) j
+                    WHERE length(j.value) >= 2 AND instr(?1, lower(j.value)) > 0
+                ))
+            )
+            ORDER BY length(e.name_norm) DESC, 5 DESC, e.name ASC
+            LIMIT ?2
+            "#
+        );
+        let conn = self.connect()?;
+        let mut stmt = conn.prepare(&sql)?;
+        let mut rows = stmt.query(params![haystack, limit as i64])?;
+        let mut items = Vec::new();
+        while let Some(row) = rows.next()? {
+            items.push(row_to_summary(row)?);
+        }
+        Ok(items)
+    }
+
     /// 列出实体(供提及扫描遍历)。上限保护避免超大库拖垮扫描。
     pub fn list_entities(&self, limit: u32) -> Result<Vec<EntityRecord>> {
         let conn = self.connect()?;
@@ -884,6 +919,80 @@ mod tests {
         let by_alias = db.search_entities("aryllithium", None, 10).expect("search alias");
         assert_eq!(by_alias[0].entity_id, exact.entity_id);
         assert_eq!(by_name.iter().find(|item| item.entity_id == fuzzy.entity_id).unwrap().mention_count, 1);
+    }
+
+    #[test]
+    fn entities_mentioned_in_matches_name_and_alias() {
+        let fs = TestDbFs::new("mentioned-in");
+        let db = fs.db();
+        seed_document(&db, "doc-1");
+        let by_name = db
+            .upsert_entity(&new_entity("芳基锂", "concept", &[]))
+            .expect("by name");
+        let by_alias = db
+            .upsert_entity(&new_entity("Halogen Lithium Exchange", "method", &["HLE"]))
+            .expect("by alias");
+
+        let hits = db
+            .entities_mentioned_in("芳基锂的 HLE 反应怎么走", 10)
+            .expect("search");
+        let ids: Vec<&str> = hits.iter().map(|item| item.entity_id.as_str()).collect();
+        assert!(ids.contains(&by_name.entity_id.as_str()), "canonical name matches");
+        assert!(ids.contains(&by_alias.entity_id.as_str()), "alias matches");
+    }
+
+    #[test]
+    fn entities_mentioned_in_ignores_short_names_and_misses() {
+        let fs = TestDbFs::new("mentioned-in-short");
+        let db = fs.db();
+        let single = db
+            .upsert_entity(&new_entity("X", "concept", &[]))
+            .expect("single char");
+        assert!(db
+            .entities_mentioned_in("X 与 Y 的对比", 10)
+            .expect("search")
+            .iter()
+            .all(|item| item.entity_id != single.entity_id));
+        assert!(db
+            .entities_mentioned_in("完全不相关的一句话", 10)
+            .expect("search")
+            .is_empty());
+    }
+
+    #[test]
+    fn entities_mentioned_in_orders_by_mention_count_at_equal_length() {
+        let fs = TestDbFs::new("mentioned-in-order");
+        let db = fs.db();
+        seed_document(&db, "doc-1");
+        // 名字排序(乙 < 甲)与提及数排序相反,断言只能由 mention_count DESC 满足
+        let low = db
+            .upsert_entity(&new_entity("乙组", "concept", &[]))
+            .expect("low");
+        let high = db
+            .upsert_entity(&new_entity("甲组", "concept", &[]))
+            .expect("high");
+        let links = [
+            (0, low.entity_id.clone()),
+            (1, high.entity_id.clone()),
+            (2, high.entity_id.clone()),
+        ];
+        for (index, entity_id) in links {
+            db.link_block_entity(&BlockEntityLink {
+                document_id: "doc-1".to_string(),
+                entity_id,
+                page_idx: 0,
+                block_id: format!("p001-b{index:04}"),
+                job_id: "job-1".to_string(),
+                surface_form: "组".to_string(),
+                snippet: "组".to_string(),
+                confidence: 1.0,
+                source: "glossary".to_string(),
+            })
+            .expect("link");
+        }
+        let hits = db.entities_mentioned_in("甲组和乙组", 10).expect("search");
+        assert_eq!(hits[0].entity_id, high.entity_id);
+        assert_eq!(hits[1].entity_id, low.entity_id);
     }
 
     #[test]

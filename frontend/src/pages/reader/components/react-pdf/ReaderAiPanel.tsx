@@ -32,6 +32,7 @@ export function ReaderAiPanel({
   onJumpCitation,
 }: ReaderAiPanelProps) {
   const enabled = open && !sourceOnly && Boolean(jobId);
+  const [retrievalScope, setRetrievalScope] = useState<"document" | "library">("document");
   const {
     runtime,
     citationsByMessageId,
@@ -51,6 +52,7 @@ export function ReaderAiPanel({
   } = useReaderAskRuntime({
     jobId,
     enabled,
+    retrievalScope,
   });
 
   const [branchNotice, setBranchNotice] = useState("");
@@ -77,7 +79,7 @@ export function ReaderAiPanel({
       id="reader-ai-panel"
       open={open}
       title="AI 问答"
-      subtitle="基于当前文档"
+      subtitle={retrievalScope === "library" ? "全库检索" : "基于当前文档"}
       titleIcon={<Sparkles size={14} strokeWidth={2.1} aria-hidden />}
       storageKey="retainpdf.reader.ai-float.pos.v1"
       ariaLabel="阅读问答"
@@ -134,6 +136,8 @@ export function ReaderAiPanel({
                 onJumpCitation={safeJumpCitation}
                 onBranchFromAnswer={handleBranch}
                 branchBusy={sessionBusy}
+                retrievalScope={retrievalScope}
+                onRetrievalScopeChange={setRetrievalScope}
               />
             </AssistantRuntimeProvider>
           </div>
