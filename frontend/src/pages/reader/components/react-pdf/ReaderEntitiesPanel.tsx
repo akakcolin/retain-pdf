@@ -1,7 +1,7 @@
 // 概念图谱悬浮窗：本文档实体 → 证据（可跳页）/ 关系（可继续游走）。
 // 建链零 LLM 成本；AI 抽取按一次模型调用计，先确认再发。
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Network } from "lucide-react";
 import {
   API_PREFIX,
@@ -17,6 +17,7 @@ import {
 import {
   extractDocumentGraph,
   generateEntityPage,
+  getEntityNeighborhood,
   getEntityPage,
   linkDocumentGraph,
   listDocumentEntities,
@@ -30,6 +31,7 @@ import {
   type EntityBacklink,
   type EntityFavorite,
   type EntityMention,
+  type EntityNeighborhood,
   type EntityPage,
   type EntityPageLink,
   type EntitySummary,
@@ -41,6 +43,12 @@ import {
   mentionPageLabel,
   relationTypeLabel,
 } from "../../entities/labels.js";
+import {
+  GRAPH_HEIGHT,
+  GRAPH_WIDTH,
+  layoutGraph,
+  type Point,
+} from "../../entities/graph-layout.js";
 import { injectWikiLinks } from "../../entities/wikilink.js";
 import { ReaderFloatShell } from "./ReaderFloatShell.js";
 
@@ -84,8 +92,11 @@ export function ReaderEntitiesPanel({
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
+  const [graph, setGraph] = useState<EntityNeighborhood | null>(null);
+  const [graphBusy, setGraphBusy] = useState(false);
   const listReq = useRef(0);
   const detailReq = useRef(0);
+  const graphReq = useRef(0);
   // token 失效（切文档/卸载）+ 用户停止，两个信号分开：前者不写状态，后者要报「已停止」。
   const batchReq = useRef(0);
   const batchStop = useRef(false);
@@ -121,6 +132,8 @@ export function ReaderEntitiesPanel({
     setEditing(false);
     setDraft("");
     setBatch(null);
+    setGraph(null);
+    setGraphBusy(false);
     setNotice("");
     setError("");
     void (async () => {
@@ -147,6 +160,7 @@ export function ReaderEntitiesPanel({
       cancelled = true;
       listReq.current += 1;
       batchReq.current += 1;
+      graphReq.current += 1;
     };
   }, [open, jobId, documentId, loadList]);
 
@@ -191,6 +205,7 @@ export function ReaderEntitiesPanel({
 
   const backToList = useCallback(() => {
     detailReq.current += 1;
+    graphReq.current += 1;
     setSelected(null);
     setMentions([]);
     setRelations([]);
@@ -199,7 +214,31 @@ export function ReaderEntitiesPanel({
     setPage(null);
     setEditing(false);
     setDraft("");
+    setGraph(null);
+    setGraphBusy(false);
     setError("");
+  }, []);
+
+  // 拉该实体的 N 跳关系子图；token 防快速连点重定中心时旧响应覆盖新的。
+  const openGraph = useCallback(async (entity: EntityRef) => {
+    const token = ++graphReq.current;
+    setGraphBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const next = await getEntityNeighborhood(entity.entity_id);
+      if (graphReq.current === token) setGraph(next);
+    } catch (err) {
+      if (graphReq.current === token) setError(errText(err, "读取关系图谱失败"));
+    } finally {
+      if (graphReq.current === token) setGraphBusy(false);
+    }
+  }, []);
+
+  const closeGraph = useCallback(() => {
+    graphReq.current += 1;
+    setGraph(null);
+    setGraphBusy(false);
   }, []);
 
   const jumpToCitation = useCallback(
@@ -511,7 +550,13 @@ export function ReaderEntitiesPanel({
         <p className="reader-notes-empty" role="alert">{error}</p>
       ) : null}
 
-      {selected ? (
+      {selected && graph ? (
+        <EntityGraphView
+          graph={graph}
+          onClose={closeGraph}
+          onOpen={(entity) => void openGraph(entity)}
+        />
+      ) : selected ? (
         <div className="reader-entities-detail">
           <div className="reader-entities-detail-head">
             <button type="button" className="reader-entities-back" onClick={backToList}>
@@ -520,6 +565,15 @@ export function ReaderEntitiesPanel({
             <span className="reader-entities-type">
               {entityTypeLabel(selected.entity_type)}
             </span>
+            <button
+              type="button"
+              className="reader-notes-export"
+              disabled={graphBusy}
+              title="以该实体为中心画 N 跳关系图"
+              onClick={() => void openGraph(selected)}
+            >
+              {graphBusy ? "读取中…" : "图谱"}
+            </button>
           </div>
           <h4 className="reader-entities-name">{selected.name}</h4>
           {selected.aliases.length > 0 ? (
@@ -793,5 +847,151 @@ export function ReaderEntitiesPanel({
         ))
       )}
     </ReaderFloatShell>
+  );
+}
+
+type EntityGraphViewProps = {
+  graph: EntityNeighborhood;
+  onClose: () => void;
+  onOpen: (entity: EntityRef) => void;
+};
+
+/** 把线段两端各缩进一点，避免箭头和节点圆重叠。 */
+function trimLine(from: Point, to: Point, gap: number) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const distance = Math.hypot(dx, dy) || 1;
+  const ux = dx / distance;
+  const uy = dy / distance;
+  const inset = Math.min(gap, distance / 2 - 1);
+  return {
+    x1: from.x + ux * inset,
+    y1: from.y + uy * inset,
+    x2: to.x - ux * inset,
+    y2: to.y - uy * inset,
+  };
+}
+
+/** 关系子图：手写力导向布局渲染 SVG，点节点重定中心。 */
+function EntityGraphView({ graph, onClose, onOpen }: EntityGraphViewProps) {
+  const positions = useMemo(
+    () => layoutGraph(graph.nodes, graph.edges, GRAPH_WIDTH, GRAPH_HEIGHT),
+    [graph],
+  );
+  const byId = useMemo(() => {
+    const map = new Map<string, EntitySummary>();
+    for (const node of graph.nodes) map.set(node.entity_id, node);
+    return map;
+  }, [graph]);
+  const labelled = useMemo(() => {
+    const ids = new Set<string>([graph.root]);
+    [...graph.nodes]
+      .sort((a, b) => b.mention_count - a.mention_count)
+      .slice(0, 12)
+      .forEach((node) => ids.add(node.entity_id));
+    return ids;
+  }, [graph]);
+
+  const root = byId.get(graph.root);
+  const maxMentions = Math.max(1, ...graph.nodes.map((node) => node.mention_count));
+
+  return (
+    <div className="reader-entities-graph-wrap">
+      <div className="reader-entities-detail-head">
+        <button type="button" className="reader-entities-back" onClick={onClose}>
+          ← 返回
+        </button>
+        <span className="reader-entities-type">
+          {root ? entityTypeLabel(root.entity_type) : ""}
+        </span>
+      </div>
+      <h4 className="reader-entities-name">{root?.name || "关系图谱"}</h4>
+      <p className="reader-entities-graph-hint">
+        {graph.edges.length > 0
+          ? "点节点继续游走；箭头指向关系方向，悬停看关系类型。"
+          : "暂无关系。"}
+      </p>
+      <svg
+        className="reader-entities-graph"
+        viewBox={`0 0 ${GRAPH_WIDTH} ${GRAPH_HEIGHT}`}
+        role="img"
+        aria-label={`${root?.name || ""} 的关系图`}
+      >
+        <defs>
+          <marker
+            id="reader-entities-graph-arrow"
+            className="reader-entities-graph-arrow"
+            markerWidth="6"
+            markerHeight="6"
+            refX="5"
+            refY="3"
+            orient="auto"
+          >
+            <path d="M0,0 L6,3 L0,6 Z" />
+          </marker>
+        </defs>
+        {graph.edges.map((edge, index) => {
+          const from = positions.get(edge.from_entity_id);
+          const to = positions.get(edge.to_entity_id);
+          if (!from || !to) return null;
+          const line = trimLine(from, to, 8);
+          return (
+            <line
+              key={`${edge.from_entity_id}:${edge.to_entity_id}:${edge.relation_type}:${index}`}
+              className="reader-entities-graph-edge"
+              x1={line.x1}
+              y1={line.y1}
+              x2={line.x2}
+              y2={line.y2}
+              markerEnd="url(#reader-entities-graph-arrow)"
+            >
+              <title>{relationTypeLabel(edge.relation_type)}</title>
+            </line>
+          );
+        })}
+        {graph.nodes.map((node) => {
+          const point = positions.get(node.entity_id);
+          if (!point) return null;
+          const isRoot = node.entity_id === graph.root;
+          const opacity = isRoot
+            ? 1
+            : 0.25 + 0.5 * Math.min(1, node.mention_count / maxMentions);
+          const label = `${node.name} · ${node.mention_count} 次提及`;
+          return (
+            <g key={node.entity_id}>
+              <circle
+                className={`reader-entities-graph-node${isRoot ? " is-root" : ""}`}
+                cx={point.x}
+                cy={point.y}
+                r={isRoot ? 8 : 6}
+                fillOpacity={opacity}
+                role="button"
+                tabIndex={0}
+                aria-label={label}
+                onClick={() => onOpen(node)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onOpen(node);
+                  }
+                }}
+              >
+                <title>{label}</title>
+              </circle>
+              {labelled.has(node.entity_id) ? (
+                <text
+                  className="reader-entities-graph-label"
+                  x={point.x}
+                  y={point.y - (isRoot ? 12 : 10)}
+                  textAnchor="middle"
+                >
+                  {node.name}
+                </text>
+              ) : null}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
   );
 }

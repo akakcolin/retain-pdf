@@ -4,6 +4,7 @@
 pub mod extract;
 pub mod favorites;
 pub mod mentions;
+pub mod neighborhood;
 pub mod page;
 pub mod seed;
 

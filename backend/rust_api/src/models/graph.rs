@@ -7,6 +7,10 @@ fn default_graph_limit() -> u32 {
     50
 }
 
+fn default_neighborhood_depth() -> u32 {
+    2
+}
+
 /// 可复用实体。name_norm 是归一化名(小写 + 折叠空白),用于词面消歧。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EntityRecord {
@@ -142,6 +146,35 @@ pub struct ListRelationsQuery {
     pub relation_type: Option<String>,
     #[serde(default = "default_graph_limit")]
     pub limit: u32,
+}
+
+/// GET /api/v1/entities/:id/neighborhood 查询参数。
+#[derive(Debug, Deserialize)]
+pub struct EntityNeighborhoodQuery {
+    /// 跳数,服务端 clamp 1..=2。
+    #[serde(default = "default_neighborhood_depth")]
+    pub depth: u32,
+    #[serde(default = "default_graph_limit")]
+    pub limit: u32,
+}
+
+/// 子图里的一条有向边(方向由 from/to 表达)。
+#[derive(Debug, Clone, Serialize)]
+pub struct NeighborhoodEdge {
+    pub from_entity_id: String,
+    pub to_entity_id: String,
+    pub relation_type: String,
+    pub confidence: f64,
+    pub explanation: String,
+    pub source_document_id: String,
+}
+
+/// GET /api/v1/entities/:id/neighborhood 响应:根实体 + N 跳节点与边。
+#[derive(Debug, Serialize)]
+pub struct EntityNeighborhoodView {
+    pub root: String,
+    pub nodes: Vec<EntitySummary>,
+    pub edges: Vec<NeighborhoodEdge>,
 }
 
 /// POST /api/v1/documents/:id/graph/extract 请求体:按请求携带 LLM 凭据,

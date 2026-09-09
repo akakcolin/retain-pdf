@@ -128,6 +128,10 @@ pub fn build_app(state: AppState) -> Router {
             get(graph::list_entity_relations_route),
         )
         .route(
+            "/api/v1/entities/:entity_id/neighborhood",
+            get(graph::entity_neighborhood_route),
+        )
+        .route(
             "/api/v1/entities/:entity_id/backlinks",
             get(graph::list_entity_backlinks_route),
         )

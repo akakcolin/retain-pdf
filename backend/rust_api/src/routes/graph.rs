@@ -4,11 +4,11 @@ use axum::Json;
 use crate::error::AppError;
 use crate::models::api::{
     ApiResponse, EntityBacklinkListView, EntityFavoriteListView, EntityListView,
-    EntityMentionListView, EntityPageView, EntityRecord, EntityRelationListView,
-    ExtractDocumentGraphView, ExtractGraphRequest, GenerateEntityPageRequest,
-    LinkDocumentGraphView, ListBacklinksQuery, ListEntitiesQuery, ListEntityFavoritesQuery,
-    ListMentionsQuery, ListPendingPagesQuery, ListRelationsQuery, PendingEntityPageListView,
-    SaveEntityPageRequest,
+    EntityMentionListView, EntityNeighborhoodQuery, EntityNeighborhoodView, EntityPageView,
+    EntityRecord, EntityRelationListView, ExtractDocumentGraphView, ExtractGraphRequest,
+    GenerateEntityPageRequest, LinkDocumentGraphView, ListBacklinksQuery, ListEntitiesQuery,
+    ListEntityFavoritesQuery, ListMentionsQuery, ListPendingPagesQuery, ListRelationsQuery,
+    PendingEntityPageListView, SaveEntityPageRequest,
 };
 use crate::routes::common::{build_graph_route_deps, ok_json};
 use crate::services::ai_api::{resolve_llm_credentials, LlmClient};
@@ -18,7 +18,7 @@ use crate::services::graph::page::{
 use crate::services::graph_api::{
     extract_document_graph_view, get_entity_view, link_document_graph_view, list_backlinks_view,
     list_entities_view, list_entity_favorites_view, list_mentions_view, list_pending_pages_view,
-    list_relations_view,
+    list_relations_view, neighborhood_view,
 };
 use crate::AppState;
 
@@ -58,6 +58,20 @@ pub async fn list_entity_relations_route(
 ) -> Result<Json<ApiResponse<EntityRelationListView>>, AppError> {
     let deps = build_graph_route_deps(&state);
     Ok(ok_json(list_relations_view(
+        deps.graph.db,
+        &entity_id,
+        &query,
+    )?))
+}
+
+/// 实体 N 跳子图(节点 + 有向边),供概念面板图谱视图。
+pub async fn entity_neighborhood_route(
+    State(state): State<AppState>,
+    AxumPath(entity_id): AxumPath<String>,
+    Query(query): Query<EntityNeighborhoodQuery>,
+) -> Result<Json<ApiResponse<EntityNeighborhoodView>>, AppError> {
+    let deps = build_graph_route_deps(&state);
+    Ok(ok_json(neighborhood_view(
         deps.graph.db,
         &entity_id,
         &query,

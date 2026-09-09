@@ -22,6 +22,7 @@ const {
   listEntityBacklinks,
   listEntityFavorites,
   listPendingEntityPages,
+  getEntityNeighborhood,
   linkDocumentGraph,
   extractDocumentGraph,
   getEntityPage,
@@ -150,6 +151,50 @@ test("listPendingEntityPages 端点、limit 与解包", async () => {
 test("listPendingEntityPages 非 2xx 抛错", async () => {
   stubFetch({ code: 1, message: "boom" }, 500);
   await assert.rejects(() => listPendingEntityPages("doc-1"), /500/);
+});
+
+test("getEntityNeighborhood 带 depth/limit 并解包 root/nodes/edges", async () => {
+  const calls = stubFetch({
+    code: 0,
+    message: "ok",
+    data: {
+      root: "ent-1",
+      nodes: [
+        { entity_id: "ent-1", name: "GNN", entity_type: "method", aliases: [], mention_count: 5, document_count: 2 },
+        { entity_id: "ent-2", name: "QM9", entity_type: "dataset", aliases: [], mention_count: 1, document_count: 1 },
+      ],
+      edges: [
+        {
+          from_entity_id: "ent-1",
+          to_entity_id: "ent-2",
+          relation_type: "evaluates",
+          confidence: 0.8,
+          explanation: "同一句",
+          source_document_id: "doc-1",
+        },
+      ],
+    },
+  });
+  const view = await getEntityNeighborhood("ent-1", { depth: 2, limit: 40 });
+  assert.equal(view.root, "ent-1");
+  assert.equal(view.nodes.length, 2);
+  assert.equal(view.edges[0].relation_type, "evaluates");
+  assert.equal(view.edges[0].to_entity_id, "ent-2");
+  const url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/entities/ent-1/neighborhood");
+  assert.equal(url.searchParams.get("depth"), "2");
+  assert.equal(url.searchParams.get("limit"), "40");
+});
+
+test("getEntityNeighborhood clamp depth/limit，非 2xx 抛错", async () => {
+  let calls = stubFetch({ code: 0, message: "ok", data: { root: "ent-1", nodes: [], edges: [] } });
+  await getEntityNeighborhood("ent-1", { depth: 9, limit: 9999 });
+  const url = new URL(calls[0].url);
+  assert.equal(url.searchParams.get("depth"), "2");
+  assert.equal(url.searchParams.get("limit"), "200");
+
+  calls = stubFetch({ code: 1, message: "boom" }, 500);
+  await assert.rejects(() => getEntityNeighborhood("ent-1"), /500/);
 });
 
 test("非 2xx 抛带状态码的错误", async () => {

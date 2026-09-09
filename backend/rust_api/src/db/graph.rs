@@ -416,6 +416,16 @@ impl Db {
         Ok(changed > 0)
     }
 
+    /// 单个实体的摘要(带提及数/覆盖文档数)。不存在返回 None。
+    pub fn entity_summary(&self, entity_id: &str) -> Result<Option<EntitySummary>> {
+        let conn = self.connect()?;
+        let sql = format!("SELECT {SUMMARY_COLUMNS} FROM entities e WHERE e.entity_id = ?1");
+        let summary = conn
+            .query_row(&sql, params![entity_id], row_to_summary)
+            .optional()?;
+        Ok(summary)
+    }
+
     /// 某实体的邻居:出边 + 入边,按 confidence 降序。
     pub fn related_entities(
         &self,
@@ -907,6 +917,46 @@ mod tests {
             entity.entity_id
         );
         assert!(db.resolve_entity("nope").expect("miss").is_none());
+    }
+
+    #[test]
+    fn entity_summary_counts_mentions_and_documents() {
+        let fs = TestDbFs::new("entity-summary");
+        let db = fs.db();
+        seed_document(&db, "doc-1");
+        seed_document(&db, "doc-2");
+        let entity = db
+            .upsert_entity(&new_entity("卤素", "term", &["halogen"]))
+            .expect("entity");
+        for (doc, block) in [
+            ("doc-1", "p001-b0000"),
+            ("doc-1", "p001-b0001"),
+            ("doc-2", "p001-b0000"),
+        ] {
+            db.link_block_entity(&BlockEntityLink {
+                document_id: doc.to_string(),
+                entity_id: entity.entity_id.clone(),
+                page_idx: 0,
+                block_id: block.to_string(),
+                job_id: format!("job-{doc}"),
+                surface_form: "卤素".to_string(),
+                snippet: "卤素…".to_string(),
+                confidence: 1.0,
+                source: "glossary".to_string(),
+            })
+            .expect("link");
+        }
+
+        let summary = db
+            .entity_summary(&entity.entity_id)
+            .expect("summary")
+            .expect("some");
+        assert_eq!(summary.entity_id, entity.entity_id);
+        assert_eq!(summary.name, "卤素");
+        assert_eq!(summary.aliases, vec!["halogen".to_string()]);
+        assert_eq!(summary.mention_count, 3);
+        assert_eq!(summary.document_count, 2);
+        assert!(db.entity_summary("ent-nope").expect("miss").is_none());
     }
 
     #[test]

@@ -1121,3 +1121,193 @@ test("面板：空草稿不发 PATCH", async () => {
     root.unmount();
   });
 });
+
+const NEIGHBOR = {
+  entity_id: "ent-2",
+  name: "置换反应",
+  entity_type: "concept",
+  aliases: [],
+  mention_count: 1,
+  document_count: 1,
+};
+const THIRD = {
+  entity_id: "ent-3",
+  name: "元素周期表",
+  entity_type: "concept",
+  aliases: [],
+  mention_count: 3,
+  document_count: 1,
+};
+const GRAPH = {
+  root: "ent-1",
+  nodes: [ENTITY, NEIGHBOR, THIRD],
+  edges: [
+    {
+      from_entity_id: "ent-1",
+      to_entity_id: "ent-2",
+      relation_type: "uses",
+      confidence: 0.8,
+      explanation: "卤素参与置换",
+      source_document_id: "doc-1",
+    },
+    {
+      from_entity_id: "ent-3",
+      to_entity_id: "ent-1",
+      relation_type: "part_of",
+      confidence: 0.7,
+      explanation: "属于周期表",
+      source_document_id: "doc-1",
+    },
+  ],
+};
+
+// 按路径分流；neighborhood 按 URL 里的 entity_id 返回对应子图，可选整体失败。
+function stubFetchWithNeighborhood(graphs, { fail = false } = {}) {
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url, init });
+    const path = new URL(url).pathname;
+    let data = { items: [ENTITY] };
+    let status = 200;
+    if (path.endsWith("/neighborhood")) {
+      if (fail) {
+        status = 500;
+        data = {};
+      } else {
+        const id = path.split("/entities/")[1]?.split("/")[0] || "";
+        data = graphs[id] ?? { root: id, nodes: [], edges: [] };
+      }
+    } else if (path.endsWith("/mentions")) data = { items: [MENTION] };
+    else if (path.endsWith("/relations")) data = { items: [RELATION] };
+    else if (path.endsWith("/backlinks")) data = { items: [] };
+    else if (path.endsWith("/favorites")) data = { items: [] };
+    else if (path.endsWith("/page")) {
+      data = { entity_id: "ent-1", has_page: false, stale: false, citations: [], links: [], body_md: "" };
+    }
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      headers: { get: () => "application/json" },
+      json: async () => ({ code: 0, message: "ok", data }),
+      text: async () => "",
+    };
+  };
+  return calls;
+}
+
+async function openGraphView(host, root) {
+  await openEntityDetail(host, root);
+  await waitFor(() => findByText(host, "图谱"), "图谱按钮渲染");
+  await act(async () => {
+    findByText(host, "图谱").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+}
+
+test("面板：点图谱拉子图并渲染节点与边", async () => {
+  const calls = stubFetchWithNeighborhood({ "ent-1": GRAPH });
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await openGraphView(host, root);
+  await waitFor(() => host.querySelectorAll(".reader-entities-graph circle").length === 3, "3 个节点");
+
+  const call = calls.find((c) => c.url.includes("/neighborhood"));
+  assert.ok(call, "发出 neighborhood 请求");
+  const url = new URL(call.url);
+  assert.equal(url.pathname, "/api/v1/entities/ent-1/neighborhood");
+  assert.equal(url.searchParams.get("depth"), "2");
+  assert.equal(host.querySelectorAll(".reader-entities-graph line").length, 2, "2 条边");
+  assert.ok(host.querySelector(".reader-entities-graph circle.is-root"), "根节点有 is-root 类");
+  assert.ok(host.textContent.includes("点节点继续游走"), "有游走提示");
+  assert.ok(!host.querySelector(".reader-entities-detail"), "图谱态隐藏详情");
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：点节点重定中心换根实体", async () => {
+  const calls = stubFetchWithNeighborhood({
+    "ent-1": GRAPH,
+    "ent-2": { root: "ent-2", nodes: [NEIGHBOR], edges: [] },
+  });
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await openGraphView(host, root);
+  await waitFor(() => host.querySelectorAll(".reader-entities-graph circle").length === 3, "初次子图");
+
+  const target = [...host.querySelectorAll(".reader-entities-graph circle")].find((el) =>
+    (el.getAttribute("aria-label") || "").includes("置换反应"),
+  );
+  assert.ok(target, "找到目标节点");
+  await act(async () => {
+    target.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+
+  await waitFor(() => host.querySelectorAll(".reader-entities-graph circle").length === 1, "重定中心后 1 个节点");
+  const neighborhoodCalls = calls.filter((c) => c.url.includes("/neighborhood"));
+  assert.equal(neighborhoodCalls.length, 2, "第二次请求");
+  assert.ok(neighborhoodCalls[1].url.includes("/entities/ent-2/neighborhood"));
+  assert.ok(host.querySelector(".reader-entities-name").textContent.includes("置换反应"));
+  assert.ok(host.textContent.includes("暂无关系。"), "无邻居时给空态");
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：子图只有根时提示暂无关系", async () => {
+  stubFetchWithNeighborhood({ "ent-1": { root: "ent-1", nodes: [ENTITY], edges: [] } });
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await openGraphView(host, root);
+  await waitFor(() => host.querySelectorAll(".reader-entities-graph circle").length === 1, "只有根节点");
+  assert.ok(host.textContent.includes("暂无关系。"), "空态提示");
+  assert.equal(host.querySelectorAll(".reader-entities-graph line").length, 0, "没有边");
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：子图请求失败显示错误并留在详情", async () => {
+  stubFetchWithNeighborhood({}, { fail: true });
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await openGraphView(host, root);
+  await waitFor(() => host.textContent.includes("读取概念图谱失败"), "错误提示");
+  assert.ok(host.querySelector(".reader-entities-detail"), "仍在详情视图");
+  assert.equal(host.querySelectorAll(".reader-entities-graph circle").length, 0, "没渲染图谱");
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：图谱返回详情清除图谱态", async () => {
+  stubFetchWithNeighborhood({ "ent-1": GRAPH });
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await openGraphView(host, root);
+  await waitFor(() => host.querySelectorAll(".reader-entities-graph circle").length === 3, "图谱渲染");
+
+  await act(async () => {
+    findByText(host, "返回").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  await waitFor(() => host.querySelector(".reader-entities-detail"), "回到详情");
+  assert.equal(host.querySelectorAll(".reader-entities-graph circle").length, 0, "图谱已清除");
+  assert.equal(host.querySelector(".reader-entities-graph"), null, "svg 移除");
+
+  await act(async () => {
+    root.unmount();
+  });
+});

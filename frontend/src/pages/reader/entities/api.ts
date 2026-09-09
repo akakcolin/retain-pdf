@@ -48,6 +48,23 @@ export type RelatedEntity = {
   source_document_id: string;
 };
 
+/** 子图里的一条有向边（方向由 from/to 表达，不返回相对 direction）。 */
+export type NeighborhoodEdge = {
+  from_entity_id: string;
+  to_entity_id: string;
+  relation_type: string;
+  confidence: number;
+  explanation: string;
+  source_document_id: string;
+};
+
+/** 实体 N 跳关系子图：根 + 节点 + 有向边。 */
+export type EntityNeighborhood = {
+  root: string;
+  nodes: EntitySummary[];
+  edges: NeighborhoodEdge[];
+};
+
 export type LinkGraphResult = { document_id: string; entities: number; mentions: number };
 export type ExtractGraphResult = LinkGraphResult & { relations: number };
 
@@ -175,6 +192,19 @@ export function listEntityRelations(
   }
   params.set("limit", String(Math.min(Math.max(1, limit), MAX_LIMIT)));
   return getList<RelatedEntity>(`entities/${encodeURIComponent(entityId)}/relations`, params);
+}
+
+/** 实体 N 跳关系子图（depth 服务端 clamp 1..=2）。 */
+export function getEntityNeighborhood(
+  entityId: string,
+  { depth = 2, limit = 50 }: { depth?: number; limit?: number } = {},
+): Promise<EntityNeighborhood> {
+  const params = new URLSearchParams();
+  params.set("depth", String(Math.min(Math.max(1, depth), 2)));
+  params.set("limit", String(Math.min(Math.max(1, limit), MAX_LIMIT)));
+  return getOne<EntityNeighborhood>(
+    `entities/${encodeURIComponent(entityId)}/neighborhood?${params.toString()}`,
+  );
 }
 
 /** 哪些已生成的概念页提到了本实体（读取时现算）。 */

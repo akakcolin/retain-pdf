@@ -266,3 +266,60 @@
 .reader-entities-wikilink:hover {
   text-decoration-style: solid;
 }
+
+/* —— 关系图谱（手写力导向 SVG）—— */
+
+.reader-entities-graph-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.reader-entities-graph-hint {
+  margin: 0 0 8px;
+  color: var(--muted, var(--muted));
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.reader-entities-graph {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+
+.reader-entities-graph-edge {
+  stroke: color-mix(in srgb, var(--muted) 55%, transparent);
+  stroke-width: 1;
+}
+
+.reader-entities-graph-arrow {
+  fill: color-mix(in srgb, var(--muted) 55%, transparent);
+}
+
+.reader-entities-graph-node {
+  fill: var(--ink);
+  cursor: pointer;
+}
+
+.reader-entities-graph-node.is-root {
+  fill: var(--accent);
+}
+
+.reader-entities-graph-node:focus-visible {
+  outline: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.reader-entities-graph-label {
+  fill: var(--ink);
+  font-size: 9px;
+  font-weight: 650;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 2.5px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}

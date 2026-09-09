@@ -127,6 +127,115 @@ async fn entity_relations_route_404s_for_unknown_entity() {
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
+fn relate(state: &crate::AppState, from: &str, to: &str, kind: &str) {
+    state
+        .db
+        .add_entity_relation(&NewEntityRelation {
+            from_entity_id: from.to_string(),
+            to_entity_id: to.to_string(),
+            relation_type: kind.to_string(),
+            confidence: 0.8,
+            explanation: "同一句".to_string(),
+            source_document_id: "doc-1".to_string(),
+            source_block_id: String::new(),
+        })
+        .expect("relation");
+}
+
+#[tokio::test]
+async fn entity_neighborhood_route_returns_subgraph() {
+    let state = test_state("graph-neighborhood");
+    let app = build_app(state.clone());
+    let root = state.db.upsert_entity(&entity("GNN", "method")).expect("root");
+    let neighbor = state.db.upsert_entity(&entity("QM9", "dataset")).expect("n");
+    relate(&state, &root.entity_id, &neighbor.entity_id, "evaluates");
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/entities/{}/neighborhood", root.entity_id))
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = read_json(response).await;
+    assert_eq!(payload["data"]["root"], serde_json::json!(root.entity_id));
+    assert_eq!(
+        payload["data"]["nodes"].as_array().expect("nodes").len(),
+        2
+    );
+    let edge = &payload["data"]["edges"][0];
+    assert_eq!(
+        edge["from_entity_id"],
+        serde_json::json!(root.entity_id)
+    );
+    assert_eq!(
+        edge["to_entity_id"],
+        serde_json::json!(neighbor.entity_id)
+    );
+    assert_eq!(edge["relation_type"], serde_json::json!("evaluates"));
+}
+
+#[tokio::test]
+async fn entity_neighborhood_route_depth_controls_node_count() {
+    let state = test_state("graph-neighborhood-depth");
+    let app = build_app(state.clone());
+    let a = state.db.upsert_entity(&entity("A", "concept")).expect("a");
+    let b = state.db.upsert_entity(&entity("B", "concept")).expect("b");
+    let c = state.db.upsert_entity(&entity("C", "concept")).expect("c");
+    relate(&state, &a.entity_id, &b.entity_id, "uses");
+    relate(&state, &b.entity_id, &c.entity_id, "uses");
+
+    let fetch = |depth: u32| {
+        let app = app.clone();
+        let id = a.entity_id.clone();
+        async move {
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .method("GET")
+                        .uri(format!(
+                            "/api/v1/entities/{id}/neighborhood?depth={depth}"
+                        ))
+                        .header("X-API-Key", "test-key")
+                        .body(Body::empty())
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            assert_eq!(response.status(), StatusCode::OK);
+            read_json(response).await
+        }
+    };
+
+    let one = fetch(1).await;
+    assert_eq!(one["data"]["nodes"].as_array().expect("nodes").len(), 2);
+    let two = fetch(2).await;
+    assert_eq!(two["data"]["nodes"].as_array().expect("nodes").len(), 3);
+}
+
+#[tokio::test]
+async fn entity_neighborhood_route_404s_for_unknown_entity() {
+    let state = test_state("graph-neighborhood-404");
+    let app = build_app(state);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/entities/ent-20260909123456-abcdef/neighborhood")
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
 #[tokio::test]
 async fn extract_document_graph_requires_llm_key() {
     // 抽取要真调模型:缺 key 时干净地 400,不能打到上游才 401。
@@ -640,6 +749,19 @@ async fn graph_routes_require_api_key() {
             Request::builder()
                 .method("GET")
                 .uri("/api/v1/entities/ent-x/favorites")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/entities/ent-x/neighborhood")
                 .body(Body::empty())
                 .expect("request"),
         )

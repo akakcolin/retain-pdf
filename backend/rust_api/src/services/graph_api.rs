@@ -4,14 +4,16 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::models::api::{
     EntityBacklinkListView, EntityFavoriteListView, EntityListView, EntityMentionListView,
-    EntityRecord, EntityRelationListView, ExtractDocumentGraphView, LinkDocumentGraphView,
-    ListBacklinksQuery, ListEntitiesQuery, ListEntityFavoritesQuery, ListMentionsQuery,
-    ListPendingPagesQuery, ListRelationsQuery, PendingEntityPageListView,
+    EntityNeighborhoodQuery, EntityNeighborhoodView, EntityRecord, EntityRelationListView,
+    ExtractDocumentGraphView, LinkDocumentGraphView, ListBacklinksQuery, ListEntitiesQuery,
+    ListEntityFavoritesQuery, ListMentionsQuery, ListPendingPagesQuery, ListRelationsQuery,
+    PendingEntityPageListView,
 };
 use crate::services::ai::llm::Chat;
 use crate::services::graph::extract::extract_document_graph;
 use crate::services::graph::favorites::list_entity_favorites;
 use crate::services::graph::mentions::link_document_mentions;
+use crate::services::graph::neighborhood::entity_neighborhood;
 use crate::services::graph::page::{list_entity_backlinks, list_pending_entity_pages};
 use crate::services::graph::seed::seed_entities_from_glossaries;
 use crate::services::graph::GraphDeps;
@@ -72,6 +74,15 @@ pub fn list_relations_view(
         query.limit.clamp(1, MAX_LIMIT),
     )?;
     Ok(EntityRelationListView { items })
+}
+
+/// 实体 N 跳子图(节点 + 有向边),供概念面板图谱视图。
+pub fn neighborhood_view(
+    db: &Db,
+    entity_id: &str,
+    query: &EntityNeighborhoodQuery,
+) -> Result<EntityNeighborhoodView, AppError> {
+    entity_neighborhood(db, entity_id, query.depth, query.limit.clamp(1, MAX_LIMIT))
 }
 
 /// 反链:哪些已生成的概念页提到了本实体(读取时现算)。
