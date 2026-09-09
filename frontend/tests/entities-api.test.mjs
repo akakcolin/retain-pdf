@@ -125,11 +125,13 @@ test("getEntityPage GET 并解包概念页", async () => {
       stale: false,
       body_md: "正文 [1]。",
       citations: [{ ref: 1, document_id: "doc-1", page_idx: 3 }],
+      links: [{ surface: "图神经网络", entity_id: "ent-2", name: "GNN", entity_type: "method", aliases: [] }],
     },
   });
   const page = await getEntityPage("ent-1");
   assert.equal(page.has_page, true);
   assert.equal(page.citations[0].ref, 1);
+  assert.equal(page.links[0].entity_id, "ent-2");
   assert.equal(new URL(calls[0].url).pathname, "/api/v1/entities/ent-1/page");
 });
 

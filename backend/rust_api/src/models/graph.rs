@@ -211,6 +211,16 @@ pub struct EntityPageRecord {
     pub generated_at: String,
 }
 
+/// 概念页正文里的 [[实体名]] 解析结果。surface = 正文原样文本,前端按它建索引。
+#[derive(Debug, Clone, Serialize)]
+pub struct EntityPageLink {
+    pub surface: String,
+    pub entity_id: String,
+    pub name: String,
+    pub entity_type: String,
+    pub aliases: Vec<String>,
+}
+
 /// GET/POST /api/v1/entities/:id/page 响应。无页时 has_page=false,其余为空。
 #[derive(Debug, Serialize)]
 pub struct EntityPageView {
@@ -223,6 +233,8 @@ pub struct EntityPageView {
     pub generated_at: String,
     pub body_md: String,
     pub citations: Vec<EntityPageCitation>,
+    /// 正文 [[实体名]] 里能解析到实体的那些(读取时现算)。
+    pub links: Vec<EntityPageLink>,
 }
 
 /// POST /api/v1/entities/:id/page 请求体:与抽取同形,按请求携带 LLM 凭据。

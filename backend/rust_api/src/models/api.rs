@@ -1,8 +1,9 @@
 pub use super::common::{ApiResponse, UploadView};
 pub use super::graph::{
     BlockEntityLink, EntityListView, EntityMention, EntityMentionListView, EntityPageCitation,
-    EntityPageEvidence, EntityPageRecord, EntityPageView, EntityRecord, EntityRelationListView,
-    EntitySummary, ExtractDocumentGraphView, ExtractGraphRequest, GenerateEntityPageRequest,
+    EntityPageEvidence, EntityPageLink, EntityPageRecord, EntityPageView, EntityRecord,
+    EntityRelationListView, EntitySummary, ExtractDocumentGraphView, ExtractGraphRequest,
+    GenerateEntityPageRequest,
     LinkDocumentGraphView, ListEntitiesQuery, ListMentionsQuery, ListRelationsQuery, NewEntity,
     NewEntityRelation, RelatedEntity,
 };

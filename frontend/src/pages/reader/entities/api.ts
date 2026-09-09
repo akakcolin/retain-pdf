@@ -64,6 +64,15 @@ export type EntityPageCitation = {
   snippet: string;
 };
 
+/** 概念页正文 [[实体名]] 解析结果。surface = 正文原样文本（渲染时按它建索引）。 */
+export type EntityPageLink = {
+  surface: string;
+  entity_id: string;
+  name: string;
+  entity_type: string;
+  aliases: string[];
+};
+
 export type EntityPage = {
   entity_id: string;
   name: string;
@@ -75,6 +84,8 @@ export type EntityPage = {
   generated_at: string;
   body_md: string;
   citations: EntityPageCitation[];
+  /** 正文里能解析到实体的 [[...]]；解析不到的不在列表里。 */
+  links: EntityPageLink[];
 };
 
 const MAX_LIMIT = 200;

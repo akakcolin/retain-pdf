@@ -24,6 +24,7 @@ import {
   listEntityRelations,
   type EntityMention,
   type EntityPage,
+  type EntityPageLink,
   type EntitySummary,
   type RelatedEntity,
 } from "../../entities/api.js";
@@ -33,7 +34,11 @@ import {
   mentionPageLabel,
   relationTypeLabel,
 } from "../../entities/labels.js";
+import { injectWikiLinks } from "../../entities/wikilink.js";
 import { ReaderFloatShell } from "./ReaderFloatShell.js";
+
+/** 切实体只需这几个字段（列表行 / 关系 / wikilink 都能赋值）。 */
+type EntityRef = Pick<EntitySummary, "entity_id" | "name" | "entity_type" | "aliases">;
 
 export type ReaderEntitiesPanelProps = {
   open: boolean;
@@ -57,7 +62,7 @@ export function ReaderEntitiesPanel({
 }: ReaderEntitiesPanelProps) {
   const [docId, setDocId] = useState("");
   const [entities, setEntities] = useState<EntitySummary[]>([]);
-  const [selected, setSelected] = useState<EntitySummary | null>(null);
+  const [selected, setSelected] = useState<EntityRef | null>(null);
   const [mentions, setMentions] = useState<EntityMention[]>([]);
   const [relations, setRelations] = useState<RelatedEntity[]>([]);
   const [page, setPage] = useState<EntityPage | null>(null);
@@ -124,7 +129,7 @@ export function ReaderEntitiesPanel({
   }, [open, jobId, documentId, loadList]);
 
   const openEntity = useCallback(
-    async (entity: EntitySummary) => {
+    async (entity: EntityRef) => {
       const token = ++detailReq.current;
       setSelected(entity);
       setMentions([]);
@@ -175,7 +180,19 @@ export function ReaderEntitiesPanel({
     [docId, onJumpPage],
   );
 
-  // 概念页正文渲染成安全 HTML 后注入容器，再把 [n] 换成可跳页按钮。
+  const openWikiLink = useCallback(
+    (link: EntityPageLink) => {
+      void openEntity({
+        entity_id: link.entity_id,
+        name: link.name,
+        entity_type: link.entity_type,
+        aliases: link.aliases,
+      });
+    },
+    [openEntity],
+  );
+
+  // 概念页正文渲染成安全 HTML 后注入容器，再把 [n] 换成可跳页按钮、[[X]] 换成实体链接。
   useEffect(() => {
     const host = pageBodyRef.current;
     if (!host || !page?.has_page) return;
@@ -193,11 +210,16 @@ export function ReaderEntitiesPanel({
         onJump: jumpToCitation,
         answerText: page.body_md,
       });
+      const linkBySurface = new Map<string, EntityPageLink>();
+      for (const link of page.links || []) {
+        linkBySurface.set(link.surface, link);
+      }
+      injectWikiLinks(pageBodyRef.current, linkBySurface, openWikiLink);
     })();
     return () => {
       cancelled = true;
     };
-  }, [page, jumpToCitation]);
+  }, [page, jumpToCitation, openWikiLink]);
 
   const runGeneratePage = useCallback(async () => {
     if (!selected || pageBusy) return;

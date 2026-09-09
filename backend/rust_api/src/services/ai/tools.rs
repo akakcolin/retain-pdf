@@ -533,7 +533,9 @@ impl<'a> AiTools<'a> {
                 "name": entity.name,
                 "entity_type": entity.entity_type,
                 "stale": stale,
-                "body_md": crate::services::graph::page::strip_citation_markers(&page.body_md),
+                "body_md": crate::services::graph::page::strip_wikilinks(
+                    &crate::services::graph::page::strip_citation_markers(&page.body_md),
+                ),
             },
             "blocks": page.citations.iter().map(project_page_citation).collect::<Vec<_>>(),
         })

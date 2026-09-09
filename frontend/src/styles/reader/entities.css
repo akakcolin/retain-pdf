@@ -249,3 +249,20 @@
   background: color-mix(in srgb, var(--ink) 6%, transparent);
   overflow-x: auto;
 }
+
+.reader-entities-wikilink {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.reader-entities-wikilink:hover {
+  text-decoration-style: solid;
+}

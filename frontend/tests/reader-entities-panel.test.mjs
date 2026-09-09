@@ -149,6 +149,7 @@ const PAGE = {
   stale: false,
   generated_at: "2026-09-09T00:00:00Z",
   body_md: "卤素是一类元素 [1]。",
+  links: [],
   citations: [
     {
       ref: 1,
@@ -254,6 +255,88 @@ test("面板：跨文档引用不跳页，提示来源", async () => {
   });
   assert.deepEqual(jumps, [], "跨文档引用不跳当前文档");
   assert.ok(host.textContent.includes("其他文献"), "提示引用来源文档");
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：wikilink 点击切到目标实体", async () => {
+  const link = {
+    surface: "图神经网络",
+    entity_id: "ent-2",
+    name: "图神经网络",
+    entity_type: "method",
+    aliases: [],
+  };
+  const calls = stubFetchWithPage({
+    ...PAGE,
+    body_md: "卤素与 [[图神经网络]] 有关 [1]。",
+    links: [link],
+  });
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await act(async () => {
+    root.render(createElement(ReaderEntitiesPanel, {
+      open: true,
+      jobId: "job-1",
+      documentId: "doc-1",
+      onClose() {},
+      onJumpPage() {},
+    }));
+  });
+
+  await waitFor(() => host.textContent.includes("卤素"), "实体列表渲染");
+  await act(async () => {
+    findByText(host, "卤素").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+
+  await waitFor(
+    () => host.querySelector("button.reader-entities-wikilink"),
+    "wikilink 渲染成按钮",
+  );
+  await act(async () => {
+    host.querySelector("button.reader-entities-wikilink").click();
+  });
+  await waitFor(
+    () => calls.some((c) => c.url.includes("/entities/ent-2/mentions")),
+    "切到目标实体",
+  );
+  assert.ok(host.textContent.includes("图神经网络"), "详情标题换成目标实体");
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：全部未解析的 wikilink 不留括号", async () => {
+  stubFetchWithPage({ ...PAGE, body_md: "卤素与 [[不存在]] 无关 [1]。", links: [] });
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await act(async () => {
+    root.render(createElement(ReaderEntitiesPanel, {
+      open: true,
+      jobId: "job-1",
+      documentId: "doc-1",
+      onClose() {},
+      onJumpPage() {},
+    }));
+  });
+
+  await waitFor(() => host.textContent.includes("卤素"), "实体列表渲染");
+  await act(async () => {
+    findByText(host, "卤素").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  await waitFor(
+    () => host.querySelector(".reader-entities-page-body")?.textContent.includes("无关"),
+    "概念页正文渲染",
+  );
+  assert.equal(host.querySelectorAll("button.reader-entities-wikilink").length, 0);
+  assert.ok(!host.querySelector(".reader-entities-page-body").textContent.includes("[["), "括号不漏到界面");
 
   await act(async () => {
     root.unmount();

@@ -120,6 +120,7 @@ async fn entity_page_route_reports_no_page_without_404() {
     let payload = read_json(response).await;
     assert_eq!(payload["data"]["has_page"], serde_json::json!(false));
     assert_eq!(payload["data"]["body_md"], serde_json::json!(""));
+    assert_eq!(payload["data"]["links"], serde_json::json!([]));
 }
 
 #[tokio::test]
