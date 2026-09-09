@@ -110,6 +110,52 @@ const VERSIONED_MIGRATIONS: &[&str] = &[
     CREATE INDEX IF NOT EXISTS idx_ai_messages_parent
         ON ai_messages(conversation_id, parent_id);
     "#,
+    // v4: 概念图谱实体层。证据单位是 block(自带几何 + 原文/译文),比整篇文档更细。
+    // entities = 可复用实体;block_entities = 实体→block 证据挂载(多对多);
+    // entity_relations = 有向类型边(1b 才写入)。graph_extracted_at 记录抽取状态。
+    r#"
+    CREATE TABLE IF NOT EXISTS entities (
+        entity_id    TEXT PRIMARY KEY,
+        name         TEXT NOT NULL,
+        name_norm    TEXT NOT NULL,
+        entity_type  TEXT NOT NULL DEFAULT 'concept',
+        aliases_json TEXT NOT NULL DEFAULT '[]',
+        description  TEXT NOT NULL DEFAULT '',
+        created_at   TEXT NOT NULL,
+        updated_at   TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_entities_norm_type
+        ON entities(name_norm, entity_type);
+    CREATE TABLE IF NOT EXISTS block_entities (
+        document_id  TEXT NOT NULL REFERENCES documents(document_id) ON DELETE CASCADE,
+        entity_id    TEXT NOT NULL REFERENCES entities(entity_id) ON DELETE CASCADE,
+        page_idx     INTEGER NOT NULL,
+        block_id     TEXT NOT NULL,
+        job_id       TEXT NOT NULL DEFAULT '',
+        surface_form TEXT NOT NULL DEFAULT '',
+        snippet      TEXT NOT NULL DEFAULT '',
+        confidence   REAL NOT NULL DEFAULT 1.0,
+        source       TEXT NOT NULL DEFAULT 'extraction',
+        created_at   TEXT NOT NULL,
+        PRIMARY KEY (document_id, page_idx, block_id, entity_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_block_entities_entity ON block_entities(entity_id);
+    CREATE INDEX IF NOT EXISTS idx_block_entities_document ON block_entities(document_id, page_idx);
+    CREATE TABLE IF NOT EXISTS entity_relations (
+        relation_id        TEXT PRIMARY KEY,
+        from_entity_id     TEXT NOT NULL REFERENCES entities(entity_id) ON DELETE CASCADE,
+        to_entity_id       TEXT NOT NULL REFERENCES entities(entity_id) ON DELETE CASCADE,
+        relation_type      TEXT NOT NULL DEFAULT 'related_to',
+        confidence         REAL NOT NULL DEFAULT 1.0,
+        explanation        TEXT NOT NULL DEFAULT '',
+        source_document_id TEXT NOT NULL DEFAULT '',
+        source_block_id    TEXT NOT NULL DEFAULT '',
+        created_at         TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_entity_relations_from ON entity_relations(from_entity_id);
+    CREATE INDEX IF NOT EXISTS idx_entity_relations_to   ON entity_relations(to_entity_id);
+    ALTER TABLE documents ADD COLUMN graph_extracted_at TEXT;
+    "#,
 ];
 
 pub(super) fn run_versioned_migrations(conn: &Connection) -> Result<()> {

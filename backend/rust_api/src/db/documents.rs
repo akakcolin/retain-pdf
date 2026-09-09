@@ -1021,8 +1021,8 @@ mod tests {
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .expect("user_version");
-        // 与迁移数组长度同步:v1 图书馆地基 + v2 资产/会话 + v3 AI 消息树分支
-        assert_eq!(version, 3);
+        // 与迁移数组长度同步:v1 图书馆地基 + v2 资产/会话 + v3 AI 消息树分支 + v4 概念图谱
+        assert_eq!(version, 4);
     }
 
     #[test]

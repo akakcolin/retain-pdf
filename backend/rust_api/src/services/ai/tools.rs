@@ -12,7 +12,7 @@ use super::blocks::{read_page_blocks, Block};
 /// job_id 白名单:字母数字开头 + [-._] 组成,禁止路径分隔符/..
 /// 关键安全边界——job_id 来自模型工具参数(上下文含文档内容 = 提示注入面),
 /// 直接拼进 data_root/jobs/<job_id> 前必须过这道闸,否则可目录穿越。
-fn safe_job_root(data_root: &Path, job_id: &str) -> Option<PathBuf> {
+pub(crate) fn safe_job_root(data_root: &Path, job_id: &str) -> Option<PathBuf> {
     if job_id.is_empty() || job_id.contains("..") || job_id.len() > 128 {
         return None;
     }
@@ -174,6 +174,38 @@ impl<'a> AiTools<'a> {
                     }
                 }
             }),
+            serde_json::json!({
+                "type": "function",
+                "function": {
+                    "name": "search_entities",
+                    "description": "检索知识图谱中的实体(概念/方法/材料/数据集/人物/机构/指标/公式/术语),返回 entity_id、类型、别名与提及次数。用户问'我库里关于 X''X 是什么'时先用它定位实体,再用 find_mentions 取证据。",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string", "description": "实体名或关键词,中英文均可"},
+                            "entity_type": {"type": "string", "enum": ["concept", "method", "material", "dataset", "person", "org", "metric", "formula", "term"], "description": "按类型过滤,可选"},
+                            "limit": {"type": "integer", "minimum": 1, "maximum": 50}
+                        },
+                        "required": ["query"]
+                    }
+                }
+            }),
+            serde_json::json!({
+                "type": "function",
+                "function": {
+                    "name": "find_mentions",
+                    "description": "查某个实体在文档中的出现位置,返回带页码与引用编号的片段。用于回答'X 在哪些文献/哪一页提到'。需要先由 search_entities 拿到 entity_id。",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "entity_id": {"type": "string", "description": "search_entities 返回的 entity_id"},
+                            "document_id": {"type": "string", "description": "限定某文档,可选"},
+                            "limit": {"type": "integer", "minimum": 1, "maximum": 30}
+                        },
+                        "required": ["entity_id"]
+                    }
+                }
+            }),
         ];
         if !scoped_document_id.trim().is_empty() {
             specs
@@ -189,6 +221,8 @@ impl<'a> AiTools<'a> {
             "list_documents" => self.list_documents(arguments),
             "read_blocks" => self.read_blocks(arguments),
             "search_favorites" => self.search_favorites(arguments),
+            "search_entities" => self.search_entities(arguments),
+            "find_mentions" => self.find_mentions(arguments),
             other => serde_json::json!({"error": format!("unknown tool: {other}")}),
         }
     }
@@ -358,6 +392,53 @@ impl<'a> AiTools<'a> {
         }
         serde_json::json!({"favorites": out})
     }
+
+    fn search_entities(&self, arguments: &Map<String, Value>) -> Value {
+        let query = string_arg(arguments, "query").trim().to_string();
+        if query.is_empty() {
+            return serde_json::json!({"error": "query must not be empty"});
+        }
+        let entity_type = string_arg(arguments, "entity_type").trim().to_string();
+        let limit = int_arg(arguments, "limit").unwrap_or(20).clamp(1, 50) as u32;
+        match self.db.search_entities(
+            &query,
+            if entity_type.is_empty() {
+                None
+            } else {
+                Some(&entity_type)
+            },
+            limit,
+        ) {
+            Ok(entities) => serde_json::json!({
+                "entities": entities.iter().map(project_entity).collect::<Vec<_>>()
+            }),
+            Err(err) => serde_json::json!({"error": format!("search entities failed: {err}")}),
+        }
+    }
+
+    /// 返回 blocks 键:复用既有 citation 机制(hits/favorites/blocks 都过 assign_refs)。
+    fn find_mentions(&self, arguments: &Map<String, Value>) -> Value {
+        let entity_id = string_arg(arguments, "entity_id").trim().to_string();
+        if entity_id.is_empty() {
+            return serde_json::json!({"error": "entity_id must not be empty"});
+        }
+        let document_id = string_arg(arguments, "document_id").trim().to_string();
+        let limit = int_arg(arguments, "limit").unwrap_or(20).clamp(1, 30) as u32;
+        match self.db.list_entity_mentions(
+            &entity_id,
+            if document_id.is_empty() {
+                None
+            } else {
+                Some(&document_id)
+            },
+            limit,
+        ) {
+            Ok(mentions) => serde_json::json!({
+                "blocks": mentions.iter().map(project_mention).collect::<Vec<_>>()
+            }),
+            Err(err) => serde_json::json!({"error": format!("find mentions failed: {err}")}),
+        }
+    }
 }
 
 fn string_arg(arguments: &Map<String, Value>, key: &str) -> String {
@@ -383,6 +464,27 @@ fn project_document(document: &crate::models::api::DocumentRecord) -> Value {
         "page_count": document.page_count,
         "tags": document.tags,
         "reading_status": document.reading_status,
+    })
+}
+
+fn project_entity(entity: &crate::models::api::EntitySummary) -> Value {
+    serde_json::json!({
+        "entity_id": entity.entity_id,
+        "name": entity.name,
+        "entity_type": entity.entity_type,
+        "aliases": entity.aliases,
+        "mention_count": entity.mention_count,
+        "document_count": entity.document_count,
+    })
+}
+
+fn project_mention(mention: &crate::models::api::EntityMention) -> Value {
+    serde_json::json!({
+        "document_id": mention.document_id,
+        "job_id": mention.job_id,
+        "page_idx": mention.page_idx,
+        "block_id": mention.block_id,
+        "snippet": mention.snippet,
     })
 }
 

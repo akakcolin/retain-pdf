@@ -5,6 +5,8 @@ pub(crate) mod book_projection;
 pub(crate) mod derived_artifacts;
 pub mod glossaries;
 pub mod glossary_api;
+pub mod graph;
+pub mod graph_api;
 pub mod job_launcher;
 pub mod job_snapshot_factory;
 pub mod job_validation;

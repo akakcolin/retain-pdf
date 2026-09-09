@@ -84,8 +84,8 @@ impl<'a> RetrievalAgent<'a> {
                 prefix.push_str(&format!(", job_id={scoped_job_id}"));
             }
             prefix.push_str(
-                "。search_fulltext / search_favorites / list_documents / read_blocks \
-                 必须只在该文档内操作。)\n",
+                "。search_fulltext / search_favorites / list_documents / read_blocks / \
+                 find_mentions 必须只在该文档内操作。)\n",
             );
             user_content = format!("{prefix}{user_content}");
         }
@@ -224,7 +224,11 @@ fn scope_tool_arguments(
     }
     if matches!(
         name,
-        "search_fulltext" | "search_favorites" | "list_documents" | "read_blocks"
+        "search_fulltext"
+            | "search_favorites"
+            | "list_documents"
+            | "read_blocks"
+            | "find_mentions"
     ) {
         arguments.insert(
             "document_id".to_string(),
@@ -388,6 +392,34 @@ fn public_tool_payload(result: &Value) -> Value {
             public.insert("favorites".to_string(), Value::Array(public_favs));
         }
     }
+    // search_entities:实体无 block 锚点,不编号;entity_id 必须透传,
+    // 否则模型拿不到 find_mentions 的入参。
+    let mut public_entities: Vec<Value> = Vec::new();
+    if let Some(entities) = result.get("entities").and_then(Value::as_array) {
+        for entity in entities.iter().take(30) {
+            let Some(entity_id) = entity.get("entity_id").and_then(Value::as_str) else {
+                continue;
+            };
+            public_entities.push(json!({
+                "entity_id": entity_id,
+                "name": entity.get("name").cloned().unwrap_or(Value::Null),
+                "entity_type": entity.get("entity_type").cloned().unwrap_or(Value::Null),
+                "aliases": entity.get("aliases").cloned().unwrap_or_else(|| json!([])),
+                "mention_count": entity.get("mention_count").cloned().unwrap_or(Value::Null),
+                "document_count": entity.get("document_count").cloned().unwrap_or(Value::Null),
+            }));
+        }
+        if !public_entities.is_empty() {
+            public.insert("entities".to_string(), Value::Array(public_entities));
+            public.insert(
+                "how_to_use_entities".to_string(),
+                Value::String(
+                    "取 entities[].entity_id 调 find_mentions 拿证据;回答里禁止写出 entity_id。"
+                        .to_string(),
+                ),
+            );
+        }
+    }
     let mut public_blocks: Vec<Value> = Vec::new();
     if let Some(blocks) = result.get("blocks").and_then(Value::as_array) {
         for block in blocks {
@@ -397,10 +429,10 @@ fn public_tool_payload(result: &Value) -> Value {
         }
         if !public_blocks.is_empty() {
             public.insert("blocks".to_string(), Value::Array(public_blocks));
-            public.insert(
-                "page".to_string(),
-                Value::from(result.get("page_idx").and_then(Value::as_i64).unwrap_or(0) + 1),
-            );
+            // 只有 read_blocks 有单页语义;find_mentions 的块跨页,页码看 blocks[].page。
+            if let Some(page_idx) = result.get("page_idx").and_then(Value::as_i64) {
+                public.insert("page".to_string(), Value::from(page_idx + 1));
+            }
             public.insert(
                 "how_to_cite".to_string(),
                 Value::String("回答时用 blocks[].ref 写成 [n]。".to_string()),
@@ -445,6 +477,9 @@ static BRACKET_BLOCK_ID_RE: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"(?i)\[\s*(p\d+[-_]b\d+)\s*\]").expect("bracket regex"));
 static BARE_BLOCK_ID_RE: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"(?i)p\d+[-_]b\d+").expect("bare regex"));
+/// 实体 id(ent-<14 位时间戳>-<6 位 hex>)是工具协议内部标识,禁止出现在回答里。
+static ENTITY_ID_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"(?i)ent-\d{14}-[0-9a-f]{6}").expect("entity id regex"));
 static MULTI_SPACE_RE: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"[ \t]{2,}").expect("space regex"));
 static TRAILING_SPACE_NEWLINE_RE: LazyLock<regex::Regex> =
@@ -495,6 +530,8 @@ fn sanitize_answer_text(answer: &str, citations: &BTreeMap<i64, Citation>) -> St
         last = matched.end();
     }
     out.push_str(&cleaned[last..]);
+    // 3. 实体 id 直接删除(模型无正当理由输出它)
+    let out = ENTITY_ID_RE.replace_all(&out, "").to_string();
     // 压缩因删除产生的多余空白
     let collapsed = MULTI_SPACE_RE.replace_all(&out, " ").to_string();
     TRAILING_SPACE_NEWLINE_RE
@@ -636,6 +673,32 @@ mod tests {
     }
 
     #[test]
+    fn public_payload_passes_entities_through() {
+        let result = json!({"entities": [{
+            "entity_id": "ent-20260909123456-a1b2c3",
+            "name": "卤素",
+            "entity_type": "term",
+            "aliases": ["halogen"],
+            "mention_count": 3,
+            "document_count": 2,
+        }]});
+        let public = public_tool_payload(&result);
+        assert_eq!(
+            public["entities"][0]["entity_id"],
+            json!("ent-20260909123456-a1b2c3")
+        );
+        assert_eq!(public["entities"][0]["mention_count"], json!(3));
+    }
+
+    #[test]
+    fn sanitize_strips_entity_ids() {
+        let citations: BTreeMap<i64, Citation> = BTreeMap::new();
+        let cleaned = sanitize_answer_text("实体 ent-20260909123456-a1b2c3 提及于此。", &citations);
+        assert!(!cleaned.contains("ent-"), "got: {cleaned}");
+        assert!(cleaned.contains("提及于此"), "got: {cleaned}");
+    }
+
+    #[test]
     fn referenced_citations_preserves_appearance_order() {
         let mut citations: BTreeMap<i64, Citation> = BTreeMap::new();
         for ref_num in 1..=3 {
@@ -729,7 +792,7 @@ mod tests {
     use crate::db::documents::sha256_hex;
     use crate::db::Db;
     use crate::error::AppError;
-    use crate::models::api::FtsBlockRow;
+    use crate::models::api::{BlockEntityLink, FtsBlockRow, NewEntity};
     use crate::models::{now_iso, UploadRecord};
 
     /// 脚本化 fake chat:按调用顺序返回预设 assistant 消息,并记录每次收到的上下文。
@@ -952,6 +1015,58 @@ mod tests {
             .await
             .expect("ask");
         assert_eq!(result.citations.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn ask_loop_uses_entity_tools_for_evidence() {
+        let fs = TestDb::new("entity-tools");
+        let db = fs.db();
+        db.init().expect("init");
+        seed_search_doc(&db, "entity-tools");
+        let document_id = sha256_hex("ai-agent-entity-tools".as_bytes());
+        let entity = db
+            .upsert_entity(&NewEntity {
+                name: "选择性".to_string(),
+                entity_type: "term".to_string(),
+                aliases: vec!["selectivity".to_string()],
+                description: String::new(),
+            })
+            .expect("entity");
+        db.link_block_entity(&BlockEntityLink {
+            document_id: document_id.clone(),
+            entity_id: entity.entity_id.clone(),
+            page_idx: 7,
+            block_id: "p008-b0001".to_string(),
+            job_id: "job-1".to_string(),
+            surface_form: "选择性".to_string(),
+            snippet: "选择性来自共轭效应".to_string(),
+            confidence: 1.0,
+            source: "glossary".to_string(),
+        })
+        .expect("link");
+        let tools = AiTools::new(&db, &fs.data_root);
+        let fake = ScriptedChat::new(vec![
+            ScriptedChat::tool_call("c1", "search_entities", r#"{"query":"选择性"}"#),
+            ScriptedChat::tool_call(
+                "c2",
+                "find_mentions",
+                &format!(r#"{{"entity_id":"{}"}}"#, entity.entity_id),
+            ),
+            ScriptedChat::answer("选择性来自共轭效应 [1]。"),
+        ]);
+        let agent = RetrievalAgent::new(tools, 5);
+        let result = agent
+            .ask(&fake, "库里关于选择性说了什么?", "", "", &[], |_| {})
+            .await
+            .expect("ask");
+        assert_eq!(result.citations.len(), 1);
+        assert_eq!(result.citations[0].block_id, "p008-b0001");
+        let seen = fake.seen_tool_messages();
+        let first: Value = serde_json::from_str(seen[0]["content"].as_str().unwrap()).unwrap();
+        assert_eq!(first["entities"][0]["entity_id"], json!(entity.entity_id));
+        let second: Value = serde_json::from_str(seen.last().unwrap()["content"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(second["blocks"][0]["ref"], json!(1));
     }
 
     #[tokio::test]

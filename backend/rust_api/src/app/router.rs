@@ -10,6 +10,7 @@ use crate::auth;
 use crate::routes::ai;
 use crate::routes::collections;
 use crate::routes::glossaries;
+use crate::routes::graph;
 use crate::routes::health;
 use crate::routes::jobs;
 use crate::routes::library;
@@ -116,6 +117,16 @@ pub fn build_app(state: AppState) -> Router {
                 .delete(library_data::delete_favorite_route),
         )
         .route("/api/v1/search", get(library_data::search_blocks_route))
+        .route("/api/v1/entities", get(graph::list_entities_route))
+        .route("/api/v1/entities/:entity_id", get(graph::get_entity_route))
+        .route(
+            "/api/v1/entities/:entity_id/mentions",
+            get(graph::list_entity_mentions_route),
+        )
+        .route(
+            "/api/v1/documents/:document_id/graph/link",
+            post(graph::link_document_graph_route),
+        )
         .route("/api/v1/ai/ask", post(ai::ask_route))
         .route(
             "/api/v1/translate/text",

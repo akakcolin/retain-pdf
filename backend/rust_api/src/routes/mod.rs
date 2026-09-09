@@ -3,6 +3,7 @@ pub mod collections;
 pub mod common;
 pub(crate) mod download_response;
 pub mod glossaries;
+pub mod graph;
 pub mod health;
 pub mod job_helpers;
 pub mod job_requests;

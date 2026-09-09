@@ -12,6 +12,7 @@ use crate::config::{
 use crate::db::Db;
 use crate::metrics::MetricsRegistry;
 use crate::models::api::ApiResponse;
+use crate::services::graph::GraphDeps;
 use crate::services::jobs::JobsFacade;
 use crate::services::library::LibraryDeps;
 
@@ -113,6 +114,19 @@ pub struct GlossaryRouteDeps<'a> {
 pub fn build_glossary_route_deps(state: &AppState) -> GlossaryRouteDeps<'_> {
     GlossaryRouteDeps {
         db: state.db.as_ref(),
+    }
+}
+
+pub struct GraphRouteDeps<'a> {
+    pub graph: GraphDeps<'a>,
+}
+
+pub fn build_graph_route_deps(state: &AppState) -> GraphRouteDeps<'_> {
+    GraphRouteDeps {
+        graph: GraphDeps {
+            db: state.db.as_ref(),
+            data_root: &state.config.data_root,
+        },
     }
 }
 

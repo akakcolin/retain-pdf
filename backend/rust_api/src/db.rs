@@ -19,6 +19,8 @@ pub mod documents;
 mod events;
 #[path = "db/glossaries.rs"]
 mod glossaries;
+#[path = "db/graph.rs"]
+pub mod graph;
 #[path = "db/job_writes.rs"]
 mod job_writes;
 #[path = "db/jobs.rs"]

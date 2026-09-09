@@ -1,4 +1,8 @@
 pub use super::common::{ApiResponse, UploadView};
+pub use super::graph::{
+    BlockEntityLink, EntityListView, EntityMention, EntityMentionListView, EntityRecord,
+    EntitySummary, LinkDocumentGraphView, ListEntitiesQuery, ListMentionsQuery, NewEntity,
+};
 pub use super::glossary::{
     glossary_to_csv_export, glossary_to_detail, glossary_to_summary, GlossaryCsvExportView,
     GlossaryCsvParseInput, GlossaryCsvParseView, GlossaryDetailView, GlossaryListView,

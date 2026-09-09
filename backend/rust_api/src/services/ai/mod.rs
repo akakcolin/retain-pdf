@@ -3,10 +3,10 @@
 
 mod agent;
 pub mod ask;
-mod blocks;
+pub(crate) mod blocks;
 mod llm;
 mod memory;
-mod tools;
+pub(crate) mod tools;
 
 pub use ask::{run_ask, AskPayload, AskRequest};
 pub use llm::LlmClient;

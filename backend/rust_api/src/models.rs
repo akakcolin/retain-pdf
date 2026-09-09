@@ -8,6 +8,8 @@ mod defaults;
 pub mod domain;
 #[path = "models/glossary.rs"]
 mod glossary;
+#[path = "models/graph.rs"]
+mod graph;
 #[path = "models/input.rs"]
 mod input;
 #[path = "models/job.rs"]
@@ -33,6 +35,10 @@ pub use glossary::{
     build_glossary_id, glossary_to_csv_export, glossary_to_detail, glossary_to_summary,
     GlossaryCsvExportView, GlossaryCsvParseInput, GlossaryCsvParseView, GlossaryDetailView,
     GlossaryListView, GlossaryRecord, GlossarySummaryView, GlossaryUpsertInput,
+};
+pub use graph::{
+    BlockEntityLink, EntityListView, EntityMention, EntityMentionListView, EntityRecord,
+    EntitySummary, LinkDocumentGraphView, ListEntitiesQuery, ListMentionsQuery, NewEntity,
 };
 pub use input::{
     CreateJobInput, GlossaryEntryInput, JobSourceInput, OcrInput, RenderInput, ResolvedJobSpec,
