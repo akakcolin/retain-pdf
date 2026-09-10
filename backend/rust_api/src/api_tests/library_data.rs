@@ -72,6 +72,8 @@ async fn documents_list_and_patch_roundtrip() {
     assert_eq!(response.status(), StatusCode::OK);
     let payload = json_response(response).await;
     assert_eq!(payload["data"]["documents"][0]["document_id"], document_id);
+    // total 是跨页总数,前端分页 hasMore 判断依赖它(缺它会退化为只看第一页)
+    assert_eq!(payload["data"]["total"], 1);
     assert_eq!(
         payload["data"]["documents"][0]["source_pdf_url"],
         format!("http://127.0.0.1:41000/api/v1/documents/{document_id}/source.pdf")

@@ -89,6 +89,12 @@ export function CategoriesView() {
   const [folderLoading, setFolderLoading] = useState(false);
   const [folderError, setFolderError] = useState("");
 
+  // 桌面端启动早期 rust_api 未就绪(日志里见过 90s 端口等待超时)、或后端
+  // 被大任务短暂拖住时,一次失败不该直接把用户拍在错误态——列表与文件夹
+  // 内容各自动重试一次(1.5s),仍失败才亮错误 + 手动重试入口。
+  const listAutoRetriedRef = useRef(false);
+  const reloadRef = useRef(null);
+
   const reload = useCallback((options: { soft?: boolean } = {}) => {
     // soft：version bump / 二次拉取时保留旧列表，不整表切成 loading（分类 tab 闪一下）
     const soft = Boolean(options.soft);
@@ -99,6 +105,7 @@ export function CategoriesView() {
     return controller
       .listCollections()
       .then(({ collections: items = [] } = {}) => {
+        listAutoRetriedRef.current = false;
         setCollections(items);
         // 正在查看的文件夹如果被删了(管理弹窗里点了删除),退回文件夹网格。
         setOpenFolder((current) => {
@@ -108,14 +115,26 @@ export function CategoriesView() {
           const stillExists = items.some((item) => item.collection_id === current.collection_id);
           return stillExists ? items.find((item) => item.collection_id === current.collection_id) : null;
         });
+        if (!soft) {
+          setListLoading(false);
+        }
       })
-      .catch((err) => setListError(err?.message || "读取合集失败，请稍后重试。"))
-      .finally(() => {
+      .catch((err) => {
+        if (!listAutoRetriedRef.current) {
+          // 瞬时故障:静默自动重试一次,保持 loading 不闪错误
+          listAutoRetriedRef.current = true;
+          window.setTimeout(() => {
+            void reloadRef.current?.();
+          }, 1500);
+          return;
+        }
+        setListError(err?.message || "读取合集失败，请稍后重试。");
         if (!soft) {
           setListLoading(false);
         }
       });
   }, [controller]);
+  reloadRef.current = reload;
 
   // 用"是否已经加载过一次"而不是 version>0 判断首屏:切到本 tab 前可能已有
   // bump(书详情/批量加入合集等),那时 version>0 会让挂载首屏走 soft 分支——
@@ -163,6 +182,9 @@ export function CategoriesView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [controller, collectionIdsKey, version]);
 
+  // 文件夹内容手动重试:folderRetryTick 进 effect 依赖,+1 即重新拉取。
+  const [folderRetryTick, setFolderRetryTick] = useState(0);
+
   const openFolderId = openFolder?.collection_id || "";
   useEffect(() => {
     if (!openFolderId) {
@@ -171,28 +193,37 @@ export function CategoriesView() {
       return undefined;
     }
     let cancelled = false;
+    // 与合集列表同一口径:瞬时失败自动重试一次,仍失败才亮错误。
+    let autoRetried = false;
     setFolderLoading(true);
     setFolderError("");
-    controller
-      .fetchFolderBooks(openFolderId)
-      .then((items) => {
-        if (cancelled) {
-          return;
-        }
-        setFolderItems(items);
-      })
-      .catch((err) => {
-        if (cancelled) {
-          return;
-        }
-        setFolderError(err?.message || "读取合集内容失败，请稍后重试。");
-      })
-      .finally(() => {
-        if (cancelled) {
-          return;
-        }
-        setFolderLoading(false);
-      });
+    const loadFolder = () =>
+      controller
+        .fetchFolderBooks(openFolderId)
+        .then((items) => {
+          if (cancelled) {
+            return;
+          }
+          setFolderItems(items);
+          setFolderLoading(false);
+        })
+        .catch((err) => {
+          if (cancelled) {
+            return;
+          }
+          if (!autoRetried) {
+            autoRetried = true;
+            window.setTimeout(() => {
+              if (!cancelled) {
+                void loadFolder();
+              }
+            }, 1500);
+            return;
+          }
+          setFolderError(err?.message || "读取合集内容失败，请稍后重试。");
+          setFolderLoading(false);
+        });
+    void loadFolder();
     // 用 collection_id(原始类型)而不是 openFolder(对象引用)做依赖——
     // reload() 每次都会给同一个文件夹造一个新对象(见上面 setOpenFolder 里
     // 的 items.find(...)),按对象引用算依赖会导致"没真的切换文件夹"也
@@ -204,7 +235,8 @@ export function CategoriesView() {
     return () => {
       cancelled = true;
     };
-  }, [controller, openFolderId, version]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controller, openFolderId, version, folderRetryTick]);
 
   if (openFolder) {
     return (
@@ -223,7 +255,17 @@ export function CategoriesView() {
         {folderLoading ? (
           <div className="events-empty">正在加载…</div>
         ) : folderError ? (
-          <div className="events-empty">{folderError}</div>
+          <div className="events-empty">
+            <p>{folderError}</p>
+            <button
+              type="button"
+              className="app-button secondary"
+              style={{ marginTop: 12 }}
+              onClick={() => setFolderRetryTick((tick) => tick + 1)}
+            >
+              重试
+            </button>
+          </div>
         ) : folderItems.length === 0 ? (
           <EmptyState
             instrument="balance"
@@ -265,7 +307,21 @@ export function CategoriesView() {
       {listLoading ? (
         <div className="events-empty">正在加载合集…</div>
       ) : listError ? (
-        <div className="events-empty">{listError}</div>
+        <div className="events-empty">
+          <p>{listError}</p>
+          <button
+            type="button"
+            className="app-button secondary"
+            style={{ marginTop: 12 }}
+            onClick={() => {
+              // 重置自动重试标志,允许新的一轮“自动一次 + 手动兑底”
+              listAutoRetriedRef.current = false;
+              void reload();
+            }}
+          >
+            重试
+          </button>
+        </div>
       ) : collections.length === 0 ? (
         <EmptyState
           id="categories-empty"

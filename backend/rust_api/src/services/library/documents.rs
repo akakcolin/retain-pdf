@@ -74,13 +74,14 @@ pub fn list_documents(
         .map(str::trim)
         .filter(|id| !id.is_empty())
     {
-        let documents = deps
+        let documents: Vec<_> = deps
             .db
             .get_document_by_job_id(job_id)?
             .into_iter()
             .map(|doc| with_document_media_urls(doc, base_url))
             .collect();
-        return Ok(DocumentListView { documents });
+        let total = documents.len() as i64;
+        return Ok(DocumentListView { documents, total });
     }
     let documents = deps
         .db
@@ -94,7 +95,12 @@ pub fn list_documents(
         .into_iter()
         .map(|doc| with_document_media_urls(doc, base_url))
         .collect();
-    Ok(DocumentListView { documents })
+    let total = deps.db.count_documents(
+        query.reading_status.as_deref(),
+        query.tag.as_deref(),
+        query.collection_id.as_deref(),
+    )?;
+    Ok(DocumentListView { documents, total })
 }
 
 pub fn get_document(

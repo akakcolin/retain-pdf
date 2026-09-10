@@ -196,6 +196,15 @@ body.is-soft-reader-open {
     width: 0;
     height: 0;
   }
+
+  /* 合集/文件夹视图与图书馆共用 .library-view 壳(宽度/flex),但 Tailwind v4
+     的 @utility 生成顺序不跟随源码序(实测产物里 .library-view 排在
+     .categories-view 之后),同元素上 library-view 的 overflow:hidden 会
+     覆盖这里的 overflow-y:auto,导致合集内容无法滚动——用双类组合把
+     specificity 提到 (0,2,0),与生成顺序脱钩。 */
+  &.library-view {
+    overflow-y: auto;
+  }
 }
 
 /* 收藏 tab：与合集同宽同滚动壳 */
@@ -211,6 +220,11 @@ body.is-soft-reader-open {
   &::-webkit-scrollbar {
     width: 0;
     height: 0;
+  }
+
+  /* 同 categories-view：防 .library-view 的 overflow:hidden 层叠覆盖。 */
+  &.library-view {
+    overflow-y: auto;
   }
 }
 

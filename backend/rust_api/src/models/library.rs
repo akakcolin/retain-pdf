@@ -153,6 +153,8 @@ pub struct ListDocumentsQuery {
 #[derive(Debug, Serialize)]
 pub struct DocumentListView {
     pub documents: Vec<DocumentRecord>,
+    /// 满足过滤条件的文档总数(跨全部页);前端分页 hasMore 判断依赖它。
+    pub total: i64,
 }
 
 /// PATCH /api/v1/documents/:id

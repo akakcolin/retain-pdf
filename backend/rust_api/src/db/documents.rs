@@ -90,36 +90,7 @@ impl Db {
         collection_id: Option<&str>,
     ) -> Result<Vec<DocumentRecord>> {
         let conn = self.connect()?;
-        // 防御性:图书馆列表永不返回无 upload 支撑的孤儿文档(源文件已丢的
-        // 僵尸卡)。"只入库"文档有 upload 只是没 job,不受影响。
-        let mut clauses: Vec<String> = vec![
-            "EXISTS (SELECT 1 FROM uploads u WHERE u.content_hash = d.document_id AND u.content_hash <> '')"
-                .to_string(),
-        ];
-        let mut args: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
-        if let Some(status) = reading_status {
-            clauses.push(format!("d.reading_status = ?{}", args.len() + 1));
-            args.push(Box::new(status.to_string()));
-        }
-        if let Some(tag) = tag {
-            clauses.push(format!(
-                "EXISTS (SELECT 1 FROM document_tags t WHERE t.document_id = d.document_id AND t.tag = ?{})",
-                args.len() + 1
-            ));
-            args.push(Box::new(tag.to_string()));
-        }
-        if let Some(collection_id) = collection_id {
-            clauses.push(format!(
-                "EXISTS (SELECT 1 FROM collection_documents c WHERE c.document_id = d.document_id AND c.collection_id = ?{})",
-                args.len() + 1
-            ));
-            args.push(Box::new(collection_id.to_string()));
-        }
-        let where_sql = if clauses.is_empty() {
-            String::new()
-        } else {
-            format!("WHERE {}", clauses.join(" AND "))
-        };
+        let (where_sql, mut args) = build_document_filters(reading_status, tag, collection_id);
         let sql = format!(
             "SELECT {DOCUMENT_COLUMNS} FROM documents d {where_sql} ORDER BY d.added_at DESC LIMIT ?{} OFFSET ?{}",
             args.len() + 1,
@@ -140,6 +111,24 @@ impl Db {
             document.tags = load_document_tags(&conn, &document.document_id)?;
         }
         Ok(documents)
+    }
+
+    /// 与 list_documents 同一套过滤条件的总数,供前端分页的 hasMore 判断。
+    pub fn count_documents(
+        &self,
+        reading_status: Option<&str>,
+        tag: Option<&str>,
+        collection_id: Option<&str>,
+    ) -> Result<i64> {
+        let conn = self.connect()?;
+        let (where_sql, args) = build_document_filters(reading_status, tag, collection_id);
+        let sql = format!("SELECT COUNT(*) FROM documents d {where_sql}");
+        let count = conn.query_row(
+            &sql,
+            rusqlite::params_from_iter(args.iter().map(|value| value.as_ref())),
+            |row| row.get(0),
+        )?;
+        Ok(count)
     }
 
     pub fn update_document_fields(
@@ -754,6 +743,45 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 }
 
 const DOCUMENT_COLUMNS: &str = "d.document_id, d.title, d.authors_json, d.year, d.doi, d.source_filename, d.page_count, d.bytes, d.active_job_id, d.reading_status, d.added_at, d.last_opened_at, d.updated_at";
+
+/// list/count 共用的文档过滤子句(含“必须有 upload 支撑”的防御条件)。
+fn build_document_filters(
+    reading_status: Option<&str>,
+    tag: Option<&str>,
+    collection_id: Option<&str>,
+) -> (String, Vec<Box<dyn rusqlite::types::ToSql>>) {
+    // 防御性:图书馆列表永不返回无 upload 支撑的孤儿文档(源文件已丢的
+    // 僵尸卡)。"只入库"文档有 upload 只是没 job,不受影响。
+    let mut clauses: Vec<String> = vec![
+        "EXISTS (SELECT 1 FROM uploads u WHERE u.content_hash = d.document_id AND u.content_hash <> '')"
+            .to_string(),
+    ];
+    let mut args: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+    if let Some(status) = reading_status {
+        clauses.push(format!("d.reading_status = ?{}", args.len() + 1));
+        args.push(Box::new(status.to_string()));
+    }
+    if let Some(tag) = tag {
+        clauses.push(format!(
+            "EXISTS (SELECT 1 FROM document_tags t WHERE t.document_id = d.document_id AND t.tag = ?{})",
+            args.len() + 1
+        ));
+        args.push(Box::new(tag.to_string()));
+    }
+    if let Some(collection_id) = collection_id {
+        clauses.push(format!(
+            "EXISTS (SELECT 1 FROM collection_documents c WHERE c.document_id = d.document_id AND c.collection_id = ?{})",
+            args.len() + 1
+        ));
+        args.push(Box::new(collection_id.to_string()));
+    }
+    let where_sql = if clauses.is_empty() {
+        String::new()
+    } else {
+        format!("WHERE {}", clauses.join(" AND "))
+    };
+    (where_sql, args)
+}
 
 fn default_title_from_filename(filename: &str) -> String {
     filename
