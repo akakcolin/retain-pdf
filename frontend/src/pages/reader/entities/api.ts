@@ -242,14 +242,27 @@ export function listPendingEntityPages(
 }
 
 /** PATCH 一个 JSON 端点并解包信封（submitJson 只支持 POST）。 */
-async function patchJson<T>(path: string, payload: unknown): Promise<T> {
+async function patchJson<T>(
+  path: string,
+  payload: unknown,
+  fallback = "保存概念页失败，请稍后重试。",
+): Promise<T> {
   const resp = await fetch(buildApiEndpoint(API_PREFIX, path), {
     method: "PATCH",
     headers: buildApiHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   if (!resp.ok) {
-    throw new Error(`保存概念页失败，请稍后重试。(${resp.status})`);
+    // 尽力带上服务端 message（改名的 409 提示靠它），状态码始终保留兜底。
+    let message = fallback;
+    try {
+      const body = (await resp.json()) as { message?: unknown };
+      const text = typeof body?.message === "string" ? body.message.trim() : "";
+      if (text) message = text;
+    } catch {
+      // 响应不是 JSON:用通用文案
+    }
+    throw new Error(`${message}(${resp.status})`);
   }
   return unwrapEnvelope<T>(await resp.json());
 }
@@ -289,6 +302,49 @@ export function saveEntityPage(entityId: string, bodyMd: string): Promise<Entity
 /** 撤销人工修订，回到模型原文（不花 token）。 */
 export function revertEntityPage(entityId: string): Promise<EntityPage> {
   return patchJson<EntityPage>(`entities/${encodeURIComponent(entityId)}/page`, { revert: true });
+}
+
+/** 全库实体检索（合并选择器用；空 query/entity_type 不带该参数）。 */
+export function searchEntities(
+  query = "",
+  { entityType = "", limit = 20 }: { entityType?: string; limit?: number } = {},
+): Promise<EntitySummary[]> {
+  const params = new URLSearchParams();
+  const trimmed = `${query || ""}`.trim();
+  if (trimmed) params.set("query", trimmed);
+  const type = `${entityType || ""}`.trim();
+  if (type) params.set("entity_type", type);
+  params.set("limit", String(Math.min(Math.max(1, limit), MAX_LIMIT)));
+  return getList<EntitySummary>("entities", params);
+}
+
+/** 改名；归一化后撞名时服务端回 409，message 提示改用合并。 */
+export function renameEntity(entityId: string, name: string): Promise<EntityRecord> {
+  return patchJson<EntityRecord>(
+    `entities/${encodeURIComponent(entityId)}`,
+    { name },
+    "重命名失败，请稍后重试。",
+  );
+}
+
+/** 合并结果：:id 是幸存者，源实体已被删除。 */
+export type MergeEntitiesResult = {
+  target: EntityRecord;
+  merged: string[];
+  mentions: number;
+  relations: number;
+  page_adopted: boolean;
+};
+
+/** 合并：把 sourceEntityIds 合进 entityId（幸存者），源实体被删除。 */
+export function mergeEntities(
+  entityId: string,
+  sourceEntityIds: string[],
+): Promise<MergeEntitiesResult> {
+  return submitJson(
+    buildApiEndpoint(API_PREFIX, `entities/${encodeURIComponent(entityId)}/merge`),
+    { source_entity_ids: sourceEntityIds },
+  ) as Promise<MergeEntitiesResult>;
 }
 
 /** 零 LLM 成本：术语表种子 + 该文档全块字面扫描，可重复调用。 */

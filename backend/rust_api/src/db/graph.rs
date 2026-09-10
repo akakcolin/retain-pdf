@@ -2,7 +2,7 @@
 //! 全部走 Db facade,路由/服务层不直接写 SQL。
 
 use anyhow::{Context, Result};
-use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
+use rusqlite::{params, params_from_iter, Connection, OptionalExtension, TransactionBehavior};
 
 use crate::models::domain::{build_job_id, now_iso};
 use crate::models::api::{
@@ -65,6 +65,50 @@ fn row_to_related(row: &rusqlite::Row<'_>) -> rusqlite::Result<RelatedEntity> {
 
 const ENTITY_COLUMNS: &str =
     "entity_id, name, name_norm, entity_type, aliases_json, description, created_at, updated_at";
+
+/// 一次合并的源实体上限。数字占位符 + params_from_iter 拼 IN 列表,SQLite 上限
+/// 32766,50 远低于它,无需临时表。
+const MAX_MERGE_SOURCES: usize = 50;
+
+/// 实体改名结果。校验在事务内完成,视图层只做映射,不存在 TOCTOU 窗口。
+// 变体大小不均是刻意的:成功的记录原地携带,失败变体保持轻量。
+#[allow(clippy::large_enum_variant)]
+pub enum RenameOutcome {
+    Renamed(EntityRecord),
+    NotFound,
+    EmptyName,
+    /// 归一化后撞上另一个同类型实体:让用户改用合并,而不是静默合并。
+    Conflict { existing_name: String },
+}
+
+/// 实体合并结果。
+#[allow(clippy::large_enum_variant)]
+pub enum MergeOutcome {
+    Merged(MergeSummary),
+    TargetNotFound,
+    SourceNotFound(String),
+    EmptySources,
+    SourceIsTarget,
+    TooManySources { max: usize },
+}
+
+pub struct MergeSummary {
+    pub target: EntityRecord,
+    pub merged: Vec<String>,
+    pub mentions: i64,
+    pub relations: i64,
+    /// 目标原本无页、采纳了某个源页。
+    pub page_adopted: bool,
+}
+
+/// 按 entity_id 载入实体(接受 `&Connection`,也接受事务——`&Transaction` 解引用)。
+/// 所有事务内读取都必须走它,不能用 `self.get_entity`(会另开连接抢写锁 → 死锁)。
+fn load_entity_conn(conn: &Connection, entity_id: &str) -> Result<Option<EntityRecord>> {
+    let sql = format!("SELECT {ENTITY_COLUMNS} FROM entities WHERE entity_id = ?1");
+    Ok(conn
+        .query_row(&sql, params![entity_id], row_to_entity)
+        .optional()?)
+}
 
 /// 实体邻居查询:?1 实体 id,?2 关系类型('' = 不过滤),?3 limit。
 const RELATED_ENTITIES_SQL: &str = r#"
@@ -484,6 +528,237 @@ impl Db {
         }
         tx.commit()?;
         Ok(())
+    }
+
+    /// 改名:旧原始名并入别名(读时的 `[[名]]`/反链/收藏解析靠别名继续命中),
+    /// `entity_type` 与 `entity_id` 不动。归一化后撞上另一个同类型实体 → Conflict。
+    ///
+    /// 查-改-写在 `BEGIN IMMEDIATE` 里完成,校验与写入之间无 TOCTOU 窗口。
+    pub fn rename_entity(&self, entity_id: &str, new_name: &str) -> Result<RenameOutcome> {
+        let trimmed = new_name.trim();
+        let new_norm = normalize_entity_name(trimmed);
+        if new_norm.is_empty() {
+            return Ok(RenameOutcome::EmptyName);
+        }
+        let mut conn = self.connect()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let Some(target) = load_entity_conn(&tx, entity_id)? else {
+            return Ok(RenameOutcome::NotFound);
+        };
+        if new_norm != target.name_norm {
+            if let Some(existing) = find_entity_exact_conn(&tx, &new_norm, &target.entity_type)? {
+                if existing.entity_id != target.entity_id {
+                    return Ok(RenameOutcome::Conflict {
+                        existing_name: existing.name,
+                    });
+                }
+            }
+        }
+        let mut combined: Vec<String> = target.aliases.clone();
+        combined.push(target.name.clone());
+        let aliases = clean_aliases(&new_norm, &combined);
+        tx.execute(
+            "UPDATE entities SET name = ?1, name_norm = ?2, aliases_json = ?3, updated_at = ?4 \
+             WHERE entity_id = ?5",
+            params![
+                trimmed,
+                new_norm,
+                serde_json::to_string(&aliases)?,
+                now_iso(),
+                target.entity_id
+            ],
+        )?;
+        let updated =
+            load_entity_conn(&tx, &target.entity_id)?.context("entity reload after rename failed")?;
+        tx.commit()?;
+        Ok(RenameOutcome::Renamed(updated))
+    }
+
+    /// 合并:`target_id` 是幸存者,源实体被删除。证据/关系/概念页全迁到目标,
+    /// 源的 name + aliases 并入目标别名。全在一个 `BEGIN IMMEDIATE` 事务内完成。
+    ///
+    /// 不变量:
+    /// - block_entities 用 `INSERT OR IGNORE ... SELECT` 再删源行:entity_id 在主键里,
+    ///   `UPDATE` 会被 SQLite 实现成 delete+insert(换 rowid),而 rowid 参与
+    ///   `entity_page_evidence_sig`。目标自己的行 rowid 原样保留。
+    /// - entity_relations 无唯一键,去重按 `rowid`(relation_id 是 `rel-{ts}-{rand}`,
+    ///   字典序 MIN 不等于最旧)。自环删除必须写 `AND from_entity_id = ?target`,
+    ///   否则会误删全库无关自环。
+    /// - entity_pages 主键是 entity_id,只能活一个:目标无页时采纳最佳源页
+    ///   (人工修订优先,其次最新),其余源页随实体级联删除。
+    /// - 不动 `documents.graph_extracted_at`,不改目标的 name/name_norm/entity_type。
+    pub fn merge_entities(&self, target_id: &str, source_ids: &[String]) -> Result<MergeOutcome> {
+        let mut sources: Vec<String> = Vec::new();
+        for id in source_ids {
+            let id = id.trim();
+            if !id.is_empty() && !sources.iter().any(|seen| seen == id) {
+                sources.push(id.to_string());
+            }
+        }
+        if sources.is_empty() {
+            return Ok(MergeOutcome::EmptySources);
+        }
+        if sources.iter().any(|source| source == target_id) {
+            return Ok(MergeOutcome::SourceIsTarget);
+        }
+        if sources.len() > MAX_MERGE_SOURCES {
+            return Ok(MergeOutcome::TooManySources {
+                max: MAX_MERGE_SOURCES,
+            });
+        }
+
+        let mut conn = self.connect()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let Some(target) = load_entity_conn(&tx, target_id)? else {
+            return Ok(MergeOutcome::TargetNotFound);
+        };
+        let mut records = Vec::with_capacity(sources.len());
+        for source_id in &sources {
+            let Some(record) = load_entity_conn(&tx, source_id)? else {
+                return Ok(MergeOutcome::SourceNotFound(source_id.clone()));
+            };
+            records.push(record);
+        }
+
+        // 源占位符 ?1..?N,目标恒为 ?N+1(每条语句独立编号)。
+        let source_ph = (1..=sources.len())
+            .map(|index| format!("?{index}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let target_ph = format!("?{}", sources.len() + 1);
+        // 源在前、目标在后的参数序列(供「IN 源 + 目标」的语句复用)。
+        let mut source_then_target: Vec<&str> = sources.iter().map(String::as_str).collect();
+        source_then_target.push(target.entity_id.as_str());
+
+        // 迁移 block 证据,再删源行。目标已有的 (doc,page,block) 行连 rowid 保留。
+        tx.execute(
+            &format!(
+                "INSERT OR IGNORE INTO block_entities
+                   (document_id, entity_id, page_idx, block_id, job_id,
+                    surface_form, snippet, confidence, source, created_at)
+                 SELECT document_id, {target_ph}, page_idx, block_id, job_id,
+                        surface_form, snippet, confidence, source, created_at
+                 FROM block_entities WHERE entity_id IN ({source_ph})"
+            ),
+            params_from_iter(source_then_target.iter()),
+        )?;
+        tx.execute(
+            &format!("DELETE FROM block_entities WHERE entity_id IN ({source_ph})"),
+            params_from_iter(sources.iter()),
+        )?;
+
+        // 关系端点改指目标,再清自环、按 (from,to,type) 保留最小 rowid。
+        tx.execute(
+            &format!(
+                "UPDATE entity_relations SET from_entity_id = {target_ph}
+                 WHERE from_entity_id IN ({source_ph})"
+            ),
+            params_from_iter(source_then_target.iter()),
+        )?;
+        tx.execute(
+            &format!(
+                "UPDATE entity_relations SET to_entity_id = {target_ph}
+                 WHERE to_entity_id IN ({source_ph})"
+            ),
+            params_from_iter(source_then_target.iter()),
+        )?;
+        tx.execute(
+            "DELETE FROM entity_relations WHERE from_entity_id = ?1 AND to_entity_id = ?1",
+            params![target.entity_id],
+        )?;
+        tx.execute(
+            "DELETE FROM entity_relations
+              WHERE (from_entity_id = ?1 OR to_entity_id = ?1)
+                AND rowid NOT IN (
+                  SELECT MIN(rowid) FROM entity_relations
+                   WHERE from_entity_id = ?1 OR to_entity_id = ?1
+                   GROUP BY from_entity_id, to_entity_id, relation_type
+                )",
+            params![target.entity_id],
+        )?;
+
+        // 目标无页时采纳最佳源页。
+        let has_page = tx
+            .query_row(
+                "SELECT 1 FROM entity_pages WHERE entity_id = ?1",
+                params![target.entity_id],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some();
+        let mut page_adopted = false;
+        if !has_page {
+            let best: Option<String> = tx
+                .query_row(
+                    &format!(
+                        "SELECT entity_id FROM entity_pages WHERE entity_id IN ({source_ph})
+                         ORDER BY (edited_body_md <> '') DESC, generated_at DESC LIMIT 1"
+                    ),
+                    params_from_iter(sources.iter()),
+                    |row| row.get(0),
+                )
+                .optional()?;
+            if let Some(best_id) = best {
+                tx.execute(
+                    "UPDATE entity_pages SET entity_id = ?1 WHERE entity_id = ?2",
+                    params![target.entity_id, best_id],
+                )?;
+                page_adopted = true;
+            }
+        }
+
+        // 别名并集(每源 name + aliases),描述回退到首个非空源,再删源实体(级联清残留)。
+        let mut combined: Vec<String> = target.aliases.clone();
+        for record in &records {
+            combined.push(record.name.clone());
+            combined.extend(record.aliases.iter().cloned());
+        }
+        let aliases = clean_aliases(&target.name_norm, &combined);
+        let description = if target.description.trim().is_empty() {
+            records
+                .iter()
+                .map(|record| record.description.clone())
+                .find(|value| !value.trim().is_empty())
+                .unwrap_or_default()
+        } else {
+            target.description.clone()
+        };
+        tx.execute(
+            "UPDATE entities SET aliases_json = ?1, description = ?2, updated_at = ?3 \
+             WHERE entity_id = ?4",
+            params![
+                serde_json::to_string(&aliases)?,
+                description,
+                now_iso(),
+                target.entity_id
+            ],
+        )?;
+        tx.execute(
+            &format!("DELETE FROM entities WHERE entity_id IN ({source_ph})"),
+            params_from_iter(sources.iter()),
+        )?;
+
+        let mentions: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM block_entities WHERE entity_id = ?1",
+            params![target.entity_id],
+            |row| row.get(0),
+        )?;
+        let relations: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM entity_relations
+             WHERE from_entity_id = ?1 OR to_entity_id = ?1",
+            params![target.entity_id],
+            |row| row.get(0),
+        )?;
+        let updated = load_entity_conn(&tx, &target.entity_id)?
+            .context("entity reload after merge failed")?;
+        tx.commit()?;
+        Ok(MergeOutcome::Merged(MergeSummary {
+            target: updated,
+            merged: sources,
+            mentions,
+            relations,
+            page_adopted,
+        }))
     }
 
     /// 写一条有向关系。同 (from, to, type) 已存在则忽略——多次抽取/多文档
@@ -1546,4 +1821,443 @@ mod tests {
         assert_eq!(read_extracted_at(&db, "doc-1"), stamp);
     }
 
+    // ---- Phase 11: 实体改名 / 合并 ----
+
+    fn relate(from: &str, to: &str, kind: &str) -> NewEntityRelation {
+        NewEntityRelation {
+            from_entity_id: from.to_string(),
+            to_entity_id: to.to_string(),
+            relation_type: kind.to_string(),
+            confidence: 0.9,
+            explanation: String::new(),
+            source_document_id: "doc-1".to_string(),
+            source_block_id: "p001-b0000".to_string(),
+        }
+    }
+
+    /// 绕过 add_entity_relation 的三元组守卫,直接插行(rowid 去重测试要造重复)。
+    fn raw_relation(db: &Db, id: &str, from: &str, to: &str, kind: &str, explanation: &str) {
+        db.connect()
+            .expect("connect")
+            .execute(
+                "INSERT INTO entity_relations (relation_id, from_entity_id, to_entity_id,
+                    relation_type, confidence, explanation, source_document_id, source_block_id,
+                    created_at)
+                 VALUES (?1, ?2, ?3, ?4, 0.5, ?5, 'doc-1', 'p001-b0000', '2026-09-09T00:00:00Z')",
+                params![id, from, to, kind, explanation],
+            )
+            .expect("raw relation");
+    }
+
+    fn relation_count(db: &Db, from: &str, to: &str, kind: &str) -> i64 {
+        db.connect()
+            .expect("connect")
+            .query_row(
+                "SELECT COUNT(*) FROM entity_relations
+                 WHERE from_entity_id = ?1 AND to_entity_id = ?2 AND relation_type = ?3",
+                params![from, to, kind],
+                |row| row.get(0),
+            )
+            .expect("count")
+    }
+
+    fn mention_count(db: &Db, entity_id: &str) -> i64 {
+        db.connect()
+            .expect("connect")
+            .query_row(
+                "SELECT COUNT(*) FROM block_entities WHERE entity_id = ?1",
+                params![entity_id],
+                |row| row.get(0),
+            )
+            .expect("count")
+    }
+
+    fn block_rowid(db: &Db, document_id: &str, block_id: &str, entity_id: &str) -> Option<i64> {
+        db.connect()
+            .expect("connect")
+            .query_row(
+                "SELECT rowid FROM block_entities
+                 WHERE document_id = ?1 AND block_id = ?2 AND entity_id = ?3",
+                params![document_id, block_id, entity_id],
+                |row| row.get(0),
+            )
+            .ok()
+    }
+
+    #[test]
+    fn rename_preserves_identity_and_adds_old_name_to_aliases() {
+        let fs = TestDbFs::new("rename");
+        let db = fs.db();
+        let entity = db
+            .upsert_entity(&new_entity("GNN", "term", &["GNN模型"]))
+            .expect("entity");
+
+        let renamed = match db
+            .rename_entity(&entity.entity_id, "Graph Neural Network")
+            .expect("rename")
+        {
+            RenameOutcome::Renamed(record) => record,
+            _ => panic!("expected Renamed"),
+        };
+        assert_eq!(renamed.entity_id, entity.entity_id);
+        assert_eq!(renamed.entity_type, "term");
+        assert_eq!(renamed.name, "Graph Neural Network");
+        assert_eq!(renamed.name_norm, "graph neural network");
+        let mut aliases = renamed.aliases.clone();
+        aliases.sort();
+        assert_eq!(aliases, vec!["GNN".to_string(), "GNN模型".to_string()]);
+    }
+
+    #[test]
+    fn rename_case_variant_keeps_id_and_dedupes_aliases() {
+        let fs = TestDbFs::new("rename-case");
+        let db = fs.db();
+        let entity = db
+            .upsert_entity(&new_entity("GNN", "term", &["图神经网络"]))
+            .expect("entity");
+
+        // 大小写变体:归一化名不变 → 无冲突,旧名归一化后等于新名 → 不进别名
+        let renamed = match db.rename_entity(&entity.entity_id, "gnn").expect("rename") {
+            RenameOutcome::Renamed(record) => record,
+            _ => panic!("expected Renamed"),
+        };
+        assert_eq!(renamed.entity_id, entity.entity_id);
+        assert_eq!(renamed.name, "gnn");
+        assert_eq!(renamed.aliases, vec!["图神经网络".to_string()]);
+
+        // 改回原名:不产生重名冲突
+        match db.rename_entity(&entity.entity_id, "GNN").expect("rename back") {
+            RenameOutcome::Renamed(record) => assert_eq!(record.name, "GNN"),
+            _ => panic!("expected Renamed"),
+        }
+    }
+
+    #[test]
+    fn rename_to_existing_alias_moves_it_out_of_aliases() {
+        let fs = TestDbFs::new("rename-into-alias");
+        let db = fs.db();
+        let entity = db
+            .upsert_entity(&new_entity("GNN", "term", &["图神经网络"]))
+            .expect("entity");
+        let renamed = match db
+            .rename_entity(&entity.entity_id, "图神经网络")
+            .expect("rename")
+        {
+            RenameOutcome::Renamed(record) => record,
+            _ => panic!("expected Renamed"),
+        };
+        assert_eq!(renamed.name_norm, "图神经网络");
+        assert_eq!(renamed.aliases, vec!["GNN".to_string()]);
+    }
+
+    #[test]
+    fn rename_reports_empty_missing_and_conflict() {
+        let fs = TestDbFs::new("rename-errors");
+        let db = fs.db();
+        let gnn = db.upsert_entity(&new_entity("GNN", "method", &[])).expect("gnn");
+        db.upsert_entity(&new_entity("Transformer", "method", &[]))
+            .expect("transformer");
+
+        match db.rename_entity(&gnn.entity_id, "   ").expect("empty") {
+            RenameOutcome::EmptyName => {}
+            _ => panic!("expected EmptyName"),
+        }
+        match db.rename_entity("ent-missing", "x").expect("missing") {
+            RenameOutcome::NotFound => {}
+            _ => panic!("expected NotFound"),
+        }
+        match db
+            .rename_entity(&gnn.entity_id, "  transformer ")
+            .expect("conflict")
+        {
+            RenameOutcome::Conflict { existing_name } => assert_eq!(existing_name, "Transformer"),
+            _ => panic!("expected Conflict"),
+        }
+
+        // 同归一化名、不同类型不算冲突
+        let concept = db
+            .upsert_entity(&new_entity("Transformer", "concept", &[]))
+            .expect("concept");
+        match db.rename_entity(&concept.entity_id, "gnn").expect("cross-type") {
+            RenameOutcome::Renamed(record) => {
+                assert_eq!(record.name, "gnn");
+                assert_eq!(record.entity_type, "concept");
+            }
+            _ => panic!("expected Renamed"),
+        }
+    }
+
+    #[test]
+    fn merge_migrates_evidence_and_keeps_unrelated_signature() {
+        let fs = TestDbFs::new("merge-evidence");
+        let db = fs.db();
+        seed_document(&db, "doc-1");
+        let target = db.upsert_entity(&new_entity("GNN", "method", &[])).expect("target");
+        let source = db.upsert_entity(&new_entity("图神经网络", "method", &[])).expect("source");
+        let other = db.upsert_entity(&new_entity("BERT", "method", &[])).expect("other");
+
+        // 共享 (doc, page, block) + 各自独有 + 无关实体
+        db.link_block_entity(&link("doc-1", &target.entity_id, "p001-b0000"))
+            .expect("t shared");
+        db.link_block_entity(&link("doc-1", &target.entity_id, "p001-b0001"))
+            .expect("t own");
+        db.link_block_entity(&link("doc-1", &source.entity_id, "p001-b0000"))
+            .expect("s shared");
+        db.link_block_entity(&link("doc-1", &source.entity_id, "p001-b0002"))
+            .expect("s own");
+        db.link_block_entity(&link("doc-1", &other.entity_id, "p001-b0003"))
+            .expect("other");
+        let other_sig = db.entity_page_evidence_sig(&other.entity_id).expect("other sig");
+        let target_shared_rowid =
+            block_rowid(&db, "doc-1", "p001-b0000", &target.entity_id).expect("rowid");
+
+        match db
+            .merge_entities(&target.entity_id, std::slice::from_ref(&source.entity_id))
+            .expect("merge")
+        {
+            MergeOutcome::Merged(summary) => assert_eq!(summary.mentions, 3),
+            _ => panic!("expected Merged"),
+        }
+
+        assert_eq!(mention_count(&db, &target.entity_id), 3);
+        assert_eq!(mention_count(&db, &source.entity_id), 0);
+        // 目标自己的共享行 rowid 原样保留(INSERT OR IGNORE 不换 rowid)
+        assert_eq!(
+            block_rowid(&db, "doc-1", "p001-b0000", &target.entity_id),
+            Some(target_shared_rowid)
+        );
+        // 无关实体证据签名前后不变
+        assert_eq!(
+            db.entity_page_evidence_sig(&other.entity_id).expect("other sig2"),
+            other_sig
+        );
+    }
+
+    #[test]
+    fn merge_rewrites_relations_dedupes_by_rowid_and_spares_unrelated() {
+        let fs = TestDbFs::new("merge-relations");
+        let db = fs.db();
+        seed_document(&db, "doc-1");
+        let target = db.upsert_entity(&new_entity("GNN", "method", &[])).expect("target");
+        let source = db.upsert_entity(&new_entity("图神经网络", "method", &[])).expect("source");
+        let x = db.upsert_entity(&new_entity("X", "method", &[])).expect("x");
+        let y = db.upsert_entity(&new_entity("Y", "method", &[])).expect("y");
+
+        // T→S 迁移后会成为 T→T 自环,应被删
+        db.add_entity_relation(&relate(&target.entity_id, &source.entity_id, "mentions"))
+            .expect("t->s");
+        // S→X 迁移成 T→X
+        db.add_entity_relation(&relate(&source.entity_id, &x.entity_id, "uses"))
+            .expect("s->x");
+        // 目标自己的重复三元组,保留最早 rowid
+        raw_relation(&db, "rel-dup-1", &target.entity_id, &y.entity_id, "uses", "first");
+        raw_relation(&db, "rel-dup-2", &target.entity_id, &y.entity_id, "uses", "second");
+        // 无关自环与无关重复,都不能被误伤
+        raw_relation(&db, "rel-self", &x.entity_id, &x.entity_id, "loop", "self");
+        raw_relation(&db, "rel-xa", &x.entity_id, &y.entity_id, "pair", "a");
+        raw_relation(&db, "rel-xb", &x.entity_id, &y.entity_id, "pair", "b");
+
+        db.merge_entities(&target.entity_id, std::slice::from_ref(&source.entity_id))
+            .expect("merge");
+
+        // T→S 自环消失
+        assert_eq!(relation_count(&db, &target.entity_id, &target.entity_id, "mentions"), 0);
+        // S→X 已改指目标
+        assert_eq!(relation_count(&db, &target.entity_id, &x.entity_id, "uses"), 1);
+        assert_eq!(relation_count(&db, &source.entity_id, &x.entity_id, "uses"), 0);
+        // T→Y 去重保留最早 rowid(explanation "first")
+        assert_eq!(relation_count(&db, &target.entity_id, &y.entity_id, "uses"), 1);
+        let kept: String = db
+            .connect()
+            .expect("connect")
+            .query_row(
+                "SELECT explanation FROM entity_relations
+                 WHERE from_entity_id = ?1 AND to_entity_id = ?2 AND relation_type = 'uses'",
+                params![target.entity_id, y.entity_id],
+                |row| row.get(0),
+            )
+            .expect("kept");
+        assert_eq!(kept, "first");
+        // 无关自环与无关重复原样
+        assert_eq!(relation_count(&db, &x.entity_id, &x.entity_id, "loop"), 1);
+        assert_eq!(relation_count(&db, &x.entity_id, &y.entity_id, "pair"), 2);
+    }
+
+    #[test]
+    fn merge_adopts_edited_source_page_when_target_has_none() {
+        let fs = TestDbFs::new("merge-page-adopt");
+        let db = fs.db();
+        let target = db.upsert_entity(&new_entity("GNN", "method", &[])).expect("target");
+        let older = db.upsert_entity(&new_entity("甲", "method", &[])).expect("older");
+        let edited = db.upsert_entity(&new_entity("乙", "method", &[])).expect("edited");
+        db.upsert_entity_page(&page_record(&older.entity_id, "模型一", ""), true)
+            .expect("older page");
+        db.upsert_entity_page(&page_record(&edited.entity_id, "模型二", "人工修订"), true)
+            .expect("edited page");
+
+        match db
+            .merge_entities(&target.entity_id, &[older.entity_id.clone(), edited.entity_id.clone()])
+            .expect("merge")
+        {
+            MergeOutcome::Merged(summary) => {
+                assert!(summary.page_adopted);
+                assert_eq!(summary.target.entity_id, target.entity_id);
+            }
+            _ => panic!("expected Merged"),
+        }
+
+        // 只有一个页存活下来,采纳的是带人工修订的那个
+        let page = db
+            .get_entity_page(&target.entity_id)
+            .expect("page")
+            .expect("some");
+        assert_eq!(page.effective_body(), "人工修订");
+        assert_eq!(page.body_md, "模型二");
+        assert!(db.get_entity_page(&older.entity_id).expect("older gone").is_none());
+        assert!(db.get_entity_page(&edited.entity_id).expect("edited gone").is_none());
+    }
+
+    #[test]
+    fn merge_keeps_target_page_and_drops_source_pages() {
+        let fs = TestDbFs::new("merge-page-keep");
+        let db = fs.db();
+        let target = db.upsert_entity(&new_entity("GNN", "method", &[])).expect("target");
+        let source = db.upsert_entity(&new_entity("图神经网络", "method", &[])).expect("source");
+        db.upsert_entity_page(&page_record(&target.entity_id, "目标页", ""), true)
+            .expect("target page");
+        db.upsert_entity_page(&page_record(&source.entity_id, "源页", ""), true)
+            .expect("source page");
+
+        match db
+            .merge_entities(&target.entity_id, std::slice::from_ref(&source.entity_id))
+            .expect("merge")
+        {
+            MergeOutcome::Merged(summary) => assert!(!summary.page_adopted),
+            _ => panic!("expected Merged"),
+        }
+        let page = db
+            .get_entity_page(&target.entity_id)
+            .expect("page")
+            .expect("some");
+        assert_eq!(page.body_md, "目标页");
+        assert!(db.get_entity_page(&source.entity_id).expect("gone").is_none());
+    }
+
+    #[test]
+    fn merge_unions_aliases_descriptions_and_stales_target_page() {
+        let fs = TestDbFs::new("merge-aliases");
+        let db = fs.db();
+        seed_document(&db, "doc-1");
+        let target = db
+            .upsert_entity(&new_entity("GNN", "method", &["图神经网络"]))
+            .expect("target");
+        let mut s1 = new_entity("Graph Neural Network", "method", &["GNN-model"]);
+        s1.description = "first non-empty".to_string();
+        let s1 = db.upsert_entity(&s1).expect("s1");
+        let s2 = db
+            .upsert_entity(&new_entity("消息传递网络", "method", &["MPNN"]))
+            .expect("s2");
+        // 源带证据:合并后目标签名必变
+        db.link_block_entity(&link("doc-1", &s1.entity_id, "p001-b0000"))
+            .expect("s1 link");
+        db.add_entity_relation(&relate(&s1.entity_id, &s2.entity_id, "related"))
+            .expect("s1->s2");
+
+        // 目标页:证据签名 = 合并前
+        let sig_before = db.entity_page_evidence_sig(&target.entity_id).expect("sig");
+        let mut page = page_record(&target.entity_id, "目标页", "");
+        page.evidence_sig = sig_before.clone();
+        db.upsert_entity_page(&page, true).expect("page");
+
+        match db
+            .merge_entities(&target.entity_id, &[s1.entity_id.clone(), s2.entity_id.clone()])
+            .expect("merge")
+        {
+            MergeOutcome::Merged(summary) => {
+                assert_eq!(summary.merged.len(), 2);
+                let mut aliases = summary.target.aliases.clone();
+                aliases.sort();
+                assert_eq!(
+                    aliases,
+                    vec![
+                        "GNN-model".to_string(),
+                        "Graph Neural Network".to_string(),
+                        "MPNN".to_string(),
+                        "图神经网络".to_string(),
+                        "消息传递网络".to_string(),
+                    ]
+                );
+                assert_eq!(summary.target.description, "first non-empty");
+                // 目标自身标识不动
+                assert_eq!(summary.target.name, "GNN");
+                assert_eq!(summary.target.name_norm, "gnn");
+                assert_eq!(summary.target.entity_type, "method");
+            }
+            _ => panic!("expected Merged"),
+        }
+
+        assert!(db.get_entity(&s1.entity_id).is_err());
+        assert!(db.get_entity(&s2.entity_id).is_err());
+        // 合并后证据签名变化 → 目标概念页 stale
+        assert_ne!(
+            db.entity_page_evidence_sig(&target.entity_id).expect("sig2"),
+            sig_before
+        );
+    }
+
+    #[test]
+    fn merge_dedupes_sources_and_reports_validation_outcomes() {
+        let fs = TestDbFs::new("merge-validation");
+        let db = fs.db();
+        let target = db.upsert_entity(&new_entity("GNN", "method", &[])).expect("target");
+        let source = db.upsert_entity(&new_entity("图神经网络", "method", &[])).expect("source");
+
+        match db.merge_entities(&target.entity_id, &[]).expect("empty") {
+            MergeOutcome::EmptySources => {}
+            _ => panic!("expected EmptySources"),
+        }
+        match db
+            .merge_entities(&target.entity_id, &[String::new(), "   ".to_string()])
+            .expect("blank")
+        {
+            MergeOutcome::EmptySources => {}
+            _ => panic!("expected EmptySources for blanks"),
+        }
+        match db
+            .merge_entities(&target.entity_id, std::slice::from_ref(&target.entity_id))
+            .expect("self")
+        {
+            MergeOutcome::SourceIsTarget => {}
+            _ => panic!("expected SourceIsTarget"),
+        }
+        match db
+            .merge_entities("ent-missing", std::slice::from_ref(&source.entity_id))
+            .expect("target")
+        {
+            MergeOutcome::TargetNotFound => {}
+            _ => panic!("expected TargetNotFound"),
+        }
+        match db
+            .merge_entities(&target.entity_id, &["ent-missing".to_string()])
+            .expect("source")
+        {
+            MergeOutcome::SourceNotFound(id) => assert_eq!(id, "ent-missing"),
+            _ => panic!("expected SourceNotFound"),
+        }
+        let many: Vec<String> = (0..MAX_MERGE_SOURCES + 1)
+            .map(|index| format!("ent-{index}"))
+            .collect();
+        match db.merge_entities(&target.entity_id, &many).expect("too many") {
+            MergeOutcome::TooManySources { max } => assert_eq!(max, MAX_MERGE_SOURCES),
+            _ => panic!("expected TooManySources"),
+        }
+        // 重复源按序去重 → 单个源,合并成功
+        match db
+            .merge_entities(&target.entity_id, &[source.entity_id.clone(), source.entity_id.clone()])
+            .expect("dup")
+        {
+            MergeOutcome::Merged(summary) => assert_eq!(summary.merged, vec![source.entity_id]),
+            _ => panic!("expected Merged"),
+        }
+    }
 }

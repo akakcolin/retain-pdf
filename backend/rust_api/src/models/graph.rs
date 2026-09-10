@@ -340,6 +340,30 @@ pub struct SaveEntityPageRequest {
     pub revert: bool,
 }
 
+/// PATCH /api/v1/entities/:id 请求体:改名。缺字段由视图层回 400,而不是 axum 的 422。
+#[derive(Debug, Default, Deserialize)]
+pub struct RenameEntityRequest {
+    #[serde(default)]
+    pub name: String,
+}
+
+/// POST /api/v1/entities/:id/merge 请求体。:id 是幸存者,这些是待删除的源。
+#[derive(Debug, Default, Deserialize)]
+pub struct MergeEntitiesRequest {
+    #[serde(default)]
+    pub source_entity_ids: Vec<String>,
+}
+
+/// POST /api/v1/entities/:id/merge 响应:合并后的目标 + 汇总。
+#[derive(Debug, Serialize)]
+pub struct MergeEntitiesView {
+    pub target: EntityRecord,
+    pub merged: Vec<String>,
+    pub mentions: i64,
+    pub relations: i64,
+    pub page_adopted: bool,
+}
+
 /// 反链:哪张概念页提到了本实体。snippet = 链接附近的一小段上下文。
 #[derive(Debug, Clone, Serialize)]
 pub struct EntityBacklink {

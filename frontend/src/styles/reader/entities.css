@@ -67,10 +67,15 @@
 
 .reader-entities-detail-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+/* 类型标签吸住左侧空间，后面的动作按钮自然靠右。 */
+.reader-entities-detail-head .reader-entities-type {
+  margin-right: auto;
 }
 
 .reader-entities-back {
@@ -322,4 +327,89 @@
   stroke-width: 2.5px;
   stroke-linejoin: round;
   pointer-events: none;
+}
+
+/* 改名内联输入 + 合并选择器 */
+.reader-entities-rename-input,
+.reader-entities-merge-input {
+  width: 100%;
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.reader-entities-rename {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+}
+
+.reader-entities-rename .reader-entities-rename-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.reader-entities-merge-input {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.reader-entities-merge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reader-entities-merge-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--ink) 5%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.reader-entities-merge-item:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.reader-entities-merge-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.reader-entities-merge-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-entities-merge-count {
+  flex-shrink: 0;
+  min-width: 20px;
+  color: var(--muted, var(--muted));
+  font-size: 11px;
+  font-weight: 700;
+  text-align: right;
 }

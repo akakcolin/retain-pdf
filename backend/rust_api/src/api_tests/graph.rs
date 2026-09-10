@@ -866,6 +866,34 @@ async fn graph_routes_require_api_key() {
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
     let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri("/api/v1/entities/ent-x")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"name":"x"}"#))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/entities/ent-x/merge")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"source_entity_ids":["ent-y"]}"#))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    let response = app
         .oneshot(
             Request::builder()
                 .method("GET")
@@ -876,4 +904,213 @@ async fn graph_routes_require_api_key() {
         .await
         .expect("response");
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn rename_entity_route_updates_name_and_aliases() {
+    let state = test_state("graph-rename");
+    let app = build_app(state.clone());
+    let entity = state.db.upsert_entity(&entity("GNN", "method")).expect("entity");
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/api/v1/entities/{}", entity.entity_id))
+                .header("X-API-Key", "test-key")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"name":"Graph Neural Network"}"#))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = read_json(response).await;
+    assert_eq!(payload["data"]["name"], serde_json::json!("Graph Neural Network"));
+    assert_eq!(payload["data"]["name_norm"], serde_json::json!("graph neural network"));
+    assert_eq!(payload["data"]["entity_id"], serde_json::json!(entity.entity_id));
+    assert_eq!(payload["data"]["aliases"][0], serde_json::json!("GNN"));
+}
+
+#[tokio::test]
+async fn rename_entity_route_rejects_empty_missing_and_collision() {
+    let state = test_state("graph-rename-errors");
+    let app = build_app(state.clone());
+    let gnn = state.db.upsert_entity(&entity("GNN", "method")).expect("gnn");
+    state
+        .db
+        .upsert_entity(&entity("Transformer", "method"))
+        .expect("transformer");
+
+    let empty = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/api/v1/entities/{}", gnn.entity_id))
+                .header("X-API-Key", "test-key")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"name":"   "}"#))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(empty.status(), StatusCode::BAD_REQUEST);
+
+    let missing = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri("/api/v1/entities/ent-missing")
+                .header("X-API-Key", "test-key")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"name":"x"}"#))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+
+    let clash = app
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/api/v1/entities/{}", gnn.entity_id))
+                .header("X-API-Key", "test-key")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"name":"transformer"}"#))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(clash.status(), StatusCode::CONFLICT);
+    let payload = read_json(clash).await;
+    assert!(
+        payload["message"].as_str().unwrap_or("").contains("合并"),
+        "unexpected payload: {payload}"
+    );
+}
+
+#[tokio::test]
+async fn merge_entities_route_migrates_evidence_and_deletes_sources() {
+    let state = test_state("graph-merge");
+    let app = build_app(state.clone());
+    seed_document(&state);
+    let target = state.db.upsert_entity(&entity("GNN", "method")).expect("target");
+    let source = state.db.upsert_entity(&entity("图神经网络", "method")).expect("source");
+    link_block(&state, &source.entity_id, "p001-b0000");
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/entities/{}/merge", target.entity_id))
+                .header("X-API-Key", "test-key")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{"source_entity_ids":["{}"]}}"#,
+                    source.entity_id
+                )))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = read_json(response).await;
+    assert_eq!(payload["data"]["merged"], serde_json::json!([source.entity_id]));
+    assert_eq!(payload["data"]["mentions"], serde_json::json!(1));
+    assert_eq!(payload["data"]["target"]["aliases"][0], serde_json::json!("图神经网络"));
+
+    // 迁移过来的证据挂在目标下
+    let mentions = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/entities/{}/mentions", target.entity_id))
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(mentions.status(), StatusCode::OK);
+    let mentions = read_json(mentions).await;
+    assert_eq!(mentions["data"]["items"][0]["block_id"], serde_json::json!("p001-b0000"));
+
+    // 源实体已删除
+    let gone = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/entities/{}", source.entity_id))
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(gone.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn merge_entities_route_rejects_missing_and_invalid_requests() {
+    let state = test_state("graph-merge-errors");
+    let app = build_app(state.clone());
+    let target = state.db.upsert_entity(&entity("GNN", "method")).expect("target");
+    let source = state.db.upsert_entity(&entity("图神经网络", "method")).expect("source");
+
+    let post = |uri: String, body: String| {
+        app.clone().oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(uri)
+                .header("X-API-Key", "test-key")
+                .header("content-type", "application/json")
+                .body(Body::from(body))
+                .expect("request"),
+        )
+    };
+
+    let unknown_target = post(
+        "/api/v1/entities/ent-missing/merge".to_string(),
+        format!(r#"{{"source_entity_ids":["{}"]}}"#, source.entity_id),
+    )
+    .await
+    .expect("response");
+    assert_eq!(unknown_target.status(), StatusCode::NOT_FOUND);
+
+    let unknown_source = post(
+        format!("/api/v1/entities/{}/merge", target.entity_id),
+        r#"{"source_entity_ids":["ent-missing"]}"#.to_string(),
+    )
+    .await
+    .expect("response");
+    assert_eq!(unknown_source.status(), StatusCode::NOT_FOUND);
+
+    let empty = post(
+        format!("/api/v1/entities/{}/merge", target.entity_id),
+        r#"{"source_entity_ids":[]}"#.to_string(),
+    )
+    .await
+    .expect("response");
+    assert_eq!(empty.status(), StatusCode::BAD_REQUEST);
+
+    let self_merge = post(
+        format!("/api/v1/entities/{}/merge", target.entity_id),
+        format!(r#"{{"source_entity_ids":["{}"]}}"#, target.entity_id),
+    )
+    .await
+    .expect("response");
+    assert_eq!(self_merge.status(), StatusCode::BAD_REQUEST);
+
+    let too_many: Vec<String> = (0..51).map(|index| format!("ent-{index}")).collect();
+    let too_many = post(
+        format!("/api/v1/entities/{}/merge", target.entity_id),
+        serde_json::json!({ "source_entity_ids": too_many }).to_string(),
+    )
+    .await
+    .expect("response");
+    assert_eq!(too_many.status(), StatusCode::BAD_REQUEST);
 }

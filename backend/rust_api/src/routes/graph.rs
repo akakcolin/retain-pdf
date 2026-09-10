@@ -8,8 +8,8 @@ use crate::models::api::{
     EntityRecord, EntityRelationListView, ExtractDocumentGraphView, ExtractGraphRequest,
     GenerateEntityPageRequest, LinkDocumentGraphView, ListBacklinksQuery, ListEntitiesQuery,
     ListEntityFavoritesQuery, ListMentionsQuery, ListPendingPagesQuery, ListRelationsQuery,
-    PendingEntityPageListView, RelinkDocumentGraphView,
-    SaveEntityPageRequest,
+    MergeEntitiesRequest, MergeEntitiesView, PendingEntityPageListView, RelinkDocumentGraphView,
+    RenameEntityRequest, SaveEntityPageRequest,
 };
 use crate::routes::common::{build_graph_route_deps, ok_json};
 use crate::services::ai_api::{resolve_llm_credentials, LlmClient};
@@ -19,7 +19,8 @@ use crate::services::graph::page::{
 use crate::services::graph_api::{
     extract_document_graph_view, get_entity_view, link_document_graph_view, list_backlinks_view,
     list_entities_view, list_entity_favorites_view, list_mentions_view, list_pending_pages_view,
-    list_relations_view, neighborhood_view, relink_document_graph_view,
+    list_relations_view, merge_entities_view, neighborhood_view, relink_document_graph_view,
+    rename_entity_view,
 };
 use crate::AppState;
 
@@ -37,6 +38,34 @@ pub async fn get_entity_route(
 ) -> Result<Json<ApiResponse<EntityRecord>>, AppError> {
     let deps = build_graph_route_deps(&state);
     Ok(ok_json(get_entity_view(deps.graph.db, &entity_id)?))
+}
+
+/// 改名。旧名并入别名;撞名回 409。
+pub async fn rename_entity_route(
+    State(state): State<AppState>,
+    AxumPath(entity_id): AxumPath<String>,
+    Json(request): Json<RenameEntityRequest>,
+) -> Result<Json<ApiResponse<EntityRecord>>, AppError> {
+    let deps = build_graph_route_deps(&state);
+    Ok(ok_json(rename_entity_view(
+        deps.graph.db,
+        &entity_id,
+        &request,
+    )?))
+}
+
+/// 合并::id 是幸存者,请求体里的源实体被删除。
+pub async fn merge_entities_route(
+    State(state): State<AppState>,
+    AxumPath(entity_id): AxumPath<String>,
+    Json(request): Json<MergeEntitiesRequest>,
+) -> Result<Json<ApiResponse<MergeEntitiesView>>, AppError> {
+    let deps = build_graph_route_deps(&state);
+    Ok(ok_json(merge_entities_view(
+        deps.graph.db,
+        &entity_id,
+        &request,
+    )?))
 }
 
 pub async fn list_entity_mentions_route(

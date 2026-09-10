@@ -1425,3 +1425,272 @@ test("面板：重新关联失败给出错误提示", async () => {
     root.unmount();
   });
 });
+
+// ---- 概念图谱 Phase 11：改名 / 合并 ----
+
+const OTHER = {
+  entity_id: "ent-2",
+  name: "置换反应",
+  entity_type: "concept",
+  aliases: [],
+  mention_count: 1,
+  document_count: 1,
+};
+
+// 按方法 + 路径分流：列表 GET（带 document_id）、全库搜索 GET、改名 PATCH、合并 POST。
+function stubFetchWithMembership({ renameStatus = 200, mergeStatus = 200 } = {}) {
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const method = (init.method || "GET").toUpperCase();
+    const parsed = new URL(url);
+    const path = parsed.pathname;
+    calls.push({ url, method, init });
+    let status = 200;
+    let data = null;
+    if (path === "/api/v1/entities") {
+      // 带 document_id = 本文档列表；否则是合并选择器的全库搜索。
+      data = { items: parsed.searchParams.has("document_id") ? [ENTITY] : [ENTITY, OTHER] };
+    } else if (path.endsWith("/mentions")) data = { items: [MENTION] };
+    else if (path.endsWith("/relations")) data = { items: [RELATION] };
+    else if (path.endsWith("/backlinks")) data = { items: [] };
+    else if (path.endsWith("/favorites")) data = { items: [] };
+    else if (path.endsWith("/page")) {
+      data = { entity_id: "ent-1", has_page: false, stale: false, citations: [], links: [], body_md: "" };
+    } else if (path === "/api/v1/entities/ent-1" && method === "PATCH") {
+      status = renameStatus;
+      if (renameStatus === 200) {
+        const body = JSON.parse(init.body);
+        data = {
+          entity_id: "ent-1",
+          name: body.name,
+          name_norm: body.name,
+          entity_type: "term",
+          aliases: ["卤素"],
+          description: "",
+          created_at: "",
+          updated_at: "",
+        };
+      }
+    } else if (path === "/api/v1/entities/ent-1/merge" && method === "POST") {
+      status = mergeStatus;
+      if (mergeStatus === 200) {
+        data = {
+          target: {
+            entity_id: "ent-1",
+            name: "卤素",
+            name_norm: "卤素",
+            entity_type: "term",
+            aliases: ["halogen", "置换反应"],
+            description: "",
+            created_at: "",
+            updated_at: "",
+          },
+          merged: ["ent-2"],
+          mentions: 3,
+          relations: 1,
+          page_adopted: false,
+        };
+      }
+    }
+    const ok = status >= 200 && status < 300;
+    return {
+      ok,
+      status,
+      headers: { get: () => "application/json" },
+      json: async () => ({ code: ok ? 0 : 50000, message: ok ? "ok" : "无法合并", data }),
+      text: async () => JSON.stringify({ code: ok ? 0 : 50000, message: ok ? "ok" : "无法合并", data }),
+    };
+  };
+  return calls;
+}
+
+// React 用自己的 value tracker 判断变化：必须走原生 setter 再派发 input。
+function setInputValue(input, value) {
+  const setter = Object.getOwnPropertyDescriptor(
+    dom.window.HTMLInputElement.prototype,
+    "value",
+  ).set;
+  setter.call(input, value);
+  input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+}
+
+async function openRename(host) {
+  await act(async () => {
+    findByText(host, "重命名").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  return host.querySelector("input.reader-entities-rename-input");
+}
+
+test("面板：改名保存后发 PATCH 且标题更新", async () => {
+  const calls = stubFetchWithMembership();
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await openEntityDetail(host, root);
+  const input = await openRename(host);
+  assert.equal(input.value, "卤素", "改名草稿预填当前名");
+
+  await act(async () => {
+    setInputValue(input, "halogen");
+  });
+  await act(async () => {
+    findByText(host, "保存").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+
+  await waitFor(() => host.textContent.includes("已重命名"), "重命名提示");
+  const patch = calls.find((c) => c.method === "PATCH");
+  assert.ok(patch, "发出 PATCH");
+  assert.equal(new URL(patch.url).pathname, "/api/v1/entities/ent-1");
+  assert.deepEqual(JSON.parse(patch.init.body), { name: "halogen" });
+  assert.ok(!host.querySelector("input.reader-entities-rename-input"), "保存后退出改名态");
+  assert.equal(host.querySelector(".reader-entities-name")?.textContent, "halogen");
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：改名为空不发请求", async () => {
+  const calls = stubFetchWithMembership();
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await openEntityDetail(host, root);
+  const input = await openRename(host);
+  await act(async () => {
+    setInputValue(input, "   ");
+  });
+  await act(async () => {
+    findByText(host, "保存").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+
+  await waitFor(() => host.textContent.includes("实体名不能为空"), "空名提示");
+  assert.equal(calls.filter((c) => c.method === "PATCH").length, 0, "不发 PATCH");
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：改名 409 显示服务端提示", async () => {
+  stubFetchWithMembership({ renameStatus: 409 });
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await openEntityDetail(host, root);
+  const input = await openRename(host);
+  await act(async () => {
+    setInputValue(input, "transformer");
+  });
+  await act(async () => {
+    findByText(host, "保存").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+
+  await waitFor(() => host.textContent.includes("(409)"), "409 提示");
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：合并选择器排除自身，确认后发一次 POST 并重取列表", async () => {
+  const calls = stubFetchWithMembership();
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await openEntityDetail(host, root);
+  await act(async () => {
+    findByText(host, "合并").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+
+  await waitFor(() => host.querySelector(".reader-entities-merge-item"), "候选渲染");
+  const items = [...host.querySelectorAll(".reader-entities-merge-item")];
+  const names = items.map((el) => el.querySelector(".reader-entities-merge-name")?.textContent);
+  assert.deepEqual(names, ["置换反应"], "排除自身，只留其它实体");
+
+  const listCallsBefore = calls.filter(
+    (c) => c.method === "GET" && new URL(c.url).pathname === "/api/v1/entities" &&
+      new URL(c.url).searchParams.has("document_id"),
+  ).length;
+
+  await withConfirm(true, async () => {
+    await act(async () => {
+      items[0].dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+  });
+
+  await waitFor(() => host.textContent.includes("已合并 1 个实体"), "合并提示");
+  const posts = calls.filter((c) => c.method === "POST");
+  assert.equal(posts.length, 1, "恰好一次 POST");
+  assert.equal(new URL(posts[0].url).pathname, "/api/v1/entities/ent-1/merge");
+  assert.deepEqual(JSON.parse(posts[0].init.body), { source_entity_ids: ["ent-2"] });
+
+  const listCallsAfter = calls.filter(
+    (c) => c.method === "GET" && new URL(c.url).pathname === "/api/v1/entities" &&
+      new URL(c.url).searchParams.has("document_id"),
+  ).length;
+  assert.ok(listCallsAfter > listCallsBefore, "合并后重取本文档列表");
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：合并取消时不发 POST", async () => {
+  const calls = stubFetchWithMembership();
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await openEntityDetail(host, root);
+  await act(async () => {
+    findByText(host, "合并").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  await waitFor(() => host.querySelector(".reader-entities-merge-item"), "候选渲染");
+
+  await withConfirm(false, async () => {
+    await act(async () => {
+      host.querySelector(".reader-entities-merge-item")
+        .dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+  });
+
+  assert.equal(calls.filter((c) => c.method === "POST").length, 0, "取消不发 POST");
+  assert.ok(host.querySelector(".reader-entities-merge-item"), "选择器保留");
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：合并失败保留选择器并显示错误", async () => {
+  const calls = stubFetchWithMembership({ mergeStatus: 500 });
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await openEntityDetail(host, root);
+  await act(async () => {
+    findByText(host, "合并").dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  await waitFor(() => host.querySelector(".reader-entities-merge-item"), "候选渲染");
+
+  await withConfirm(true, async () => {
+    await act(async () => {
+      host.querySelector(".reader-entities-merge-item")
+        .dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+  });
+
+  await waitFor(() => host.textContent.includes("无法合并"), "错误提示");
+  assert.equal(calls.filter((c) => c.method === "POST").length, 1);
+  assert.ok(host.querySelector(".reader-entities-merge-item"), "失败后选择器保留");
+
+  await act(async () => {
+    root.unmount();
+  });
+});

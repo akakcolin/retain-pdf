@@ -30,6 +30,9 @@ const {
   generateEntityPage,
   saveEntityPage,
   revertEntityPage,
+  searchEntities,
+  renameEntity,
+  mergeEntities,
 } = await import("../src/pages/reader/entities/api.js");
 const {
   entityTypeLabel,
@@ -329,6 +332,78 @@ test("generateEntityPage 仅在要求时带 overwrite_manual", async () => {
   });
   await generateEntityPage("ent-1", { apiKey: "sk-test" }, { overwriteManual: true });
   assert.equal(JSON.parse(calls[0].init.body).overwrite_manual, true);
+});
+
+test("renameEntity PATCH 到 entities/:id 并带 name", async () => {
+  const calls = stubFetch({
+    code: 0,
+    message: "ok",
+    data: {
+      entity_id: "ent-1",
+      name: "Graph Neural Network",
+      name_norm: "graph neural network",
+      entity_type: "method",
+      aliases: ["GNN"],
+      description: "",
+      created_at: "",
+      updated_at: "",
+    },
+  });
+  const record = await renameEntity("ent-1", "Graph Neural Network");
+  assert.equal(record.name, "Graph Neural Network");
+  assert.equal(record.name_norm, "graph neural network");
+  assert.equal(calls[0].init.method, "PATCH");
+  assert.equal(new URL(calls[0].url).pathname, "/api/v1/entities/ent-1");
+  assert.deepEqual(JSON.parse(calls[0].init.body), { name: "Graph Neural Network" });
+});
+
+test("renameEntity 撞名 409 带上服务端提示与状态码", async () => {
+  stubFetch({ code: 40900, message: "已存在同名同类型实体「Transformer」,请改用合并", data: null }, 409);
+  await assert.rejects(
+    () => renameEntity("ent-1", "transformer"),
+    /已存在同名同类型实体.*\(409\)/,
+  );
+});
+
+test("mergeEntities POST 到 entities/:id/merge 并带 source_entity_ids", async () => {
+  const calls = stubFetch({
+    code: 0,
+    message: "ok",
+    data: {
+      target: { entity_id: "ent-1", name: "GNN", entity_type: "method", aliases: ["图神经网络"] },
+      merged: ["ent-2"],
+      mentions: 5,
+      relations: 2,
+      page_adopted: true,
+    },
+  });
+  const result = await mergeEntities("ent-1", ["ent-2"]);
+  assert.equal(result.merged[0], "ent-2");
+  assert.equal(result.page_adopted, true);
+  assert.equal(calls[0].init.method, "POST");
+  assert.equal(new URL(calls[0].url).pathname, "/api/v1/entities/ent-1/merge");
+  assert.deepEqual(JSON.parse(calls[0].init.body), { source_entity_ids: ["ent-2"] });
+});
+
+test("searchEntities GET 且空 query/entity_type 省略", async () => {
+  let calls = stubFetch({
+    code: 0,
+    message: "ok",
+    data: { items: [{ entity_id: "ent-9", name: "QM9", entity_type: "dataset" }] },
+  });
+  const items = await searchEntities("", { limit: 20 });
+  assert.equal(items.length, 1);
+  let url = new URL(calls[0].url);
+  assert.equal(url.pathname, "/api/v1/entities");
+  assert.equal(url.searchParams.get("query"), null);
+  assert.equal(url.searchParams.get("entity_type"), null);
+  assert.equal(url.searchParams.get("limit"), "20");
+
+  calls = stubFetch({ code: 0, message: "ok", data: { items: [] } });
+  await searchEntities("  gnn ", { entityType: "method" });
+  url = new URL(calls[0].url);
+  assert.equal(url.searchParams.get("query"), "gnn");
+  assert.equal(url.searchParams.get("entity_type"), "method");
 });
 
 test("展示文案：词表命中翻译，未知值原样回显", () => {

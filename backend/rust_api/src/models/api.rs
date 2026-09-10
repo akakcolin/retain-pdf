@@ -6,9 +6,9 @@ pub use super::graph::{
     EntityPageLink, EntityPageRecord, EntityPageView, EntityRecord, EntityRelationListView,
     EntitySummary, ExtractDocumentGraphView, ExtractGraphRequest, GenerateEntityPageRequest,
     LinkDocumentGraphView, ListBacklinksQuery, ListEntitiesQuery, ListEntityFavoritesQuery,
-    ListMentionsQuery, ListPendingPagesQuery, ListRelationsQuery,
-    NeighborhoodEdge, NewEntity, NewEntityRelation, PendingEntityPage,
-    PendingEntityPageListView, RelatedEntity, RelinkDocumentGraphView,
+    ListMentionsQuery, ListPendingPagesQuery, ListRelationsQuery, MergeEntitiesRequest,
+    MergeEntitiesView, NeighborhoodEdge, NewEntity, NewEntityRelation, PendingEntityPage,
+    PendingEntityPageListView, RelatedEntity, RelinkDocumentGraphView, RenameEntityRequest,
     SaveEntityPageRequest,
 };
 pub use super::glossary::{

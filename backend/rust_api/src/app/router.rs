@@ -118,7 +118,14 @@ pub fn build_app(state: AppState) -> Router {
         )
         .route("/api/v1/search", get(library_data::search_blocks_route))
         .route("/api/v1/entities", get(graph::list_entities_route))
-        .route("/api/v1/entities/:entity_id", get(graph::get_entity_route))
+        .route(
+            "/api/v1/entities/:entity_id",
+            get(graph::get_entity_route).patch(graph::rename_entity_route),
+        )
+        .route(
+            "/api/v1/entities/:entity_id/merge",
+            post(graph::merge_entities_route),
+        )
         .route(
             "/api/v1/entities/:entity_id/mentions",
             get(graph::list_entity_mentions_route),

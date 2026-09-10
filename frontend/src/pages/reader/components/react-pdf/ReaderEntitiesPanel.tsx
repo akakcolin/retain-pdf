@@ -26,9 +26,12 @@ import {
   listEntityMentions,
   listEntityRelations,
   listPendingEntityPages,
+  mergeEntities,
   relinkDocumentGraph,
+  renameEntity,
   revertEntityPage,
   saveEntityPage,
+  searchEntities,
   type EntityBacklink,
   type EntityFavorite,
   type EntityMention,
@@ -95,13 +98,30 @@ export function ReaderEntitiesPanel({
   const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
   const [graph, setGraph] = useState<EntityNeighborhood | null>(null);
   const [graphBusy, setGraphBusy] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [renameBusy, setRenameBusy] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergeQuery, setMergeQuery] = useState("");
+  const [mergeCandidates, setMergeCandidates] = useState<EntitySummary[]>([]);
+  const [mergeBusy, setMergeBusy] = useState(false);
   const listReq = useRef(0);
   const detailReq = useRef(0);
   const graphReq = useRef(0);
+  const mergeReq = useRef(0);
   // token 失效（切文档/卸载）+ 用户停止，两个信号分开：前者不写状态，后者要报「已停止」。
   const batchReq = useRef(0);
   const batchStop = useRef(false);
   const pageBodyRef = useRef<HTMLDivElement | null>(null);
+
+  /** 关掉改名/合并编辑子态（切实体、返回列表、关面板都调）。 */
+  const resetEditors = useCallback(() => {
+    setRenaming(false);
+    setRenameDraft("");
+    setMergeOpen(false);
+    setMergeQuery("");
+    setMergeCandidates([]);
+  }, []);
 
   const loadList = useCallback(async (id: string) => {
     const token = ++listReq.current;
@@ -137,6 +157,7 @@ export function ReaderEntitiesPanel({
     setGraphBusy(false);
     setNotice("");
     setError("");
+    resetEditors();
     void (async () => {
       let id = `${documentId || ""}`.trim();
       let resolveFailed = false;
@@ -163,7 +184,7 @@ export function ReaderEntitiesPanel({
       batchReq.current += 1;
       graphReq.current += 1;
     };
-  }, [open, jobId, documentId, loadList]);
+  }, [open, jobId, documentId, loadList, resetEditors]);
 
   const openEntity = useCallback(
     async (entity: EntityRef) => {
@@ -176,6 +197,7 @@ export function ReaderEntitiesPanel({
       setPage(null);
       setEditing(false);
       setDraft("");
+      resetEditors();
       setLoading(true);
       setError("");
       try {
@@ -201,7 +223,7 @@ export function ReaderEntitiesPanel({
         if (detailReq.current === token) setLoading(false);
       }
     },
-    [docId],
+    [docId, resetEditors],
   );
 
   const backToList = useCallback(() => {
@@ -218,7 +240,90 @@ export function ReaderEntitiesPanel({
     setGraph(null);
     setGraphBusy(false);
     setError("");
-  }, []);
+    resetEditors();
+  }, [resetEditors]);
+
+  // 合并选择器：打开时按当前关键词检索全库实体（空关键词 = 提及数最高的那批）。
+  useEffect(() => {
+    if (!mergeOpen) return;
+    const token = ++mergeReq.current;
+    void (async () => {
+      try {
+        const items = await searchEntities(mergeQuery, { limit: 20 });
+        if (mergeReq.current === token) setMergeCandidates(items);
+      } catch (err) {
+        if (mergeReq.current === token) setError(errText(err, "搜索实体失败"));
+      }
+    })();
+  }, [mergeOpen, mergeQuery]);
+
+  const runRename = useCallback(async () => {
+    if (!selected || renameBusy) return;
+    const name = renameDraft.trim();
+    if (!name) {
+      setError("实体名不能为空");
+      return;
+    }
+    setRenameBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const record = await renameEntity(selected.entity_id, name);
+      setSelected({
+        entity_id: record.entity_id,
+        name: record.name,
+        entity_type: record.entity_type,
+        aliases: record.aliases,
+      });
+      setEntities((prev) =>
+        prev.map((row) =>
+          row.entity_id === record.entity_id
+            ? { ...row, name: record.name, aliases: record.aliases }
+            : row,
+        ),
+      );
+      setRenaming(false);
+      setRenameDraft("");
+      setNotice("已重命名");
+    } catch (err) {
+      setError(errText(err, "重命名失败"));
+    } finally {
+      setRenameBusy(false);
+    }
+  }, [selected, renameBusy, renameDraft]);
+
+  const runMerge = useCallback(
+    async (candidate: EntitySummary) => {
+      if (!selected || mergeBusy) return;
+      const ok = window.confirm(
+        `把「${candidate.name}」合并进「${selected.name}」？\n\n` +
+          "来源实体将被删除且不可撤销；两边都有概念页时只保留一个。",
+      );
+      if (!ok) return;
+      setMergeBusy(true);
+      setError("");
+      setNotice("");
+      try {
+        const result = await mergeEntities(selected.entity_id, [candidate.entity_id]);
+        resetEditors();
+        const target = {
+          entity_id: result.target.entity_id,
+          name: result.target.name,
+          entity_type: result.target.entity_type,
+          aliases: result.target.aliases,
+        };
+        setSelected(target);
+        if (docId) await loadList(docId);
+        setNotice(`已合并 ${result.merged.length} 个实体`);
+        void openEntity(target);
+      } catch (err) {
+        setError(errText(err, "合并失败"));
+      } finally {
+        setMergeBusy(false);
+      }
+    },
+    [selected, mergeBusy, docId, loadList, openEntity, resetEditors],
+  );
 
   // 拉该实体的 N 跳关系子图；token 防快速连点重定中心时旧响应覆盖新的。
   const openGraph = useCallback(async (entity: EntityRef) => {
@@ -482,7 +587,6 @@ export function ReaderEntitiesPanel({
     }
   }, [docId, busy, backToList, loadList]);
 
-
   const runExtract = useCallback(async () => {
     if (!docId || busy) return;
     if (!hasChatModelApiKey()) {
@@ -604,12 +708,113 @@ export function ReaderEntitiesPanel({
             >
               {graphBusy ? "读取中…" : "图谱"}
             </button>
+            <button
+              type="button"
+              className="reader-notes-export"
+              disabled={renameBusy || mergeBusy || Boolean(batch)}
+              title="修改实体名；旧名会自动并进别名"
+              onClick={() => {
+                setRenaming(true);
+                setRenameDraft(selected.name);
+                setError("");
+                setNotice("");
+              }}
+            >
+              重命名
+            </button>
+            <button
+              type="button"
+              className="reader-notes-export"
+              disabled={renameBusy || Boolean(batch)}
+              title="把别的实体合并进这个实体（保留本实体，删除来源）"
+              onClick={() => {
+                setMergeOpen((value) => !value);
+                setMergeQuery("");
+                setError("");
+                setNotice("");
+              }}
+            >
+              {mergeOpen ? "取消合并" : "合并"}
+            </button>
           </div>
-          <h4 className="reader-entities-name">{selected.name}</h4>
+          {renaming ? (
+            <div className="reader-entities-rename">
+              <input
+                className="reader-entities-rename-input"
+                value={renameDraft}
+                autoFocus
+                disabled={renameBusy}
+                aria-label="实体名"
+                onChange={(event) => setRenameDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") void runRename();
+                  else if (event.key === "Escape") {
+                    setRenaming(false);
+                    setRenameDraft("");
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="reader-notes-export"
+                disabled={renameBusy}
+                onClick={() => void runRename()}
+              >
+                {renameBusy ? "保存中…" : "保存"}
+              </button>
+            </div>
+          ) : (
+            <h4 className="reader-entities-name">{selected.name}</h4>
+          )}
           {selected.aliases.length > 0 ? (
             <p className="reader-entities-aliases">
               别名：{selected.aliases.join(" / ")}
             </p>
+          ) : null}
+
+          {mergeOpen ? (
+            <section className="reader-entities-section">
+              <h5>合并进「{selected.name}」</h5>
+              <input
+                className="reader-entities-merge-input"
+                value={mergeQuery}
+                placeholder="搜索要合并的实体…"
+                aria-label="搜索要合并的实体"
+                disabled={mergeBusy}
+                onChange={(event) => setMergeQuery(event.target.value)}
+              />
+              {mergeCandidates.filter(
+                (candidate) => candidate.entity_id !== selected.entity_id,
+              ).length === 0 ? (
+                <p className="reader-notes-empty">没有可合并的实体</p>
+              ) : (
+                <ul className="reader-entities-merge-list">
+                  {mergeCandidates
+                    .filter((candidate) => candidate.entity_id !== selected.entity_id)
+                    .map((candidate) => (
+                      <li key={candidate.entity_id}>
+                        <button
+                          type="button"
+                          className="reader-entities-merge-item"
+                          disabled={mergeBusy}
+                          title="合并后将删除该实体，不可撤销"
+                          onClick={() => void runMerge(candidate)}
+                        >
+                          <span className="reader-entities-merge-name">
+                            {candidate.name}
+                          </span>
+                          <span className="reader-entities-type">
+                            {entityTypeLabel(candidate.entity_type)}
+                          </span>
+                          <span className="reader-entities-merge-count">
+                            {candidate.mention_count}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </section>
           ) : null}
 
           <section className="reader-entities-section">

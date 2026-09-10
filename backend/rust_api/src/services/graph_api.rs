@@ -1,5 +1,6 @@
 //! 概念图谱 HTTP 视图:实体检索 / 提及 / 关系 / 文档建链 / LLM 抽取。
 
+use crate::db::graph::{MergeOutcome, RenameOutcome};
 use crate::db::Db;
 use crate::error::AppError;
 use crate::models::api::{
@@ -7,7 +8,8 @@ use crate::models::api::{
     EntityNeighborhoodQuery, EntityNeighborhoodView, EntityRecord, EntityRelationListView,
     ExtractDocumentGraphView, LinkDocumentGraphView, ListBacklinksQuery, ListEntitiesQuery,
     ListEntityFavoritesQuery, ListMentionsQuery, ListPendingPagesQuery, ListRelationsQuery,
-    PendingEntityPageListView, RelinkDocumentGraphView,
+    MergeEntitiesRequest, MergeEntitiesView, PendingEntityPageListView, RelinkDocumentGraphView,
+    RenameEntityRequest,
 };
 use crate::services::ai::llm::Chat;
 use crate::services::graph::extract::extract_document_graph;
@@ -43,6 +45,52 @@ pub fn list_entities_view(db: &Db, query: &ListEntitiesQuery) -> Result<EntityLi
 pub fn get_entity_view(db: &Db, entity_id: &str) -> Result<EntityRecord, AppError> {
     db.get_entity(entity_id)
         .map_err(|_| AppError::not_found(format!("entity not found: {entity_id}")))
+}
+
+/// 改名。撞名回 409 让用户改用合并(而不是静默并库)。
+pub fn rename_entity_view(
+    db: &Db,
+    entity_id: &str,
+    request: &RenameEntityRequest,
+) -> Result<EntityRecord, AppError> {
+    match db.rename_entity(entity_id, &request.name)? {
+        RenameOutcome::Renamed(record) => Ok(record),
+        RenameOutcome::EmptyName => Err(AppError::bad_request("实体名不能为空")),
+        RenameOutcome::NotFound => {
+            Err(AppError::not_found(format!("entity not found: {entity_id}")))
+        }
+        RenameOutcome::Conflict { existing_name } => Err(AppError::conflict(format!(
+            "已存在同名同类型实体「{existing_name}」,请改用合并"
+        ))),
+    }
+}
+
+/// 合并::id 是幸存者,源实体被删除。
+pub fn merge_entities_view(
+    db: &Db,
+    entity_id: &str,
+    request: &MergeEntitiesRequest,
+) -> Result<MergeEntitiesView, AppError> {
+    match db.merge_entities(entity_id, &request.source_entity_ids)? {
+        MergeOutcome::Merged(summary) => Ok(MergeEntitiesView {
+            target: summary.target,
+            merged: summary.merged,
+            mentions: summary.mentions,
+            relations: summary.relations,
+            page_adopted: summary.page_adopted,
+        }),
+        MergeOutcome::TargetNotFound => {
+            Err(AppError::not_found(format!("entity not found: {entity_id}")))
+        }
+        MergeOutcome::SourceNotFound(source_id) => {
+            Err(AppError::not_found(format!("entity not found: {source_id}")))
+        }
+        MergeOutcome::EmptySources => Err(AppError::bad_request("请至少选择一个要合并的实体")),
+        MergeOutcome::SourceIsTarget => Err(AppError::bad_request("不能把实体合并进它自己")),
+        MergeOutcome::TooManySources { max } => {
+            Err(AppError::bad_request(format!("一次最多合并 {max} 个实体")))
+        }
+    }
 }
 
 pub fn list_mentions_view(
