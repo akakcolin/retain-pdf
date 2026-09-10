@@ -60,7 +60,7 @@ assertExists("dist/css/reader.css");
 
 // Source modules still shipped for desktop rewrites / smoke (TypeScript after cutover)
 assertExists("src/js/runtime/vendor-url.ts");
-assertExists("src/js/reader/pdf-document.ts");
+assertExists("src/pages/reader/legacy/pdf-document.ts");
 assertExists("src/js/features/upload/pdf-page-count.ts");
 assertExists("src/js/desktop/index.ts");
 assertExists("src/js/reader/ai/config.ts");
@@ -107,7 +107,7 @@ if (!uploadPdfPageCount.includes("runtime/vendor-url")) {
   fail("Desktop upload/pdf-page-count.ts is missing runtime vendor resolver");
 }
 
-const readerPdfDocument = readFile("src/js/reader/pdf-document.ts");
+const readerPdfDocument = readFile("src/pages/reader/legacy/pdf-document.ts");
 if (!readerPdfDocument.includes("runtime/vendor-url")) {
   fail("Desktop reader/pdf-document.ts is missing runtime vendor resolver");
 }
