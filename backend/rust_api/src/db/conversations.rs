@@ -85,6 +85,21 @@ impl Db {
         Ok(conversations)
     }
 
+    pub fn count_conversations(&self, document_id: Option<&str>) -> Result<u64> {
+        let conn = self.connect()?;
+        let count = match document_id {
+            Some(document_id) => conn.query_row(
+                "SELECT COUNT(*) FROM ai_conversations WHERE document_id = ?1",
+                params![document_id],
+                |row| row.get::<_, i64>(0),
+            )?,
+            None => conn.query_row("SELECT COUNT(*) FROM ai_conversations", [], |row| {
+                row.get::<_, i64>(0)
+            })?,
+        };
+        Ok(count.max(0) as u64)
+    }
+
     pub fn delete_conversation(&self, conversation_id: &str) -> Result<bool> {
         let conn = self.connect()?;
         let changed = conn.execute(

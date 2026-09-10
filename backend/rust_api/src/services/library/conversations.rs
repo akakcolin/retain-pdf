@@ -36,13 +36,25 @@ pub fn list_conversations(
 ) -> Result<ConversationListView, AppError> {
     let limit = query.limit.clamp(1, 200);
     let document_id = query.document_id.trim();
+    let total = deps.db.count_conversations(if document_id.is_empty() {
+        None
+    } else {
+        Some(document_id)
+    })?;
     let conversations = if document_id.is_empty() {
         deps.db.list_conversations(limit, query.offset)?
     } else {
         deps.db
             .list_conversations_for_document(document_id, limit, query.offset)?
     };
-    Ok(ConversationListView { conversations })
+    let returned = conversations.len() as u64;
+    Ok(ConversationListView {
+        conversations,
+        total,
+        limit,
+        offset: query.offset,
+        has_more: u64::from(query.offset).saturating_add(returned) < total,
+    })
 }
 
 pub fn get_conversation(

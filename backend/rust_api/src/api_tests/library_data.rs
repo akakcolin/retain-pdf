@@ -692,6 +692,53 @@ async fn conversation_lifecycle_and_message_appending() {
         .expect("bad role");
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
+    state
+        .db
+        .create_conversation(
+            "conv-pagination-second",
+            "second conversation",
+            Some(&document_id),
+        )
+        .expect("seed second document conversation");
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/ai/conversations?document_id={document_id}&limit=1&offset=0"
+                ))
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("conversation list");
+    assert_eq!(response.status(), StatusCode::OK);
+    let list = json_response(response).await;
+    assert_eq!(list["data"]["total"], 2);
+    assert_eq!(list["data"]["limit"], 1);
+    assert_eq!(list["data"]["offset"], 0);
+    assert_eq!(list["data"]["has_more"], true);
+    assert_eq!(list["data"]["conversations"].as_array().unwrap().len(), 1);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/v1/ai/conversations?document_id={document_id}&limit=1&offset=1"
+                ))
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("second conversation page");
+    let second_page = json_response(response).await;
+    assert_eq!(second_page["data"]["total"], 2);
+    assert_eq!(second_page["data"]["offset"], 1);
+    assert_eq!(second_page["data"]["has_more"], false);
+
     // 删除级联清消息
     let response = app
         .clone()
