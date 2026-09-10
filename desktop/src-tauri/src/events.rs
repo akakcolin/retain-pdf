@@ -16,8 +16,9 @@ pub fn on_event(handle: &AppHandle, event: RunEvent) {
                 handle.exit(0);
             }
         }
+        #[cfg(target_os = "macos")]
         RunEvent::Reopen { .. } => {
-            if cfg!(target_os = "macos") && handle.get_webview_window("main").is_none() {
+            if handle.get_webview_window("main").is_none() {
                 let _ = backend_startup::create_main_window(handle);
             }
         }
