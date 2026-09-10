@@ -590,6 +590,27 @@ async fn create_translation_bundle_job_returns_queued_job_without_waiting() {
 }
 
 #[test]
+fn submit_links_document_active_job_before_terminal_state() {
+    let state = test_state("submit-links-document");
+    let mut upload = seed_upload(&state, "upload-linked");
+    upload.content_hash = "doc-hash-linked".to_string();
+    state.db.save_upload(&upload).expect("save upload with hash");
+    state
+        .db
+        .upsert_document_from_upload(&upload)
+        .expect("upsert document from upload");
+
+    let mut input = base_translation_input(WorkflowKind::Book);
+    input.source.upload_id = upload.upload_id.clone();
+
+    let job = create_translation_job(&submit_context(&state), &input).expect("create job");
+
+    // 提交即链文档：主页卡片在任务运行中就该找到 active_job_id,不必等终态回填。
+    let document = state.db.get_document("doc-hash-linked").expect("document row");
+    assert_eq!(document.active_job_id.as_deref(), Some(job.job_id.as_str()));
+}
+
+#[test]
 fn build_translation_job_snapshot_for_full_pipeline_succeeds() {
     let state = test_state("full-pipeline-success");
     let upload = seed_upload(&state, "upload-full");

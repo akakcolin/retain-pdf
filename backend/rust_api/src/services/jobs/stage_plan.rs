@@ -172,7 +172,7 @@ fn disabled_reason_for_stage(
 ) -> String {
     match stage {
         RetryStageKind::Ocr if !availability.has_request_source => {
-            "OCR retry currently requires the original upload_id or source_url on the job"
+            "OCR retry currently requires the original upload_id or source_url on the job; re-upload the source PDF to start a new task"
                 .to_string()
         }
         RetryStageKind::Ocr => "source PDF is not available".to_string(),
@@ -189,7 +189,7 @@ fn resume_unavailable_reason(availability: &StageArtifactAvailability) -> String
     if !availability.source_available {
         "need source_pdf before resuming a job".to_string()
     } else {
-        "need translations_dir+source_pdf or normalized_document_json+source_pdf".to_string()
+        "need translations_dir+source_pdf or normalized_document_json+source_pdf; re-upload the source PDF to start over".to_string()
     }
 }
 
