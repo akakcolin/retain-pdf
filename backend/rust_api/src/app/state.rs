@@ -160,6 +160,65 @@ mod tests {
         job
     }
 
+    fn sample_queued_job(job_id: &str, pid: Option<u32>) -> JobSnapshot {
+        let mut job = JobSnapshot::new(
+            job_id.to_string(),
+            CreateJobInput::default(),
+            vec!["python".to_string()],
+        );
+        job.status = JobStatusKind::Queued;
+        job.updated_at = "2026-04-02T00:00:00Z".to_string();
+        job.pid = pid;
+        job.stage = Some("queued".to_string());
+        job.sync_runtime_state();
+        job
+    }
+
+    // `worker_process_exists` is hardcoded false off unix, so the live-worker
+    // branch (and therefore this test's premise) only exists on unix.
+    #[cfg(unix)]
+    #[test]
+    fn requeue_skips_queued_jobs_that_still_have_a_live_worker() {
+        let fs = TestStateFs::new("requeue-queued");
+        let db = fs.db();
+        db.init().expect("init db");
+        db.save_job(&sample_queued_job("job-no-driver", None))
+            .expect("save job");
+        // This test process is alive, so it stands in for a worker that
+        // outlived the API and still owns its queued job.
+        db.save_job(&sample_queued_job(
+            "job-live-worker",
+            Some(std::process::id()),
+        ))
+        .expect("save job");
+
+        let requeued = crate::app::state_recovery::requeue_stuck_queued_jobs(&fs.config(), &db)
+            .expect("requeue stuck queued jobs");
+
+        assert_eq!(requeued, vec!["job-no-driver".to_string()]);
+        let job = db.get_job("job-no-driver").expect("get queued job");
+        // Requeued for a re-drive, not failed: the job never started work, so
+        // the runner resumes it from its checkpoint normally.
+        assert_eq!(job.status, JobStatusKind::Queued);
+        assert!(job
+            .stage_detail
+            .as_deref()
+            .is_some_and(|detail| detail.contains("重新入队")));
+        assert!(job
+            .log_tail
+            .iter()
+            .any(|line| line.contains("no driver")));
+
+        let untouched = db.get_job("job-live-worker").expect("get live job");
+        assert_eq!(untouched.status, JobStatusKind::Queued);
+        assert!(!untouched
+            .stage_detail
+            .as_deref()
+            .unwrap_or("")
+            .contains("重新入队"));
+        assert!(untouched.log_tail.is_empty());
+    }
+
     #[test]
     fn build_state_reconciles_running_jobs_without_pid() {
         let fs = TestStateFs::new("missing-pid");

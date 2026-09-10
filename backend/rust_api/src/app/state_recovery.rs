@@ -30,6 +30,67 @@ enum StaleReason {
     Orphaned(u32),
 }
 
+/// Re-drive queued jobs that no driver task owns any more.
+///
+/// Startup-only contract: the job runtime is in-process (see
+/// `app::jobs::build_jobs_facade_from_state`), so right after a (re)start no
+/// task exists for any queued job and every id returned here is safe to
+/// re-drive exactly once. This is the queued counterpart to
+/// [`reconcile_stale_running_jobs`] — without it a job that was persisted but
+/// never launched stays `queued` forever. A queued job whose recorded worker
+/// pid is still alive is left alone: that worker outlived the API and still
+/// owns the job.
+///
+/// Never call this outside startup: a live driver may own the job and a
+/// second driver would duplicate execution.
+pub(super) fn requeue_stuck_queued_jobs(config: &AppConfig, db: &Db) -> Result<Vec<String>> {
+    let queued = db.list_job_process_records_with_status(&JobStatusKind::Queued)?;
+    let timestamp = now_iso();
+    let mut requeued = Vec::new();
+    for record in queued {
+        if let Some(pid) = record.pid.filter(|pid| worker_process_exists(*pid)) {
+            warn!(
+                "startup found queued job {} with live worker pid {pid}; leaving it to that worker",
+                record.job_id
+            );
+            continue;
+        }
+        match db.get_job(&record.job_id) {
+            Ok(mut job) => {
+                job.updated_at = timestamp.clone();
+                job.stage_detail =
+                    Some("启动时发现无人驱动的排队任务，已重新入队自动续跑".to_string());
+                job.append_log(
+                    "WARN: startup found queued job with no driver; requeued for automatic resume",
+                );
+                job.sync_runtime_state();
+                if let Err(error) =
+                    persist_job_with_resources(db, &config.data_root, &config.output_root, &job)
+                {
+                    warn!(
+                        "startup failed to mark requeued job {}: {error:#}",
+                        record.job_id
+                    );
+                }
+            }
+            Err(error) => {
+                warn!(
+                    "startup found stuck queued job {} but failed to load it: {error:#}",
+                    record.job_id
+                );
+            }
+        }
+        requeued.push(record.job_id);
+    }
+    if !requeued.is_empty() {
+        warn!(
+            "startup reconciliation requeued {} stuck queued job(s)",
+            requeued.len()
+        );
+    }
+    Ok(requeued)
+}
+
 pub(super) fn reconcile_stale_running_jobs(config: &AppConfig, db: &Db) -> Result<usize> {
     let running_jobs = db.list_job_process_records_with_status(&JobStatusKind::Running)?;
     let mut reconciled = 0usize;

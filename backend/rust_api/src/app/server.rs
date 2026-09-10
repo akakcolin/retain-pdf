@@ -9,7 +9,9 @@ use tokio::task::JoinHandle;
 use crate::app::cleanup::{
     log_startup_settings, run_cleanup_once, spawn_periodic_cleanup, RetentionSettings,
 };
-use crate::app::{build_app, build_simple_app, build_state};
+use crate::app::{
+    build_app, build_simple_app, build_state, requeue_stuck_queued_jobs_at_startup,
+};
 use crate::config::AppConfig;
 use crate::process::python::probe_python_binary;
 
@@ -52,6 +54,15 @@ async fn serve_with_shutdown(
         tracing::warn!("startup retention cleanup sweep failed: {error:#}");
     }
     let _cleanup_handle = spawn_periodic_cleanup(retention_settings, state.db.clone());
+
+    // 排队任务无人驱动：进程重启后没有任何 task 会接手这些 job，而
+    // `reconcile_stale_running_jobs` 只处理残留的 running 状态，queued 会永远卡住。
+    // 同 retention 一样只在真实启动路径跑——`build_state` 也被单测直接调用，
+    // 在那里重驱动会动到夹具。
+    let requeued = requeue_stuck_queued_jobs_at_startup(&state);
+    if requeued > 0 {
+        tracing::warn!("startup requeued {requeued} stuck queued job(s) for automatic resume");
+    }
 
     let app = build_app(state.clone());
     let simple_app = build_simple_app(state);
