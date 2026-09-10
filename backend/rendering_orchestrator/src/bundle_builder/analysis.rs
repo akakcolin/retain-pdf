@@ -26,7 +26,7 @@ use anyhow::{anyhow, Result};
 use rendering_core::document_builder::{build_render_page_analysis, RenderPageAnalysis};
 use rendering_core::profile::RenderPageKind;
 use rendering_core::profile_build::{build_render_page_profile, DEFAULT_BACKGROUND_THRESHOLD};
-use rendering_reader::PdfDocument;
+use rendering_reader::{open_document, PdfDocument};
 use serde_json::{json, Value};
 
 pub const RENDER_DOCUMENT_PROFILE_ALGORITHM_VERSION: &str = "render_document_profile_v1";
@@ -121,7 +121,7 @@ pub fn build_render_document_analysis(
     source_pdf_path: &Path,
     selected_pages: &BTreeMap<i32, Vec<Value>>,
 ) -> Result<RenderDocumentAnalysis> {
-    let doc = mupdf::Document::open(source_pdf_path)
+    let doc = open_document(source_pdf_path)
         .map_err(|e| anyhow!("render analysis open {}: {e}", source_pdf_path.display()))?;
     // UFCS: mupdf::Document has an inherent `page_count` returning i32; the
     // reader trait's i64 version is the one used here.

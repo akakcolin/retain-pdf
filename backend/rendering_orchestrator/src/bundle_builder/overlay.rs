@@ -17,7 +17,6 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use anyhow::{anyhow, Result};
-use mupdf::Document;
 use rendering_core::item::Item;
 use rendering_core::layout::collision::mark_adjacent_collision_risk;
 use rendering_core::layout::render_item::seed_render_fields;
@@ -27,7 +26,7 @@ use rendering_core::payload::body_policy_facade::{
     recover_underfilled_annotation_density, unify_annotation_fonts,
 };
 use rendering_core::payload::emit::emit_render_blocks;
-use rendering_reader::PdfDocument as _;
+use rendering_reader::{open_document, PdfDocument as _};
 use serde_json::{json, Value};
 
 /// `build_overlay_page_specs`: per selected page, page_rect dims from the source
@@ -39,7 +38,7 @@ pub fn build_overlay_page_specs(
     prepared_pages: &BTreeMap<i64, Vec<Value>>,
     font_unify_mode: &str,
 ) -> Result<Vec<Value>> {
-    let doc = Document::open(source_pdf_path).map_err(|e| {
+    let doc = open_document(source_pdf_path).map_err(|e| {
         anyhow!(
             "open source pdf for overlay page sizes {}: {e}",
             source_pdf_path.display()

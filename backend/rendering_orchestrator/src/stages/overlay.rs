@@ -8,10 +8,10 @@
 use std::path::PathBuf;
 
 use mupdf::pdf::PdfDocument;
-use mupdf::Document;
 use rendering_output::compile::compile_typst_source;
 use rendering_output::dto::RenderBlock;
 use rendering_output::source_builder::build_typst_book_overlay_source;
+use rendering_reader::{open_document, open_pdf_document};
 use rendering_writer::overlay::show_pdf_page;
 
 use crate::bundle::RenderBundle;
@@ -65,9 +65,9 @@ pub fn merge_overlay_onto_base(bundle: &RenderBundle, overlay_pdf_path: &std::pa
         .as_deref()
         .ok_or_else(|| anyhow::anyhow!("bundle missing overlay_page_specs"))?;
     let overlay_doc =
-        PdfDocument::open(overlay_pdf_path).map_err(|e| anyhow::anyhow!("open overlay: {e}"))?;
+        open_pdf_document(overlay_pdf_path).map_err(|e| anyhow::anyhow!("open overlay: {e}"))?;
     let mut base_doc =
-        PdfDocument::open(bundle.source_pdf.as_path()).map_err(|e| anyhow::anyhow!("open base: {e}"))?;
+        open_pdf_document(bundle.source_pdf.as_path()).map_err(|e| anyhow::anyhow!("open base: {e}"))?;
     for (overlay_page_idx, spec) in specs.iter().enumerate() {
         show_pdf_page(
             &mut base_doc,
@@ -85,7 +85,7 @@ pub fn run_overlay(bundle: &RenderBundle) -> anyhow::Result<(PathBuf, f64)> {
     let compiled = run_overlay_compile(bundle, OVERLAY_COMPILE_STEM, OVERLAY_COMPILE_PHASE)?;
     let mut base_doc = merge_overlay_onto_base(bundle, &compiled)?;
     let source_doc =
-        Document::open(bundle.source_pdf.as_path()).map_err(|e| anyhow::anyhow!("open render: {e}"))?;
+        open_document(bundle.source_pdf.as_path()).map_err(|e| anyhow::anyhow!("open render: {e}"))?;
     let save_elapsed = run_save_range(bundle, &source_doc, &mut base_doc)?;
     Ok((bundle.output_pdf.to_path_buf(), save_elapsed))
 }

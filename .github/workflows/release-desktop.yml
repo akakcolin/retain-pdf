@@ -1010,16 +1010,12 @@ jobs:
             find "$app_root/Contents/Resources/backend/python" \
               -type f \( -perm -111 -o -name '*.so' -o -name '*.dylib' \) -print
           )
-          # Tauri resource bundling dereferences directory symlinks, so
-          # Versions/Current is gone in the packaged app; resolve the concrete
-          # version directory exactly like desktop/src-tauri/src/python_runtime.rs.
+          # Tauri resource bundling dereferences directory symlinks, so the
+          # `Versions/Current` symlink is gone in the packaged app; pick the
+          # concrete version directory like desktop/src-tauri/src/python_runtime.rs.
           py_root="$app_root/Contents/Resources/backend/python"
           framework_versions="$py_root/Frameworks/Python.framework/Versions"
-          if [ -d "$framework_versions/Current" ]; then
-            PYTHONHOME="$framework_versions/Current"
-          else
-            PYTHONHOME="$(ls -d "$framework_versions"/[0-9]* | sort -V | tail -n 1)"
-          fi
+          PYTHONHOME="$(ls -d "$framework_versions"/[0-9]* | sort -V | tail -n 1)"
           py_lib="$(basename "$PYTHONHOME")"
           export PYTHONHOME
           export PYTHONPATH="$py_root/lib/python$py_lib/site-packages:$PYTHONHOME/lib/python$py_lib/lib-dynload"

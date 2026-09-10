@@ -8,11 +8,9 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
-use mupdf::pdf::PdfDocument;
-use mupdf::Document;
 use rendering_core::rect::Rect as CoreRect;
 use rendering_core::source_cleanup::hit_test::RectTuple;
-use rendering_reader::PdfDocument as _;
+use rendering_reader::{open_document, open_pdf_document, PdfDocument as _};
 use rendering_writer::background::fill::RgbPixmap;
 use rendering_writer::background::redaction::page_specs;
 use rendering_writer::background::stage::build_clean_background_pdf;
@@ -31,7 +29,7 @@ pub fn run_background(bundle: &RenderBundle) -> anyhow::Result<PathBuf> {
     let source_pdf = bundle.source_pdf.as_path();
     let cleaned_bg_path = cleaned_background_path(bundle);
 
-    let doc = Document::open(source_pdf).map_err(|e| anyhow::anyhow!("open render: {e}"))?;
+    let doc = open_document(source_pdf).map_err(|e| anyhow::anyhow!("open render: {e}"))?;
     let page = doc
         .load_page(0)
         .map_err(|e| anyhow::anyhow!("load_page 0: {e}"))?;
@@ -58,7 +56,7 @@ pub fn run_background(bundle: &RenderBundle) -> anyhow::Result<PathBuf> {
     let (translated_pages, formula_source_pages) =
         page_specs::apply_page_specs_and_fills(&bundle.translated_pages, &redaction_specs, &fill_map);
 
-    let mut pdf = PdfDocument::open(source_pdf).map_err(|e| anyhow::anyhow!("open edit: {e}"))?;
+    let mut pdf = open_pdf_document(source_pdf).map_err(|e| anyhow::anyhow!("open edit: {e}"))?;
     build_clean_background_pdf(
         &doc,
         &mut pdf,

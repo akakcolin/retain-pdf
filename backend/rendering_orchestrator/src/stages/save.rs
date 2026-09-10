@@ -7,6 +7,7 @@ use std::time::Instant;
 
 use mupdf::pdf::PdfDocument;
 use mupdf::Document;
+use rendering_reader::{open_document, open_pdf_document};
 use rendering_writer::background::toc::copy_toc;
 use rendering_writer::save::{delete_trailer_id, save_optimized};
 
@@ -15,9 +16,9 @@ use crate::bundle::RenderBundle;
 /// `(output_pdf, save_elapsed_seconds)` — the save elapsed mirrors
 /// `book_renderer.py`'s `background_save_elapsed_seconds` timing.
 pub fn run_save(bundle: &RenderBundle, compiled_pdf_path: &Path) -> anyhow::Result<(PathBuf, f64)> {
-    let source_doc = Document::open(bundle.source_pdf.as_path()).map_err(|e| anyhow::anyhow!("open render: {e}"))?;
+    let source_doc = open_document(bundle.source_pdf.as_path()).map_err(|e| anyhow::anyhow!("open render: {e}"))?;
     let mut compiled_pdf =
-        PdfDocument::open(compiled_pdf_path).map_err(|e| anyhow::anyhow!("open compiled: {e}"))?;
+        open_pdf_document(compiled_pdf_path).map_err(|e| anyhow::anyhow!("open compiled: {e}"))?;
     let save_elapsed = run_save_range(bundle, &source_doc, &mut compiled_pdf)?;
     Ok((bundle.output_pdf.to_path_buf(), save_elapsed))
 }

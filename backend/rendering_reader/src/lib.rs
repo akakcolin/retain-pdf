@@ -9,9 +9,11 @@ pub mod error;
 pub mod image_placements;
 pub mod indent;
 pub mod pdf_document;
+pub mod pdf_open;
 pub mod reader;
 pub mod render;
 pub mod text_spans;
 
 pub use error::PdfError;
 pub use pdf_document::PdfDocument;
+pub use pdf_open::{open_document, open_pdf_document};

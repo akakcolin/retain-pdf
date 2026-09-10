@@ -221,8 +221,7 @@ pub trait PdfDocument {
 
 impl PdfDocument for mupdf::Document {
     fn open(path: &Path) -> Result<Self, PdfError> {
-        // mupdf 只在 unix/wasi 上为 Path 实现 AsRef<FilePath>，Windows 目标必须传字符串。
-        Document::open(&path.to_string_lossy().into_owned()).map_err(PdfError::from)
+        crate::pdf_open::open_document(path).map_err(PdfError::from)
     }
 
     fn page_count(&self) -> Result<i64, PdfError> {

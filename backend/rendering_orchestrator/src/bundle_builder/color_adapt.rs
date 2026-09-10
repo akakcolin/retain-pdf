@@ -27,7 +27,7 @@ use rendering_core::rect::Rect;
 use rendering_core::semantics::is_title_like_block;
 use rendering_core::source_cleanup::hit_test::RectTuple;
 use rendering_core::typography::geometry::cover_bbox;
-use rendering_reader::PdfDocument as _;
+use rendering_reader::{open_document, PdfDocument as _};
 use rendering_writer::background::color_adapt::{
     build_text_page_for_extraction, extract_span_dicts_from_text_page, title_foreground_color_from_pixmap,
     SpanEntry,
@@ -392,7 +392,7 @@ pub fn apply_adaptive_overlay_colors_batch(
     source_pdf_path: &Path,
     pages: &BTreeMap<i64, Vec<Value>>,
 ) -> Result<BTreeMap<i64, Vec<Value>>> {
-    let doc = Document::open(source_pdf_path).map_err(|e| {
+    let doc = open_document(source_pdf_path).map_err(|e| {
         anyhow!(
             "open source pdf for color adaptation {}: {e}",
             source_pdf_path.display()

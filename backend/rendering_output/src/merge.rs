@@ -11,9 +11,9 @@
 
 use std::path::Path;
 
-use mupdf::pdf::PdfDocument;
 use mupdf::Error;
 
+use rendering_reader::open_pdf_document;
 use rendering_writer::overlay::overlay_page;
 use rendering_writer::save::{delete_trailer_id, save_atomic};
 
@@ -28,8 +28,8 @@ pub fn overlay_pdf_pages(
     output_pdf_path: &Path,
     source_page_indices: Option<&[i32]>,
 ) -> Result<usize, Error> {
-    let mut source = PdfDocument::open(source_pdf_path)?;
-    let overlay = PdfDocument::open(overlay_pdf_path)?;
+    let mut source = open_pdf_document(source_pdf_path)?;
+    let overlay = open_pdf_document(overlay_pdf_path)?;
     let source_pages = source.page_count()?;
     let overlay_pages = overlay.page_count()?;
 

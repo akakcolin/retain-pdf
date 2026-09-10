@@ -18,6 +18,7 @@ use mupdf::pdf::PdfDocument;
 use rendering_core::source_cleanup::hit_test::RectTuple;
 use rendering_core::source_cleanup::planning::planner::plan_source_cleanup;
 use rendering_reader::cleanup_context::build_planning_contexts;
+use rendering_reader::{open_document, open_pdf_document};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
@@ -109,7 +110,7 @@ pub fn build_render_source_pdf(
             let translated_pages_i64 = pages_to_i64(translated_pages);
             let protected_pages_i64 = pages_to_i64(protected_pages);
             let mut doc = open_writer(&render_source_path)?;
-            let reader = mupdf::Document::open(render_source_path.as_path())
+            let reader = open_document(render_source_path.as_path())
                 .map_err(|e| anyhow!("open reader {}: {e}", render_source_path.display()))?;
             let indices: Vec<i64> = translated_pages.keys().map(|idx| *idx as i64).collect();
             let contexts = build_planning_contexts(&reader, &indices);
@@ -176,7 +177,7 @@ pub fn build_render_source_pdf(
 
 /// Open an editable document (writer type) for an in-place prep step.
 fn open_writer(path: &Path) -> Result<PdfDocument> {
-    PdfDocument::open(path).map_err(|e| anyhow!("open {}: {e}", path.display()))
+    open_pdf_document(path).map_err(|e| anyhow!("open {}: {e}", path.display()))
 }
 
 /// `delete_trailer_id` + `save_atomic` (the bridge's deterministic edit save).

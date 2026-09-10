@@ -8,10 +8,10 @@
 use std::path::Path;
 
 use mupdf::pdf::PdfDocument as PdfWriter;
-use mupdf::{Document, Size};
+use mupdf::Size;
 
 use rendering_reader::render::render_page_clip_rgb;
-use rendering_reader::PdfDocument as PdfReader;
+use rendering_reader::{open_document, open_pdf_document, PdfDocument as PdfReader};
 use rendering_writer::image_compress::encode_jpeg_rgb;
 use rendering_writer::overlay::show_pdf_page;
 use rendering_writer::save::save_optimized;
@@ -32,7 +32,7 @@ pub fn render_page_jpeg(
     dpi: u32,
     quality: u8,
 ) -> anyhow::Result<()> {
-    let doc = Document::open(input).map_err(|e| anyhow::anyhow!("open {}: {e}", input.display()))?;
+    let doc = open_document(input).map_err(|e| anyhow::anyhow!("open {}: {e}", input.display()))?;
     let count = PdfReader::page_count(&doc)?;
     if page_index < 0 || page_index >= count {
         anyhow::bail!("page out of range: {}/{}", page_index + 1, count);
@@ -65,7 +65,7 @@ pub fn repair_pdf(
     max_pages: u32,
 ) -> anyhow::Result<()> {
     let doc =
-        PdfWriter::open(input).map_err(|e| anyhow::anyhow!("open {}: {e}", input.display()))?;
+        open_pdf_document(input).map_err(|e| anyhow::anyhow!("open {}: {e}", input.display()))?;
     let pages = doc.page_count()?;
     if max_pages > 0 && pages as u64 > max_pages as u64 {
         anyhow::bail!("pdf page count {pages} exceeds limit {max_pages}");
@@ -84,9 +84,9 @@ pub fn repair_pdf(
 /// `side_by_side_pdf.py::build_side_by_side_pdf` — original page on the left,
 /// translated page on the right, one output page per max page count.
 pub fn side_by_side(source: &Path, translated: &Path, output: &Path) -> anyhow::Result<()> {
-    let source_doc = PdfWriter::open(source)
+    let source_doc = open_pdf_document(source)
         .map_err(|e| anyhow::anyhow!("open {}: {e}", source.display()))?;
-    let translated_doc = PdfWriter::open(translated)
+    let translated_doc = open_pdf_document(translated)
         .map_err(|e| anyhow::anyhow!("open {}: {e}", translated.display()))?;
     let src_count = source_doc.page_count()?;
     let trl_count = translated_doc.page_count()?;

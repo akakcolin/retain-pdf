@@ -14,7 +14,7 @@
 use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
-use rendering_reader::PdfDocument;
+use rendering_reader::{open_document, PdfDocument};
 use serde_json::{json, Value};
 
 pub const EXTRACT_TEXT_LAYER_STAGE_SCHEMA_VERSION: &str = "extract_text_layer.stage.v1";
@@ -72,7 +72,7 @@ struct TextLayerBlock {
 /// (mirrors the python `try: get_text("dict") except: {"blocks": []}`); a page
 /// whose geometry cannot be read propagates (python raises on `page.rect`).
 pub fn build_text_layer_document(source_pdf: &Path) -> Result<Value> {
-    let doc = mupdf::Document::open(source_pdf)
+    let doc = open_document(source_pdf)
         .map_err(|e| anyhow!("text layer open {}: {e}", source_pdf.display()))?;
     let page_count = PdfDocument::page_count(&doc).map_err(|e| anyhow!("page_count: {e}"))?;
     let mut pages_out = Vec::with_capacity(page_count.max(0) as usize);

@@ -5,8 +5,7 @@
 
 use std::path::PathBuf;
 
-use mupdf::pdf::PdfDocument;
-use mupdf::Document;
+use rendering_reader::{open_document, open_pdf_document};
 use rendering_writer::overlay::build_dual_doc_pages;
 
 use crate::bundle::RenderBundle;
@@ -20,7 +19,7 @@ pub fn run_dual(bundle: &RenderBundle) -> anyhow::Result<(PathBuf, f64)> {
     let compiled = run_overlay_compile(bundle, DUAL_TRANSLATED_STEM, DUAL_TRANSLATED_PHASE)?;
     let translated_side = merge_overlay_onto_base(bundle, &compiled)?;
     let source_doc =
-        PdfDocument::open(bundle.source_pdf.as_path()).map_err(|e| anyhow::anyhow!("open render: {e}"))?;
+        open_pdf_document(bundle.source_pdf.as_path()).map_err(|e| anyhow::anyhow!("open render: {e}"))?;
     let mut dual = build_dual_doc_pages(
         &source_doc,
         &translated_side,
@@ -29,7 +28,7 @@ pub fn run_dual(bundle: &RenderBundle) -> anyhow::Result<(PathBuf, f64)> {
     )
     .map_err(|e| anyhow::anyhow!("build_dual_doc_pages: {e}"))?;
     let source_read =
-        Document::open(bundle.source_pdf.as_path()).map_err(|e| anyhow::anyhow!("open render: {e}"))?;
+        open_document(bundle.source_pdf.as_path()).map_err(|e| anyhow::anyhow!("open render: {e}"))?;
     let save_elapsed = run_save_pages(bundle, &source_read, &mut dual, bundle.start_page, bundle.end_page)?;
     Ok((bundle.output_pdf.to_path_buf(), save_elapsed))
 }

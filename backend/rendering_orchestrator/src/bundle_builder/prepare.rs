@@ -19,6 +19,7 @@ use rendering_core::payload::block_seed_metrics::block_metrics;
 use rendering_core::payload::prepare::{
     build_page_metrics, prepare_render_payloads_by_page, PageMetrics,
 };
+use rendering_reader::open_document;
 use serde_json::Value;
 
 use super::render_source::normalize_source_cleanup_strategy;
@@ -101,7 +102,7 @@ fn resolve_first_line_indent_lookup(
         return Ok(Some(BTreeMap::new()));
     }
 
-    let doc = mupdf::Document::open(source_pdf_path).map_err(|e| {
+    let doc = open_document(source_pdf_path).map_err(|e| {
         anyhow!(
             "open source pdf for first-line-indent detection {}: {e}",
             source_pdf_path.display()

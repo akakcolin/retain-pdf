@@ -24,7 +24,6 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use anyhow::{anyhow, Result};
-use mupdf::Document;
 use rendering_core::item::Item;
 use rendering_core::layout::body_font_unify::resolve_book_body_font_target;
 use rendering_core::layout::collision::mark_adjacent_collision_risk;
@@ -35,7 +34,7 @@ use rendering_core::payload::body_policy_facade::{
 };
 use rendering_core::payload::emit::emit_render_blocks;
 use rendering_core::rect::round_to_digits;
-use rendering_reader::PdfDocument as _;
+use rendering_reader::{open_document, PdfDocument as _};
 use serde_json::{json, Map, Value};
 
 const TITLE_FIT_GAP_PT: f64 = 2.0;
@@ -56,7 +55,7 @@ pub fn build_render_page_specs(
     translated_pages: &BTreeMap<i64, Vec<Value>>,
     font_unify_mode: &str,
 ) -> Result<Value> {
-    let doc = Document::open(source_pdf_path).map_err(|e| {
+    let doc = open_document(source_pdf_path).map_err(|e| {
         anyhow!(
             "open render source pdf for page specs {}: {e}",
             source_pdf_path.display()

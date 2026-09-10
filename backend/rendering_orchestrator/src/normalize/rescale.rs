@@ -7,7 +7,7 @@ use std::path::Path;
 
 use anyhow::{anyhow, Result};
 use rendering_core::util::py_round;
-use rendering_reader::PdfDocument;
+use rendering_reader::{open_document, PdfDocument};
 use serde_json::{json, Value};
 
 /// `scale_bbox` — unchanged unless a 4-number list, then round(x*s, 3) each.
@@ -48,7 +48,7 @@ fn scale_point_list(value: &Value, scale_x: f64, scale_y: f64) -> Value {
 /// `rescale_document_geometry_to_pdf` — in-place rescale of the normalized
 /// document's page/block/line/span/source/metadata geometry to the source PDF.
 pub fn rescale_document_geometry_to_pdf(document: &mut Value, source_pdf_path: &Path) -> Result<()> {
-    let doc = mupdf::Document::open(source_pdf_path)
+    let doc = open_document(source_pdf_path)
         .map_err(|e| anyhow!("rescale open {}: {e}", source_pdf_path.display()))?;
     let pdf_count = PdfDocument::page_count(&doc).map_err(|e| anyhow!("page_count: {e}"))?;
     let Some(pages) = document.get_mut("pages").and_then(Value::as_array_mut) else {

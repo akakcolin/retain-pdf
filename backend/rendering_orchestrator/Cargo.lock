@@ -1144,6 +1144,7 @@ dependencies = [
  "mupdf",
  "pathdiff",
  "rendering_core",
+ "rendering_reader",
  "rendering_writer",
  "serde",
  "serde_json",
