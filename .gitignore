@@ -47,7 +47,6 @@ VERSION
 # Local environment (ExFAT USB drive repo)
 .venv311/
 ._*
-desktop/build/icon.icns
 desktop/app/
 /package-lock.json
 
