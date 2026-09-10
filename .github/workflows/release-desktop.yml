@@ -285,7 +285,8 @@ jobs:
             librsvg2-dev \
             libsoup-3.0-dev \
             libjavascriptcoregtk-4.1-dev \
-            libarchive-tools
+            libarchive-tools \
+            patchelf
 
       - name: Assemble bundled Typst runtime
         shell: bash
@@ -349,6 +350,22 @@ jobs:
           rsync -aL --delete \
             --exclude '__pycache__' \
             "$python_root"/ "$bundle_root"/
+          # actions/python-versions bakes its build-time prefix into RUNPATH on
+          # every ELF it ships, e.g. `/opt/hostedtoolcache/Python/3.11.16/x64/lib`
+          # on bin/python3.11. That directory is gone on a user machine, so even
+          # though libpython3.11.so.1.0 is bundled right next to it python exits
+          # 127 with "cannot open shared object file". Rewrite those entries to
+          # an $ORIGIN-relative path so the runtime stays relocatable.
+          while IFS= read -r -d '' elf; do
+            rpath="$(patchelf --print-rpath "$elf" 2>/dev/null || true)"
+            case "$rpath" in
+              *"$python_root/lib"*) ;;
+              *) continue ;;
+            esac
+            rel="$(python3 -c 'import os, sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$bundle_root/lib" "$(dirname "$elf")")"
+            if [ "$rel" = "." ]; then target='$ORIGIN'; else target="\$ORIGIN/$rel"; fi
+            patchelf --set-rpath "${rpath//$python_root\/lib/$target}" "$elf"
+          done < <(find "$bundle_root" -type f -print0)
           "$bundle_root/bin/python3" -m pip install --upgrade pip
           py_minor="$("$bundle_root/bin/python3" - <<'PY'
           import sys
@@ -367,7 +384,7 @@ jobs:
             { ldd "$bundle_root/bin/python3" 2>/dev/null; \
               find "$bundle_root" \( -name '*.so' -o -name '*.dylib' \) -type f -print0 | \
               xargs -0 -I{} sh -c 'ldd "{}" 2>/dev/null || true'; } | \
-            rg '/Library/Frameworks/Python\\.framework|/opt/homebrew/Cellar|/usr/local/Cellar|/usr/local/opt/' || true \
+            rg '/Library/Frameworks/Python\\.framework|/opt/homebrew/Cellar|/usr/local/Cellar|/usr/local/opt/|/opt/hostedtoolcache/' || true \
           )"
           if [ -n "$bad_refs" ]; then
             echo "Bundled Linux Python runtime still contains host-specific library references:" >&2
