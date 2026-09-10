@@ -9,6 +9,8 @@ use crate::db::Db;
 use crate::error::AppError;
 use crate::models::api::EntityFavorite;
 
+use super::text_match::needle_hit;
+
 /// 单个 needle 归一化后的长度下限。与 mentions.rs 的 MIN_NEEDLE_CHARS 一致:
 /// 太短的字面(尤其 ASCII)在任意文本里误命中率高。
 const MIN_NEEDLE_CHARS: usize = 2;
@@ -72,41 +74,6 @@ pub fn list_entity_favorites(
         }
     }
     Ok(items)
-}
-
-/// 归一化后做边界感知匹配。纯 ASCII needle 要求命中处两侧不是 ASCII 字母数字
-/// (否则 "ai" 会命中 "said"/"email");CJK 邻居不是 ASCII 字母数字,所以
-/// "GNN模型"/"用AI中台" 正常命中。含 CJK 的 needle 直接 contains(中文无词边界)。
-fn needle_hit(hay: &str, needle: &str) -> bool {
-    if needle.is_empty() {
-        return false;
-    }
-    let hay = normalize_entity_name(hay);
-    if hay.is_empty() {
-        return false;
-    }
-    if !needle.is_ascii() {
-        return hay.contains(needle);
-    }
-    hay.match_indices(needle).any(|(start, _)| {
-        let end = start + needle.len();
-        let before_ok = hay[..start]
-            .chars()
-            .next_back()
-            .is_none_or(|ch| !ch.is_ascii_alphanumeric());
-        // 右侧:CJK/空格/标点都算边界;英文复数 -s(GNNs/CNNs)也算,
-        // 但 "aids" 这类词内命中仍被拦下。
-        let rest = &hay[end..];
-        let after_ok = match rest.chars().next() {
-            None => true,
-            Some('s') => rest[1..]
-                .chars()
-                .next()
-                .is_none_or(|ch| !ch.is_ascii_alphanumeric()),
-            Some(ch) => !ch.is_ascii_alphanumeric(),
-        };
-        before_ok && after_ok
-    })
 }
 
 #[cfg(test)]

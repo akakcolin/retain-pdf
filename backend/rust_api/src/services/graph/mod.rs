@@ -7,6 +7,7 @@ pub mod mentions;
 pub mod neighborhood;
 pub mod page;
 pub mod seed;
+pub(crate) mod text_match;
 
 use std::path::Path;
 

@@ -6,8 +6,8 @@ use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 
 use crate::models::domain::{build_job_id, now_iso};
 use crate::models::api::{
-    BlockEntityLink, EntityMention, EntityPageEvidence, EntityPageRecord, EntityRecord,
-    EntitySummary, NewEntity, NewEntityRelation, RelatedEntity,
+    BlockEntityLink, DocumentBlockEntity, EntityMention, EntityPageEvidence, EntityPageRecord,
+    EntityRecord, EntitySummary, NewEntity, NewEntityRelation, RelatedEntity,
 };
 
 use super::Db;
@@ -409,6 +409,80 @@ impl Db {
                 now_iso(),
             ],
         )?;
+        Ok(())
+    }
+
+    /// 某文档的全部 block 证据行(relink 差量对比用)。
+    pub fn list_document_block_entities(&self, document_id: &str) -> Result<Vec<DocumentBlockEntity>> {
+        let conn = self.connect()?;
+        let mut stmt = conn.prepare(
+            "SELECT entity_id, block_id, source FROM block_entities
+             WHERE document_id = ?1 ORDER BY entity_id, block_id",
+        )?;
+        let rows = stmt.query_map(params![document_id], |row| {
+            Ok(DocumentBlockEntity {
+                entity_id: row.get(0)?,
+                block_id: row.get(1)?,
+                source: row.get(2)?,
+            })
+        })?;
+        let mut items = Vec::new();
+        for row in rows {
+            items.push(row?);
+        }
+        Ok(items)
+    }
+
+    /// relink 差量落库:删一批 (entity, block)、插一批新证据,同一事务内完成。
+    ///
+    /// 刻意不做「全删全插」:block_entities 的 rowid 参与 `entity_page_evidence_sig`,
+    /// 重插会换 rowid → 全库概念页集体 stale。差量让未变行的 rowid 保持原样。
+    pub fn apply_document_relink(
+        &self,
+        document_id: &str,
+        inserts: &[BlockEntityLink],
+        deletes: &[(String, String)],
+    ) -> Result<()> {
+        if inserts.is_empty() && deletes.is_empty() {
+            return Ok(());
+        }
+        let mut conn = self.connect()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        {
+            let mut delete_stmt = tx.prepare(
+                "DELETE FROM block_entities
+                 WHERE document_id = ?1 AND entity_id = ?2 AND block_id = ?3",
+            )?;
+            for (entity_id, block_id) in deletes {
+                delete_stmt.execute(params![document_id, entity_id, block_id])?;
+            }
+        }
+        {
+            let mut insert_stmt = tx.prepare(
+                r#"
+                INSERT INTO block_entities (
+                    document_id, entity_id, page_idx, block_id, job_id,
+                    surface_form, snippet, confidence, source, created_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                ON CONFLICT(document_id, page_idx, block_id, entity_id) DO NOTHING
+                "#,
+            )?;
+            for link in inserts {
+                insert_stmt.execute(params![
+                    link.document_id,
+                    link.entity_id,
+                    link.page_idx,
+                    link.block_id,
+                    link.job_id,
+                    link.surface_form,
+                    link.snippet,
+                    link.confidence,
+                    link.source,
+                    now_iso(),
+                ])?;
+            }
+        }
+        tx.commit()?;
         Ok(())
     }
 
@@ -1398,4 +1472,78 @@ mod tests {
         db.clear_entity_page_edit(&entity.entity_id).expect("clear");
         assert!(db.list_entity_page_bodies().expect("empty2").is_empty());
     }
+
+    fn read_extracted_at(db: &Db, document_id: &str) -> Option<String> {
+        db.connect()
+            .expect("connect")
+            .query_row(
+                "SELECT graph_extracted_at FROM documents WHERE document_id = ?1",
+                params![document_id],
+                |row| row.get(0),
+            )
+            .expect("stamp")
+    }
+
+    fn link(document_id: &str, entity_id: &str, block_id: &str) -> BlockEntityLink {
+        BlockEntityLink {
+            document_id: document_id.to_string(),
+            entity_id: entity_id.to_string(),
+            page_idx: 0,
+            block_id: block_id.to_string(),
+            job_id: "job-1".to_string(),
+            surface_form: "GNN".to_string(),
+            snippet: "gnn".to_string(),
+            confidence: 1.0,
+            source: "glossary".to_string(),
+        }
+    }
+
+    #[test]
+    fn apply_document_relink_diffs_and_leaves_relations_and_stamp_untouched() {
+        let fs = TestDbFs::new("relink");
+        let db = fs.db();
+        seed_document(&db, "doc-1");
+        let entity = db
+            .upsert_entity(&new_entity("GNN", "term", &[]))
+            .expect("entity");
+        let other = db
+            .upsert_entity(&new_entity("BERT", "term", &[]))
+            .expect("other");
+        db.link_block_entity(&link("doc-1", &entity.entity_id, "p001-b0000"))
+            .expect("seed link");
+        db.add_entity_relation(&NewEntityRelation {
+            from_entity_id: entity.entity_id.clone(),
+            to_entity_id: other.entity_id.clone(),
+            relation_type: "related".to_string(),
+            confidence: 0.9,
+            explanation: String::new(),
+            source_document_id: "doc-1".to_string(),
+            source_block_id: "p001-b0000".to_string(),
+        })
+        .expect("relation");
+        db.mark_document_graph_extracted("doc-1").expect("stamp");
+        let stamp = read_extracted_at(&db, "doc-1");
+        assert!(stamp.is_some());
+
+        db.apply_document_relink(
+            "doc-1",
+            &[link("doc-1", &other.entity_id, "p001-b0001")],
+            &[(entity.entity_id.clone(), "p001-b0000".to_string())],
+        )
+        .expect("relink");
+
+        let rows = db.list_document_block_entities("doc-1").expect("rows");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].entity_id, other.entity_id);
+        assert_eq!(rows[0].block_id, "p001-b0001");
+        // 关系与抽取状态不动
+        assert_eq!(
+            db.related_entities(&entity.entity_id, None, 10)
+                .expect("related")
+                .len(),
+            1
+        );
+        assert_eq!(read_extracted_at(&db, "doc-1"), stamp);
+    }
+
 }

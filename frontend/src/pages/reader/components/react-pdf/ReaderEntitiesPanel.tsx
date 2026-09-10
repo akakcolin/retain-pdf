@@ -26,6 +26,7 @@ import {
   listEntityMentions,
   listEntityRelations,
   listPendingEntityPages,
+  relinkDocumentGraph,
   revertEntityPage,
   saveEntityPage,
   type EntityBacklink,
@@ -462,6 +463,26 @@ export function ReaderEntitiesPanel({
     }
   }, [docId, busy, backToList, loadList]);
 
+  const runRelink = useCallback(async () => {
+    if (!docId || busy) return;
+    setBusy("relink");
+    setError("");
+    setNotice("");
+    try {
+      const result = await relinkDocumentGraph(docId);
+      setNotice(
+        `重新关联：${result.entities} 个实体 · 新增 ${result.mentions} 条 · 移除 ${result.removed} 条`,
+      );
+      backToList();
+      await loadList(docId);
+    } catch (err) {
+      setError(errText(err, "重新关联失败"));
+    } finally {
+      setBusy("");
+    }
+  }, [docId, busy, backToList, loadList]);
+
+
   const runExtract = useCallback(async () => {
     if (!docId || busy) return;
     if (!hasChatModelApiKey()) {
@@ -510,6 +531,15 @@ export function ReaderEntitiesPanel({
         onClick={() => void runLink()}
       >
         {busy === "link" ? "扫描中…" : "扫描术语表"}
+      </button>
+      <button
+        type="button"
+        className="reader-notes-export"
+        disabled={!docId || Boolean(busy) || Boolean(batch)}
+        title="用边界匹配器重扫本文档，修正误挂/漏挂，不调用模型"
+        onClick={() => void runRelink()}
+      >
+        {busy === "relink" ? "关联中…" : "重新关联"}
       </button>
       <button
         type="button"

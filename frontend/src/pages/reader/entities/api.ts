@@ -66,6 +66,7 @@ export type EntityNeighborhood = {
 };
 
 export type LinkGraphResult = { document_id: string; entities: number; mentions: number };
+export type RelinkGraphResult = LinkGraphResult & { removed: number };
 export type ExtractGraphResult = LinkGraphResult & { relations: number };
 
 export type ExtractCredentials = { apiKey?: string; baseUrl?: string; model?: string };
@@ -296,6 +297,14 @@ export function linkDocumentGraph(documentId: string): Promise<LinkGraphResult> 
     buildApiEndpoint(API_PREFIX, `documents/${encodeURIComponent(documentId)}/graph/link`),
     {},
   ) as Promise<LinkGraphResult>;
+}
+
+/** 零 LLM 成本：用边界匹配器重扫本文档，差量修正误挂/漏挂。 */
+export function relinkDocumentGraph(documentId: string): Promise<RelinkGraphResult> {
+  return submitJson(
+    buildApiEndpoint(API_PREFIX, `documents/${encodeURIComponent(documentId)}/graph/relink`),
+    {},
+  ) as Promise<RelinkGraphResult>;
 }
 
 /** 一次 LLM 调用抽实体 + 关系；凭据留空由服务端回落启动配置。 */

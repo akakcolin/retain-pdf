@@ -7,12 +7,12 @@ use crate::models::api::{
     EntityNeighborhoodQuery, EntityNeighborhoodView, EntityRecord, EntityRelationListView,
     ExtractDocumentGraphView, LinkDocumentGraphView, ListBacklinksQuery, ListEntitiesQuery,
     ListEntityFavoritesQuery, ListMentionsQuery, ListPendingPagesQuery, ListRelationsQuery,
-    PendingEntityPageListView,
+    PendingEntityPageListView, RelinkDocumentGraphView,
 };
 use crate::services::ai::llm::Chat;
 use crate::services::graph::extract::extract_document_graph;
 use crate::services::graph::favorites::list_entity_favorites;
-use crate::services::graph::mentions::link_document_mentions;
+use crate::services::graph::mentions::{link_document_mentions, relink_document_mentions};
 use crate::services::graph::neighborhood::entity_neighborhood;
 use crate::services::graph::page::{list_entity_backlinks, list_pending_entity_pages};
 use crate::services::graph::seed::seed_entities_from_glossaries;
@@ -135,6 +135,24 @@ pub fn link_document_graph_view(
         document_id: document_id.to_string(),
         entities,
         mentions,
+    })
+}
+
+/// 零 token 重新关联:用边界感知匹配器重扫本文档,差量修正证据。
+/// 不重建术语表(那是「扫描术语表」的职责),不碰抽取产物与关系。
+pub fn relink_document_graph_view(
+    deps: &GraphDeps<'_>,
+    document_id: &str,
+) -> Result<RelinkDocumentGraphView, AppError> {
+    deps.db
+        .get_document(document_id)
+        .map_err(|_| AppError::not_found(format!("document not found: {document_id}")))?;
+    let outcome = relink_document_mentions(deps, document_id)?;
+    Ok(RelinkDocumentGraphView {
+        document_id: document_id.to_string(),
+        entities: outcome.entities,
+        mentions: outcome.mentions,
+        removed: outcome.removed,
     })
 }
 

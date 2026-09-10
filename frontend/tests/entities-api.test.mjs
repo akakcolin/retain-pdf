@@ -24,6 +24,7 @@ const {
   listPendingEntityPages,
   getEntityNeighborhood,
   linkDocumentGraph,
+  relinkDocumentGraph,
   extractDocumentGraph,
   getEntityPage,
   generateEntityPage,
@@ -212,6 +213,20 @@ test("linkDocumentGraph POST 到 graph/link 并解包统计", async () => {
   assert.equal(result.mentions, 7);
   assert.equal(calls[0].init.method, "POST");
   assert.equal(new URL(calls[0].url).pathname, "/api/v1/documents/doc-1/graph/link");
+});
+
+test("relinkDocumentGraph POST 到 graph/relink，空 body 并解包差量", async () => {
+  const calls = stubFetch({
+    code: 0,
+    message: "ok",
+    data: { document_id: "doc-1", entities: 3, mentions: 2, removed: 1 },
+  });
+  const result = await relinkDocumentGraph("doc-1");
+  assert.equal(result.mentions, 2);
+  assert.equal(result.removed, 1);
+  assert.equal(calls[0].init.method, "POST");
+  assert.equal(new URL(calls[0].url).pathname, "/api/v1/documents/doc-1/graph/relink");
+  assert.deepEqual(JSON.parse(calls[0].init.body), {}, "零 token 路径不带凭据");
 });
 
 test("extractDocumentGraph 上传凭据：Bearer 前缀剥掉、空字段不带", async () => {

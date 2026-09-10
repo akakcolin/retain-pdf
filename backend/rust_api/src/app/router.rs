@@ -154,6 +154,10 @@ pub fn build_app(state: AppState) -> Router {
             post(graph::extract_document_graph_route),
         )
         .route(
+            "/api/v1/documents/:document_id/graph/relink",
+            post(graph::relink_document_graph_route),
+        )
+        .route(
             "/api/v1/documents/:document_id/graph/pending-pages",
             get(graph::list_pending_pages_route),
         )

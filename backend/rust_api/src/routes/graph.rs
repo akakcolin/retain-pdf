@@ -8,7 +8,8 @@ use crate::models::api::{
     EntityRecord, EntityRelationListView, ExtractDocumentGraphView, ExtractGraphRequest,
     GenerateEntityPageRequest, LinkDocumentGraphView, ListBacklinksQuery, ListEntitiesQuery,
     ListEntityFavoritesQuery, ListMentionsQuery, ListPendingPagesQuery, ListRelationsQuery,
-    PendingEntityPageListView, SaveEntityPageRequest,
+    PendingEntityPageListView, RelinkDocumentGraphView,
+    SaveEntityPageRequest,
 };
 use crate::routes::common::{build_graph_route_deps, ok_json};
 use crate::services::ai_api::{resolve_llm_credentials, LlmClient};
@@ -18,7 +19,7 @@ use crate::services::graph::page::{
 use crate::services::graph_api::{
     extract_document_graph_view, get_entity_view, link_document_graph_view, list_backlinks_view,
     list_entities_view, list_entity_favorites_view, list_mentions_view, list_pending_pages_view,
-    list_relations_view, neighborhood_view,
+    list_relations_view, neighborhood_view, relink_document_graph_view,
 };
 use crate::AppState;
 
@@ -169,6 +170,18 @@ pub async fn link_document_graph_route(
 ) -> Result<Json<ApiResponse<LinkDocumentGraphView>>, AppError> {
     let deps = build_graph_route_deps(&state);
     Ok(ok_json(link_document_graph_view(&deps.graph, &document_id)?))
+}
+
+/// 零 token 重新关联:用边界感知匹配器重扫本文档,差量修正误挂/漏挂。
+pub async fn relink_document_graph_route(
+    State(state): State<AppState>,
+    AxumPath(document_id): AxumPath<String>,
+) -> Result<Json<ApiResponse<RelinkDocumentGraphView>>, AppError> {
+    let deps = build_graph_route_deps(&state);
+    Ok(ok_json(relink_document_graph_view(
+        &deps.graph,
+        &document_id,
+    )?))
 }
 
 pub async fn extract_document_graph_route(

@@ -701,6 +701,74 @@ async fn generate_entity_page_409s_on_manual_edit_without_overwrite() {
 }
 
 #[tokio::test]
+async fn relink_document_graph_route_404s_for_unknown_document() {
+    let state = test_state("graph-relink-404");
+    let app = build_app(state);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/documents/doc-nope/graph/relink")
+                .header("X-API-Key", "test-key")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn relink_document_graph_route_runs_without_llm_key() {
+    // 零 token 路径:只带平台 X-API-Key 也应 200,不碰凭据解析。
+    let state = test_state("graph-relink");
+    let app = build_app(state.clone());
+    seed_document(&state);
+    state
+        .db
+        .set_document_active_job("doc-1", "job-1", None)
+        .expect("active job");
+    let normalized = state
+        .config
+        .output_root
+        .join("job-1/ocr/normalized/document.v1.json");
+    std::fs::create_dir_all(normalized.parent().expect("parent")).expect("normalized dir");
+    std::fs::write(
+        &normalized,
+        serde_json::json!({
+            "pages": [{"page_index": 0, "blocks": [
+                {"block_id": "p001-b0000", "text": "gnn models are useful"},
+            ]}]
+        })
+        .to_string(),
+    )
+    .expect("write document");
+    state
+        .db
+        .upsert_entity(&entity("GNN", "method"))
+        .expect("entity");
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/documents/doc-1/graph/relink")
+                .header("X-API-Key", "test-key")
+                .header("content-type", "application/json")
+                .body(Body::from("{}"))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let payload = read_json(response).await;
+    assert_eq!(payload["data"]["document_id"], serde_json::json!("doc-1"));
+    assert_eq!(payload["data"]["entities"], serde_json::json!(1));
+    assert_eq!(payload["data"]["mentions"], serde_json::json!(1));
+    assert_eq!(payload["data"]["removed"], serde_json::json!(0));
+}
+
+#[tokio::test]
 async fn graph_routes_require_api_key() {
     let state = test_state("graph-auth");
     let app = build_app(state);
@@ -777,6 +845,20 @@ async fn graph_routes_require_api_key() {
                 .uri("/api/v1/entities/ent-x/page")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"body_md":"x"}"#))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/documents/doc-1/graph/relink")
+                .header("content-type", "application/json")
+                .body(Body::from("{}"))
                 .expect("request"),
         )
         .await

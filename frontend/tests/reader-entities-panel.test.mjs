@@ -1311,3 +1311,117 @@ test("面板：图谱返回详情清除图谱态", async () => {
     root.unmount();
   });
 });
+
+// POST /graph/relink 走零 token 路径，body 必须是空对象；GET 列表照常。
+function stubRelinkFetch({ fail = false } = {}) {
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const method = (init.method || "GET").toUpperCase();
+    const path = new URL(url).pathname;
+    calls.push({ url, method, init });
+    let data = { items: [ENTITY] };
+    let status = 200;
+    if (path.endsWith("/graph/relink") && method === "POST") {
+      if (fail) {
+        status = 500;
+        data = {};
+      } else {
+        data = { document_id: "doc-1", entities: 3, mentions: 2, removed: 1 };
+      }
+    }
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      headers: { get: () => "application/json" },
+      json: async () => ({ code: 0, message: "ok", data }),
+      // submitJson 走 resp.text() 解信封（不是 resp.json()），桩必须给正文。
+      text: async () => JSON.stringify({ code: 0, message: "ok", data }),
+    };
+  };
+  return calls;
+}
+
+// 工具栏按钮在 docId 解析完成前是 disabled 的，点击前必须等它可用。
+async function waitRelinkButton(host) {
+  await waitFor(() => {
+    const button = findByText(host, "重新关联");
+    return Boolean(button) && !button.disabled;
+  }, "重新关联按钮可用");
+}
+
+test("面板：重新关联无需模型 Key 也发 POST 并显示差量计数", async () => {
+  const calls = stubRelinkFetch();
+  clearChatKey();
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await act(async () => {
+    root.render(createElement(ReaderEntitiesPanel, {
+      open: true,
+      jobId: "job-1",
+      documentId: "doc-1",
+      onClose() {},
+      onJumpPage() {},
+    }));
+  });
+
+  await waitRelinkButton(host);
+  const listCallsBefore = calls.filter(
+    (c) => c.method === "GET" && c.url.includes("document_id=doc-1"),
+  ).length;
+
+  await act(async () => {
+    findByText(host, "重新关联").dispatchEvent(
+      new dom.window.MouseEvent("click", { bubbles: true }),
+    );
+  });
+
+  await waitFor(() => host.textContent.includes("重新关联：3 个实体"), "计数提示");
+  assert.ok(host.textContent.includes("新增 2 条"), "新增计数");
+  assert.ok(host.textContent.includes("移除 1 条"), "移除计数");
+  const post = calls.find((c) => c.method === "POST");
+  assert.ok(post, "发出 POST");
+  assert.equal(new URL(post.url).pathname, "/api/v1/documents/doc-1/graph/relink");
+  assert.deepEqual(JSON.parse(post.init.body), {}, "无凭据空 body");
+  assert.equal(
+    calls.filter((c) => c.method === "GET" && c.url.includes("document_id=doc-1")).length,
+    listCallsBefore + 1,
+    "列表重取一次",
+  );
+
+  await act(async () => {
+    root.unmount();
+  });
+});
+
+test("面板：重新关联失败给出错误提示", async () => {
+  stubRelinkFetch({ fail: true });
+  clearChatKey();
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await act(async () => {
+    root.render(createElement(ReaderEntitiesPanel, {
+      open: true,
+      jobId: "job-1",
+      documentId: "doc-1",
+      onClose() {},
+      onJumpPage() {},
+    }));
+  });
+
+  await waitRelinkButton(host);
+  await act(async () => {
+    findByText(host, "重新关联").dispatchEvent(
+      new dom.window.MouseEvent("click", { bubbles: true }),
+    );
+  });
+
+  await waitFor(() => host.textContent.includes("提交失败"), "错误提示");
+
+  await act(async () => {
+    root.unmount();
+  });
+});

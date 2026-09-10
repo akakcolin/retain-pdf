@@ -197,6 +197,27 @@ pub struct LinkDocumentGraphView {
     pub mentions: usize,
 }
 
+/// block_entities 的一行(relink 差量对比用)。
+#[derive(Debug, Clone)]
+pub struct DocumentBlockEntity {
+    pub entity_id: String,
+    pub block_id: String,
+    /// glossary | extraction | manual
+    pub source: String,
+}
+
+/// POST /api/v1/documents/:id/graph/relink 的结果。
+#[derive(Debug, Serialize)]
+pub struct RelinkDocumentGraphView {
+    pub document_id: String,
+    /// relink 后本文档仍命中的实体数
+    pub entities: usize,
+    /// 本次新增的证据条数
+    pub mentions: usize,
+    /// 本次移除的证据条数
+    pub removed: usize,
+}
+
 /// POST /api/v1/documents/:id/graph/extract 的结果。
 #[derive(Debug, Serialize)]
 pub struct ExtractDocumentGraphView {
